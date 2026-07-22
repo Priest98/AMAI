@@ -12,7 +12,7 @@ services:
       - key: PORT
         value: 3001
       - key: FRONTEND_URL
-        sync: false
+        value: https://marketing-os-eight-virid.vercel.app
       - key: DATABASE_URL
         sync: false
       - key: JWT_SECRET
