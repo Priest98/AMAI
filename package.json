@@ -12,5 +12,8 @@
     "vercel-build": "npm run build --workspace=@marketing-os/database && npm run build --workspace=web",
     "lint": "npm run lint --workspaces --if-present",
     "test": "npm run test --workspaces --if-present"
+  },
+  "optionalDependencies": {
+    "lightningcss-linux-x64-gnu": "^1.29.0"
   }
 }
