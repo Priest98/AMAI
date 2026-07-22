@@ -1,0 +1,278 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String               @id @default(dbgenerated("(gen_random_uuid())::text"))
+  email        String               @unique
+  passwordHash String
+  name         String?
+  createdAt    DateTime             @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime             @default(now()) @updatedAt @db.Timestamptz(6)
+  memberships  OrganizationMember[]
+}
+
+model Organization {
+  id        String               @id @default(dbgenerated("(gen_random_uuid())::text"))
+  name      String
+  slug      String               @unique
+  ownerId   String
+  createdAt DateTime             @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime             @default(now()) @updatedAt @db.Timestamptz(6)
+  brands    Brand[]
+  members   OrganizationMember[]
+}
+
+model OrganizationMember {
+  id             String       @id @default(dbgenerated("(gen_random_uuid())::text"))
+  userId         String
+  organizationId String
+  role           Role         @default(VIEWER)
+  createdAt      DateTime     @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime     @default(now()) @updatedAt @db.Timestamptz(6)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([userId, organizationId])
+  @@index([userId], map: "idx_org_member_user")
+}
+
+model Brand {
+  id                  String                @id @default(dbgenerated("(gen_random_uuid())::text"))
+  name                String
+  organizationId      String
+  logo                String?
+  colors              String?
+  timezone            String                @default("UTC")
+  industry            String?
+  createdAt           DateTime              @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime              @default(now()) @updatedAt @db.Timestamptz(6)
+  aiUsageLogs         AiUsageLog[]
+  autoPilotConfigs    AutoPilotConfig?
+  organization        Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  growthSettings      GrowthSettings?
+  mediaAssets         MediaAsset[]
+  mediaFolders        MediaFolder[]
+  PendingCommentReply PendingCommentReply[]
+  posts               Post[]
+  socialAccounts      SocialAccount[]
+}
+
+model GrowthSettings {
+  id                String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  brandId           String   @unique
+  autoReplyComments Boolean  @default(false)
+  commentTone       String   @default("friendly")
+  optimizeHashtags  Boolean  @default(true)
+  createdAt         DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+  brand             Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model SocialAccount {
+  id                String           @id @default(dbgenerated("(gen_random_uuid())::text"))
+  brandId           String
+  platform          Platform
+  platformAccountId String
+  accessToken       String
+  refreshToken      String?
+  tokenExpiresAt    DateTime?        @db.Timestamptz(6)
+  metadata          String?
+  status            ConnectionStatus @default(CONNECTED)
+  createdAt         DateTime         @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime         @default(now()) @updatedAt @db.Timestamptz(6)
+  postTargets       PostTarget[]
+  brand             Brand            @relation(fields: [brandId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([platform, platformAccountId])
+  @@index([brandId], map: "idx_social_account_brand")
+}
+
+model MediaFolder {
+  id        String        @id @default(dbgenerated("(gen_random_uuid())::text"))
+  brandId   String
+  name      String
+  parentId  String?
+  createdAt DateTime      @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime      @default(now()) @updatedAt @db.Timestamptz(6)
+  assets    MediaAsset[]
+  brand     Brand         @relation(fields: [brandId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  parent    MediaFolder?  @relation("FolderHierarchy", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  children  MediaFolder[] @relation("FolderHierarchy")
+}
+
+model MediaAsset {
+  id        String       @id @default(dbgenerated("(gen_random_uuid())::text"))
+  brandId   String
+  folderId  String?
+  url       String
+  type      MediaType
+  size      Int
+  mimeType  String
+  createdAt DateTime     @default(now()) @db.Timestamptz(6)
+  brand     Brand        @relation(fields: [brandId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  folder    MediaFolder? @relation(fields: [folderId], references: [id], onUpdate: NoAction)
+  postMedia PostMedia[]
+}
+
+model Post {
+  id               String       @id @default(dbgenerated("(gen_random_uuid())::text"))
+  brandId          String
+  caption          String
+  status           PostStatus   @default(DRAFT)
+  scheduledAt      DateTime?    @db.Timestamptz(6)
+  optimalScore     Int?
+  peakTimeDetected Boolean      @default(false)
+  createdAt        DateTime     @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime     @default(now()) @updatedAt @db.Timestamptz(6)
+  brand            Brand        @relation(fields: [brandId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  media            PostMedia[]
+  targets          PostTarget[]
+
+  @@index([brandId, status], map: "idx_post_brand_status")
+  @@index([scheduledAt], map: "idx_post_scheduled")
+}
+
+model PostTarget {
+  id                       String          @id @default(dbgenerated("(gen_random_uuid())::text"))
+  postId                   String
+  socialAccountId          String
+  platform                 Platform
+  platformSpecificMetadata String?
+  status                   TargetStatus    @default(PENDING)
+  post                     Post            @relation(fields: [postId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  socialAccount            SocialAccount   @relation(fields: [socialAccountId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  publishingLogs           PublishingLog[]
+
+  @@unique([postId, socialAccountId])
+}
+
+model PostMedia {
+  postId  String
+  assetId String
+  asset   MediaAsset @relation(fields: [assetId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  post    Post       @relation(fields: [postId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([postId, assetId])
+}
+
+model AiUsageLog {
+  id         String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  brandId    String
+  userId     String
+  prompt     String
+  completion String
+  tokensUsed Int
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+  brand      Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model PublishingLog {
+  id           String       @id @default(dbgenerated("(gen_random_uuid())::text"))
+  postTargetId String
+  status       TargetStatus
+  errorMessage String?
+  apiResponse  String?
+  createdAt    DateTime     @default(now()) @db.Timestamptz(6)
+  postTarget   PostTarget   @relation(fields: [postTargetId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model AutoPilotConfig {
+  id                 String         @id @default(dbgenerated("(gen_random_uuid())::text"))
+  brandId            String         @unique
+  googleRefreshToken String
+  driveFolderId      String
+  postingFrequency   String
+  postsPerDay        Int            @default(5)
+  targetPlatforms    String
+  defaultTone        String
+  webhookToken       String?        @unique
+  isActive           Boolean        @default(false)
+  createdAt          DateTime       @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime       @default(now()) @updatedAt @db.Timestamptz(6)
+  brand              Brand          @relation(fields: [brandId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  syncLogs           DriveSyncLog[]
+}
+
+model DriveSyncLog {
+  id           String          @id @default(dbgenerated("(gen_random_uuid())::text"))
+  configId     String
+  googleFileId String
+  status       TargetStatus
+  postId       String?
+  createdAt    DateTime        @default(now()) @db.Timestamptz(6)
+  config       AutoPilotConfig @relation(fields: [configId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([configId, googleFileId])
+}
+
+model PendingCommentReply {
+  id                  String      @id @default(dbgenerated("(gen_random_uuid())::text"))
+  brandId             String
+  platform            Platform
+  platformAccountId   String
+  originalPostId      String
+  originalCommentId   String
+  originalCommentText String
+  aiGeneratedReply    String
+  status              ReplyStatus @default(PENDING)
+  createdAt           DateTime    @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime    @default(now()) @updatedAt @db.Timestamptz(6)
+  brand               Brand       @relation(fields: [brandId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([brandId, status], map: "idx_pending_reply_brand_status")
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  MANAGER
+  CREATOR
+  EDITOR
+  CLIENT
+  VIEWER
+}
+
+enum Platform {
+  INSTAGRAM
+  FACEBOOK
+  X
+  LINKEDIN
+  TIKTOK
+}
+
+enum ConnectionStatus {
+  CONNECTED
+  EXPIRED
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+}
+
+enum PostStatus {
+  DRAFT
+  NEEDS_APPROVAL
+  SCHEDULED
+  PUBLISHED
+  FAILED
+}
+
+enum TargetStatus {
+  PENDING
+  PUBLISHED
+  FAILED
+}
+
+enum ReplyStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PUBLISHED
+}
