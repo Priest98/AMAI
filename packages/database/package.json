@@ -3,15 +3,13 @@
   "version": "1.0.0",
   "main": "index.ts",
   "dependencies": {
-    "@prisma/client": "^5.14.0"
-  },
-  "devDependencies": {
+    "@prisma/client": "^5.14.0",
     "prisma": "^5.14.0",
     "typescript": "^5.0.0"
   },
   "scripts": {
-    "build": "prisma generate",
-    "db:generate": "prisma generate",
-    "db:push": "prisma db push"
+    "build": "npx prisma generate",
+    "db:generate": "npx prisma generate",
+    "db:push": "npx prisma db push"
   }
 }
