@@ -2,6 +2,7 @@ services:
   - type: web
     name: marketing-os-api
     env: node
+    plan: free
     rootDir: .
     buildCommand: npm run build --workspace=api
     startCommand: node apps/api/dist/main.js
