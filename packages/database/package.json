@@ -10,6 +10,7 @@
     "typescript": "^5.0.0"
   },
   "scripts": {
+    "build": "prisma generate",
     "db:generate": "prisma generate",
     "db:push": "prisma db push"
   }
