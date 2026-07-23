@@ -24,8 +24,9 @@ COPY packages/database ./packages/database
 COPY packages/shared-types ./packages/shared-types
 COPY apps/api ./apps/api
 
-# Generate Prisma Client & Build NestJS API
+# Generate Prisma Client, build compiled shared-types JS, & Build NestJS API
 RUN npx prisma generate --schema=packages/database/prisma/schema.prisma
+RUN npm run build --workspace=@marketing-os/shared-types
 RUN npm run build --workspace=api
 
 # --- Production Runner Stage ---
