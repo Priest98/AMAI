@@ -4,7 +4,7 @@ services:
     env: node
     plan: free
     rootDir: .
-    buildCommand: PRISMA_GENERATE_SKIP_AUTO_INSTALL=true npx prisma generate --schema=packages/database/prisma/schema.prisma && npm run build --workspace=api
+    buildCommand: ./node_modules/.bin/prisma generate --schema=packages/database/prisma/schema.prisma && npm run build --workspace=api
     startCommand: node apps/api/dist/main.js
     envVars:
       - key: NODE_ENV
@@ -22,7 +22,7 @@ services:
       - key: ENCRYPTION_SECRET
         value: 5a1ca061279c05a87c74f6a0339b8bc34440c3f000ef2f668e680b6171857cd4
       - key: GEMINI_API_KEY
-        value: AIzaSyAb8RN6LLUbyrydQVMotKQjdNZwJRsLOKBGM1fKf1vMOmtKKFWw
+        value: AIzaSyAb8RN6LLUbyrydQVMotKQjdNZwJRsLOKBGM1fKf1vMOmtKQjdNZwJRsLOKBGM1fKf1vMOmtKKFWw
       - key: WEBHOOK_VERIFY_TOKEN
         value: marketing-os-webhook-token
       - key: REDIS_HOST
