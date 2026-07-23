@@ -9,6 +9,10 @@
   "dependencies": {
     "prisma": "5.22.0"
   },
+  "overrides": {
+    "prisma": "5.22.0",
+    "@prisma/client": "5.22.0"
+  },
   "scripts": {
     "dev": "npm run dev --workspaces --if-present",
     "build": "npm run build --workspace=@marketing-os/database --if-present && npm run build --workspaces --if-present",

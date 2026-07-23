@@ -8,8 +8,8 @@
     "typescript": "^5.0.0"
   },
   "scripts": {
-    "build": "npx prisma generate",
-    "db:generate": "npx prisma generate",
-    "db:push": "npx prisma db push"
+    "build": "prisma generate",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push"
   }
 }
