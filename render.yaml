@@ -4,7 +4,7 @@ services:
     env: node
     plan: free
     rootDir: .
-    buildCommand: npx prisma generate --schema=packages/database/prisma/schema.prisma && npm run build --workspace=api
+    buildCommand: npx prisma@5.22.0 generate --schema=packages/database/prisma/schema.prisma && npm run build --workspace=api
     startCommand: node apps/api/dist/main.js
     envVars:
       - key: NODE_ENV
