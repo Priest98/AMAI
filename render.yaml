@@ -4,26 +4,26 @@ services:
     env: node
     plan: free
     rootDir: .
-    buildCommand: npm run build --workspace=@marketing-os/database && npm run build --workspace=api
+    buildCommand: npx prisma generate --schema=packages/database/prisma/schema.prisma && npm run build --workspace=api
     startCommand: node apps/api/dist/main.js
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
-        value: 3001
+        value: "3001"
       - key: FRONTEND_URL
         value: https://marketing-os-eight-virid.vercel.app
       - key: DATABASE_URL
-        sync: false
+        value: postgresql://postgres:Morenikeji%402005@db.rkgasmafgosubwfejzqu.supabase.co:5432/postgres
       - key: JWT_SECRET
-        sync: false
+        value: 5ac58c09a8db1961dae84ae79a7bacd3d5925a9fbf7fa81434c0ee180e2078a6
       - key: ENCRYPTION_SECRET
-        sync: false
+        value: 5a1ca061279c05a87c74f6a0339b8bc34440c3f000ef2f668e680b6171857cd4
       - key: GEMINI_API_KEY
-        sync: false
+        value: AIzaSyAb8RN6LLUbyrydQVMotKQjdNZwJRsLOKBGM1fKf1vMOmtKKFWw
       - key: WEBHOOK_VERIFY_TOKEN
         value: marketing-os-webhook-token
       - key: REDIS_HOST
-        sync: false
+        value: localhost
       - key: REDIS_PORT
         value: "6379"
