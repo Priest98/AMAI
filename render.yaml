@@ -4,13 +4,15 @@ services:
     env: node
     plan: free
     rootDir: .
-    buildCommand: npx prisma@5.22.0 generate --schema=packages/database/prisma/schema.prisma && npm run build --workspace=api
+    buildCommand: PRISMA_GENERATE_SKIP_AUTO_INSTALL=true npx prisma generate --schema=packages/database/prisma/schema.prisma && npm run build --workspace=api
     startCommand: node apps/api/dist/main.js
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
         value: "3001"
+      - key: PRISMA_GENERATE_SKIP_AUTO_INSTALL
+        value: "true"
       - key: FRONTEND_URL
         value: https://marketing-os-eight-virid.vercel.app
       - key: DATABASE_URL
