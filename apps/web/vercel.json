@@ -1,4 +1,4 @@
 {
-  "buildCommand": "npm run build --workspace=@marketing-os/database && npm run build --workspace=@marketing-os/shared-types && npm run build --workspace=web",
+  "buildCommand": "next build",
   "outputDirectory": ".next"
 }

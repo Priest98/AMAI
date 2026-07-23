@@ -1,8 +1,20 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { PendingCommentReplyResponse } from '@marketing-os/shared-types';
 import { Check, X, MessageSquare, Share2, ExternalLink, RefreshCw, AlertCircle } from 'lucide-react';
+
+export interface PendingCommentReplyResponse {
+  id: string;
+  brandId: string;
+  platform: string;
+  platformAccountId: string;
+  originalPostId: string;
+  originalCommentId: string;
+  originalCommentText: string;
+  aiGeneratedReply: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'PUBLISHED';
+  createdAt: string;
+}
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
