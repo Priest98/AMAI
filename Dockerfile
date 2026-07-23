@@ -1,5 +1,5 @@
 # =============================================================
-# Marketing OS API — Production Dockerfile
+# Marketing OS API — Production Dockerfile (Root Copy)
 # =============================================================
 
 FROM node:20-alpine AS builder

@@ -3,7 +3,8 @@ services:
     name: marketing-os-api
     env: docker
     plan: free
-    dockerfilePath: apps/api/Dockerfile
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
     envVars:
       - key: NODE_ENV
         value: production
