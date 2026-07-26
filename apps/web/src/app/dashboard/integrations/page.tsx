@@ -244,12 +244,12 @@ export default function ConnectedAccountsPage() {
       {/* Header Title */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Connected Accounts & Workspace</h1>
-          <p className="text-xs text-zinc-400 mt-1">Manage your Google Drive, Instagram, and TikTok OAuth connections for automated AI publishing.</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Integrations Hub</h1>
+          <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">Manage your Google Drive, Instagram, and TikTok OAuth connections for automated AI publishing.</p>
         </div>
 
-        <div className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs text-zinc-300">
-          <ShieldCheck className="h-4 w-4 text-emerald-400" />
+        <div className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200/60 dark:border-white/10 text-xs text-slate-700 dark:text-zinc-300 font-semibold">
+          <ShieldCheck className="h-4 w-4 text-emerald-500" />
           <span>AES-256 Encrypted Token Storage Active</span>
         </div>
       </div>
@@ -263,59 +263,59 @@ export default function ConnectedAccountsPage() {
             exit={{ opacity: 0, y: -10 }}
             className={`p-4 rounded-2xl text-xs font-semibold flex items-center justify-between border ${
               message.type === 'success'
-                ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20'
-                : 'bg-rose-500/10 text-rose-300 border-rose-500/20'
+                ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20'
+                : 'bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/20'
             }`}
           >
             <span>{message.text}</span>
-            <button onClick={() => setMessage(null)} className="text-zinc-400 hover:text-white">
+            <button onClick={() => setMessage(null)} className="text-slate-400 hover:text-slate-900 dark:hover:text-white">
               <X className="h-4 w-4" />
             </button>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Cards Grid */}
+      {/* Workspace Platform Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         
         {/* Card 1: Google Drive */}
         <motion.div
           whileHover={{ y: -4 }}
-          className="glass-panel glass-panel-hover p-6 rounded-3xl border border-white/10 flex flex-col justify-between space-y-6 shadow-xl relative overflow-hidden group"
+          className="soft-card soft-card-hover p-6 rounded-[22px] flex flex-col justify-between space-y-6 shadow-md relative overflow-hidden group"
         >
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                <div className="h-12 w-12 rounded-2xl bg-blue-500 text-white flex items-center justify-center font-black text-lg shadow-lg shadow-blue-500/20">
+                <div className="h-12 w-12 rounded-full bg-blue-500 text-white flex items-center justify-center font-black text-lg shadow-md shadow-blue-500/20">
                   GD
                 </div>
                 <div>
-                  <h3 className="font-bold text-white tracking-tight">Google Drive</h3>
-                  <p className="text-[11px] text-zinc-400">Auto-Pilot Media Sync</p>
+                  <h3 className="font-bold text-slate-900 dark:text-white tracking-tight">Google Drive</h3>
+                  <p className="text-[11px] text-slate-500 dark:text-zinc-400">Auto-Pilot Media Sync</p>
                 </div>
               </div>
               <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider border ${
                 googleDrive?.status === 'CONNECTED'
-                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                  : 'bg-zinc-800 text-zinc-400 border-white/5'
+                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                  : 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 border-slate-200/60 dark:border-white/5'
               }`}>
                 {googleDrive?.status === 'CONNECTED' ? 'Connected' : 'Not Connected'}
               </span>
             </div>
 
             {googleDrive?.status === 'CONNECTED' ? (
-              <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-2.5 text-xs">
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200/60 dark:border-white/10 space-y-2 text-xs">
                 <div className="flex justify-between items-center">
-                  <span className="text-zinc-400">Google Drive Folder:</span>
-                  <span className="font-bold text-blue-400 font-mono">/{googleDrive.folderName || 'content'}</span>
+                  <span className="text-slate-500 dark:text-zinc-400">Google Drive Folder:</span>
+                  <span className="font-bold text-blue-600 dark:text-blue-400 font-mono">/{googleDrive.folderName || 'content'}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-zinc-400">Last Synced:</span>
-                  <span className="font-bold text-emerald-400">2 minutes ago</span>
+                  <span className="text-slate-500 dark:text-zinc-400">Last Synced:</span>
+                  <span className="font-bold text-emerald-600 dark:text-emerald-400">2 minutes ago</span>
                 </div>
               </div>
             ) : (
-              <p className="text-xs text-zinc-400 leading-relaxed">
+              <p className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">
                 Connect your Google Drive to automatically sync photos & videos into your AutoPilot publishing queue.
               </p>
             )}
@@ -326,13 +326,13 @@ export default function ConnectedAccountsPage() {
               <div className="flex space-x-2">
                 <button
                   onClick={openFolderModal}
-                  className="flex-1 py-2.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 text-xs font-bold rounded-xl transition border border-blue-500/20"
+                  className="flex-1 py-2.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 text-xs font-bold rounded-xl transition border border-blue-500/20"
                 >
                   Change Folder
                 </button>
                 <button
                   onClick={handleDisconnectDrive}
-                  className="py-2.5 px-4 bg-white/5 hover:bg-rose-500/10 text-zinc-400 hover:text-rose-400 text-xs font-bold rounded-xl transition border border-white/5"
+                  className="py-2.5 px-4 bg-slate-100 dark:bg-white/5 hover:bg-rose-500/10 text-slate-600 dark:text-zinc-400 hover:text-rose-600 text-xs font-bold rounded-xl transition border border-slate-200/60 dark:border-white/5"
                 >
                   Disconnect
                 </button>
@@ -340,7 +340,7 @@ export default function ConnectedAccountsPage() {
             ) : (
               <button
                 onClick={() => handleConnect('google')}
-                className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition shadow-lg shadow-blue-500/25 border border-white/20 flex items-center justify-center space-x-2"
+                className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition shadow-md shadow-blue-500/25 flex items-center justify-center space-x-2"
               >
                 <Zap className="h-4 w-4" />
                 <span>Connect Google Drive</span>
@@ -352,43 +352,43 @@ export default function ConnectedAccountsPage() {
         {/* Card 2: Instagram */}
         <motion.div
           whileHover={{ y: -4 }}
-          className="glass-panel glass-panel-hover p-6 rounded-3xl border border-white/10 flex flex-col justify-between space-y-6 shadow-xl relative overflow-hidden group"
+          className="soft-card soft-card-hover p-6 rounded-[22px] flex flex-col justify-between space-y-6 shadow-md relative overflow-hidden group"
         >
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                <div className="h-12 w-12 rounded-2xl bg-gradient-to-tr from-amber-400 via-rose-500 to-purple-600 text-white flex items-center justify-center font-black text-lg shadow-lg shadow-rose-500/20">
+                <div className="h-12 w-12 rounded-full bg-gradient-to-tr from-amber-400 via-rose-500 to-purple-600 text-white flex items-center justify-center font-black text-lg shadow-md shadow-rose-500/20">
                   IG
                 </div>
                 <div>
-                  <h3 className="font-bold text-white tracking-tight">Instagram</h3>
-                  <p className="text-[11px] text-zinc-400">
+                  <h3 className="font-bold text-slate-900 dark:text-white tracking-tight">Instagram</h3>
+                  <p className="text-[11px] text-slate-500 dark:text-zinc-400">
                     {instagramAccounts.length > 0 ? `Connected as ${instagramAccounts[0].handle}` : 'Reels & Post Publishing'}
                   </p>
                 </div>
               </div>
               <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider border ${
                 instagramAccounts.length > 0
-                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                  : 'bg-zinc-800 text-zinc-400 border-white/5'
+                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                  : 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 border-slate-200/60 dark:border-white/5'
               }`}>
                 {instagramAccounts.length > 0 ? 'Connected' : 'Not Connected'}
               </span>
             </div>
 
             {instagramAccounts.length > 0 ? (
-              <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-2.5 text-xs">
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200/60 dark:border-white/10 space-y-2 text-xs">
                 <div className="flex justify-between items-center">
-                  <span className="text-zinc-400">Token Health:</span>
-                  <span className="font-bold text-emerald-400">Expires in 45 days (Auto-Refresh)</span>
+                  <span className="text-slate-500 dark:text-zinc-400">Token Health:</span>
+                  <span className="font-bold text-emerald-600 dark:text-emerald-400">Expires in 45 days (Auto-Refresh)</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-zinc-400">Last Published:</span>
-                  <span className="font-bold text-zinc-200">Yesterday</span>
+                  <span className="text-slate-500 dark:text-zinc-400">Last Published:</span>
+                  <span className="font-bold text-slate-700 dark:text-zinc-200">Yesterday</span>
                 </div>
               </div>
             ) : (
-              <p className="text-xs text-zinc-400 leading-relaxed">
+              <p className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">
                 Connect your Instagram Creator account to publish reels, posts, and auto-reply to comments.
               </p>
             )}
@@ -396,7 +396,7 @@ export default function ConnectedAccountsPage() {
 
           <button
             onClick={() => handleConnect('instagram')}
-            className="w-full py-2.5 bg-gradient-to-r from-rose-500 to-purple-600 hover:opacity-95 text-white text-xs font-bold rounded-xl transition shadow-lg shadow-rose-500/25 border border-white/20 flex items-center justify-center space-x-2"
+            className="w-full py-2.5 bg-gradient-to-r from-rose-500 to-purple-600 hover:opacity-95 text-white text-xs font-bold rounded-xl transition shadow-md shadow-rose-500/25 flex items-center justify-center space-x-2"
           >
             <Zap className="h-4 w-4" />
             <span>{instagramAccounts.length > 0 ? 'Add Account' : 'Connect Instagram'}</span>
@@ -406,43 +406,43 @@ export default function ConnectedAccountsPage() {
         {/* Card 3: TikTok */}
         <motion.div
           whileHover={{ y: -4 }}
-          className="glass-panel glass-panel-hover p-6 rounded-3xl border border-white/10 flex flex-col justify-between space-y-6 shadow-xl relative overflow-hidden group"
+          className="soft-card soft-card-hover p-6 rounded-[22px] flex flex-col justify-between space-y-6 shadow-md relative overflow-hidden group"
         >
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                <div className="h-12 w-12 rounded-2xl bg-zinc-900 border border-white/10 text-white flex items-center justify-center font-black text-lg shadow-lg">
+                <div className="h-12 w-12 rounded-full bg-slate-900 text-white flex items-center justify-center font-black text-lg shadow-md">
                   TK
                 </div>
                 <div>
-                  <h3 className="font-bold text-white tracking-tight">TikTok</h3>
-                  <p className="text-[11px] text-zinc-400">
+                  <h3 className="font-bold text-slate-900 dark:text-white tracking-tight">TikTok</h3>
+                  <p className="text-[11px] text-slate-500 dark:text-zinc-400">
                     {tiktokAccounts.length > 0 ? `Connected as ${tiktokAccounts[0].handle}` : 'Creator & Video Uploads'}
                   </p>
                 </div>
               </div>
               <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider border ${
                 tiktokAccounts.length > 0
-                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                  : 'bg-zinc-800 text-zinc-400 border-white/5'
+                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                  : 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 border-slate-200/60 dark:border-white/5'
               }`}>
                 {tiktokAccounts.length > 0 ? 'Connected' : 'Not Connected'}
               </span>
             </div>
 
             {tiktokAccounts.length > 0 ? (
-              <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-2.5 text-xs">
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200/60 dark:border-white/10 space-y-2 text-xs">
                 <div className="flex justify-between items-center">
-                  <span className="text-zinc-400">Last Sync:</span>
-                  <span className="font-bold text-emerald-400">5 minutes ago</span>
+                  <span className="text-slate-500 dark:text-zinc-400">Last Sync:</span>
+                  <span className="font-bold text-emerald-600 dark:text-emerald-400">5 minutes ago</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-zinc-400">Permissions:</span>
-                  <span className="font-bold text-zinc-200">Granted (video.publish)</span>
+                  <span className="text-slate-500 dark:text-zinc-400">Permissions:</span>
+                  <span className="font-bold text-slate-700 dark:text-zinc-200">Granted (video.publish)</span>
                 </div>
               </div>
             ) : (
-              <p className="text-xs text-zinc-400 leading-relaxed">
+              <p className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">
                 Connect your TikTok Creator account to schedule video uploads and monitor engagement.
               </p>
             )}
@@ -450,9 +450,9 @@ export default function ConnectedAccountsPage() {
 
           <button
             onClick={() => handleConnect('tiktok')}
-            className="w-full py-2.5 bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-bold rounded-xl transition shadow-lg border border-white/20 flex items-center justify-center space-x-2"
+            className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-950 text-xs font-bold rounded-xl transition shadow-md flex items-center justify-center space-x-2"
           >
-            <Zap className="h-4 w-4 text-zinc-950" />
+            <Zap className="h-4 w-4" />
             <span>{tiktokAccounts.length > 0 ? 'Add Account' : 'Connect TikTok'}</span>
           </button>
         </motion.div>
@@ -460,58 +460,58 @@ export default function ConnectedAccountsPage() {
       </div>
 
       {/* Multi-Account Manager Section */}
-      <div className="glass-panel p-6 rounded-3xl border border-white/10 space-y-6 shadow-xl">
+      <div className="soft-card p-6 rounded-[22px] space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-bold text-white tracking-tight">Connected Social Profiles</h2>
-            <p className="text-xs text-zinc-400 mt-1">Active social accounts linked to your workspace for AutoPilot publishing.</p>
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">Connected Social Profiles</h2>
+            <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">Active social accounts linked to your workspace for AutoPilot publishing.</p>
           </div>
         </div>
 
         {loading ? (
-          <p className="text-sm text-zinc-500 py-6 text-center">Loading accounts...</p>
+          <p className="text-sm text-slate-400 py-6 text-center">Loading accounts...</p>
         ) : accounts.length === 0 ? (
-          <div className="text-center py-10 border border-dashed border-white/10 rounded-2xl space-y-2">
-            <p className="text-sm text-zinc-400 font-medium">No active social accounts connected yet.</p>
-            <p className="text-xs text-zinc-500">Click one of the Connect buttons above to get started.</p>
+          <div className="text-center py-10 border border-dashed border-slate-200 dark:border-white/10 rounded-2xl space-y-2">
+            <p className="text-sm text-slate-500 dark:text-zinc-400 font-semibold">No active social accounts connected yet.</p>
+            <p className="text-xs text-slate-400">Click one of the Connect buttons above to get started.</p>
           </div>
         ) : (
-          <div className="divide-y divide-white/10">
+          <div className="divide-y divide-slate-200/60 dark:divide-white/10">
             {accounts.map(acc => (
               <div key={acc.id} className="py-4 flex items-center justify-between">
                 <div className="flex items-center space-x-4">
-                  <div className={`h-10 w-10 rounded-xl flex items-center justify-center font-bold text-xs ${
+                  <div className={`h-10 w-10 rounded-full flex items-center justify-center font-bold text-xs ${
                     acc.platform === 'INSTAGRAM'
                       ? 'bg-gradient-to-tr from-amber-400 to-purple-600 text-white'
-                      : 'bg-zinc-900 border border-white/10 text-white'
+                      : 'bg-slate-900 text-white'
                   }`}>
                     {acc.platform.substring(0, 2)}
                   </div>
                   <div>
                     <div className="flex items-center space-x-2">
-                      <p className="text-sm font-bold text-white tracking-tight">{acc.handle}</p>
+                      <p className="text-sm font-bold text-slate-900 dark:text-white tracking-tight">{acc.handle}</p>
                       <button
                         onClick={() => {
                           setRenameAccountId(acc.id);
                           setNewHandle(acc.handle);
                         }}
-                        className="text-xs text-zinc-500 hover:text-zinc-300 transition"
+                        className="text-xs text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 transition"
                         title="Rename"
                       >
                         <Edit2 className="h-3.5 w-3.5" />
                       </button>
                     </div>
-                    <p className="text-xs text-zinc-400">{acc.platform} • {acc.accountType || 'Creator Account'}</p>
+                    <p className="text-xs text-slate-500 dark:text-zinc-400">{acc.platform} • {acc.accountType || 'Creator Account'}</p>
                   </div>
                 </div>
 
                 <div className="flex items-center space-x-4">
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                     Connected
                   </span>
                   <button
                     onClick={() => handleDisconnectAccount(acc.id)}
-                    className="text-xs text-zinc-500 hover:text-rose-400 transition font-semibold"
+                    className="text-xs text-slate-400 hover:text-rose-600 transition font-semibold"
                   >
                     Disconnect
                   </button>
@@ -525,32 +525,32 @@ export default function ConnectedAccountsPage() {
       {/* Modal 1: Folder Picker */}
       <AnimatePresence>
         {isFolderModalOpen && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-zinc-950 rounded-3xl border border-white/10 max-w-md w-full p-6 space-y-6 shadow-2xl"
+              className="bg-white dark:bg-zinc-950 rounded-[22px] border border-slate-200 dark:border-white/10 max-w-md w-full p-6 space-y-6 shadow-2xl"
             >
               <div className="flex items-center space-x-3">
-                <div className="h-10 w-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-bold">GD</div>
+                <div className="h-10 w-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold">GD</div>
                 <div>
-                  <h3 className="text-base font-bold text-white">Select Google Drive Folder</h3>
-                  <p className="text-xs text-zinc-400">Choose which folder to sync with Auto-Pilot</p>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">Select Google Drive Folder</h3>
+                  <p className="text-xs text-slate-500 dark:text-zinc-400">Choose which folder to sync with Auto-Pilot</p>
                 </div>
               </div>
 
               <div className="space-y-2 max-h-60 overflow-y-auto">
                 {availableFolders.length === 0 ? (
-                  <p className="text-sm text-zinc-500 text-center py-4">Loading folders...</p>
+                  <p className="text-sm text-slate-400 text-center py-4">Loading folders...</p>
                 ) : (
                   availableFolders.map(folder => (
                     <label
                       key={folder.id}
                       className={`flex items-center justify-between p-3.5 rounded-2xl border cursor-pointer transition ${
                         selectedFolderId === folder.id
-                          ? 'border-blue-500 bg-blue-500/10 text-blue-300 font-bold'
-                          : 'border-white/10 hover:bg-white/5 text-zinc-300'
+                          ? 'border-blue-500 bg-blue-500/10 text-blue-600 dark:text-blue-300 font-bold'
+                          : 'border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 text-slate-700 dark:text-zinc-300'
                       }`}
                     >
                       <div className="flex items-center space-x-3 text-xs">
@@ -568,17 +568,17 @@ export default function ConnectedAccountsPage() {
                 )}
               </div>
 
-              <div className="flex justify-end space-x-3 pt-4 border-t border-white/10">
+              <div className="flex justify-end space-x-3 pt-4 border-t border-slate-200 dark:border-white/10">
                 <button
                   onClick={() => setIsFolderModalOpen(false)}
-                  className="px-4 py-2 text-xs font-semibold text-zinc-400 hover:text-white"
+                  className="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-900 dark:hover:text-white"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSaveFolder}
                   disabled={updatingFolder || !selectedFolderId}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-lg shadow-blue-500/25 transition disabled:opacity-50"
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-md transition disabled:opacity-50"
                 >
                   {updatingFolder ? 'Saving...' : 'Save Selection'}
                 </button>
@@ -591,26 +591,26 @@ export default function ConnectedAccountsPage() {
       {/* Modal 2: Rename */}
       <AnimatePresence>
         {renameAccountId && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-zinc-950 rounded-3xl border border-white/10 max-w-md w-full p-6 space-y-4 shadow-2xl"
+              className="bg-white dark:bg-zinc-950 rounded-[22px] border border-slate-200 dark:border-white/10 max-w-md w-full p-6 space-y-4 shadow-2xl"
             >
-              <h3 className="text-base font-bold text-white">Rename Account Handle</h3>
-              <p className="text-xs text-zinc-400">Customize the handle displayed in your workspace.</p>
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">Rename Account Handle</h3>
+              <p className="text-xs text-slate-500 dark:text-zinc-400">Customize the handle displayed in your workspace.</p>
               <div>
                 <input
                   type="text"
                   value={newHandle}
                   onChange={(e) => setNewHandle(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-white/10 rounded-xl bg-white/5 text-sm text-white focus:outline-none focus:border-blue-500"
+                  className="w-full px-4 py-2.5 border border-slate-200 dark:border-white/10 rounded-xl bg-slate-50 dark:bg-white/5 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
                 />
               </div>
-              <div className="flex justify-end space-x-3 pt-4 border-t border-white/10">
-                <button onClick={() => setRenameAccountId(null)} className="px-4 py-2 text-xs font-semibold text-zinc-400">Cancel</button>
-                <button onClick={handleSaveRename} className="px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded-xl shadow-lg">Save</button>
+              <div className="flex justify-end space-x-3 pt-4 border-t border-slate-200 dark:border-white/10">
+                <button onClick={() => setRenameAccountId(null)} className="px-4 py-2 text-xs font-semibold text-slate-500">Cancel</button>
+                <button onClick={handleSaveRename} className="px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded-xl shadow-md">Save</button>
               </div>
             </motion.div>
           </div>
