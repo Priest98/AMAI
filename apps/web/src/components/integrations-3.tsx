@@ -2,13 +2,7 @@ import { cn } from "@/lib/utils";
 import { FullWidthDivider } from "@/components/full-width-divider";
 import { GoogleDriveLogo, InstagramLogo, TikTokLogo } from "@/components/icons/platform-logos";
 
-type TileData = {
-	row: number;
-	col: number;
-	type?: "google-drive" | "instagram" | "tiktok" | "empty";
-};
-
-export function IntegrationsBlock({ onExploreClick }: { onExploreClick?: () => void }) {
+export function IntegrationsBlock() {
 	return (
 		<div className="relative mx-auto grid max-w-4xl grid-cols-1 gap-8 border-x border-slate-200/60 dark:border-white/10 md:grid-cols-2 md:items-center rounded-[24px] exec-card p-6 my-6 overflow-hidden">
 			<FullWidthDivider className="-top-px" />
@@ -23,27 +17,39 @@ export function IntegrationsBlock({ onExploreClick }: { onExploreClick?: () => v
 						Google Drive, Instagram, and TikTok power the AMAI AutoPilot engine for automated AI content syncing and publishing.
 					</p>
 				</div>
-				<div className="inline-flex items-center space-x-2 text-xs font-semibold text-rose-500 bg-rose-500/10 px-3 py-1.5 rounded-full border border-rose-500/20">
+				<div className="inline-flex items-center space-x-2 text-xs font-semibold text-rose-500 bg-rose-500/10 px-3.5 py-1.5 rounded-full border border-rose-500/20">
 					<span>⚡ Instant OAuth Authorization Active</span>
 				</div>
 			</div>
 
-			{/* Right Content - Scattered Grid Visual with ONLY Google Drive, Instagram, and TikTok */}
-			<div className="place-items-end flex justify-center md:justify-end">
-				<div className="relative size-80 overflow-hidden rounded-2xl">
-					{/* Grid Background */}
-					<div
-						className={cn(
-							"absolute inset-0 size-full",
-							"bg-[linear-gradient(to_right,rgba(148,163,184,0.2)_1px,transparent_1px),linear-gradient(to_bottom,rgba(148,163,184,0.2)_1px,transparent_1px)]",
-							"bg-[size:64px_64px]",
-							"mask-[radial-gradient(ellipse_at_center,black,black,transparent)]"
-						)}
-					/>
+			{/* Right Content - EXACTLY 3 Icons (1 Google Drive, 1 Instagram, 1 TikTok) */}
+			<div className="flex items-center justify-center md:justify-end p-4">
+				<div className="flex items-center space-x-4">
+					
+					{/* 1. Google Drive */}
+					<div className="flex flex-col items-center space-y-2 group">
+						<div className="h-16 w-16 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-white/10 flex items-center justify-center p-3.5 shadow-lg group-hover:scale-110 transition-transform">
+							<GoogleDriveLogo className="h-9 w-9" />
+						</div>
+						<span className="text-[11px] font-bold text-slate-700 dark:text-zinc-300">Google Drive</span>
+					</div>
 
-					{tiles.map((tile) => (
-						<IntegrationCard key={`${tile.row}_${tile.col}`} {...tile} />
-					))}
+					{/* 2. Instagram */}
+					<div className="flex flex-col items-center space-y-2 group -mt-6">
+						<div className="h-20 w-20 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-white/10 flex items-center justify-center p-4 shadow-xl group-hover:scale-110 transition-transform ring-2 ring-rose-500/20">
+							<InstagramLogo className="h-12 w-12" />
+						</div>
+						<span className="text-xs font-bold text-slate-900 dark:text-white">Instagram</span>
+					</div>
+
+					{/* 3. TikTok */}
+					<div className="flex flex-col items-center space-y-2 group">
+						<div className="h-16 w-16 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-white/10 flex items-center justify-center p-3.5 shadow-lg group-hover:scale-110 transition-transform text-slate-950 dark:text-white">
+							<TikTokLogo className="h-9 w-9" />
+						</div>
+						<span className="text-[11px] font-bold text-slate-700 dark:text-zinc-300">TikTok</span>
+					</div>
+
 				</div>
 			</div>
 
@@ -51,55 +57,3 @@ export function IntegrationsBlock({ onExploreClick }: { onExploreClick?: () => v
 		</div>
 	);
 }
-
-function IntegrationCard({ row, col, type }: TileData) {
-	return (
-		<div
-			className={cn(
-				"absolute flex size-16 items-center justify-center rounded-2xl transition-transform hover:scale-110",
-				type && type !== "empty" ? "bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-white/10 shadow-md" : ""
-			)}
-			style={{
-				left: col * 64,
-				top: row * 64,
-			}}
-		>
-			{type === "google-drive" && (
-				<GoogleDriveLogo className="h-8 w-8" />
-			)}
-
-			{type === "instagram" && (
-				<InstagramLogo className="h-8 w-8" />
-			)}
-
-			{type === "tiktok" && (
-				<TikTokLogo className="h-8 w-8 text-slate-950 dark:text-white" />
-			)}
-		</div>
-	);
-}
-
-// Scattered Grid featuring ONLY Google Drive, Instagram, and TikTok
-const tiles: TileData[] = [
-	// Row 0
-	{ row: 0, col: 1, type: "google-drive" },
-	{ row: 0, col: 3, type: "instagram" },
-
-	// Row 1
-	{ row: 1, col: 0, type: "empty" },
-	{ row: 1, col: 2, type: "tiktok" },
-	{ row: 1, col: 4, type: "google-drive" },
-
-	// Row 2
-	{ row: 2, col: 1, type: "instagram" },
-	{ row: 2, col: 3, type: "tiktok" },
-
-	// Row 3
-	{ row: 3, col: 0, type: "empty" },
-	{ row: 3, col: 2, type: "google-drive" },
-	{ row: 3, col: 4, type: "instagram" },
-
-	// Row 4
-	{ row: 4, col: 1, type: "tiktok" },
-	{ row: 4, col: 3, type: "google-drive" },
-];
