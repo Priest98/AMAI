@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { IntegrationsBlock } from '@/components/integrations-3';
 import {
   Radio,
   CheckCircle2,
@@ -253,6 +254,9 @@ export default function ConnectedAccountsPage() {
           <span>AES-256 Encrypted Token Storage Active</span>
         </div>
       </div>
+
+      {/* Installed @efferd/integrations-3 Registry Block */}
+      <IntegrationsBlock />
 
       {/* Toast Alert */}
       <AnimatePresence>
