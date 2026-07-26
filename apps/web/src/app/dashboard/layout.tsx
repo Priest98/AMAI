@@ -71,6 +71,14 @@ const navSections: NavSection[] = [
   },
 ];
 
+const mobileTabItems = [
+  { label: 'Home', href: '/dashboard', icon: LayoutDashboard },
+  { label: 'Post', href: '/dashboard/composer', icon: PenTool },
+  { label: 'AutoPilot', href: '/dashboard/autopilot', icon: Zap },
+  { label: 'Hub', href: '/dashboard/integrations', icon: Radio },
+  { label: 'Settings', href: '/dashboard/settings', icon: Settings },
+];
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -153,7 +161,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
           <button
             onClick={toggleCollapse}
-            className="h-7 w-7 rounded-lg bg-slate-100 dark:bg-zinc-800/60 hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-500 dark:text-zinc-400 flex items-center justify-center transition flex-shrink-0"
+            className="h-8 w-8 rounded-lg bg-slate-100 dark:bg-zinc-800/60 hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-500 dark:text-zinc-400 flex items-center justify-center transition flex-shrink-0 touch-target"
             title={isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
           >
             {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
@@ -235,7 +243,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {!isCollapsed && (
               <button
                 onClick={handleLogout}
-                className="h-7 w-7 rounded-lg hover:bg-rose-500/10 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 flex items-center justify-center transition flex-shrink-0"
+                className="h-8 w-8 rounded-lg hover:bg-rose-500/10 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 flex items-center justify-center transition flex-shrink-0 touch-target"
                 title="Sign out"
               >
                 <LogOut className="h-3.5 w-3.5" />
@@ -245,7 +253,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
       </motion.aside>
 
-      {/* ── Mobile Sidebar Drawer ── */}
+      {/* ── Native Mobile Drawer (Slide-Over) ── */}
       <AnimatePresence>
         {isMobileOpen && (
           <>
@@ -254,20 +262,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsMobileOpen(false)}
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden"
+              className="fixed inset-0 bg-black/70 backdrop-blur-md z-40 md:hidden"
             />
             <motion.aside
               initial={{ x: '-100%' }}
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed top-0 left-0 bottom-0 w-72 bg-white dark:bg-zinc-950 border-r border-slate-200 dark:border-white/10 z-50 p-4 flex flex-col justify-between md:hidden"
+              transition={{ type: 'spring', damping: 28, stiffness: 220 }}
+              className="fixed top-0 left-0 bottom-0 w-[85vw] max-w-xs bg-white dark:bg-zinc-950 border-r border-slate-200 dark:border-white/10 z-50 p-5 flex flex-col justify-between md:hidden shadow-2xl overflow-y-auto"
             >
               <div className="space-y-6">
                 <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-white/10">
                   <Logo variant="full" className="h-8" />
-                  <button onClick={() => setIsMobileOpen(false)} className="text-slate-400 hover:text-slate-900 dark:hover:text-white">
-                    <X className="h-6 w-6" />
+                  <button
+                    onClick={() => setIsMobileOpen(false)}
+                    className="h-10 w-10 rounded-full bg-slate-100 dark:bg-white/10 text-slate-500 dark:text-zinc-400 flex items-center justify-center touch-target"
+                  >
+                    <X className="h-5 w-5" />
                   </button>
                 </div>
 
@@ -275,7 +286,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   {navSections.map((section, idx) => (
                     <div key={idx} className="space-y-1">
                       {section.title && (
-                        <h3 className="px-4 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-zinc-500 mb-1">
+                        <h3 className="px-3 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-zinc-500 mb-1">
                           {section.title}
                         </h3>
                       )}
@@ -287,13 +298,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                             key={item.href}
                             href={item.href}
                             onClick={() => setIsMobileOpen(false)}
-                            className={`flex items-center space-x-3 px-4 py-2.5 rounded-2xl text-sm font-semibold transition ${
+                            className={`flex items-center space-x-3 px-4 py-3 rounded-2xl text-sm font-semibold transition touch-target ${
                               isActive
                                 ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
                                 : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5'
                             }`}
                           >
-                            <Icon className={`h-4 w-4 ${isActive ? 'text-rose-600 dark:text-rose-400' : 'text-slate-400'}`} />
+                            <Icon className={`h-5 w-5 ${isActive ? 'text-rose-600 dark:text-rose-400' : 'text-slate-400'}`} />
                             <span>{item.label}</span>
                           </Link>
                         );
@@ -304,16 +315,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </div>
 
               <div className="pt-4 border-t border-slate-200 dark:border-white/10 flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="h-9 w-9 rounded-xl bg-rose-600 flex items-center justify-center font-bold text-white text-xs">
+                <div className="flex items-center space-x-3 min-w-0">
+                  <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-rose-500 to-purple-600 flex items-center justify-center font-bold text-white text-xs shadow-md flex-shrink-0">
                     {userInitials}
                   </div>
-                  <div>
-                    <p className="text-xs font-semibold text-slate-900 dark:text-white">{userName}</p>
-                    <p className="text-[10px] text-slate-400">Pro Account</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{userName}</p>
+                    <p className="text-[10px] text-slate-400 truncate">Pro Account</p>
                   </div>
                 </div>
-                <button onClick={handleLogout} className="text-slate-400 hover:text-rose-600">
+                <button onClick={handleLogout} className="h-10 w-10 rounded-xl hover:bg-rose-500/10 text-slate-400 hover:text-rose-600 flex items-center justify-center touch-target flex-shrink-0">
                   <LogOut className="h-5 w-5" />
                 </button>
               </div>
@@ -323,27 +334,28 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </AnimatePresence>
 
       {/* ── Main Content Container ── */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative z-10">
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative z-10 pb-16 md:pb-0">
         
-        {/* Top Header Bar */}
-        <header className="h-16 flex items-center justify-between px-6 m-3 mb-0 rounded-[24px] exec-card z-20">
-          <div className="flex items-center space-x-4">
+        {/* Responsive Mobile Top Header Bar */}
+        <header className="h-16 flex items-center justify-between px-4 sm:px-6 m-2 sm:m-3 mb-0 rounded-[20px] sm:rounded-[24px] exec-card z-20">
+          <div className="flex items-center space-x-3">
             <button
               onClick={() => setIsMobileOpen(true)}
-              className="md:hidden text-slate-500 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-white p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5"
+              className="md:hidden text-slate-500 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-white h-10 w-10 rounded-xl hover:bg-slate-100 dark:hover:bg-white/5 flex items-center justify-center touch-target"
+              aria-label="Open Mobile Menu"
             >
               <Menu className="h-6 w-6" />
             </button>
 
-            <div>
-              <h1 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight flex items-center space-x-2">
-                <span>Hello, {userName}</span>
+            <div className="min-w-0">
+              <h1 className="text-sm sm:text-lg font-bold text-slate-900 dark:text-white tracking-tight truncate">
+                Hello, {userName}
               </h1>
-              <p className="text-[11px] text-slate-500 dark:text-zinc-400 hidden sm:block">Automate your content pipeline from Google Drive to Instagram & TikTok with AMAI.</p>
+              <p className="text-[11px] text-slate-500 dark:text-zinc-400 hidden sm:block truncate">Automate your content pipeline from Google Drive to Instagram & TikTok with AMAI.</p>
             </div>
           </div>
 
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2.5">
             
             {/* Live Date Badge */}
             <div className="hidden sm:flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-slate-100 dark:bg-white/5 text-xs font-semibold text-slate-600 dark:text-zinc-300 border border-slate-200/60 dark:border-white/10">
@@ -354,7 +366,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {/* Light / Dark Mode Toggle Button */}
             <button
               onClick={toggleTheme}
-              className="p-2.5 rounded-full bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-white/10 transition border border-slate-200/60 dark:border-white/10"
+              className="h-10 w-10 rounded-full bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-white/10 transition border border-slate-200/60 dark:border-white/10 flex items-center justify-center touch-target"
               title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
             >
               {isDarkMode ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-slate-700" />}
@@ -363,20 +375,45 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {/* Primary Action Button */}
             <Link
               href="/dashboard/composer"
-              className="flex items-center space-x-2 px-4 py-2 text-xs font-bold text-white bg-gradient-to-r from-rose-500 via-purple-600 to-indigo-600 rounded-full hover:opacity-95 transition shadow-lg shadow-rose-500/25 active:scale-95 border border-white/20"
+              className="flex items-center space-x-1.5 px-3.5 py-2 text-xs font-bold text-white bg-gradient-to-r from-rose-500 via-purple-600 to-indigo-600 rounded-full hover:opacity-95 transition shadow-lg shadow-rose-500/25 active:scale-95 border border-white/20 touch-target"
             >
               <Sparkles className="h-3.5 w-3.5" />
-              <span>+ Create Post</span>
+              <span className="hidden xs:inline">+ Create Post</span>
+              <span className="xs:hidden">+ Post</span>
             </Link>
           </div>
         </header>
 
-        {/* Scrollable Page Body */}
-        <div className="flex-1 overflow-auto p-6 md:p-8 lg:p-10">
-          <div className="max-w-[1536px] mx-auto space-y-12">
+        {/* Scrollable Mobile Page Body */}
+        <div className="flex-1 overflow-auto p-3 sm:p-6 md:p-8 lg:p-10">
+          <div className="max-w-[1536px] mx-auto space-y-8 sm:space-y-12">
             {children}
           </div>
         </div>
+
+        {/* ── Native Mobile Glass Bottom Navigation Bar (Thumb Ergonomics) ── */}
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white/90 dark:bg-zinc-950/90 backdrop-blur-xl border-t border-slate-200/80 dark:border-white/10 px-3 flex items-center justify-around z-30 shadow-2xl">
+          {mobileTabItems.map((tab) => {
+            const isActive = pathname === tab.href;
+            const Icon = tab.icon;
+
+            return (
+              <Link
+                key={tab.label}
+                href={tab.href}
+                className={`flex flex-col items-center justify-center w-14 h-12 rounded-xl transition touch-target ${
+                  isActive
+                    ? 'text-rose-600 dark:text-rose-400 font-bold'
+                    : 'text-slate-400 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-zinc-300'
+                }`}
+              >
+                <Icon className={`h-5 w-5 ${isActive ? 'scale-110' : ''}`} />
+                <span className="text-[10px] mt-0.5 tracking-tight">{tab.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
+
       </main>
     </div>
   );

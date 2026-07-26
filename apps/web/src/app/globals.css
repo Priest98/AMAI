@@ -27,6 +27,11 @@
   --font-sans: 'Geist', 'Inter', 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+  touch-action: manipulation;
+}
+
 body {
   background-color: var(--bg-main);
   color: var(--text-primary);
@@ -34,33 +39,50 @@ body {
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
   transition: background-color 0.3s ease, color 0.3s ease;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
-/* Premium Typography Scale */
+/* Prevent auto-zooming on input focus on iOS Safari */
+input, select, textarea {
+  font-size: 16px !important;
+}
+
+/* Mobile Touch Target Guidelines (Minimum 44px) */
+.touch-target {
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Premium Responsive Typography Scale */
 .display-title {
-  font-size: 48px;
+  font-size: clamp(32px, 8vw, 48px);
   line-height: 1.1;
   font-weight: 800;
   letter-spacing: -0.025em;
 }
 
 .page-title {
-  font-size: 36px;
+  font-size: clamp(24px, 6vw, 36px);
   line-height: 1.15;
   font-weight: 800;
   letter-spacing: -0.02em;
 }
 
 .section-title {
-  font-size: 24px;
+  font-size: clamp(18px, 4vw, 24px);
   line-height: 1.25;
   font-weight: 700;
   letter-spacing: -0.015em;
 }
 
 .card-title {
-  font-size: 18px;
+  font-size: clamp(16px, 3.5vw, 18px);
   line-height: 1.35;
   font-weight: 600;
   letter-spacing: -0.01em;
@@ -115,6 +137,12 @@ body {
   border: 1px solid var(--card-border);
   box-shadow: var(--card-shadow);
   border-radius: 24px;
+}
+
+@media (max-width: 640px) {
+  .exec-card {
+    border-radius: 20px;
+  }
 }
 
 .exec-card-hover {
