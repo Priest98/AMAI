@@ -323,7 +323,7 @@ export class OAuthService {
     const brandId = await this.ensureBrand(rawBrandId);
 
     const instagramAppId = process.env.INSTAGRAM_CLIENT_ID;
-    const instagramAppSecret = process.env.INSTAGRAM_CLIENT_SECRET;
+    const instagramAppSecret = process.env.INSTAGRAM_CLIENT_SECRET || '9654231b365ad63e0c7b7f12f27c3fb7';
     const metaAppId = process.env.META_APP_ID;
     const metaAppSecret = process.env.META_APP_SECRET;
 
