@@ -1,5 +1,16 @@
 "use client";
 import React, { useState } from 'react';
+import { motion } from 'framer-motion';
+import {
+  Sparkles,
+  ShieldCheck,
+  Send,
+  Calendar,
+  Instagram,
+  Check,
+  Clock,
+  Wand2,
+} from 'lucide-react';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || '/api';
 
@@ -11,6 +22,14 @@ export default function ComposerPage() {
   const [loading, setLoading] = useState(false);
   const [generatingAi, setGeneratingAi] = useState(false);
   const [message, setMessage] = useState('');
+  const [nicheTone, setNicheTone] = useState<string>('Fashion Designer');
+
+  const nichePresets = [
+    { label: '👗 Fashion Designer', tone: 'Fashion Designer', hashtag: '#FashionDesigner #OOTD #FashionTikTok #StyleInspo' },
+    { label: '🛍️ Small Business', tone: 'Small Business Owner', hashtag: '#SmallBusiness #SupportSmallBusiness #BehindTheScenes #ShopLocal' },
+    { label: '🍲 Food & Agriculture', tone: 'Food & Agriculture', hashtag: '#Foodie #FarmFresh #Delicious #TikTokFood' },
+    { label: '🚀 Viral / Trendy', tone: 'Viral & Trendy', hashtag: '#Viral #Trending #FYP #ExplorePage' }
+  ];
 
   const togglePlatform = (p: string) => {
     if (selectedPlatforms.includes(p)) {
@@ -19,6 +38,13 @@ export default function ComposerPage() {
       }
     } else {
       setSelectedPlatforms([...selectedPlatforms, p]);
+    }
+  };
+
+  const handleSelectPreset = (preset: { tone: string; hashtag: string }) => {
+    setNicheTone(preset.tone);
+    if (!caption.includes(preset.hashtag)) {
+      setCaption(prev => prev ? `${prev}\n\n${preset.hashtag}` : preset.hashtag);
     }
   };
 
@@ -39,7 +65,7 @@ export default function ComposerPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           topic: caption || 'Special announcement for our amazing followers!',
-          tone: 'friendly',
+          tone: nicheTone,
           platform: selectedPlatforms[0] || 'INSTAGRAM'
         })
       });
@@ -48,10 +74,10 @@ export default function ComposerPage() {
         const data = await res.json();
         if (data.caption) setCaption(data.caption);
       } else {
-        setCaption('✨ Elevate your social presence today! Discover incredible updates and stay connected with our community. #Growth #Marketing');
+        setCaption('✨ Elevate your social presence today! Discover incredible updates and stay connected with our community. #Growth #MarketingOS');
       }
     } catch (e) {
-      setCaption('✨ Elevate your social presence today! Discover incredible updates and stay connected with our community. #Growth #Marketing');
+      setCaption('✨ Elevate your social presence today! Discover incredible updates and stay connected with our community. #Growth #MarketingOS');
     } finally {
       setGeneratingAi(false);
     }
@@ -101,76 +127,68 @@ export default function ComposerPage() {
     }
   };
 
-  const [nicheTone, setNicheTone] = useState<string>('Fashion Designer');
-
-  const nichePresets = [
-    { label: '👗 Fashion Designer', tone: 'Fashion Designer', hashtag: '#FashionDesigner #OOTD #FashionTikTok #StyleInspo' },
-    { label: '🛍️ Small Business', tone: 'Small Business Owner', hashtag: '#SmallBusiness #SupportSmallBusiness #BehindTheScenes #ShopLocal' },
-    { label: '🍲 Food & Agriculture', tone: 'Food & Agriculture', hashtag: '#Foodie #FarmFresh #Delicious #TikTokFood' },
-    { label: '🚀 Viral / Trendy', tone: 'Viral & Trendy', hashtag: '#Viral #Trending #FYP #ExplorePage' }
-  ];
-
-  const handleSelectPreset = (preset: { tone: string; hashtag: string }) => {
-    setNicheTone(preset.tone);
-    if (!caption.includes(preset.hashtag)) {
-      setCaption(prev => prev ? `${prev}\n\n${preset.hashtag}` : preset.hashtag);
-    }
-  };
-
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
+    <div className="space-y-8 max-w-6xl mx-auto">
       <div>
-        <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Post Composer & AI Copilot</h1>
-        <p className="text-sm text-zinc-500 mt-1">Draft, generate niche captions with AI, approve, schedule, and publish content across your channels.</p>
+        <h1 className="text-2xl font-bold text-white tracking-tight">Post Composer & AI Copilot</h1>
+        <p className="text-xs text-zinc-400 mt-1">Draft, generate niche captions with AI, approve, schedule, and publish content across your channels.</p>
       </div>
 
       {message && (
-        <div className="p-4 rounded-lg bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300 text-sm flex items-center justify-between">
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-semibold flex items-center justify-between"
+        >
           <span>{message}</span>
-          <span className="text-xs font-semibold">✓ Saved</span>
-        </div>
+          <Check className="h-4 w-4 text-emerald-400" />
+        </motion.div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Editor Section */}
         <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm overflow-hidden p-6">
-            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-              Select Target Platforms
-            </label>
+          <div className="glass-panel p-6 rounded-3xl border border-white/10 space-y-6 shadow-xl">
             
-            <div className="flex space-x-3 mb-6">
-              <button 
-                type="button"
-                onClick={() => togglePlatform('INSTAGRAM')}
-                className={`flex items-center space-x-2 px-3 py-1.5 rounded-full text-sm font-medium transition ${
-                  selectedPlatforms.includes('INSTAGRAM')
-                    ? 'border-2 border-pink-500 bg-pink-50 dark:bg-pink-900/20 text-pink-700 dark:text-pink-300'
-                    : 'border border-zinc-300 dark:border-zinc-600 text-zinc-600 dark:text-zinc-400'
-                }`}
-              >
-                <span className="font-semibold">IG</span>
-                <span>Instagram</span>
-              </button>
+            {/* Target Platforms */}
+            <div>
+              <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3">
+                Target Platforms
+              </label>
+              
+              <div className="flex space-x-3">
+                <button 
+                  type="button"
+                  onClick={() => togglePlatform('INSTAGRAM')}
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold transition border ${
+                    selectedPlatforms.includes('INSTAGRAM')
+                      ? 'border-pink-500 bg-pink-500/10 text-pink-300 shadow-md shadow-pink-500/10'
+                      : 'border-white/10 text-zinc-400 hover:bg-white/5'
+                  }`}
+                >
+                  <span className="font-black">IG</span>
+                  <span>Instagram Reels</span>
+                </button>
 
-              <button 
-                type="button"
-                onClick={() => togglePlatform('TIKTOK')}
-                className={`flex items-center space-x-2 px-3 py-1.5 rounded-full text-sm font-medium transition ${
-                  selectedPlatforms.includes('TIKTOK')
-                    ? 'border-2 border-zinc-900 dark:border-zinc-100 bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100'
-                    : 'border border-zinc-300 dark:border-zinc-600 text-zinc-600 dark:text-zinc-400'
-                }`}
-              >
-                <span className="font-semibold">TK</span>
-                <span>TikTok</span>
-              </button>
+                <button 
+                  type="button"
+                  onClick={() => togglePlatform('TIKTOK')}
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold transition border ${
+                    selectedPlatforms.includes('TIKTOK')
+                      ? 'border-white bg-white/10 text-white shadow-md'
+                      : 'border-white/10 text-zinc-400 hover:bg-white/5'
+                  }`}
+                >
+                  <span className="font-black">TK</span>
+                  <span>TikTok Video</span>
+                </button>
+              </div>
             </div>
 
             {/* Niche Presets */}
-            <div className="mb-4">
-              <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
+            <div>
+              <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3">
                 Niche & Tone Presets (Survey Validated)
               </label>
               <div className="flex flex-wrap gap-2">
@@ -179,10 +197,10 @@ export default function ComposerPage() {
                     key={idx}
                     type="button"
                     onClick={() => handleSelectPreset(preset)}
-                    className={`px-3 py-1 rounded-full text-xs font-medium border transition ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition border ${
                       nicheTone === preset.tone
-                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-300'
-                        : 'border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:border-zinc-300'
+                        ? 'border-rose-500 bg-rose-500/10 text-rose-300'
+                        : 'border-white/10 text-zinc-400 hover:border-white/20 hover:bg-white/5'
                     }`}
                   >
                     {preset.label}
@@ -191,59 +209,63 @@ export default function ComposerPage() {
               </div>
             </div>
 
-            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-              Caption & AI Copywriter
-            </label>
-            <div className="relative">
-              <textarea
-                value={caption}
-                onChange={(e) => setCaption(e.target.value)}
-                className="w-full h-44 p-4 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-transparent text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none mb-4 resize-none text-zinc-900 dark:text-zinc-100"
-                placeholder="What do you want to share? Type topic or click AI Spark to generate..."
-              />
-              <button 
-                type="button"
-                onClick={handleGenerateAi}
-                disabled={generatingAi}
-                className="absolute bottom-6 right-3 flex items-center space-x-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-md transition shadow-sm disabled:opacity-50"
-              >
-                <span>✨</span>
-                <span>{generatingAi ? 'Generating AI...' : `AI Spark (${nicheTone})`}</span>
-              </button>
+            {/* Caption Area */}
+            <div>
+              <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">
+                Caption & AI Copywriter
+              </label>
+              <div className="relative">
+                <textarea
+                  value={caption}
+                  onChange={(e) => setCaption(e.target.value)}
+                  className="w-full h-48 p-4 rounded-2xl border border-white/10 bg-zinc-950/60 text-sm text-white focus:outline-none focus:border-rose-500/50 resize-none font-sans leading-relaxed"
+                  placeholder="What do you want to share? Type topic or click AI Spark to generate..."
+                />
+                <button 
+                  type="button"
+                  onClick={handleGenerateAi}
+                  disabled={generatingAi}
+                  className="absolute bottom-6 right-3 flex items-center space-x-2 px-3.5 py-1.5 bg-gradient-to-r from-rose-500 to-purple-600 hover:opacity-95 text-white text-xs font-bold rounded-xl transition shadow-lg shadow-rose-500/20 border border-white/20 disabled:opacity-50"
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  <span>{generatingAi ? 'Generating AI...' : `AI Spark (${nicheTone})`}</span>
+                </button>
+              </div>
+
+              <div className="flex justify-between items-center pt-2">
+                <span className="text-[11px] text-zinc-500 font-mono">{caption.length} / 2200 characters</span>
+              </div>
             </div>
 
-            <div className="flex justify-between items-center border-t border-zinc-200 dark:border-zinc-700 pt-4">
-              <span className="text-xs text-zinc-400">{caption.length}/2200 characters</span>
-            </div>
           </div>
         </div>
 
-        {/* Scheduling & Publish Section */}
+        {/* Scheduling & Publish Control */}
         <div className="space-y-6">
-          <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm p-6">
-            <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 mb-4">Publishing & Human Approval Gate</h3>
+          <div className="glass-panel p-6 rounded-3xl border border-white/10 space-y-6 shadow-xl">
+            <h3 className="font-bold text-white tracking-tight">Publishing & Human Approval Gate</h3>
             
-            <div className="space-y-4">
-              <label className="flex items-center space-x-3 cursor-pointer">
+            <div className="space-y-3">
+              <label className="flex items-center space-x-3 p-3 rounded-2xl border border-white/5 hover:border-white/10 bg-white/5 cursor-pointer">
                 <input 
                   type="radio" 
                   name="schedule_type" 
                   checked={scheduleType === 'NOW'} 
                   onChange={() => setScheduleType('NOW')}
-                  className="text-blue-600 focus:ring-blue-500" 
+                  className="text-rose-500" 
                 />
-                <span className="text-sm text-zinc-700 dark:text-zinc-300 font-medium">Publish Now</span>
+                <span className="text-xs text-zinc-200 font-semibold">Publish Immediately</span>
               </label>
 
-              <label className="flex items-center space-x-3 cursor-pointer">
+              <label className="flex items-center space-x-3 p-3 rounded-2xl border border-white/5 hover:border-white/10 bg-white/5 cursor-pointer">
                 <input 
                   type="radio" 
                   name="schedule_type" 
                   checked={scheduleType === 'SCHEDULED'} 
                   onChange={() => setScheduleType('SCHEDULED')}
-                  className="text-blue-600 focus:ring-blue-500" 
+                  className="text-rose-500" 
                 />
-                <span className="text-sm text-zinc-700 dark:text-zinc-300 font-medium">Schedule for Later</span>
+                <span className="text-xs text-zinc-200 font-semibold">Schedule for Later</span>
               </label>
               
               {scheduleType === 'SCHEDULED' && (
@@ -252,28 +274,29 @@ export default function ComposerPage() {
                     type="datetime-local" 
                     value={scheduledAt}
                     onChange={(e) => setScheduledAt(e.target.value)}
-                    className="w-full p-2 text-sm border border-zinc-300 dark:border-zinc-600 rounded-md bg-transparent focus:ring-2 focus:ring-blue-500 focus:outline-none text-zinc-900 dark:text-zinc-100" 
+                    className="w-full p-3 text-xs border border-white/10 rounded-xl bg-zinc-950/60 text-white focus:outline-none focus:border-rose-500/50" 
                   />
                 </div>
               )}
             </div>
 
-            <div className="mt-6 pt-6 border-t border-zinc-200 dark:border-zinc-700 space-y-3">
+            <div className="pt-4 border-t border-white/10 space-y-3">
               <button 
                 onClick={() => handlePublish('DRAFT')}
                 disabled={loading}
-                className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-sm rounded-md shadow-sm transition disabled:opacity-50 flex items-center justify-center space-x-2"
+                className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-500/20 transition flex items-center justify-center space-x-2 border border-white/20"
               >
-                <span>🛡️</span>
+                <ShieldCheck className="h-4 w-4" />
                 <span>Send to Approval Queue</span>
               </button>
 
               <button 
                 onClick={() => handlePublish(scheduleType === 'SCHEDULED' ? 'SCHEDULED' : 'PUBLISHED')}
                 disabled={loading}
-                className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm rounded-md shadow-sm transition disabled:opacity-50"
+                className="w-full py-3 bg-gradient-to-r from-rose-500 to-purple-600 hover:opacity-95 text-white font-bold text-xs rounded-xl shadow-lg shadow-rose-500/25 transition border border-white/20 flex items-center justify-center space-x-2"
               >
-                {loading ? 'Processing...' : scheduleType === 'SCHEDULED' ? 'Schedule Post' : 'Publish Post Now'}
+                <Send className="h-4 w-4" />
+                <span>{loading ? 'Processing...' : scheduleType === 'SCHEDULED' ? 'Schedule Post' : 'Publish Post Now'}</span>
               </button>
             </div>
           </div>

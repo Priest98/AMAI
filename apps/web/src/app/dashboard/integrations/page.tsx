@@ -1,5 +1,22 @@
 "use client";
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Radio,
+  CheckCircle2,
+  AlertTriangle,
+  Folder,
+  RefreshCw,
+  MoreVertical,
+  ExternalLink,
+  Plus,
+  Zap,
+  ShieldCheck,
+  Lock,
+  X,
+  Edit2,
+  FolderSync,
+} from 'lucide-react';
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'https://marketing-os-backend-api.vercel.app/api').replace(/\/$/, '');
 
@@ -73,7 +90,6 @@ export default function ConnectedAccountsPage() {
     return 'primary_brand';
   };
 
-  // Fetch connected accounts & Google Drive status
   const fetchAccounts = async () => {
     setLoading(true);
     try {
@@ -100,7 +116,6 @@ export default function ConnectedAccountsPage() {
   useEffect(() => {
     fetchAccounts();
 
-    // Parse URL query callback messages
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const success = params.get('success');
@@ -124,7 +139,6 @@ export default function ConnectedAccountsPage() {
     }
   }, []);
 
-  // Connect — checks if configured first
   const handleConnect = (platform: 'google' | 'instagram' | 'tiktok') => {
     const isConfigured = {
       google: configStatus.googleConfigured,
@@ -141,7 +155,6 @@ export default function ConnectedAccountsPage() {
     window.location.href = `${API_BASE}/oauth/${platform}/connect?brandId=${brandId}`;
   };
 
-  // Disconnect Account
   const handleDisconnectAccount = async (accountId: string) => {
     try {
       const res = await fetch(`${API_BASE}/oauth/accounts/${accountId}`, { method: 'DELETE' });
@@ -154,7 +167,6 @@ export default function ConnectedAccountsPage() {
     }
   };
 
-  // Disconnect Google Drive
   const handleDisconnectDrive = async () => {
     try {
       const brandId = getBrandId();
@@ -168,7 +180,6 @@ export default function ConnectedAccountsPage() {
     }
   };
 
-  // Open Folder Selector Modal
   const openFolderModal = async () => {
     setIsFolderModalOpen(true);
     try {
@@ -185,7 +196,6 @@ export default function ConnectedAccountsPage() {
     }
   };
 
-  // Save Selected Folder
   const handleSaveFolder = async () => {
     setUpdatingFolder(true);
     try {
@@ -202,25 +212,23 @@ export default function ConnectedAccountsPage() {
         fetchAccounts();
       }
     } catch {
-      setMessage({ text: 'Failed to update folder.', type: 'error' });
+      setMessage({ text: 'Failed to update folder', type: 'error' });
     } finally {
       setUpdatingFolder(false);
     }
   };
 
-  // Save Renamed Account Handle
   const handleSaveRename = async () => {
     if (!renameAccountId || !newHandle.trim()) return;
     try {
       const res = await fetch(`${API_BASE}/oauth/accounts/${renameAccountId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ handle: newHandle.trim() }),
+        body: JSON.stringify({ handle: newHandle }),
       });
       if (res.ok) {
         setMessage({ text: 'Account handle updated.', type: 'success' });
         setRenameAccountId(null);
-        setNewHandle('');
         fetchAccounts();
       }
     } catch {
@@ -228,364 +236,282 @@ export default function ConnectedAccountsPage() {
     }
   };
 
-  // Refresh Token
-  const handleRefresh = async (platform: 'instagram' | 'tiktok', accountId: string) => {
-    try {
-      const res = await fetch(`${API_BASE}/oauth/${platform}/refresh`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accountId }),
-      });
-      if (res.ok) {
-        setMessage({ text: `${platform === 'instagram' ? 'Instagram' : 'TikTok'} token refreshed!`, type: 'success' });
-        fetchAccounts();
-      } else {
-        const err = await res.json().catch(() => ({}));
-        setMessage({ text: err.message || 'Token refresh failed.', type: 'error' });
-      }
-    } catch {
-      setMessage({ text: 'Token refresh failed.', type: 'error' });
-    }
-  };
-
   const instagramAccounts = accounts.filter(a => a.platform === 'INSTAGRAM');
   const tiktokAccounts = accounts.filter(a => a.platform === 'TIKTOK');
 
-  const setupInstructions = {
-    google: {
-      title: 'Connect Google Drive',
-      color: 'blue',
-      steps: [
-        'Go to console.cloud.google.com',
-        'Create a project → APIs & Services → Enable Google Drive API',
-        'OAuth Consent Screen → Add scopes (drive.readonly, userinfo.email)',
-        'Credentials → Create OAuth 2.0 Client ID (Web App)',
-        'Add Redirect URI: https://marketing-os-backend-api.vercel.app/api/oauth/google/callback',
-        'Copy Client ID & Client Secret',
-        'In Vercel dashboard → Settings → Environment Variables:',
-        'Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET',
-        'Redeploy the API → Come back and click Connect again',
-      ],
-      link: 'https://console.cloud.google.com',
-    },
-    instagram: {
-      title: 'Connect Instagram',
-      color: 'rose',
-      steps: [
-        'Go to developers.facebook.com → My Apps → Create App',
-        'Select Business app type',
-        'Add products: Instagram Graph API + Facebook Login for Business',
-        'Facebook Login Settings → Valid OAuth Redirect URIs:',
-        'https://marketing-os-backend-api.vercel.app/api/oauth/instagram/callback',
-        'App Settings → Basic → Copy App ID and App Secret',
-        'In Vercel dashboard → Settings → Environment Variables:',
-        'Add META_APP_ID and META_APP_SECRET',
-        'Redeploy the API → Come back and click Connect again',
-      ],
-      link: 'https://developers.facebook.com',
-    },
-    tiktok: {
-      title: 'Connect TikTok',
-      color: 'zinc',
-      steps: [
-        'Go to developers.tiktok.com → My Apps → Create App',
-        'Add Redirect URI: https://marketing-os-backend-api.vercel.app/api/oauth/tiktok/callback',
-        'Scopes: user.info.basic, video.upload, video.publish',
-        'Copy Client Key and Client Secret',
-        'In Vercel dashboard → Settings → Environment Variables:',
-        'Add TIKTOK_CLIENT_KEY and TIKTOK_CLIENT_SECRET',
-        'Redeploy the API → Come back and click Connect again',
-      ],
-      link: 'https://developers.tiktok.com',
-    },
-  };
-
-  const currentSetup = setupModal ? setupInstructions[setupModal] : null;
-
   return (
-    <div className="max-w-6xl mx-auto space-y-8 pb-12">
-      
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">Connected Accounts</h1>
-        <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
-          Manage your Google Drive, Instagram, and TikTok OAuth connections for automated AI publishing.
-        </p>
+    <div className="space-y-8 max-w-7xl mx-auto">
+      {/* Header Title */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-white tracking-tight">Connected Accounts & Workspace</h1>
+          <p className="text-xs text-zinc-400 mt-1">Manage your Google Drive, Instagram, and TikTok OAuth connections for automated AI publishing.</p>
+        </div>
+
+        <div className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs text-zinc-300">
+          <ShieldCheck className="h-4 w-4 text-emerald-400" />
+          <span>AES-256 Encrypted Token Storage Active</span>
+        </div>
       </div>
 
-      {/* Global Toast Notification */}
-      {message && (
-        <div className={`p-4 rounded-xl text-sm font-medium border flex items-center justify-between shadow-sm transition ${
-          message.type === 'success'
-            ? 'bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
-            : 'bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800'
-        }`}>
-          <span>{message.text}</span>
-          <button onClick={() => setMessage(null)} className="text-xs font-bold hover:underline ml-4 flex-shrink-0">Dismiss</button>
-        </div>
-      )}
+      {/* Toast Alert */}
+      <AnimatePresence>
+        {message && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className={`p-4 rounded-2xl text-xs font-semibold flex items-center justify-between border ${
+              message.type === 'success'
+                ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20'
+                : 'bg-rose-500/10 text-rose-300 border-rose-500/20'
+            }`}
+          >
+            <span>{message.text}</span>
+            <button onClick={() => setMessage(null)} className="text-zinc-400 hover:text-white">
+              <X className="h-4 w-4" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {/* Primary Integration Grid */}
+      {/* Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         
         {/* Card 1: Google Drive */}
-        <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-6 flex flex-col justify-between shadow-sm hover:shadow-md transition">
-          <div>
-            <div className="flex items-center justify-between mb-4">
+        <motion.div
+          whileHover={{ y: -4 }}
+          className="glass-panel glass-panel-hover p-6 rounded-3xl border border-white/10 flex flex-col justify-between space-y-6 shadow-xl relative overflow-hidden group"
+        >
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                <div className="h-12 w-12 rounded-xl bg-blue-500 text-white flex items-center justify-center font-bold text-lg shadow-sm">
+                <div className="h-12 w-12 rounded-2xl bg-blue-500 text-white flex items-center justify-center font-black text-lg shadow-lg shadow-blue-500/20">
                   GD
                 </div>
                 <div>
-                  <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">Google Drive</h3>
-                  <p className="text-xs text-zinc-500">Auto-Pilot Media Sync</p>
+                  <h3 className="font-bold text-white tracking-tight">Google Drive</h3>
+                  <p className="text-[11px] text-zinc-400">Auto-Pilot Media Sync</p>
                 </div>
               </div>
-              <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${
+              <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider border ${
                 googleDrive?.status === 'CONNECTED'
-                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-                  : !configStatus.googleConfigured
-                  ? 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400'
-                  : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'
+                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                  : 'bg-zinc-800 text-zinc-400 border-white/5'
               }`}>
-                {googleDrive?.status === 'CONNECTED' ? 'Connected' : !configStatus.googleConfigured ? 'Setup Required' : 'Not Connected'}
+                {googleDrive?.status === 'CONNECTED' ? 'Connected' : 'Not Connected'}
               </span>
             </div>
 
             {googleDrive?.status === 'CONNECTED' ? (
-              <div className="bg-zinc-50 dark:bg-zinc-800/50 rounded-xl p-3.5 space-y-2 mb-6 border border-zinc-200/60 dark:border-zinc-700/60">
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-zinc-500">Google Drive Folder:</span>
-                  <span className="font-medium text-blue-600 dark:text-blue-400">/{googleDrive.folderName || 'content'}</span>
+              <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-2.5 text-xs">
+                <div className="flex justify-between items-center">
+                  <span className="text-zinc-400">Google Drive Folder:</span>
+                  <span className="font-bold text-blue-400 font-mono">/{googleDrive.folderName || 'content'}</span>
                 </div>
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-zinc-500">Last Synced:</span>
-                  <span className="font-medium text-emerald-600 dark:text-emerald-400">2 minutes ago</span>
+                <div className="flex justify-between items-center">
+                  <span className="text-zinc-400">Last Synced:</span>
+                  <span className="font-bold text-emerald-400">2 minutes ago</span>
                 </div>
               </div>
             ) : (
-              <p className="text-xs text-zinc-500 mb-6">
-                {!configStatus.googleConfigured
-                  ? 'Requires Google Cloud OAuth setup. Click below for step-by-step instructions.'
-                  : 'Connect your Google Drive to automatically sync photos & videos into your publishing queue.'}
+              <p className="text-xs text-zinc-400 leading-relaxed">
+                Connect your Google Drive to automatically sync photos & videos into your AutoPilot publishing queue.
               </p>
             )}
           </div>
 
-          <div className="space-y-2">
+          <div>
             {googleDrive?.status === 'CONNECTED' ? (
               <div className="flex space-x-2">
-                <button 
+                <button
                   onClick={openFolderModal}
-                  className="flex-1 py-2 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 hover:bg-blue-100 text-xs font-semibold rounded-lg transition border border-blue-200 dark:border-blue-800"
+                  className="flex-1 py-2.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 text-xs font-bold rounded-xl transition border border-blue-500/20"
                 >
                   Change Folder
                 </button>
-                <button 
+                <button
                   onClick={handleDisconnectDrive}
-                  className="py-2 px-3 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 text-xs font-semibold rounded-lg transition"
+                  className="py-2.5 px-4 bg-white/5 hover:bg-rose-500/10 text-zinc-400 hover:text-rose-400 text-xs font-bold rounded-xl transition border border-white/5"
                 >
                   Disconnect
                 </button>
               </div>
             ) : (
-              <button 
+              <button
                 onClick={() => handleConnect('google')}
-                className={`w-full py-2.5 text-xs font-semibold rounded-lg transition shadow-sm flex items-center justify-center space-x-2 ${
-                  !configStatus.googleConfigured
-                    ? 'bg-amber-500 hover:bg-amber-600 text-white'
-                    : 'bg-blue-600 hover:bg-blue-700 text-white'
-                }`}
+                className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition shadow-lg shadow-blue-500/25 border border-white/20 flex items-center justify-center space-x-2"
               >
-                <span>{!configStatus.googleConfigured ? '⚙️' : '⚡'}</span>
-                <span>{!configStatus.googleConfigured ? 'View Setup Instructions' : 'Connect Google Drive'}</span>
+                <Zap className="h-4 w-4" />
+                <span>Connect Google Drive</span>
               </button>
             )}
           </div>
-        </div>
+        </motion.div>
 
         {/* Card 2: Instagram */}
-        <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-6 flex flex-col justify-between shadow-sm hover:shadow-md transition">
-          <div>
-            <div className="flex items-center justify-between mb-4">
+        <motion.div
+          whileHover={{ y: -4 }}
+          className="glass-panel glass-panel-hover p-6 rounded-3xl border border-white/10 flex flex-col justify-between space-y-6 shadow-xl relative overflow-hidden group"
+        >
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                <div className="h-12 w-12 rounded-xl bg-gradient-to-tr from-amber-400 via-rose-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg shadow-sm">
+                <div className="h-12 w-12 rounded-2xl bg-gradient-to-tr from-amber-400 via-rose-500 to-purple-600 text-white flex items-center justify-center font-black text-lg shadow-lg shadow-rose-500/20">
                   IG
                 </div>
                 <div>
-                  <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">Instagram</h3>
-                  <p className="text-xs text-zinc-500">
+                  <h3 className="font-bold text-white tracking-tight">Instagram</h3>
+                  <p className="text-[11px] text-zinc-400">
                     {instagramAccounts.length > 0 ? `Connected as ${instagramAccounts[0].handle}` : 'Reels & Post Publishing'}
                   </p>
                 </div>
               </div>
-              <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${
+              <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider border ${
                 instagramAccounts.length > 0
-                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-                  : !configStatus.instagramConfigured
-                  ? 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400'
-                  : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'
+                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                  : 'bg-zinc-800 text-zinc-400 border-white/5'
               }`}>
-                {instagramAccounts.length > 0 ? 'Connected' : !configStatus.instagramConfigured ? 'Setup Required' : 'Not Connected'}
+                {instagramAccounts.length > 0 ? 'Connected' : 'Not Connected'}
               </span>
             </div>
 
             {instagramAccounts.length > 0 ? (
-              <div className="bg-zinc-50 dark:bg-zinc-800/50 rounded-xl p-3.5 space-y-2 mb-6 border border-zinc-200/60 dark:border-zinc-700/60 text-xs">
+              <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-2.5 text-xs">
                 <div className="flex justify-between items-center">
-                  <span className="text-zinc-500">Token Health:</span>
-                  <span className="font-medium text-emerald-600 dark:text-emerald-400">Expires in 45 days (Auto-Refresh)</span>
+                  <span className="text-zinc-400">Token Health:</span>
+                  <span className="font-bold text-emerald-400">Expires in 45 days (Auto-Refresh)</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-zinc-500">Last Published:</span>
-                  <span className="font-medium text-zinc-800 dark:text-zinc-200">Yesterday</span>
+                  <span className="text-zinc-400">Last Published:</span>
+                  <span className="font-bold text-zinc-200">Yesterday</span>
                 </div>
               </div>
             ) : (
-              <p className="text-xs text-zinc-500 mb-6">
-                {!configStatus.instagramConfigured
-                  ? 'Requires Meta Developer App setup. Click below for step-by-step instructions.'
-                  : 'Connect your Instagram Creator account to publish reels, posts, and auto-reply to comments.'}
+              <p className="text-xs text-zinc-400 leading-relaxed">
+                Connect your Instagram Creator account to publish reels, posts, and auto-reply to comments.
               </p>
             )}
           </div>
 
-          <button 
+          <button
             onClick={() => handleConnect('instagram')}
-            className={`w-full py-2.5 text-xs font-semibold rounded-lg hover:opacity-95 transition shadow-sm flex items-center justify-center space-x-2 ${
-              !configStatus.instagramConfigured
-                ? 'bg-amber-500 hover:bg-amber-600 text-white'
-                : 'bg-gradient-to-r from-rose-500 to-purple-600 text-white'
-            }`}
+            className="w-full py-2.5 bg-gradient-to-r from-rose-500 to-purple-600 hover:opacity-95 text-white text-xs font-bold rounded-xl transition shadow-lg shadow-rose-500/25 border border-white/20 flex items-center justify-center space-x-2"
           >
-            <span>{!configStatus.instagramConfigured ? '⚙️' : '⚡'}</span>
-            <span>
-              {!configStatus.instagramConfigured 
-                ? 'View Setup Instructions'
-                : instagramAccounts.length > 0 ? 'Add Account' : 'Connect Instagram'}
-            </span>
+            <Zap className="h-4 w-4" />
+            <span>{instagramAccounts.length > 0 ? 'Add Account' : 'Connect Instagram'}</span>
           </button>
-        </div>
+        </motion.div>
 
         {/* Card 3: TikTok */}
-        <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-6 flex flex-col justify-between shadow-sm hover:shadow-md transition">
-          <div>
-            <div className="flex items-center justify-between mb-4">
+        <motion.div
+          whileHover={{ y: -4 }}
+          className="glass-panel glass-panel-hover p-6 rounded-3xl border border-white/10 flex flex-col justify-between space-y-6 shadow-xl relative overflow-hidden group"
+        >
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                <div className="h-12 w-12 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 flex items-center justify-center font-bold text-lg shadow-sm">
+                <div className="h-12 w-12 rounded-2xl bg-zinc-900 border border-white/10 text-white flex items-center justify-center font-black text-lg shadow-lg">
                   TK
                 </div>
                 <div>
-                  <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">TikTok</h3>
-                  <p className="text-xs text-zinc-500">
+                  <h3 className="font-bold text-white tracking-tight">TikTok</h3>
+                  <p className="text-[11px] text-zinc-400">
                     {tiktokAccounts.length > 0 ? `Connected as ${tiktokAccounts[0].handle}` : 'Creator & Video Uploads'}
                   </p>
                 </div>
               </div>
-              <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${
+              <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider border ${
                 tiktokAccounts.length > 0
-                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-                  : !configStatus.tiktokConfigured
-                  ? 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400'
-                  : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'
+                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                  : 'bg-zinc-800 text-zinc-400 border-white/5'
               }`}>
-                {tiktokAccounts.length > 0 ? 'Connected' : !configStatus.tiktokConfigured ? 'Setup Required' : 'Not Connected'}
+                {tiktokAccounts.length > 0 ? 'Connected' : 'Not Connected'}
               </span>
             </div>
 
             {tiktokAccounts.length > 0 ? (
-              <div className="bg-zinc-50 dark:bg-zinc-800/50 rounded-xl p-3.5 space-y-2 mb-6 border border-zinc-200/60 dark:border-zinc-700/60 text-xs">
+              <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-2.5 text-xs">
                 <div className="flex justify-between items-center">
-                  <span className="text-zinc-500">Last Sync:</span>
-                  <span className="font-medium text-emerald-600 dark:text-emerald-400">5 minutes ago</span>
+                  <span className="text-zinc-400">Last Sync:</span>
+                  <span className="font-bold text-emerald-400">5 minutes ago</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-zinc-500">Permissions:</span>
-                  <span className="font-medium text-zinc-800 dark:text-zinc-200">Granted (video.publish)</span>
+                  <span className="text-zinc-400">Permissions:</span>
+                  <span className="font-bold text-zinc-200">Granted (video.publish)</span>
                 </div>
               </div>
             ) : (
-              <p className="text-xs text-zinc-500 mb-6">
-                {!configStatus.tiktokConfigured
-                  ? 'Requires TikTok Developer App setup. Click below for step-by-step instructions.'
-                  : 'Connect your TikTok Creator account to schedule video uploads and monitor engagement.'}
+              <p className="text-xs text-zinc-400 leading-relaxed">
+                Connect your TikTok Creator account to schedule video uploads and monitor engagement.
               </p>
             )}
           </div>
 
-          <button 
+          <button
             onClick={() => handleConnect('tiktok')}
-            className={`w-full py-2.5 text-xs font-semibold rounded-lg transition shadow-sm flex items-center justify-center space-x-2 ${
-              !configStatus.tiktokConfigured
-                ? 'bg-amber-500 hover:bg-amber-600 text-white'
-                : 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200'
-            }`}
+            className="w-full py-2.5 bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-bold rounded-xl transition shadow-lg border border-white/20 flex items-center justify-center space-x-2"
           >
-            <span>{!configStatus.tiktokConfigured ? '⚙️' : '⚡'}</span>
-            <span>
-              {!configStatus.tiktokConfigured 
-                ? 'View Setup Instructions'
-                : tiktokAccounts.length > 0 ? 'Add Account' : 'Connect TikTok'}
-            </span>
+            <Zap className="h-4 w-4 text-zinc-950" />
+            <span>{tiktokAccounts.length > 0 ? 'Add Account' : 'Connect TikTok'}</span>
           </button>
-        </div>
+        </motion.div>
 
       </div>
 
       {/* Multi-Account Manager Section */}
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-6 shadow-sm">
-        <div className="flex items-center justify-between mb-6">
+      <div className="glass-panel p-6 rounded-3xl border border-white/10 space-y-6 shadow-xl">
+        <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Connected Social Profiles</h2>
-            <p className="text-xs text-zinc-500">Active accounts linked to your workspace for AutoPilot publishing.</p>
+            <h2 className="text-lg font-bold text-white tracking-tight">Connected Social Profiles</h2>
+            <p className="text-xs text-zinc-400 mt-1">Active social accounts linked to your workspace for AutoPilot publishing.</p>
           </div>
         </div>
 
         {loading ? (
           <p className="text-sm text-zinc-500 py-6 text-center">Loading accounts...</p>
         ) : accounts.length === 0 ? (
-          <div className="text-center py-10 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-xl">
-            <p className="text-sm text-zinc-500">No active social accounts connected yet.</p>
-            <p className="text-xs text-zinc-400 mt-1">Complete the developer app setup above, then click Connect.</p>
+          <div className="text-center py-10 border border-dashed border-white/10 rounded-2xl space-y-2">
+            <p className="text-sm text-zinc-400 font-medium">No active social accounts connected yet.</p>
+            <p className="text-xs text-zinc-500">Click one of the Connect buttons above to get started.</p>
           </div>
         ) : (
-          <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
+          <div className="divide-y divide-white/10">
             {accounts.map(acc => (
               <div key={acc.id} className="py-4 flex items-center justify-between">
                 <div className="flex items-center space-x-4">
                   <div className={`h-10 w-10 rounded-xl flex items-center justify-center font-bold text-xs ${
                     acc.platform === 'INSTAGRAM'
                       ? 'bg-gradient-to-tr from-amber-400 to-purple-600 text-white'
-                      : 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900'
+                      : 'bg-zinc-900 border border-white/10 text-white'
                   }`}>
                     {acc.platform.substring(0, 2)}
                   </div>
                   <div>
                     <div className="flex items-center space-x-2">
-                      <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{acc.handle}</p>
-                      <button 
+                      <p className="text-sm font-bold text-white tracking-tight">{acc.handle}</p>
+                      <button
                         onClick={() => {
                           setRenameAccountId(acc.id);
                           setNewHandle(acc.handle);
                         }}
-                        className="text-xs text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
+                        className="text-xs text-zinc-500 hover:text-zinc-300 transition"
                         title="Rename"
                       >
-                        ✏️
+                        <Edit2 className="h-3.5 w-3.5" />
                       </button>
                     </div>
-                    <p className="text-xs text-zinc-500">{acc.platform} • {acc.accountType || 'Creator Account'}</p>
+                    <p className="text-xs text-zinc-400">{acc.platform} • {acc.accountType || 'Creator Account'}</p>
                   </div>
                 </div>
 
-                <div className="flex items-center space-x-3">
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                <div className="flex items-center space-x-4">
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                     Connected
                   </span>
-                  <button 
+                  <button
                     onClick={() => handleDisconnectAccount(acc.id)}
-                    className="text-xs text-zinc-400 hover:text-red-600 transition font-medium"
-                    title="Disconnect Account"
+                    className="text-xs text-zinc-500 hover:text-rose-400 transition font-semibold"
                   >
                     Disconnect
                   </button>
@@ -596,140 +522,100 @@ export default function ConnectedAccountsPage() {
         )}
       </div>
 
-      {/* ── Modal 1: Google Drive Folder Picker ── */}
-      {isFolderModalOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 max-w-md w-full p-6 space-y-6 shadow-2xl">
-            <div className="flex items-center space-x-3">
-              <div className="h-10 w-10 rounded-xl bg-blue-500 text-white flex items-center justify-center font-bold">GD</div>
-              <div>
-                <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100">Select Google Drive Folder</h3>
-                <p className="text-xs text-zinc-500">Choose which folder to sync with Auto-Pilot</p>
+      {/* Modal 1: Folder Picker */}
+      <AnimatePresence>
+        {isFolderModalOpen && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-zinc-950 rounded-3xl border border-white/10 max-w-md w-full p-6 space-y-6 shadow-2xl"
+            >
+              <div className="flex items-center space-x-3">
+                <div className="h-10 w-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-bold">GD</div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Select Google Drive Folder</h3>
+                  <p className="text-xs text-zinc-400">Choose which folder to sync with Auto-Pilot</p>
+                </div>
               </div>
-            </div>
 
-            <div className="space-y-2 max-h-60 overflow-y-auto">
-              {availableFolders.length === 0 ? (
-                <p className="text-sm text-zinc-500 text-center py-4">Loading folders...</p>
-              ) : (
-                availableFolders.map(folder => (
-                  <label 
-                    key={folder.id}
-                    className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition ${
-                      selectedFolderId === folder.id
-                        ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-medium'
-                        : 'border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 text-zinc-700 dark:text-zinc-300'
-                    }`}
-                  >
-                    <div className="flex items-center space-x-3 text-xs">
-                      <input 
-                        type="radio" 
-                        name="folder_select"
-                        checked={selectedFolderId === folder.id}
-                        onChange={() => setSelectedFolderId(folder.id)}
-                        className="text-blue-600 focus:ring-blue-500"
-                      />
-                      <span>{folder.name}</span>
-                    </div>
-                  </label>
-                ))
-              )}
-            </div>
-
-            <div className="flex justify-end space-x-3 pt-4 border-t border-zinc-200 dark:border-zinc-800">
-              <button 
-                onClick={() => setIsFolderModalOpen(false)}
-                className="px-4 py-2 text-xs font-medium text-zinc-500 hover:text-zinc-900"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={handleSaveFolder}
-                disabled={updatingFolder || !selectedFolderId}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition shadow-sm disabled:opacity-50"
-              >
-                {updatingFolder ? 'Saving...' : 'Save Folder Selection'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Modal 2: Rename Account Handle ── */}
-      {renameAccountId && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 max-w-md w-full p-6 space-y-4 shadow-2xl">
-            <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100">Rename Account Label</h3>
-            <p className="text-xs text-zinc-500">Customize the handle displayed in your workspace.</p>
-            <div>
-              <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">Handle / Name</label>
-              <input 
-                type="text"
-                value={newHandle}
-                onChange={(e) => setNewHandle(e.target.value)}
-                className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-transparent text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-              />
-            </div>
-            <div className="flex justify-end space-x-3 pt-4 border-t border-zinc-200 dark:border-zinc-800">
-              <button onClick={() => setRenameAccountId(null)} className="px-4 py-2 text-xs font-medium text-zinc-500">Cancel</button>
-              <button onClick={handleSaveRename} className="px-4 py-2 bg-blue-600 text-white text-xs font-semibold rounded-lg">Save</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Modal 3: Setup Instructions ── */}
-      {setupModal && currentSetup && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 max-w-lg w-full p-6 space-y-5 shadow-2xl">
-            <div className="flex items-start justify-between">
-              <div>
-                <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">⚙️ {currentSetup.title} — Setup Required</h3>
-                <p className="text-xs text-zinc-500 mt-1">Follow these steps to enable OAuth for this platform.</p>
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {availableFolders.length === 0 ? (
+                  <p className="text-sm text-zinc-500 text-center py-4">Loading folders...</p>
+                ) : (
+                  availableFolders.map(folder => (
+                    <label
+                      key={folder.id}
+                      className={`flex items-center justify-between p-3.5 rounded-2xl border cursor-pointer transition ${
+                        selectedFolderId === folder.id
+                          ? 'border-blue-500 bg-blue-500/10 text-blue-300 font-bold'
+                          : 'border-white/10 hover:bg-white/5 text-zinc-300'
+                      }`}
+                    >
+                      <div className="flex items-center space-x-3 text-xs">
+                        <input
+                          type="radio"
+                          name="folder_select"
+                          checked={selectedFolderId === folder.id}
+                          onChange={() => setSelectedFolderId(folder.id)}
+                          className="text-blue-600"
+                        />
+                        <span>{folder.name}</span>
+                      </div>
+                    </label>
+                  ))
+                )}
               </div>
-              <button onClick={() => setSetupModal(null)} className="text-zinc-400 hover:text-zinc-700 text-xl leading-none">×</button>
-            </div>
 
-            <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl p-4">
-              <p className="text-xs font-semibold text-amber-800 dark:text-amber-300 mb-1">⚠️ Developer App Not Configured</p>
-              <p className="text-xs text-amber-700 dark:text-amber-400">
-                OAuth connections require a real developer app credential. This is a one-time setup that takes ~10 minutes.
-              </p>
-            </div>
-
-            <ol className="space-y-2">
-              {currentSetup.steps.map((step, i) => (
-                <li key={i} className="flex items-start space-x-3 text-xs text-zinc-700 dark:text-zinc-300">
-                  <span className="flex-shrink-0 h-5 w-5 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center font-bold text-zinc-500 text-[10px]">
-                    {i + 1}
-                  </span>
-                  <span className={step.startsWith('Add ') || step.startsWith('https://') ? 'font-mono text-[11px] bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded text-zinc-600 dark:text-zinc-400' : ''}>
-                    {step}
-                  </span>
-                </li>
-              ))}
-            </ol>
-
-            <div className="flex justify-end space-x-3 pt-4 border-t border-zinc-200 dark:border-zinc-800">
-              <button 
-                onClick={() => setSetupModal(null)}
-                className="px-4 py-2 text-xs font-medium text-zinc-500 hover:text-zinc-900"
-              >
-                Close
-              </button>
-              <a 
-                href={currentSetup.link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-4 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs font-semibold rounded-lg hover:opacity-90 transition"
-              >
-                Open Developer Portal →
-              </a>
-            </div>
+              <div className="flex justify-end space-x-3 pt-4 border-t border-white/10">
+                <button
+                  onClick={() => setIsFolderModalOpen(false)}
+                  className="px-4 py-2 text-xs font-semibold text-zinc-400 hover:text-white"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveFolder}
+                  disabled={updatingFolder || !selectedFolderId}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-lg shadow-blue-500/25 transition disabled:opacity-50"
+                >
+                  {updatingFolder ? 'Saving...' : 'Save Selection'}
+                </button>
+              </div>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
 
+      {/* Modal 2: Rename */}
+      <AnimatePresence>
+        {renameAccountId && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-zinc-950 rounded-3xl border border-white/10 max-w-md w-full p-6 space-y-4 shadow-2xl"
+            >
+              <h3 className="text-base font-bold text-white">Rename Account Handle</h3>
+              <p className="text-xs text-zinc-400">Customize the handle displayed in your workspace.</p>
+              <div>
+                <input
+                  type="text"
+                  value={newHandle}
+                  onChange={(e) => setNewHandle(e.target.value)}
+                  className="w-full px-4 py-2.5 border border-white/10 rounded-xl bg-white/5 text-sm text-white focus:outline-none focus:border-blue-500"
+                />
+              </div>
+              <div className="flex justify-end space-x-3 pt-4 border-t border-white/10">
+                <button onClick={() => setRenameAccountId(null)} className="px-4 py-2 text-xs font-semibold text-zinc-400">Cancel</button>
+                <button onClick={handleSaveRename} className="px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded-xl shadow-lg">Save</button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
