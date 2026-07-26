@@ -323,13 +323,14 @@ export class OAuthService {
     let accountType = 'BUSINESS';
 
     // Mode A: Instagram Business Login (using api.instagram.com)
-    if (instagramAppId && instagramAppSecret) {
+    if (instagramAppId) {
+      const activeSecret = instagramAppSecret || metaAppSecret;
       const tokenRes = await fetch('https://api.instagram.com/oauth/access_token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
           client_id: instagramAppId,
-          client_secret: instagramAppSecret,
+          client_secret: activeSecret!,
           grant_type: 'authorization_code',
           redirect_uri: redirectUri,
           code,
@@ -348,7 +349,7 @@ export class OAuthService {
 
       // Exchange short-lived token for long-lived Instagram token (60 days)
       const longLivedRes = await fetch(
-        `https://graph.instagram.com/access_token?grant_type=ig_exchange_token&client_secret=${instagramAppSecret}&access_token=${shortLivedToken}`,
+        `https://graph.instagram.com/access_token?grant_type=ig_exchange_token&client_secret=${activeSecret}&access_token=${shortLivedToken}`,
       );
 
       if (longLivedRes.ok) {
