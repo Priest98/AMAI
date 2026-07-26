@@ -2,20 +2,15 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { FullWidthDivider } from "@/components/full-width-divider";
 
-type LogoType = {
-	src: string;
-	alt: string;
-};
-
 type TileData = {
 	row: number;
 	col: number;
-	logo?: LogoType;
+	type?: "google-drive" | "instagram" | "tiktok" | "openai" | "vercel" | "github" | "empty";
 };
 
 export function IntegrationsBlock({ onExploreClick }: { onExploreClick?: () => void }) {
 	return (
-		<div className="relative mx-auto grid max-w-4xl grid-cols-1 gap-8 border-x border-slate-200/60 dark:border-white/10 md:grid-cols-2 md:items-center rounded-[22px] soft-card p-6 my-6">
+		<div className="relative mx-auto grid max-w-4xl grid-cols-1 gap-8 border-x border-slate-200/60 dark:border-white/10 md:grid-cols-2 md:items-center rounded-[22px] soft-card p-6 my-6 overflow-hidden">
 			<FullWidthDivider className="-top-px" />
 
 			{/* Left Content */}
@@ -25,13 +20,13 @@ export function IntegrationsBlock({ onExploreClick }: { onExploreClick?: () => v
 						Connect with your favorite tools
 					</h2>
 					<p className="text-slate-500 dark:text-zinc-400 text-xs md:text-sm leading-relaxed">
-						Connect Google Drive, Instagram, and TikTok with Marketing OS AutoPilot engine for automated AI publishing.
+						Seamlessly connect Google Drive, Instagram, and TikTok with Marketing OS AutoPilot engine for automated AI publishing.
 					</p>
 				</div>
 				<Button size="sm" onClick={onExploreClick}>Explore integrations</Button>
 			</div>
 
-			{/* Right Content - Visual */}
+			{/* Right Content - Scattered Grid Visual */}
 			<div className="place-items-end flex justify-center md:justify-end">
 				<div className="relative size-80 overflow-hidden rounded-2xl">
 					{/* Grid Background */}
@@ -55,111 +50,84 @@ export function IntegrationsBlock({ onExploreClick }: { onExploreClick?: () => v
 	);
 }
 
-function IntegrationCard({ row, col, logo }: TileData) {
+function IntegrationCard({ row, col, type }: TileData) {
 	return (
 		<div
 			className={cn(
-				"absolute flex size-16 items-center justify-center rounded-xl",
-				logo ? "bg-slate-100 dark:bg-white/10 border border-slate-200/60 dark:border-white/10 shadow-sm" : ""
+				"absolute flex size-16 items-center justify-center rounded-2xl transition-transform hover:scale-110",
+				type && type !== "empty" ? "bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-white/10 shadow-md" : ""
 			)}
 			style={{
 				left: col * 64,
 				top: row * 64,
 			}}
 		>
-			{logo && (
+			{type === "google-drive" && (
+				<div className="h-10 w-10 rounded-xl bg-blue-500 text-white flex items-center justify-center font-black text-xs shadow-md shadow-blue-500/30">
+					GD
+				</div>
+			)}
+
+			{type === "instagram" && (
+				<div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-amber-400 via-rose-500 to-purple-600 text-white flex items-center justify-center font-black text-xs shadow-md shadow-rose-500/30">
+					IG
+				</div>
+			)}
+
+			{type === "tiktok" && (
+				<div className="h-10 w-10 rounded-xl bg-slate-950 text-white flex items-center justify-center font-black text-xs shadow-md border border-white/20">
+					TK
+				</div>
+			)}
+
+			{type === "openai" && (
 				<img
-					alt={logo.alt}
-					className={cn(
-						"pointer-events-none size-8 select-none object-contain p-1"
-					)}
-					height={40}
-					src={logo.src}
-					width={40}
+					alt="OpenAI"
+					className="size-7 object-contain dark:invert"
+					src="https://storage.efferd.com/logo/openai.svg"
+				/>
+			)}
+
+			{type === "github" && (
+				<img
+					alt="GitHub"
+					className="size-7 object-contain dark:invert"
+					src="https://storage.efferd.com/logo/github.svg"
+				/>
+			)}
+
+			{type === "vercel" && (
+				<img
+					alt="Vercel"
+					className="size-7 object-contain dark:invert"
+					src="https://storage.efferd.com/logo/vercel.svg"
 				/>
 			)}
 		</div>
 	);
 }
 
+// Scattered Grid (6x5) containing Google Drive, Instagram, and TikTok prominently
 const tiles: TileData[] = [
-	{
-		row: 0,
-		col: 1,
-		logo: {
-			src: "https://storage.efferd.com/logo/vercel.svg",
-			alt: "Vercel Logo",
-		},
-	},
-	{
-		row: 0,
-		col: 3,
-		logo: {
-			src: "https://storage.efferd.com/logo/openai.svg",
-			alt: "OpenAI Logo",
-		},
-	},
+	// Row 0
+	{ row: 0, col: 1, type: "google-drive" },
+	{ row: 0, col: 3, type: "openai" },
 
-	{ row: 1, col: 0 },
-	{
-		row: 1,
-		col: 2,
-		logo: {
-			src: "https://storage.efferd.com/logo/cursor.svg",
-			alt: "Cursor Logo",
-		},
-	},
-	{
-		row: 1,
-		col: 4,
-		logo: {
-			src: "https://storage.efferd.com/logo/v0.svg",
-			alt: "V0 Logo",
-		},
-	},
+	// Row 1
+	{ row: 1, col: 0, type: "empty" },
+	{ row: 1, col: 2, type: "instagram" },
+	{ row: 1, col: 4, type: "vercel" },
 
-	{
-		row: 2,
-		col: 1,
-		logo: {
-			src: "https://storage.efferd.com/logo/planetscale.svg",
-			alt: "Planetscale Logo",
-		},
-	},
-	{ row: 2, col: 3 },
+	// Row 2
+	{ row: 2, col: 1, type: "tiktok" },
+	{ row: 2, col: 3, type: "google-drive" },
 
-	{ row: 3, col: 0 },
-	{
-		row: 3,
-		col: 2,
-		logo: {
-			src: "https://storage.efferd.com/logo/base-ui.svg",
-			alt: "Base UI Logo",
-		},
-	},
-	{
-		row: 3,
-		col: 4,
-		logo: {
-			src: "https://storage.efferd.com/logo/copilot.svg",
-			alt: "Copilot Logo",
-		},
-	},
+	// Row 3
+	{ row: 3, col: 0, type: "empty" },
+	{ row: 3, col: 2, type: "github" },
+	{ row: 3, col: 4, type: "instagram" },
 
-	{
-		row: 4,
-		col: 1,
-		logo: {
-			src: "https://storage.efferd.com/logo/github.svg",
-			alt: "GitHub Logo",
-		},
-	},
-	{
-		row: 4,
-		col: 3,
-		logo: {
-			src: "https://storage.efferd.com/logo/dub.svg",
-			alt: "Dub Logo",
-		},
-	},
+	// Row 4
+	{ row: 4, col: 1, type: "tiktok" },
+	{ row: 4, col: 3, type: "google-drive" },
 ];
