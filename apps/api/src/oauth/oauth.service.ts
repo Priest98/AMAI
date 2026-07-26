@@ -8,6 +8,8 @@ import * as crypto from 'crypto';
 export class OAuthService {
   private readonly logger = new Logger(OAuthService.name);
 
+  private readonly processedCodes = new Set<string>();
+
   constructor(
     private prisma: PrismaService,
     private encryption: EncryptionService,
@@ -303,6 +305,16 @@ export class OAuthService {
 
   async handleInstagramCallback(code: string, stateStr: string) {
     this.logger.log(`[Instagram Callback] Processing code: ${code ? code.substring(0, 12) : 'null'}... Redirect URI: ${this.getInstagramRedirectUri()}`);
+    
+    if (code && this.processedCodes.has(code)) {
+      this.logger.warn(`[Instagram Callback] Duplicate code submission ignored: ${code.substring(0, 10)}...`);
+      return { success: true, platform: 'Instagram', handle: '@instagram_user', platformAccountId: 'ig_cached' };
+    }
+    if (code) {
+      this.processedCodes.add(code);
+      setTimeout(() => this.processedCodes.delete(code), 5 * 60 * 1000);
+    }
+
     const { brandId: rawBrandId } = this.parseState(stateStr);
     const brandId = await this.ensureBrand(rawBrandId);
 
