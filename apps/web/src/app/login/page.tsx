@@ -2,6 +2,8 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || '/api';
+
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -14,7 +16,7 @@ export default function LoginPage() {
     setError('');
 
     try {
-      const res = await fetch('http://localhost:3001/api/auth/login', {
+      const res = await fetch(`${API_BASE}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
@@ -26,7 +28,7 @@ export default function LoginPage() {
         throw new Error(data.message || 'Login failed');
       }
 
-      // Store token in localStorage for now (in production, use HttpOnly cookies)
+      // Store token in localStorage
       localStorage.setItem('marketing_os_token', data.accessToken);
       
       // Redirect to dashboard
@@ -52,7 +54,7 @@ export default function LoginPage() {
         <p className="mt-2 text-center text-sm text-zinc-600 dark:text-zinc-400">
           Or{' '}
           <Link href="/register" className="font-medium text-blue-600 hover:text-blue-500">
-            start your 14-day free trial
+            create a new account
           </Link>
         </p>
       </div>

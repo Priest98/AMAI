@@ -1,7 +1,7 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
-import { MediaType } from '@marketing-os/database';
+import { MediaType } from '@prisma/client';
 
 @Injectable()
 export class MediaService {
@@ -13,16 +13,13 @@ export class MediaService {
   async uploadAsset(brandId: string, file: Express.Multer.File, folderId?: string) {
     if (!file) throw new BadRequestException('No file provided');
 
-    // 1. Upload to Storage
     const uploadedData = await this.storage.uploadFile(file, brandId);
 
-    // 2. Determine MediaType enum
     let type: MediaType = MediaType.IMAGE;
     if (file.mimetype.startsWith('video/')) {
       type = MediaType.VIDEO;
     }
 
-    // 3. Save to DB
     return this.prisma.mediaAsset.create({
       data: {
         brandId,

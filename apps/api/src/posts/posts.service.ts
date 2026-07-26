@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { PostStatus, Platform } from '@marketing-os/database';
+import { PostStatus, Platform } from '@prisma/client';
 
 interface CreatePostDto {
   caption: string;
@@ -21,22 +21,6 @@ export class PostsService {
         caption: dto.caption,
         status: dto.status || PostStatus.DRAFT,
         scheduledAt: dto.scheduledAt ? new Date(dto.scheduledAt) : null,
-        media: {
-          create: dto.mediaAssetIds?.map(assetId => ({
-            assetId
-          })) || []
-        },
-        targets: {
-          create: dto.targets?.map(target => ({
-            platform: target.platform,
-            socialAccountId: target.socialAccountId,
-            platformSpecificMetadata: target.metadata ? JSON.stringify(target.metadata) : null,
-          })) || []
-        }
-      },
-      include: {
-        media: true,
-        targets: true,
       }
     });
   }
@@ -46,14 +30,6 @@ export class PostsService {
       where: {
         brandId,
         ...(status ? { status } : {})
-      },
-      include: {
-        targets: true,
-        media: {
-          include: {
-            asset: true
-          }
-        }
       },
       orderBy: { createdAt: 'desc' }
     });

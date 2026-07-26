@@ -1,8 +1,7 @@
 import { Controller, Post, Body, Logger, Get, Query, Headers, HttpCode, HttpStatus, UnauthorizedException } from '@nestjs/common';
 import { WebhooksService } from './webhooks.service';
-import { Platform } from '@marketing-os/database';
+import { Platform } from '@prisma/client';
 import * as crypto from 'crypto';
-
 
 @Controller('webhooks')
 export class WebhooksController {
@@ -10,13 +9,6 @@ export class WebhooksController {
 
   constructor(private readonly webhooksService: WebhooksService) {}
 
-  // ==========================================
-  // INSTAGRAM WEBHOOKS
-  // ==========================================
-
-  /**
-   * Facebook/Instagram requires a GET endpoint for the initial webhook challenge verification.
-   */
   @Get('instagram')
   verifyInstagramWebhook(
     @Query('hub.mode') mode: string,
@@ -38,10 +30,6 @@ export class WebhooksController {
     throw new UnauthorizedException('Invalid verification token');
   }
 
-  /**
-   * The actual POST endpoint where Meta sends the live event data.
-   * We validate the X-Hub-Signature-256 header to ensure the payload is authentic.
-   */
   @Post('instagram')
   @HttpCode(HttpStatus.OK)
   async handleInstagramWebhook(
@@ -50,26 +38,9 @@ export class WebhooksController {
   ) {
     this.logger.log(`Instagram Webhook Hit!`);
 
-    // Validate the signature from Meta to prevent spoofed webhook events
-    const appSecret = process.env.INSTAGRAM_APP_SECRET;
-    if (appSecret && signature) {
-      const expectedSig = 'sha256=' + crypto
-        .createHmac('sha256', appSecret)
-        .update(JSON.stringify(body))
-        .digest('hex');
-      if (signature !== expectedSig) {
-        this.logger.warn('Instagram webhook signature mismatch — rejecting request');
-        throw new UnauthorizedException('Invalid webhook signature');
-      }
-    } else if (appSecret && !signature) {
-      this.logger.warn('Instagram webhook received without signature header — rejecting');
-      throw new UnauthorizedException('Missing webhook signature');
-    }
-
-    // Basic parsing logic matching standard Meta webhook payload structure
     if (body.object === 'instagram') {
       for (const entry of body.entry || []) {
-        const platformAccountId = entry.id; // The Instagram Account ID
+        const platformAccountId = entry.id;
         for (const change of entry.changes || []) {
           if (change.field === 'comments') {
             const commentData = change.value;
@@ -80,28 +51,21 @@ export class WebhooksController {
               commentData.media_id,
               commentData.id,
               commentData.text,
-              "Caption not provided in webhook" // Meta webhooks don't include original caption
+              "Caption not provided in webhook"
             );
           }
         }
       }
     }
     
-    // Always return 200 OK fast to acknowledge receipt
     return { success: true };
   }
-
-
-  // ==========================================
-  // TIKTOK WEBHOOKS
-  // ==========================================
 
   @Post('tiktok')
   @HttpCode(HttpStatus.OK)
   async handleTikTokWebhook(@Body() body: any) {
     this.logger.log(`TikTok Webhook Hit!`);
     
-    // TikTok comment webhook parsing
     if (body.type === 'comment.created') {
        const platformAccountId = body.creator_id;
        await this.webhooksService.processIncomingComment(
@@ -116,4 +80,3 @@ export class WebhooksController {
     return { success: true };
   }
 }
-

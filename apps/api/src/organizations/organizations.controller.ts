@@ -1,6 +1,6 @@
 import { Controller, Post, Get, Body, Headers, UnauthorizedException } from '@nestjs/common';
 import { OrganizationsService } from './organizations.service';
-import { CreateOrganizationDto } from '@marketing-os/shared-types';
+import { CreateOrganizationDto } from './dto';
 
 @Controller('organizations')
 export class OrganizationsController {

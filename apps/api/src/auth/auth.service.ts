@@ -1,9 +1,9 @@
 import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { RegisterDto, LoginDto } from '@marketing-os/shared-types';
+import { RegisterDto, LoginDto } from './dto';
 import * as bcrypt from 'bcryptjs';
 import { JwtService } from '@nestjs/jwt';
-import { Role } from '@marketing-os/database';
+import { Role } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
@@ -80,7 +80,6 @@ export class AuthService {
   }
 
   private async generateAuthResponse(user: any) {
-    // Fetch the user's first brand so we can embed it in the token
     const membership = await this.prisma.organizationMember.findFirst({
       where: { userId: user.id },
       include: {
@@ -104,4 +103,3 @@ export class AuthService {
     };
   }
 }
-

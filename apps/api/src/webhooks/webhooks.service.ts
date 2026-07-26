@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { GrowthService } from '../growth/growth.service';
-import { Platform } from '@marketing-os/database';
+import { Platform } from '@prisma/client';
 
 @Injectable()
 export class WebhooksService {
@@ -12,9 +12,6 @@ export class WebhooksService {
     private readonly growthService: GrowthService
   ) {}
 
-  /**
-   * Processes an incoming comment webhook from a platform (Instagram or TikTok).
-   */
   async processIncomingComment(
     platform: Platform,
     platformAccountId: string,
@@ -25,13 +22,10 @@ export class WebhooksService {
   ) {
     this.logger.log(`Received incoming comment on ${platform} for account ${platformAccountId}`);
 
-    // 1. Look up our internal social account and brand
-    const socialAccount = await this.prisma.socialAccount.findUnique({
+    const socialAccount = await this.prisma.socialAccount.findFirst({
       where: {
-        platform_platformAccountId: {
-          platform,
-          platformAccountId,
-        }
+        platform,
+        platformAccountId,
       },
       include: { brand: true }
     });
@@ -43,7 +37,6 @@ export class WebhooksService {
 
     const brandId = socialAccount.brandId;
 
-    // 2. Generate the AI Reply via the GrowthService
     const aiReplyText = await this.growthService.generateCommentReply(
       brandId,
       originalCommentText,
@@ -55,7 +48,6 @@ export class WebhooksService {
       return;
     }
 
-    // 3. Save to Approval Queue (PendingCommentReply table)
     await this.prisma.pendingCommentReply.create({
       data: {
         brandId,

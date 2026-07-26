@@ -6,10 +6,13 @@ import { PublisherWorker } from './publisher.worker';
   imports: [
     BullModule.forRoot({
       connection: {
-        host: process.env.REDIS_HOST || 'localhost',
+        host: process.env.REDIS_HOST || '127.0.0.1',
         port: parseInt(process.env.REDIS_PORT || '6379', 10),
-        maxRetriesPerRequest: null,
+        lazyConnect: true,
         enableOfflineQueue: false,
+        enableReadyCheck: false,
+        maxRetriesPerRequest: null,
+        retryStrategy: () => null,
       },
     }),
     BullModule.registerQueue({

@@ -15,6 +15,7 @@ import { AiModule } from './ai/ai.module';
 import { AutoPilotModule } from './autopilot/autopilot.module';
 import { GrowthModule } from './growth/growth.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
+import { OAuthModule } from './oauth/oauth.module';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 
@@ -24,7 +25,7 @@ import { APP_GUARD } from '@nestjs/core';
       ttl: 60000,
       limit: 10,
     }]),
-    PrismaModule, AuthModule, OrganizationsModule, EncryptionModule, BrandsModule, SocialAccountsModule, StorageModule, MediaModule, PostsModule, QueueModule, AiModule, AutoPilotModule, GrowthModule, WebhooksModule
+    PrismaModule, AuthModule, OrganizationsModule, EncryptionModule, BrandsModule, SocialAccountsModule, StorageModule, MediaModule, PostsModule, QueueModule, AiModule, AutoPilotModule, GrowthModule, WebhooksModule, OAuthModule
   ],
   controllers: [AppController],
   providers: [

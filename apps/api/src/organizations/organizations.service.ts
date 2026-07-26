@@ -1,6 +1,6 @@
-import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
+import { Injectable, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateOrganizationDto } from '@marketing-os/shared-types';
+import { CreateOrganizationDto } from './dto';
 
 @Injectable()
 export class OrganizationsService {
@@ -20,12 +20,6 @@ export class OrganizationsService {
         name: dto.name,
         slug: dto.slug,
         ownerId: userId,
-        members: {
-          create: {
-            userId: userId,
-            role: 'OWNER',
-          },
-        },
       },
     });
 
@@ -34,13 +28,7 @@ export class OrganizationsService {
 
   async getUserOrganizations(userId: string) {
     return this.prisma.organization.findMany({
-      where: {
-        members: {
-          some: {
-            userId: userId,
-          },
-        },
-      },
+      where: { ownerId: userId },
     });
   }
 }

@@ -1,7 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EncryptionService } from '../encryption/encryption.service';
-import { Platform } from '@marketing-os/database';
+import { Platform } from '@prisma/client';
 
 @Injectable()
 export class SocialAccountsService {
@@ -51,7 +51,6 @@ export class SocialAccountsService {
       }
     });
     
-    // Parse metadata back to object for the frontend
     return accounts.map(acc => ({
       ...acc,
       metadata: acc.metadata ? JSON.parse(acc.metadata) : null

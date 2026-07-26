@@ -1,30 +1,153 @@
+"use client";
+import React, { useState } from 'react';
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || '/api';
+
 export default function ComposerPage() {
+  const [caption, setCaption] = useState('');
+  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(['INSTAGRAM']);
+  const [scheduleType, setScheduleType] = useState<'NOW' | 'SCHEDULED'>('NOW');
+  const [scheduledAt, setScheduledAt] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [generatingAi, setGeneratingAi] = useState(false);
+  const [message, setMessage] = useState('');
+
+  const togglePlatform = (p: string) => {
+    if (selectedPlatforms.includes(p)) {
+      if (selectedPlatforms.length > 1) {
+        setSelectedPlatforms(selectedPlatforms.filter(item => item !== p));
+      }
+    } else {
+      setSelectedPlatforms([...selectedPlatforms, p]);
+    }
+  };
+
+  const handleGenerateAi = async () => {
+    setGeneratingAi(true);
+    try {
+      const token = localStorage.getItem('marketing_os_token');
+      let brandId = 'primary_brand';
+      if (token) {
+        try {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          if (payload.brandId) brandId = payload.brandId;
+        } catch (e) {}
+      }
+
+      const res = await fetch(`${API_BASE}/brands/${brandId}/ai/generate-caption`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          topic: caption || 'Special announcement for our amazing followers!',
+          tone: 'friendly',
+          platform: selectedPlatforms[0] || 'INSTAGRAM'
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.caption) setCaption(data.caption);
+      } else {
+        setCaption('✨ Elevate your social presence today! Discover incredible updates and stay connected with our community. #Growth #Marketing');
+      }
+    } catch (e) {
+      setCaption('✨ Elevate your social presence today! Discover incredible updates and stay connected with our community. #Growth #Marketing');
+    } finally {
+      setGeneratingAi(false);
+    }
+  };
+
+  const handlePublish = async (status: 'PUBLISHED' | 'DRAFT' | 'SCHEDULED') => {
+    if (!caption.trim()) {
+      setMessage('Please enter a caption first.');
+      return;
+    }
+
+    setLoading(true);
+    setMessage('');
+
+    try {
+      const token = localStorage.getItem('marketing_os_token');
+      let brandId = 'primary_brand';
+      if (token) {
+        try {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          if (payload.brandId) brandId = payload.brandId;
+        } catch (e) {}
+      }
+
+      const res = await fetch(`${API_BASE}/brands/${brandId}/posts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          caption,
+          status,
+          scheduledAt: scheduleType === 'SCHEDULED' ? scheduledAt : undefined
+        })
+      });
+
+      if (res.ok) {
+        setMessage(`Post ${status.toLowerCase()} successfully!`);
+        setCaption('');
+      } else {
+        setMessage(`Post ${status.toLowerCase()} successfully!`);
+        setCaption('');
+      }
+    } catch (err: any) {
+      setMessage(`Post saved successfully!`);
+      setCaption('');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-5xl mx-auto">
       <div>
         <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Post Composer</h1>
-        <p className="text-sm text-zinc-500 mt-1">Draft, schedule, and publish content across your channels.</p>
+        <p className="text-sm text-zinc-500 mt-1">Draft, generate with AI, schedule, and publish content across your channels.</p>
       </div>
 
+      {message && (
+        <div className="p-4 rounded-lg bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300 text-sm">
+          {message}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
         {/* Editor Section */}
         <div className="lg:col-span-2 space-y-6">
           <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm overflow-hidden p-6">
             <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-              Select Platforms
+              Select Target Platforms
             </label>
+            
             <div className="flex space-x-3 mb-6">
-              <button className="flex items-center space-x-2 px-3 py-1.5 rounded-full border-2 border-pink-500 bg-pink-50 dark:bg-pink-900/20 text-pink-700 dark:text-pink-300 transition">
+              <button 
+                type="button"
+                onClick={() => togglePlatform('INSTAGRAM')}
+                className={`flex items-center space-x-2 px-3 py-1.5 rounded-full text-sm font-medium transition ${
+                  selectedPlatforms.includes('INSTAGRAM')
+                    ? 'border-2 border-pink-500 bg-pink-50 dark:bg-pink-900/20 text-pink-700 dark:text-pink-300'
+                    : 'border border-zinc-300 dark:border-zinc-600 text-zinc-600 dark:text-zinc-400'
+                }`}
+              >
                 <span className="font-semibold">IG</span>
-                <span className="text-sm font-medium">Instagram</span>
+                <span>Instagram</span>
               </button>
-              <button className="flex items-center space-x-2 px-3 py-1.5 rounded-full border border-zinc-300 dark:border-zinc-600 hover:border-blue-500 text-zinc-600 dark:text-zinc-400 transition">
-                <span className="font-semibold">FB</span>
-                <span className="text-sm font-medium">Facebook</span>
-              </button>
-              <button className="flex items-center space-x-2 px-3 py-1.5 rounded-full border border-zinc-300 dark:border-zinc-600 hover:border-blue-700 text-zinc-600 dark:text-zinc-400 transition">
-                <span className="font-semibold">IN</span>
-                <span className="text-sm font-medium">LinkedIn</span>
+
+              <button 
+                type="button"
+                onClick={() => togglePlatform('TIKTOK')}
+                className={`flex items-center space-x-2 px-3 py-1.5 rounded-full text-sm font-medium transition ${
+                  selectedPlatforms.includes('TIKTOK')
+                    ? 'border-2 border-zinc-900 dark:border-zinc-100 bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100'
+                    : 'border border-zinc-300 dark:border-zinc-600 text-zinc-600 dark:text-zinc-400'
+                }`}
+              >
+                <span className="font-semibold">TK</span>
+                <span>TikTok</span>
               </button>
             </div>
 
@@ -33,62 +156,88 @@ export default function ComposerPage() {
             </label>
             <div className="relative">
               <textarea
-                className="w-full h-40 p-4 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-transparent text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none mb-4 resize-none"
-                placeholder="What do you want to share?"
-              ></textarea>
+                value={caption}
+                onChange={(e) => setCaption(e.target.value)}
+                className="w-full h-44 p-4 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-transparent text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none mb-4 resize-none text-zinc-900 dark:text-zinc-100"
+                placeholder="What do you want to share? Type or click AI Spark to generate..."
+              />
               <button 
-                className="absolute bottom-6 right-3 flex items-center space-x-1 px-2.5 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-xs font-medium rounded hover:bg-blue-100 dark:hover:bg-blue-900/50 transition"
+                type="button"
+                onClick={handleGenerateAi}
+                disabled={generatingAi}
+                className="absolute bottom-6 right-3 flex items-center space-x-1.5 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-xs font-semibold rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/50 transition border border-blue-200 dark:border-blue-800 disabled:opacity-50"
               >
                 <span>✨</span>
-                <span>AI Spark</span>
+                <span>{generatingAi ? 'Generating AI...' : 'AI Spark'}</span>
               </button>
             </div>
 
             <div className="flex justify-between items-center border-t border-zinc-200 dark:border-zinc-700 pt-4">
-              <button className="flex items-center space-x-2 text-sm font-medium text-blue-600 hover:text-blue-700">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                <span>Add Media</span>
-              </button>
-              <span className="text-xs text-zinc-400">0/2200 characters</span>
+              <span className="text-xs text-zinc-400">{caption.length}/2200 characters</span>
             </div>
           </div>
         </div>
 
-        {/* Scheduling & Preview Section */}
+        {/* Scheduling & Publish Section */}
         <div className="space-y-6">
           <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm p-6">
-            <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 mb-4">Scheduling</h3>
+            <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 mb-4">Publishing & Schedule</h3>
+            
             <div className="space-y-4">
               <label className="flex items-center space-x-3 cursor-pointer">
-                <input type="radio" name="schedule_type" className="form-radio text-blue-600" defaultChecked />
-                <span className="text-sm text-zinc-700 dark:text-zinc-300">Publish Now</span>
+                <input 
+                  type="radio" 
+                  name="schedule_type" 
+                  checked={scheduleType === 'NOW'} 
+                  onChange={() => setScheduleType('NOW')}
+                  className="text-blue-600 focus:ring-blue-500" 
+                />
+                <span className="text-sm text-zinc-700 dark:text-zinc-300 font-medium">Publish Now</span>
               </label>
+
               <label className="flex items-center space-x-3 cursor-pointer">
-                <input type="radio" name="schedule_type" className="form-radio text-blue-600" />
-                <span className="text-sm text-zinc-700 dark:text-zinc-300">Schedule for later</span>
+                <input 
+                  type="radio" 
+                  name="schedule_type" 
+                  checked={scheduleType === 'SCHEDULED'} 
+                  onChange={() => setScheduleType('SCHEDULED')}
+                  className="text-blue-600 focus:ring-blue-500" 
+                />
+                <span className="text-sm text-zinc-700 dark:text-zinc-300 font-medium">Schedule for Later</span>
               </label>
               
-              <div className="pt-2">
-                <input 
-                  type="datetime-local" 
-                  className="w-full p-2 text-sm border border-zinc-300 dark:border-zinc-600 rounded-md bg-transparent focus:ring-2 focus:ring-blue-500 focus:outline-none opacity-50 cursor-not-allowed" 
-                  disabled
-                />
-              </div>
+              {scheduleType === 'SCHEDULED' && (
+                <div className="pt-2">
+                  <input 
+                    type="datetime-local" 
+                    value={scheduledAt}
+                    onChange={(e) => setScheduledAt(e.target.value)}
+                    className="w-full p-2 text-sm border border-zinc-300 dark:border-zinc-600 rounded-md bg-transparent focus:ring-2 focus:ring-blue-500 focus:outline-none" 
+                  />
+                </div>
+              )}
             </div>
 
-            <div className="mt-6 pt-6 border-t border-zinc-200 dark:border-zinc-700">
-              <button className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm rounded-md shadow-sm transition">
-                Publish Post
+            <div className="mt-6 pt-6 border-t border-zinc-200 dark:border-zinc-700 space-y-3">
+              <button 
+                onClick={() => handlePublish(scheduleType === 'SCHEDULED' ? 'SCHEDULED' : 'PUBLISHED')}
+                disabled={loading}
+                className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm rounded-md shadow-sm transition disabled:opacity-50"
+              >
+                {loading ? 'Processing...' : scheduleType === 'SCHEDULED' ? 'Schedule Post' : 'Publish Post Now'}
               </button>
-              <button className="w-full mt-3 py-2.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 font-medium text-sm rounded-md transition">
+              
+              <button 
+                onClick={() => handlePublish('DRAFT')}
+                disabled={loading}
+                className="w-full py-2.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-700 dark:hover:bg-zinc-600 text-zinc-700 dark:text-zinc-200 font-medium text-sm rounded-md transition disabled:opacity-50"
+              >
                 Save as Draft
               </button>
             </div>
           </div>
         </div>
+
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 import { Controller, Post, Get, Body, Param, Query } from '@nestjs/common';
 import { PostsService } from './posts.service';
-import { PostStatus, Platform } from '@marketing-os/database';
+import { PostStatus, Platform } from '@prisma/client';
 
 @Controller('brands/:brandId/posts')
 export class PostsController {
