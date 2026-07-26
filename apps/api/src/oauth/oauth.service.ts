@@ -260,6 +260,10 @@ export class OAuthService {
   // INSTAGRAM / META OAUTH
   // ─────────────────────────────────────────────────────────────
 
+  private getInstagramRedirectUri(): string {
+    return `${this.getApiBaseUrl()}/api/oauth/instagram/callback`;
+  }
+
   getInstagramAuthUrl(brandId: string): string {
     const instagramAppId = process.env.INSTAGRAM_CLIENT_ID;
     const metaAppId = process.env.META_APP_ID;
@@ -271,32 +275,30 @@ export class OAuthService {
       );
     }
 
-    const redirectUri = encodeURIComponent(`${this.getApiBaseUrl()}/api/oauth/instagram/callback`);
-    const state = encodeURIComponent(this.buildState(brandId));
+    const redirectUri = this.getInstagramRedirectUri();
+    const state = this.buildState(brandId);
 
     // If using Instagram Business Login (Instagram App ID)
     if (instagramAppId) {
-      const scope = encodeURIComponent('instagram_business_basic,instagram_business_content_publish');
-      return (
-        `https://api.instagram.com/oauth/authorize` +
-        `?client_id=${instagramAppId}` +
-        `&redirect_uri=${redirectUri}` +
-        `&response_type=code` +
-        `&scope=${scope}` +
-        `&state=${state}`
-      );
+      const params = new URLSearchParams({
+        client_id: instagramAppId,
+        redirect_uri: redirectUri,
+        response_type: 'code',
+        scope: 'instagram_business_basic,instagram_business_content_publish',
+        state: state,
+      });
+      return `https://api.instagram.com/oauth/authorize?${params.toString()}`;
     }
 
     // Fallback to Facebook Login for Business dialog
-    const scope = encodeURIComponent('instagram_basic,instagram_content_publish,pages_show_list,pages_read_engagement');
-    return (
-      `https://www.facebook.com/v19.0/dialog/oauth` +
-      `?client_id=${metaAppId}` +
-      `&redirect_uri=${redirectUri}` +
-      `&response_type=code` +
-      `&scope=${scope}` +
-      `&state=${state}`
-    );
+    const params = new URLSearchParams({
+      client_id: metaAppId!,
+      redirect_uri: redirectUri,
+      response_type: 'code',
+      scope: 'instagram_basic,instagram_content_publish,pages_show_list,pages_read_engagement',
+      state: state,
+    });
+    return `https://www.facebook.com/v19.0/dialog/oauth?${params.toString()}`;
   }
 
   async handleInstagramCallback(code: string, stateStr: string) {
@@ -310,7 +312,7 @@ export class OAuthService {
 
     const clientId = instagramAppId || metaAppId;
     const clientSecret = instagramAppSecret || metaAppSecret;
-    const redirectUri = `${this.getApiBaseUrl()}/api/oauth/instagram/callback`;
+    const redirectUri = this.getInstagramRedirectUri();
 
     if (!clientId || !clientSecret) {
       throw new BadRequestException('Instagram OAuth credentials are not configured.');
