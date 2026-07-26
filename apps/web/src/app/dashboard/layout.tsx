@@ -14,7 +14,6 @@ import {
   LogOut,
   Menu,
   X,
-  Sparkles,
   ChevronLeft,
   ChevronRight,
   Sun,
@@ -140,17 +139,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const currentDateStr = new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
 
   return (
-    <div className={`flex h-screen overflow-hidden font-sans ambient-bg ${isDarkMode ? 'dark bg-[#09090b] text-zinc-100' : 'bg-[#f8fafc] text-slate-900'}`}>
+    <div className={`flex h-screen overflow-hidden font-sans ambient-bg transition-colors duration-300 ${
+      isDarkMode ? 'dark bg-[#0B0D12] text-slate-100' : 'bg-[#F7F8FC] text-slate-900'
+    }`}>
       
       {/* ── Desktop Collapsible Professional Sidebar (260px ↔ 72px) ── */}
       <motion.aside
         initial={false}
         animate={{ width: isCollapsed ? 72 : 260 }}
         transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-        className="hidden md:flex flex-col m-3 rounded-[24px] exec-card relative z-30 overflow-hidden select-none"
+        className="hidden md:flex flex-col m-3 rounded-[24px] exec-card relative z-30 overflow-hidden select-none bg-white dark:bg-[#12151D] border border-slate-200/60 dark:border-white/5"
       >
         {/* Brand Header */}
-        <div className="h-16 flex items-center justify-between px-3.5 border-b border-slate-200/60 dark:border-white/10">
+        <div className="h-16 flex items-center justify-between px-4 border-b border-slate-200/60 dark:border-white/5">
           <Link href="/dashboard" className="flex items-center space-x-3 group">
             {isCollapsed ? (
               <Logo variant="monogram" className="h-8 w-8" />
@@ -161,7 +162,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
           <button
             onClick={toggleCollapse}
-            className="h-8 w-8 rounded-lg bg-slate-100 dark:bg-zinc-800/60 hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-500 dark:text-zinc-400 flex items-center justify-center transition flex-shrink-0 touch-target"
+            className="h-8 w-8 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-500 dark:text-zinc-400 flex items-center justify-center transition flex-shrink-0 touch-target"
             title={isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
           >
             {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
@@ -190,14 +191,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         isCollapsed ? 'justify-center px-0' : 'space-x-3 px-3.5'
                       } py-2.5 rounded-2xl text-sm font-semibold transition-all ${
                         isActive
-                          ? 'text-slate-900 dark:text-white'
+                          ? 'text-slate-900 dark:text-white font-bold'
                           : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 hover:bg-slate-100/80 dark:hover:bg-white/5'
                       }`}
                     >
                       {isActive && (
                         <motion.div
                           layoutId="sidebarActivePill"
-                          className="absolute inset-0 rounded-2xl bg-slate-200/80 dark:bg-gradient-to-r dark:from-rose-500/20 dark:via-purple-500/10 dark:to-transparent dark:border dark:border-rose-500/30 shadow-sm"
+                          className="absolute inset-0 rounded-2xl bg-slate-100 dark:bg-white/10 dark:border dark:border-white/10 shadow-sm"
                           transition={{ type: 'spring', stiffness: 380, damping: 30 }}
                         />
                       )}
@@ -223,8 +224,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </nav>
 
         {/* User Profile Footer */}
-        <div className="p-3 border-t border-slate-200/60 dark:border-white/10 bg-slate-50/50 dark:bg-zinc-950/40">
-          <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} p-2 rounded-2xl bg-white dark:bg-white/5 border border-slate-200/60 dark:border-white/5 shadow-sm`}>
+        <div className="p-3 border-t border-slate-200/60 dark:border-white/5 bg-slate-50/50 dark:bg-zinc-950/40">
+          <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} p-2.5 rounded-2xl bg-white dark:bg-white/5 border border-slate-200/60 dark:border-white/5 shadow-sm`}>
             <div className="flex items-center space-x-3 min-w-0">
               <div className="relative flex-shrink-0">
                 <div className="h-8 w-8 rounded-xl bg-gradient-to-tr from-rose-500 to-purple-600 flex items-center justify-center text-white font-bold text-xs shadow-md">
@@ -269,7 +270,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: 'spring', damping: 28, stiffness: 220 }}
-              className="fixed top-0 left-0 bottom-0 w-[85vw] max-w-xs bg-white dark:bg-zinc-950 border-r border-slate-200 dark:border-white/10 z-50 p-5 flex flex-col justify-between md:hidden shadow-2xl overflow-y-auto"
+              className="fixed top-0 left-0 bottom-0 w-[85vw] max-w-xs bg-white dark:bg-[#12151D] border-r border-slate-200 dark:border-white/10 z-50 p-5 flex flex-col justify-between md:hidden shadow-2xl overflow-y-auto"
             >
               <div className="space-y-6">
                 <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-white/10">
@@ -337,7 +338,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative z-10 pb-16 md:pb-0">
         
         {/* Responsive Mobile Top Header Bar */}
-        <header className="h-16 flex items-center justify-between px-4 sm:px-6 m-2 sm:m-3 mb-0 rounded-[20px] sm:rounded-[24px] exec-card z-20">
+        <header className="h-16 flex items-center justify-between px-4 sm:px-6 m-2 sm:m-3 mb-0 rounded-[20px] sm:rounded-[24px] exec-card z-20 bg-white dark:bg-[#12151D] border border-slate-200/60 dark:border-white/5">
           <div className="flex items-center space-x-3">
             <button
               onClick={() => setIsMobileOpen(true)}
@@ -355,10 +356,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
           </div>
 
+          {/* Top Header Right Controls: Date Picker, Theme Toggle, + Create Post (NO Sparkle Icon) */}
           <div className="flex items-center space-x-2.5">
             
             {/* Live Date Badge */}
-            <div className="hidden sm:flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-slate-100 dark:bg-white/5 text-xs font-semibold text-slate-600 dark:text-zinc-300 border border-slate-200/60 dark:border-white/10">
+            <div className="hidden sm:flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-slate-100 dark:bg-white/5 text-xs font-semibold text-slate-600 dark:text-zinc-300 border border-slate-200/60 dark:border-white/5">
               <CalendarIcon className="h-3.5 w-3.5 text-slate-400 dark:text-zinc-400" />
               <span>{currentDateStr}</span>
             </div>
@@ -366,18 +368,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {/* Light / Dark Mode Toggle Button */}
             <button
               onClick={toggleTheme}
-              className="h-10 w-10 rounded-full bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-white/10 transition border border-slate-200/60 dark:border-white/10 flex items-center justify-center touch-target"
+              className="h-10 w-10 rounded-full bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-white/10 transition border border-slate-200/60 dark:border-white/5 flex items-center justify-center touch-target"
               title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
             >
               {isDarkMode ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-slate-700" />}
             </button>
 
-            {/* Primary Action Button */}
+            {/* Primary Action Button (Clean: + Create Post ONLY, Sparkle Icon Removed) */}
             <Link
               href="/dashboard/composer"
-              className="flex items-center space-x-1.5 px-3.5 py-2 text-xs font-bold text-white bg-gradient-to-r from-rose-500 via-purple-600 to-indigo-600 rounded-full hover:opacity-95 transition shadow-lg shadow-rose-500/25 active:scale-95 border border-white/20 touch-target"
+              className="flex items-center justify-center px-4 py-2 text-xs font-bold text-white bg-gradient-to-r from-rose-500 via-purple-600 to-indigo-600 rounded-full hover:opacity-95 transition shadow-lg shadow-rose-500/25 active:scale-95 border border-white/20 touch-target"
             >
-              <Sparkles className="h-3.5 w-3.5" />
               <span className="hidden xs:inline">+ Create Post</span>
               <span className="xs:hidden">+ Post</span>
             </Link>
@@ -392,7 +393,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
 
         {/* ── Native Mobile Glass Bottom Navigation Bar (Thumb Ergonomics) ── */}
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white/90 dark:bg-zinc-950/90 backdrop-blur-xl border-t border-slate-200/80 dark:border-white/10 px-3 flex items-center justify-around z-30 shadow-2xl">
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white/90 dark:bg-[#12151D]/90 backdrop-blur-xl border-t border-slate-200/80 dark:border-white/10 px-3 flex items-center justify-around z-30 shadow-2xl">
           {mobileTabItems.map((tab) => {
             const isActive = pathname === tab.href;
             const Icon = tab.icon;

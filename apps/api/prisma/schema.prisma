@@ -8,13 +8,23 @@ datasource db {
 }
 
 model User {
-  id           String               @id @default(dbgenerated("(gen_random_uuid())::text"))
-  email        String               @unique
-  passwordHash String
-  name         String?
-  createdAt    DateTime             @default(now()) @db.Timestamptz(6)
-  updatedAt    DateTime             @default(now()) @updatedAt @db.Timestamptz(6)
-  memberships  OrganizationMember[]
+  id                         String               @id @default(dbgenerated("(gen_random_uuid())::text"))
+  email                      String               @unique
+  passwordHash               String
+  fullName                   String?
+  avatar                     String?
+  role                       Role                 @default(OWNER)
+  emailVerified              Boolean              @default(false)
+  emailVerifiedAt            DateTime?            @db.Timestamptz(6)
+  verificationToken          String?              @unique
+  verificationTokenExpiresAt DateTime?            @db.Timestamptz(6)
+  passwordResetToken         String?              @unique
+  passwordResetExpiresAt     DateTime?            @db.Timestamptz(6)
+  lastLogin                  DateTime?            @db.Timestamptz(6)
+  onboardingCompleted        Boolean              @default(false)
+  createdAt                  DateTime             @default(now()) @db.Timestamptz(6)
+  updatedAt                  DateTime             @default(now()) @updatedAt @db.Timestamptz(6)
+  memberships                OrganizationMember[]
 }
 
 model Organization {
