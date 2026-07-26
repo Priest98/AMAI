@@ -339,7 +339,7 @@ export class OAuthService {
       if (!tokenRes.ok) {
         const err = await tokenRes.text();
         this.logger.error(`Instagram Business token exchange failed: ${err}`);
-        throw new BadRequestException('Instagram token exchange failed. Please try again.');
+        throw new BadRequestException(`Instagram token exchange failed: ${err}`);
       }
 
       const tokenData = await tokenRes.json();
@@ -385,7 +385,7 @@ export class OAuthService {
       if (!tokenRes.ok) {
         const err = await tokenRes.text();
         this.logger.error(`Facebook token exchange failed: ${err}`);
-        throw new BadRequestException('Instagram token exchange failed. Please try again.');
+        throw new BadRequestException(`Facebook token exchange failed: ${err}`);
       }
 
       const tokenData = await tokenRes.json();
