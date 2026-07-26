@@ -101,16 +101,33 @@ export default function ComposerPage() {
     }
   };
 
+  const [nicheTone, setNicheTone] = useState<string>('Fashion Designer');
+
+  const nichePresets = [
+    { label: '👗 Fashion Designer', tone: 'Fashion Designer', hashtag: '#FashionDesigner #OOTD #FashionTikTok #StyleInspo' },
+    { label: '🛍️ Small Business', tone: 'Small Business Owner', hashtag: '#SmallBusiness #SupportSmallBusiness #BehindTheScenes #ShopLocal' },
+    { label: '🍲 Food & Agriculture', tone: 'Food & Agriculture', hashtag: '#Foodie #FarmFresh #Delicious #TikTokFood' },
+    { label: '🚀 Viral / Trendy', tone: 'Viral & Trendy', hashtag: '#Viral #Trending #FYP #ExplorePage' }
+  ];
+
+  const handleSelectPreset = (preset: { tone: string; hashtag: string }) => {
+    setNicheTone(preset.tone);
+    if (!caption.includes(preset.hashtag)) {
+      setCaption(prev => prev ? `${prev}\n\n${preset.hashtag}` : preset.hashtag);
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
       <div>
-        <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Post Composer</h1>
-        <p className="text-sm text-zinc-500 mt-1">Draft, generate with AI, schedule, and publish content across your channels.</p>
+        <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Post Composer & AI Copilot</h1>
+        <p className="text-sm text-zinc-500 mt-1">Draft, generate niche captions with AI, approve, schedule, and publish content across your channels.</p>
       </div>
 
       {message && (
-        <div className="p-4 rounded-lg bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300 text-sm">
-          {message}
+        <div className="p-4 rounded-lg bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300 text-sm flex items-center justify-between">
+          <span>{message}</span>
+          <span className="text-xs font-semibold">✓ Saved</span>
         </div>
       )}
 
@@ -151,24 +168,47 @@ export default function ComposerPage() {
               </button>
             </div>
 
+            {/* Niche Presets */}
+            <div className="mb-4">
+              <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
+                Niche & Tone Presets (Survey Validated)
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {nichePresets.map((preset, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => handleSelectPreset(preset)}
+                    className={`px-3 py-1 rounded-full text-xs font-medium border transition ${
+                      nicheTone === preset.tone
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-300'
+                        : 'border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:border-zinc-300'
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-              Caption
+              Caption & AI Copywriter
             </label>
             <div className="relative">
               <textarea
                 value={caption}
                 onChange={(e) => setCaption(e.target.value)}
                 className="w-full h-44 p-4 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-transparent text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none mb-4 resize-none text-zinc-900 dark:text-zinc-100"
-                placeholder="What do you want to share? Type or click AI Spark to generate..."
+                placeholder="What do you want to share? Type topic or click AI Spark to generate..."
               />
               <button 
                 type="button"
                 onClick={handleGenerateAi}
                 disabled={generatingAi}
-                className="absolute bottom-6 right-3 flex items-center space-x-1.5 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-xs font-semibold rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/50 transition border border-blue-200 dark:border-blue-800 disabled:opacity-50"
+                className="absolute bottom-6 right-3 flex items-center space-x-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-md transition shadow-sm disabled:opacity-50"
               >
                 <span>✨</span>
-                <span>{generatingAi ? 'Generating AI...' : 'AI Spark'}</span>
+                <span>{generatingAi ? 'Generating AI...' : `AI Spark (${nicheTone})`}</span>
               </button>
             </div>
 
@@ -181,7 +221,7 @@ export default function ComposerPage() {
         {/* Scheduling & Publish Section */}
         <div className="space-y-6">
           <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm p-6">
-            <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 mb-4">Publishing & Schedule</h3>
+            <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 mb-4">Publishing & Human Approval Gate</h3>
             
             <div className="space-y-4">
               <label className="flex items-center space-x-3 cursor-pointer">
@@ -212,7 +252,7 @@ export default function ComposerPage() {
                     type="datetime-local" 
                     value={scheduledAt}
                     onChange={(e) => setScheduledAt(e.target.value)}
-                    className="w-full p-2 text-sm border border-zinc-300 dark:border-zinc-600 rounded-md bg-transparent focus:ring-2 focus:ring-blue-500 focus:outline-none" 
+                    className="w-full p-2 text-sm border border-zinc-300 dark:border-zinc-600 rounded-md bg-transparent focus:ring-2 focus:ring-blue-500 focus:outline-none text-zinc-900 dark:text-zinc-100" 
                   />
                 </div>
               )}
@@ -220,19 +260,20 @@ export default function ComposerPage() {
 
             <div className="mt-6 pt-6 border-t border-zinc-200 dark:border-zinc-700 space-y-3">
               <button 
+                onClick={() => handlePublish('DRAFT')}
+                disabled={loading}
+                className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-sm rounded-md shadow-sm transition disabled:opacity-50 flex items-center justify-center space-x-2"
+              >
+                <span>🛡️</span>
+                <span>Send to Approval Queue</span>
+              </button>
+
+              <button 
                 onClick={() => handlePublish(scheduleType === 'SCHEDULED' ? 'SCHEDULED' : 'PUBLISHED')}
                 disabled={loading}
                 className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm rounded-md shadow-sm transition disabled:opacity-50"
               >
                 {loading ? 'Processing...' : scheduleType === 'SCHEDULED' ? 'Schedule Post' : 'Publish Post Now'}
-              </button>
-              
-              <button 
-                onClick={() => handlePublish('DRAFT')}
-                disabled={loading}
-                className="w-full py-2.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-700 dark:hover:bg-zinc-600 text-zinc-700 dark:text-zinc-200 font-medium text-sm rounded-md transition disabled:opacity-50"
-              >
-                Save as Draft
               </button>
             </div>
           </div>
