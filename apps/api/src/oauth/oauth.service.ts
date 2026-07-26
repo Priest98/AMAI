@@ -344,6 +344,8 @@ export class OAuthService {
     if (instagramAppId) {
       const activeSecret = instagramAppSecret || metaAppSecret;
 
+      this.logger.log(`[Instagram Token Exchange] App ID: ${instagramAppId} | Has INSTAGRAM_CLIENT_SECRET: ${!!instagramAppSecret} | Secret Prefix: ${activeSecret ? activeSecret.substring(0, 4) : 'none'}...`);
+
       const tokenRes = await fetch('https://api.instagram.com/oauth/access_token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
