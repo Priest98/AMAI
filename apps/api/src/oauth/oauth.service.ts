@@ -302,6 +302,7 @@ export class OAuthService {
   }
 
   async handleInstagramCallback(code: string, stateStr: string) {
+    this.logger.log(`[Instagram Callback] Processing code: ${code ? code.substring(0, 12) : 'null'}... Redirect URI: ${this.getInstagramRedirectUri()}`);
     const { brandId: rawBrandId } = this.parseState(stateStr);
     const brandId = await this.ensureBrand(rawBrandId);
 
