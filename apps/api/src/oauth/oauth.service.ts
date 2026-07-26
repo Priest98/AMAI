@@ -304,15 +304,19 @@ export class OAuthService {
   }
 
   async handleInstagramCallback(code: string, stateStr: string) {
-    this.logger.log(`[Instagram Callback] Processing code: ${code ? code.substring(0, 12) : 'null'}... Redirect URI: ${this.getInstagramRedirectUri()}`);
+    // Strip trailing #_ or # fragment appended by Instagram OAuth redirect
+    const cleanCode = code ? code.split('#')[0].trim() : '';
+    const redirectUri = this.getInstagramRedirectUri();
+
+    this.logger.log(`[Instagram Callback] RAW CODE: ${JSON.stringify(code)} | CLEAN CODE: ${JSON.stringify(cleanCode)} | REDIRECT URI: ${JSON.stringify(redirectUri)}`);
     
-    if (code && this.processedCodes.has(code)) {
-      this.logger.warn(`[Instagram Callback] Duplicate code submission ignored: ${code.substring(0, 10)}...`);
+    if (cleanCode && this.processedCodes.has(cleanCode)) {
+      this.logger.warn(`[Instagram Callback] Duplicate code submission ignored: ${cleanCode.substring(0, 10)}...`);
       return { success: true, platform: 'Instagram', handle: '@instagram_user', platformAccountId: 'ig_cached' };
     }
-    if (code) {
-      this.processedCodes.add(code);
-      setTimeout(() => this.processedCodes.delete(code), 5 * 60 * 1000);
+    if (cleanCode) {
+      this.processedCodes.add(cleanCode);
+      setTimeout(() => this.processedCodes.delete(cleanCode), 5 * 60 * 1000);
     }
 
     const { brandId: rawBrandId } = this.parseState(stateStr);
@@ -325,7 +329,6 @@ export class OAuthService {
 
     const clientId = instagramAppId || metaAppId;
     const clientSecret = instagramAppSecret || metaAppSecret;
-    const redirectUri = this.getInstagramRedirectUri();
 
     if (!clientId || !clientSecret) {
       throw new BadRequestException('Instagram OAuth credentials are not configured.');
@@ -337,19 +340,21 @@ export class OAuthService {
     let platformAccountId = `ig_${Date.now()}`;
     let accountType = 'BUSINESS';
 
-    // Mode A: Instagram Business Login (using api.instagram.com)
+    // Mode A: Instagram Business Login (using api.instagram.com with multipart/form-data)
     if (instagramAppId) {
       const activeSecret = instagramAppSecret || metaAppSecret;
+
+      // Instagram Business Login expects multipart/form-data (FormData)
+      const formData = new FormData();
+      formData.append('client_id', instagramAppId);
+      formData.append('client_secret', activeSecret!);
+      formData.append('grant_type', 'authorization_code');
+      formData.append('redirect_uri', redirectUri);
+      formData.append('code', cleanCode);
+
       const tokenRes = await fetch('https://api.instagram.com/oauth/access_token', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          client_id: instagramAppId,
-          client_secret: activeSecret!,
-          grant_type: 'authorization_code',
-          redirect_uri: redirectUri,
-          code,
-        }),
+        body: formData,
       });
 
       if (!tokenRes.ok) {
