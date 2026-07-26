@@ -521,12 +521,7 @@ export class OAuthService {
   // ─────────────────────────────────────────────────────────────
 
   getTikTokAuthUrl(brandId: string): string {
-    const clientKey = process.env.TIKTOK_CLIENT_KEY;
-    if (!clientKey) {
-      throw new BadRequestException(
-        'TikTok OAuth is not configured. Please add TIKTOK_CLIENT_KEY to your environment variables in the Vercel dashboard.',
-      );
-    }
+    const clientKey = process.env.TIKTOK_CLIENT_KEY || 'sbawip3c8dqr6zdqs8';
 
     const redirectUri = encodeURIComponent(`${this.getApiBaseUrl()}/api/oauth/tiktok/callback`);
     // TikTok scopes are comma-separated with NO spaces
@@ -548,8 +543,8 @@ export class OAuthService {
     const { brandId: rawBrandId } = this.parseState(stateStr);
     const brandId = await this.ensureBrand(rawBrandId);
 
-    const clientKey = process.env.TIKTOK_CLIENT_KEY;
-    const clientSecret = process.env.TIKTOK_CLIENT_SECRET;
+    const clientKey = process.env.TIKTOK_CLIENT_KEY || 'sbawip3c8dqr6zdqs8';
+    const clientSecret = process.env.TIKTOK_CLIENT_SECRET || 'Kp0DLv55LGv7UUIRbi5kcSb3vqVXTnvG';
     const redirectUri = `${this.getApiBaseUrl()}/api/oauth/tiktok/callback`;
 
     if (!clientKey || !clientSecret) {
@@ -572,7 +567,7 @@ export class OAuthService {
     if (!tokenRes.ok) {
       const err = await tokenRes.text();
       this.logger.error(`TikTok token exchange failed: ${err}`);
-      throw new BadRequestException('TikTok token exchange failed. Please try again.');
+      throw new BadRequestException(`TikTok token exchange failed: ${err}`);
     }
 
     const tokenData = await tokenRes.json();
