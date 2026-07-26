@@ -11,13 +11,11 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { label: 'Dashboard', href: '/dashboard' },
-  { label: 'Approval Queue', href: '/dashboard/approval-queue' },
-  { label: 'Analytics', href: '/dashboard/analytics' },
-  { label: 'AutoPilot', href: '/dashboard/autopilot' },
-  { label: 'Composer', href: '/dashboard/composer' },
-  { label: 'Brands', href: '/dashboard/brands' },
+  { label: 'Create Post', href: '/dashboard/composer' },
+  { label: 'Automation', href: '/dashboard/autopilot' },
+  { label: 'Media Library', href: '/dashboard/media' },
   { label: 'Integrations', href: '/dashboard/integrations' },
-  { label: 'Media', href: '/dashboard/media' },
+  { label: 'Settings', href: '/dashboard/settings' },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
