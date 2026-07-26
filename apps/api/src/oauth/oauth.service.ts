@@ -340,60 +340,26 @@ export class OAuthService {
     let platformAccountId = `ig_${Date.now()}`;
     let accountType = 'BUSINESS';
 
-    // Mode A: Instagram Business Login (using api.instagram.com with FormData / URLSearchParams)
+    // Mode A: Instagram Business Login (using api.instagram.com)
     if (instagramAppId) {
-      const secretsToTry = Array.from(new Set([instagramAppSecret, metaAppSecret].filter(Boolean))) as string[];
-      let tokenRes: Response | null = null;
-      let lastErr = '';
-      let activeSecret = secretsToTry[0] || '';
+      const activeSecret = instagramAppSecret || metaAppSecret;
 
-      for (const secret of secretsToTry) {
-        // Try Method 1: FormData (multipart/form-data)
-        const formData = new FormData();
-        formData.append('client_id', instagramAppId);
-        formData.append('client_secret', secret);
-        formData.append('grant_type', 'authorization_code');
-        formData.append('redirect_uri', redirectUri);
-        formData.append('code', cleanCode);
+      const tokenRes = await fetch('https://api.instagram.com/oauth/access_token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          client_id: instagramAppId,
+          client_secret: activeSecret!,
+          grant_type: 'authorization_code',
+          redirect_uri: redirectUri,
+          code: cleanCode,
+        }),
+      });
 
-        tokenRes = await fetch('https://api.instagram.com/oauth/access_token', {
-          method: 'POST',
-          body: formData,
-        });
-
-        if (tokenRes.ok) {
-          activeSecret = secret;
-          break;
-        }
-
-        lastErr = await tokenRes.text();
-        this.logger.warn(`Instagram Business FormData token exchange failed with secret prefix ${secret.substring(0, 4)}: ${lastErr}`);
-
-        // Try Method 2: URLSearchParams (application/x-www-form-urlencoded)
-        tokenRes = await fetch('https://api.instagram.com/oauth/access_token', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams({
-            client_id: instagramAppId,
-            client_secret: secret,
-            grant_type: 'authorization_code',
-            redirect_uri: redirectUri,
-            code: cleanCode,
-          }),
-        });
-
-        if (tokenRes.ok) {
-          activeSecret = secret;
-          break;
-        }
-
-        lastErr = await tokenRes.text();
-        this.logger.warn(`Instagram Business URLSearchParams token exchange failed: ${lastErr}`);
-      }
-
-      if (!tokenRes || !tokenRes.ok) {
-        this.logger.error(`All Instagram Business token exchange attempts failed: ${lastErr}`);
-        throw new BadRequestException(`Instagram token exchange failed: ${lastErr}`);
+      if (!tokenRes.ok) {
+        const errText = await tokenRes.text();
+        this.logger.error(`Instagram Business token exchange failed: ${errText}`);
+        throw new BadRequestException(`Instagram token exchange failed: ${errText}`);
       }
 
       const tokenData = await tokenRes.json();
