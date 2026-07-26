@@ -1,6 +1,7 @@
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { FullWidthDivider } from "@/components/full-width-divider";
+import { GoogleDriveLogo, InstagramLogo, TikTokLogo } from "@/components/icons/platform-logos";
 
 type TileData = {
 	row: number;
@@ -10,7 +11,7 @@ type TileData = {
 
 export function IntegrationsBlock({ onExploreClick }: { onExploreClick?: () => void }) {
 	return (
-		<div className="relative mx-auto grid max-w-4xl grid-cols-1 gap-8 border-x border-slate-200/60 dark:border-white/10 md:grid-cols-2 md:items-center rounded-[22px] soft-card p-6 my-6 overflow-hidden">
+		<div className="relative mx-auto grid max-w-4xl grid-cols-1 gap-8 border-x border-slate-200/60 dark:border-white/10 md:grid-cols-2 md:items-center rounded-[24px] exec-card p-6 my-6 overflow-hidden">
 			<FullWidthDivider className="-top-px" />
 
 			{/* Left Content */}
@@ -20,7 +21,7 @@ export function IntegrationsBlock({ onExploreClick }: { onExploreClick?: () => v
 						Connect with your favorite tools
 					</h2>
 					<p className="text-slate-500 dark:text-zinc-400 text-xs md:text-sm leading-relaxed">
-						Seamlessly connect Google Drive, Instagram, and TikTok with Marketing OS AutoPilot engine for automated AI publishing.
+						Seamlessly connect Google Drive, Instagram, and TikTok with AMAI AutoPilot engine for automated AI publishing.
 					</p>
 				</div>
 				<Button size="sm" onClick={onExploreClick}>Explore integrations</Button>
@@ -63,21 +64,15 @@ function IntegrationCard({ row, col, type }: TileData) {
 			}}
 		>
 			{type === "google-drive" && (
-				<div className="h-10 w-10 rounded-xl bg-blue-500 text-white flex items-center justify-center font-black text-xs shadow-md shadow-blue-500/30">
-					GD
-				</div>
+				<GoogleDriveLogo className="h-8 w-8" />
 			)}
 
 			{type === "instagram" && (
-				<div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-amber-400 via-rose-500 to-purple-600 text-white flex items-center justify-center font-black text-xs shadow-md shadow-rose-500/30">
-					IG
-				</div>
+				<InstagramLogo className="h-8 w-8" />
 			)}
 
 			{type === "tiktok" && (
-				<div className="h-10 w-10 rounded-xl bg-slate-950 text-white flex items-center justify-center font-black text-xs shadow-md border border-white/20">
-					TK
-				</div>
+				<TikTokLogo className="h-8 w-8 text-slate-950 dark:text-white" />
 			)}
 
 			{type === "openai" && (
@@ -107,7 +102,7 @@ function IntegrationCard({ row, col, type }: TileData) {
 	);
 }
 
-// Scattered Grid (6x5) containing Google Drive, Instagram, and TikTok prominently
+// Scattered Grid (6x5) containing authentic Google Drive, Instagram, and TikTok SVGs
 const tiles: TileData[] = [
 	// Row 0
 	{ row: 0, col: 1, type: "google-drive" },

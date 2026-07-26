@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { IntegrationsBlock } from '@/components/integrations-3';
+import { GoogleDriveLogo, InstagramLogo, TikTokLogo } from '@/components/icons/platform-logos';
 import {
   Radio,
   CheckCircle2,
@@ -74,9 +75,6 @@ export default function ConnectedAccountsPage() {
   const [renameAccountId, setRenameAccountId] = useState<string | null>(null);
   const [newHandle, setNewHandle] = useState('');
 
-  // Setup Instructions Modal
-  const [setupModal, setSetupModal] = useState<'google' | 'instagram' | 'tiktok' | null>(null);
-
   // Active Brand ID
   const getBrandId = () => {
     if (typeof window !== 'undefined') {
@@ -141,17 +139,6 @@ export default function ConnectedAccountsPage() {
   }, []);
 
   const handleConnect = (platform: 'google' | 'instagram' | 'tiktok') => {
-    const isConfigured = {
-      google: configStatus.googleConfigured,
-      instagram: configStatus.instagramConfigured,
-      tiktok: configStatus.tiktokConfigured,
-    }[platform];
-
-    if (!isConfigured) {
-      setSetupModal(platform);
-      return;
-    }
-
     const brandId = getBrandId();
     window.location.href = `${API_BASE}/oauth/${platform}/connect?brandId=${brandId}`;
   };
@@ -246,7 +233,7 @@ export default function ConnectedAccountsPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Integrations Hub</h1>
-          <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">Manage your Google Drive, Instagram, and TikTok OAuth connections for automated AI publishing.</p>
+          <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">Manage your Google Drive, Instagram, and TikTok OAuth connections for AMAI AutoPilot.</p>
         </div>
 
         <div className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200/60 dark:border-white/10 text-xs text-slate-700 dark:text-zinc-300 font-semibold">
@@ -255,7 +242,7 @@ export default function ConnectedAccountsPage() {
         </div>
       </div>
 
-      {/* Installed @efferd/integrations-3 Registry Block */}
+      {/* Installed @efferd/integrations-3 Registry Block featuring authentic SVGs */}
       <IntegrationsBlock />
 
       {/* Toast Alert */}
@@ -279,23 +266,23 @@ export default function ConnectedAccountsPage() {
         )}
       </AnimatePresence>
 
-      {/* Workspace Platform Cards Grid */}
+      {/* Workspace Platform Cards Grid with Authentic SVG Logos */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         
         {/* Card 1: Google Drive */}
         <motion.div
           whileHover={{ y: -4 }}
-          className="soft-card soft-card-hover p-6 rounded-[22px] flex flex-col justify-between space-y-6 shadow-md relative overflow-hidden group"
+          className="exec-card exec-card-hover p-6 rounded-[24px] flex flex-col justify-between space-y-6 shadow-md relative overflow-hidden group"
         >
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                <div className="h-12 w-12 rounded-full bg-blue-500 text-white flex items-center justify-center font-black text-lg shadow-md shadow-blue-500/20">
-                  GD
+                <div className="h-12 w-12 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-white/10 flex items-center justify-center shadow-sm">
+                  <GoogleDriveLogo className="h-7 w-7" />
                 </div>
                 <div>
                   <h3 className="font-bold text-slate-900 dark:text-white tracking-tight">Google Drive</h3>
-                  <p className="text-[11px] text-slate-500 dark:text-zinc-400">Auto-Pilot Media Sync</p>
+                  <p className="text-[11px] text-slate-500 dark:text-zinc-400">AMAI Auto-Pilot Sync</p>
                 </div>
               </div>
               <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider border ${
@@ -320,7 +307,7 @@ export default function ConnectedAccountsPage() {
               </div>
             ) : (
               <p className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">
-                Connect your Google Drive to automatically sync photos & videos into your AutoPilot publishing queue.
+                Connect your Google Drive to automatically sync photos & videos into your AMAI AutoPilot publishing queue.
               </p>
             )}
           </div>
@@ -356,13 +343,13 @@ export default function ConnectedAccountsPage() {
         {/* Card 2: Instagram */}
         <motion.div
           whileHover={{ y: -4 }}
-          className="soft-card soft-card-hover p-6 rounded-[22px] flex flex-col justify-between space-y-6 shadow-md relative overflow-hidden group"
+          className="exec-card exec-card-hover p-6 rounded-[24px] flex flex-col justify-between space-y-6 shadow-md relative overflow-hidden group"
         >
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                <div className="h-12 w-12 rounded-full bg-gradient-to-tr from-amber-400 via-rose-500 to-purple-600 text-white flex items-center justify-center font-black text-lg shadow-md shadow-rose-500/20">
-                  IG
+                <div className="h-12 w-12 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-white/10 flex items-center justify-center shadow-sm">
+                  <InstagramLogo className="h-7 w-7" />
                 </div>
                 <div>
                   <h3 className="font-bold text-slate-900 dark:text-white tracking-tight">Instagram</h3>
@@ -393,7 +380,7 @@ export default function ConnectedAccountsPage() {
               </div>
             ) : (
               <p className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">
-                Connect your Instagram Creator account to publish reels, posts, and auto-reply to comments.
+                Connect your Instagram Creator account to publish reels, posts, and auto-reply to comments via AMAI.
               </p>
             )}
           </div>
@@ -410,13 +397,13 @@ export default function ConnectedAccountsPage() {
         {/* Card 3: TikTok */}
         <motion.div
           whileHover={{ y: -4 }}
-          className="soft-card soft-card-hover p-6 rounded-[22px] flex flex-col justify-between space-y-6 shadow-md relative overflow-hidden group"
+          className="exec-card exec-card-hover p-6 rounded-[24px] flex flex-col justify-between space-y-6 shadow-md relative overflow-hidden group"
         >
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                <div className="h-12 w-12 rounded-full bg-slate-900 text-white flex items-center justify-center font-black text-lg shadow-md">
-                  TK
+                <div className="h-12 w-12 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-white/10 flex items-center justify-center shadow-sm text-slate-950 dark:text-white">
+                  <TikTokLogo className="h-7 w-7" />
                 </div>
                 <div>
                   <h3 className="font-bold text-slate-900 dark:text-white tracking-tight">TikTok</h3>
@@ -447,7 +434,7 @@ export default function ConnectedAccountsPage() {
               </div>
             ) : (
               <p className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">
-                Connect your TikTok Creator account to schedule video uploads and monitor engagement.
+                Connect your TikTok Creator account to schedule video uploads and monitor engagement via AMAI.
               </p>
             )}
           </div>
@@ -464,11 +451,11 @@ export default function ConnectedAccountsPage() {
       </div>
 
       {/* Multi-Account Manager Section */}
-      <div className="soft-card p-6 rounded-[22px] space-y-6">
+      <div className="exec-card p-6 rounded-[24px] space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">Connected Social Profiles</h2>
-            <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">Active social accounts linked to your workspace for AutoPilot publishing.</p>
+            <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">Active social accounts linked to your AMAI workspace for AutoPilot publishing.</p>
           </div>
         </div>
 
@@ -484,12 +471,12 @@ export default function ConnectedAccountsPage() {
             {accounts.map(acc => (
               <div key={acc.id} className="py-4 flex items-center justify-between">
                 <div className="flex items-center space-x-4">
-                  <div className={`h-10 w-10 rounded-full flex items-center justify-center font-bold text-xs ${
-                    acc.platform === 'INSTAGRAM'
-                      ? 'bg-gradient-to-tr from-amber-400 to-purple-600 text-white'
-                      : 'bg-slate-900 text-white'
-                  }`}>
-                    {acc.platform.substring(0, 2)}
+                  <div className="h-10 w-10 rounded-xl bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-white/10 flex items-center justify-center p-1.5 shadow-sm">
+                    {acc.platform === 'INSTAGRAM' ? (
+                      <InstagramLogo className="h-6 w-6" />
+                    ) : (
+                      <TikTokLogo className="h-6 w-6 text-slate-950 dark:text-white" />
+                    )}
                   </div>
                   <div>
                     <div className="flex items-center space-x-2">
@@ -537,10 +524,12 @@ export default function ConnectedAccountsPage() {
               className="bg-white dark:bg-zinc-950 rounded-[22px] border border-slate-200 dark:border-white/10 max-w-md w-full p-6 space-y-6 shadow-2xl"
             >
               <div className="flex items-center space-x-3">
-                <div className="h-10 w-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold">GD</div>
+                <div className="h-10 w-10 rounded-xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-white/10 flex items-center justify-center p-2">
+                  <GoogleDriveLogo className="h-6 w-6" />
+                </div>
                 <div>
                   <h3 className="text-base font-bold text-slate-900 dark:text-white">Select Google Drive Folder</h3>
-                  <p className="text-xs text-slate-500 dark:text-zinc-400">Choose which folder to sync with Auto-Pilot</p>
+                  <p className="text-xs text-slate-500 dark:text-zinc-400">Choose which folder to sync with AMAI Auto-Pilot</p>
                 </div>
               </div>
 
@@ -603,7 +592,7 @@ export default function ConnectedAccountsPage() {
               className="bg-white dark:bg-zinc-950 rounded-[22px] border border-slate-200 dark:border-white/10 max-w-md w-full p-6 space-y-4 shadow-2xl"
             >
               <h3 className="text-base font-bold text-slate-900 dark:text-white">Rename Account Handle</h3>
-              <p className="text-xs text-slate-500 dark:text-zinc-400">Customize the handle displayed in your workspace.</p>
+              <p className="text-xs text-slate-500 dark:text-zinc-400">Customize the handle displayed in your AMAI workspace.</p>
               <div>
                 <input
                   type="text"

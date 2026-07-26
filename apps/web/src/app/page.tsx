@@ -1,40 +1,37 @@
-import Link from "next/link";
+import Link from 'next/link';
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex flex-col items-center justify-center font-sans">
-      <main className="flex flex-col items-center text-center px-6 max-w-4xl">
-        <div className="h-16 w-16 bg-blue-600 rounded-2xl flex items-center justify-center text-white font-bold text-3xl shadow-xl mb-8">
-          M
+    <div className="min-h-screen bg-[#09090b] text-white flex flex-col items-center justify-center p-6 font-sans">
+      <div className="max-w-2xl text-center space-y-6">
+        <div className="inline-flex items-center space-x-2 px-4 py-1.5 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-bold">
+          <span>✨ Welcome to AMAI</span>
         </div>
-        
-        <h1 className="text-5xl sm:text-6xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 mb-6">
-          The Ultimate <span className="text-blue-600">Marketing OS</span>
+
+        <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight bg-gradient-to-r from-white via-zinc-200 to-zinc-400 bg-clip-text text-transparent">
+          AMAI — AI Social Media Automation Engine
         </h1>
-        
-        <p className="text-xl leading-8 text-zinc-600 dark:text-zinc-400 max-w-2xl mb-12">
-          Automate your social media presence. Drop your files into Google Drive or iCloud, and our AI will generate captions, optimize hashtags, and schedule posts for you.
+
+        <p className="text-zinc-400 text-sm sm:text-base leading-relaxed">
+          Automate your content pipeline from Google Drive straight to Instagram Reels and TikTok Videos using intelligent AI copywriters and AutoPilot scheduling.
         </p>
-        
-        <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+
+        <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-4">
           <Link
-            href="/register"
-            className="flex h-12 items-center justify-center rounded-xl bg-blue-600 px-8 text-white font-semibold shadow-md transition hover:bg-blue-700"
+            href="/dashboard"
+            className="w-full sm:w-auto px-8 py-3 bg-gradient-to-r from-rose-500 via-purple-600 to-indigo-600 text-white font-bold text-sm rounded-xl shadow-lg shadow-rose-500/25 hover:opacity-95 transition"
           >
-            Start 14-Day Free Trial
+            Launch AMAI Dashboard
           </Link>
+
           <Link
             href="/login"
-            className="flex h-12 items-center justify-center rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-8 text-zinc-900 dark:text-white font-semibold shadow-sm transition hover:bg-zinc-50 dark:hover:bg-zinc-800"
+            className="w-full sm:w-auto px-8 py-3 bg-white/5 hover:bg-white/10 text-zinc-300 font-semibold text-sm rounded-xl transition border border-white/10"
           >
-            Log in to Dashboard
+            Sign In
           </Link>
         </div>
-      </main>
-      
-      <footer className="absolute bottom-8 text-zinc-500 text-sm">
-        &copy; {new Date().getFullYear()} Marketing OS. All rights reserved.
-      </footer>
+      </div>
     </div>
   );
 }

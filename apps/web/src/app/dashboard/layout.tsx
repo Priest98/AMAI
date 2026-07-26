@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Logo } from '@/components/logo';
 import {
   LayoutDashboard,
   PenTool,
@@ -21,9 +22,6 @@ import {
   Calendar as CalendarIcon,
   CheckSquare,
   BarChart3,
-  Instagram,
-  Video,
-  HardDrive,
 } from 'lucide-react';
 
 interface NavSubItem {
@@ -146,23 +144,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* Brand Header */}
         <div className="h-16 flex items-center justify-between px-3.5 border-b border-slate-200/60 dark:border-white/10">
           <Link href="/dashboard" className="flex items-center space-x-3 group">
-            <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-rose-500 via-purple-600 to-indigo-600 flex items-center justify-center text-white font-black text-base shadow-md shadow-rose-500/20 group-hover:scale-105 transition-transform flex-shrink-0">
-              M
-            </div>
-            {!isCollapsed && (
-              <motion.div
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0 }}
-                className="flex items-center space-x-2 min-w-0"
-              >
-                <span className="font-bold text-base tracking-tight text-slate-900 dark:text-white truncate">
-                  Marketing OS
-                </span>
-                <span className="px-1.5 py-0.5 text-[9px] font-extrabold uppercase tracking-wider rounded bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 flex-shrink-0">
-                  PRO
-                </span>
-              </motion.div>
+            {isCollapsed ? (
+              <Logo variant="monogram" className="h-8 w-8" />
+            ) : (
+              <Logo variant="full" className="h-8" />
             )}
           </Link>
 
@@ -280,12 +265,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             >
               <div className="space-y-6">
                 <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-white/10">
-                  <div className="flex items-center space-x-3">
-                    <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-rose-500 to-purple-600 flex items-center justify-center text-white font-bold text-base">
-                      M
-                    </div>
-                    <span className="font-bold text-lg text-slate-900 dark:text-white">Marketing OS</span>
-                  </div>
+                  <Logo variant="full" className="h-8" />
                   <button onClick={() => setIsMobileOpen(false)} className="text-slate-400 hover:text-slate-900 dark:hover:text-white">
                     <X className="h-6 w-6" />
                   </button>
@@ -359,7 +339,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <h1 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight flex items-center space-x-2">
                 <span>Hello, {userName}</span>
               </h1>
-              <p className="text-[11px] text-slate-500 dark:text-zinc-400 hidden sm:block">Automate your content pipeline from Google Drive to Instagram & TikTok.</p>
+              <p className="text-[11px] text-slate-500 dark:text-zinc-400 hidden sm:block">Automate your content pipeline from Google Drive to Instagram & TikTok with AMAI.</p>
             </div>
           </div>
 
@@ -391,7 +371,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </header>
 
-        {/* Scrollable Page Body with Max Content Width Container & Generous Breathing Room */}
+        {/* Scrollable Page Body */}
         <div className="flex-1 overflow-auto p-6 md:p-8 lg:p-10">
           <div className="max-w-[1536px] mx-auto space-y-12">
             {children}

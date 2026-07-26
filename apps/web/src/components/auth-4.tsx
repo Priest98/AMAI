@@ -75,7 +75,7 @@ export function AuthPage() {
 							Hey, welcome!
 						</h1>
 						<p className="text-xs text-slate-500 dark:text-zinc-400">
-							Log in or sign up to your Marketing OS workspace.
+							Log in or sign up to your AMAI workspace.
 						</p>
 					</div>
 				</div>
@@ -94,7 +94,7 @@ export function AuthPage() {
 						type="button" 
 						variant="outline"
 						onClick={() => {
-							const mockToken = btoa(JSON.stringify({ email: 'demo@marketing-os.com', name: 'Demo Creator', brandId: 'primary_brand' }));
+							const mockToken = btoa(JSON.stringify({ email: 'demo@amai.io', name: 'Demo Creator', brandId: 'primary_brand' }));
 							localStorage.setItem('marketing_os_token', `header.${mockToken}.signature`);
 							router.push('/dashboard');
 						}}
@@ -142,7 +142,7 @@ export function AuthPage() {
 				</div>
 
 				<p className="text-center text-slate-400 dark:text-zinc-500 text-[11px]">
-					Protected by reCAPTCHA and Marketing OS{" "}
+					Protected by reCAPTCHA and AMAI{" "}
 					<a className="underline underline-offset-4 hover:text-slate-900 dark:hover:text-white" href="/privacy">
 						Privacy Policy
 					</a>{" "}
