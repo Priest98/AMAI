@@ -1,13 +1,13 @@
 @import "tailwindcss";
 
 :root {
-  --bg-main: #f5f5f7;
+  --bg-main: #f8fafc;
   --card-bg: #ffffff;
   --card-border: rgba(226, 232, 240, 0.8);
   --card-shadow: 0 10px 35px -10px rgba(0, 0, 0, 0.05);
-  --text-primary: #1d1d1f;
-  --text-secondary: #6e6e73;
-  --text-muted: #86868b;
+  --text-primary: #0f172a;
+  --text-secondary: #64748b;
+  --text-muted: #94a3b8;
   --accent-rose: #f43f5e;
   --accent-purple: #8b5cf6;
   --accent-blue: #2563eb;
@@ -18,13 +18,13 @@
   --card-bg: rgba(20, 20, 26, 0.85);
   --card-border: rgba(255, 255, 255, 0.08);
   --card-shadow: 0 15px 40px -10px rgba(0, 0, 0, 0.6);
-  --text-primary: #f5f5f7;
+  --text-primary: #f8fafc;
   --text-secondary: #a1a1aa;
   --text-muted: #71717a;
 }
 
 @theme inline {
-  --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-sans: 'Geist', 'Inter', 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 body {
@@ -37,7 +37,48 @@ body {
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* Ambient Radial Lighting Overlay */
+/* Premium Typography Scale */
+.display-title {
+  font-size: 48px;
+  line-height: 1.1;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+}
+
+.page-title {
+  font-size: 36px;
+  line-height: 1.15;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.section-title {
+  font-size: 24px;
+  line-height: 1.25;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.card-title {
+  font-size: 18px;
+  line-height: 1.35;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.body-text {
+  font-size: 15px;
+  line-height: 1.6;
+  font-weight: 400;
+}
+
+.small-label {
+  font-size: 13px;
+  line-height: 1.4;
+  font-weight: 500;
+}
+
+/* Ambient Background Radial Mesh */
 .ambient-bg {
   position: relative;
 }
@@ -50,8 +91,8 @@ body {
   width: 600px;
   height: 600px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(244, 63, 94, 0.04) 0%, transparent 70%);
-  pointer-events-none: none;
+  background: radial-gradient(circle, rgba(244, 63, 94, 0.035) 0%, transparent 70%);
+  pointer-events: none;
   z-index: 0;
 }
 
@@ -63,12 +104,12 @@ body {
   width: 700px;
   height: 700px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(139, 92, 246, 0.04) 0%, transparent 70%);
-  pointer-events-none: none;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.035) 0%, transparent 70%);
+  pointer-events: none;
   z-index: 0;
 }
 
-/* 24px Floating Executive Card System */
+/* 24px Executive Floating Cards */
 .exec-card {
   background-color: var(--card-bg);
   border: 1px solid var(--card-border);
@@ -90,7 +131,7 @@ body {
   border-color: rgba(255, 255, 255, 0.16);
 }
 
-/* Featured Gradient Blue Storage Card */
+/* Featured Gradient Blue Card */
 .blue-featured-card {
   background: linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%);
   color: #ffffff;
