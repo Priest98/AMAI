@@ -1,12 +1,11 @@
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import { FullWidthDivider } from "@/components/full-width-divider";
 import { GoogleDriveLogo, InstagramLogo, TikTokLogo } from "@/components/icons/platform-logos";
 
 type TileData = {
 	row: number;
 	col: number;
-	type?: "google-drive" | "instagram" | "tiktok" | "openai" | "vercel" | "github" | "empty";
+	type?: "google-drive" | "instagram" | "tiktok" | "empty";
 };
 
 export function IntegrationsBlock({ onExploreClick }: { onExploreClick?: () => void }) {
@@ -18,16 +17,18 @@ export function IntegrationsBlock({ onExploreClick }: { onExploreClick?: () => v
 			<div className="p-4 md:p-6 space-y-4">
 				<div className="space-y-2">
 					<h2 className="font-extrabold text-2xl text-slate-900 dark:text-white tracking-tight sm:text-3xl">
-						Connect with your favorite tools
+						Core Automation Platforms
 					</h2>
 					<p className="text-slate-500 dark:text-zinc-400 text-xs md:text-sm leading-relaxed">
-						Seamlessly connect Google Drive, Instagram, and TikTok with AMAI AutoPilot engine for automated AI publishing.
+						Google Drive, Instagram, and TikTok power the AMAI AutoPilot engine for automated AI content syncing and publishing.
 					</p>
 				</div>
-				<Button size="sm" onClick={onExploreClick}>Explore integrations</Button>
+				<div className="inline-flex items-center space-x-2 text-xs font-semibold text-rose-500 bg-rose-500/10 px-3 py-1.5 rounded-full border border-rose-500/20">
+					<span>⚡ Instant OAuth Authorization Active</span>
+				</div>
 			</div>
 
-			{/* Right Content - Scattered Grid Visual */}
+			{/* Right Content - Scattered Grid Visual with ONLY Google Drive, Instagram, and TikTok */}
 			<div className="place-items-end flex justify-center md:justify-end">
 				<div className="relative size-80 overflow-hidden rounded-2xl">
 					{/* Grid Background */}
@@ -74,52 +75,28 @@ function IntegrationCard({ row, col, type }: TileData) {
 			{type === "tiktok" && (
 				<TikTokLogo className="h-8 w-8 text-slate-950 dark:text-white" />
 			)}
-
-			{type === "openai" && (
-				<img
-					alt="OpenAI"
-					className="size-7 object-contain dark:invert"
-					src="https://storage.efferd.com/logo/openai.svg"
-				/>
-			)}
-
-			{type === "github" && (
-				<img
-					alt="GitHub"
-					className="size-7 object-contain dark:invert"
-					src="https://storage.efferd.com/logo/github.svg"
-				/>
-			)}
-
-			{type === "vercel" && (
-				<img
-					alt="Vercel"
-					className="size-7 object-contain dark:invert"
-					src="https://storage.efferd.com/logo/vercel.svg"
-				/>
-			)}
 		</div>
 	);
 }
 
-// Scattered Grid (6x5) containing authentic Google Drive, Instagram, and TikTok SVGs
+// Scattered Grid featuring ONLY Google Drive, Instagram, and TikTok
 const tiles: TileData[] = [
 	// Row 0
 	{ row: 0, col: 1, type: "google-drive" },
-	{ row: 0, col: 3, type: "openai" },
+	{ row: 0, col: 3, type: "instagram" },
 
 	// Row 1
 	{ row: 1, col: 0, type: "empty" },
-	{ row: 1, col: 2, type: "instagram" },
-	{ row: 1, col: 4, type: "vercel" },
+	{ row: 1, col: 2, type: "tiktok" },
+	{ row: 1, col: 4, type: "google-drive" },
 
 	// Row 2
-	{ row: 2, col: 1, type: "tiktok" },
-	{ row: 2, col: 3, type: "google-drive" },
+	{ row: 2, col: 1, type: "instagram" },
+	{ row: 2, col: 3, type: "tiktok" },
 
 	// Row 3
 	{ row: 3, col: 0, type: "empty" },
-	{ row: 3, col: 2, type: "github" },
+	{ row: 3, col: 2, type: "google-drive" },
 	{ row: 3, col: 4, type: "instagram" },
 
 	// Row 4

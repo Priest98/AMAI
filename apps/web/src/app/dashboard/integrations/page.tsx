@@ -4,20 +4,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { IntegrationsBlock } from '@/components/integrations-3';
 import { GoogleDriveLogo, InstagramLogo, TikTokLogo } from '@/components/icons/platform-logos';
 import {
-  Radio,
-  CheckCircle2,
-  AlertTriangle,
-  Folder,
-  RefreshCw,
-  MoreVertical,
-  ExternalLink,
-  Plus,
-  Zap,
   ShieldCheck,
-  Lock,
+  CheckCircle2,
+  MoreVertical,
+  RefreshCw,
+  FolderSync,
+  LogOut,
+  Info,
   X,
   Edit2,
-  FolderSync,
+  ExternalLink,
 } from 'lucide-react';
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'https://marketing-os-backend-api.vercel.app/api').replace(/\/$/, '');
@@ -48,22 +44,14 @@ interface FolderOption {
   isSelected?: boolean;
 }
 
-interface ConfigStatus {
-  googleConfigured: boolean;
-  instagramConfigured: boolean;
-  tiktokConfigured: boolean;
-}
-
 export default function ConnectedAccountsPage() {
   const [accounts, setAccounts] = useState<ConnectedAccount[]>([]);
   const [googleDrive, setGoogleDrive] = useState<GoogleDriveConfig | null>(null);
-  const [configStatus, setConfigStatus] = useState<ConfigStatus>({
-    googleConfigured: true,
-    instagramConfigured: true,
-    tiktokConfigured: true,
-  });
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+
+  // Context Menu / Options State
+  const [activeMenu, setActiveMenu] = useState<'google' | 'instagram' | 'tiktok' | null>(null);
 
   // Folder Selector Modal State
   const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
@@ -71,11 +59,19 @@ export default function ConnectedAccountsPage() {
   const [selectedFolderId, setSelectedFolderId] = useState('');
   const [updatingFolder, setUpdatingFolder] = useState(false);
 
-  // Rename Account Modal State
+  // View Details Modal State
+  const [detailsModal, setDetailsModal] = useState<{
+    title: string;
+    handle: string;
+    status: string;
+    type: string;
+    lastSynced: string;
+  } | null>(null);
+
+  // Rename Handle State
   const [renameAccountId, setRenameAccountId] = useState<string | null>(null);
   const [newHandle, setNewHandle] = useState('');
 
-  // Active Brand ID
   const getBrandId = () => {
     if (typeof window !== 'undefined') {
       const token = localStorage.getItem('marketing_os_token');
@@ -103,7 +99,6 @@ export default function ConnectedAccountsPage() {
         const data = await res.json();
         setAccounts(data.socialAccounts || []);
         setGoogleDrive(data.googleDrive || null);
-        if (data.configStatus) setConfigStatus(data.configStatus);
       }
     } catch (err) {
       console.error('Failed to fetch connected accounts', err);
@@ -148,6 +143,7 @@ export default function ConnectedAccountsPage() {
       const res = await fetch(`${API_BASE}/oauth/accounts/${accountId}`, { method: 'DELETE' });
       if (res.ok) {
         setMessage({ text: 'Account disconnected successfully.', type: 'success' });
+        setActiveMenu(null);
         fetchAccounts();
       }
     } catch {
@@ -161,6 +157,7 @@ export default function ConnectedAccountsPage() {
       const res = await fetch(`${API_BASE}/oauth/google/disconnect?brandId=${brandId}`, { method: 'DELETE' });
       if (res.ok) {
         setMessage({ text: 'Google Drive disconnected.', type: 'success' });
+        setActiveMenu(null);
         fetchAccounts();
       }
     } catch {
@@ -169,6 +166,7 @@ export default function ConnectedAccountsPage() {
   };
 
   const openFolderModal = async () => {
+    setActiveMenu(null);
     setIsFolderModalOpen(true);
     try {
       const brandId = getBrandId();
@@ -227,22 +225,28 @@ export default function ConnectedAccountsPage() {
   const instagramAccounts = accounts.filter(a => a.platform === 'INSTAGRAM');
   const tiktokAccounts = accounts.filter(a => a.platform === 'TIKTOK');
 
+  const isGoogleConnected = googleDrive?.status === 'CONNECTED';
+  const isInstagramConnected = instagramAccounts.length > 0;
+  const isTikTokConnected = tiktokAccounts.length > 0;
+
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
-      {/* Header Title */}
+      {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Integrations Hub</h1>
-          <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">Manage your Google Drive, Instagram, and TikTok OAuth connections for AMAI AutoPilot.</p>
+          <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">
+            Click any platform icon below to authorize and link your accounts instantly.
+          </p>
         </div>
 
-        <div className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200/60 dark:border-white/10 text-xs text-slate-700 dark:text-zinc-300 font-semibold">
+        <div className="flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-slate-100 dark:bg-white/5 border border-slate-200/60 dark:border-white/10 text-xs text-slate-700 dark:text-zinc-300 font-semibold">
           <ShieldCheck className="h-4 w-4 text-emerald-500" />
-          <span>AES-256 Encrypted Token Storage Active</span>
+          <span>AES-256 Encrypted Storage Active</span>
         </div>
       </div>
 
-      {/* Installed @efferd/integrations-3 Registry Block featuring authentic SVGs */}
+      {/* Top Banner Block */}
       <IntegrationsBlock />
 
       {/* Toast Alert */}
@@ -266,254 +270,404 @@ export default function ConnectedAccountsPage() {
         )}
       </AnimatePresence>
 
-      {/* Workspace Platform Cards Grid with Authentic SVG Logos */}
+      {/* ── Core Platform Cards Grid (Google Drive, Instagram, TikTok ONLY) ── */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         
-        {/* Card 1: Google Drive */}
+        {/* 1. Google Drive Card */}
         <motion.div
-          whileHover={{ y: -4 }}
-          className="exec-card exec-card-hover p-6 rounded-[24px] flex flex-col justify-between space-y-6 shadow-md relative overflow-hidden group"
+          whileHover={{ y: -6, scale: 1.01 }}
+          whileTap={{ scale: 0.99 }}
+          onClick={() => {
+            if (!isGoogleConnected) {
+              handleConnect('google');
+            }
+          }}
+          className={`exec-card p-7 rounded-[24px] flex flex-col justify-between space-y-6 relative overflow-hidden cursor-pointer transition-all ${
+            isGoogleConnected
+              ? 'border-blue-500/30 dark:border-blue-500/30 shadow-lg shadow-blue-500/5'
+              : 'hover:border-blue-500/50 dark:hover:border-blue-500/50'
+          }`}
         >
-          <div className="space-y-4">
+          <div className="space-y-5">
             <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="h-12 w-12 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-white/10 flex items-center justify-center shadow-sm">
-                  <GoogleDriveLogo className="h-7 w-7" />
+              <div className="flex items-center space-x-3.5">
+                <div className="h-14 w-14 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-white/10 flex items-center justify-center p-3 shadow-md">
+                  <GoogleDriveLogo className="h-8 w-8" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-slate-900 dark:text-white tracking-tight">Google Drive</h3>
-                  <p className="text-[11px] text-slate-500 dark:text-zinc-400">AMAI Auto-Pilot Sync</p>
+                  <h3 className="font-extrabold text-lg text-slate-900 dark:text-white tracking-tight">Google Drive</h3>
+                  <p className="text-xs text-slate-500 dark:text-zinc-400">AutoPilot Media Sync</p>
                 </div>
               </div>
-              <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider border ${
-                googleDrive?.status === 'CONNECTED'
-                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
-                  : 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 border-slate-200/60 dark:border-white/5'
-              }`}>
-                {googleDrive?.status === 'CONNECTED' ? 'Connected' : 'Not Connected'}
-              </span>
+
+              {isGoogleConnected ? (
+                <div className="relative">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveMenu(activeMenu === 'google' ? null : 'google');
+                    }}
+                    className="h-8 w-8 rounded-full bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 text-slate-600 dark:text-zinc-300 flex items-center justify-center transition"
+                  >
+                    <MoreVertical className="h-4 w-4" />
+                  </button>
+
+                  {/* Context Options Menu */}
+                  <AnimatePresence>
+                    {activeMenu === 'google' && (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.95, y: 5 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95, y: 5 }}
+                        onClick={(e) => e.stopPropagation()}
+                        className="absolute right-0 top-10 w-48 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-white/10 shadow-2xl p-1.5 z-30 text-xs font-semibold space-y-0.5"
+                      >
+                        <button
+                          onClick={() => handleConnect('google')}
+                          className="w-full text-left px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-white/5 text-slate-700 dark:text-zinc-300 flex items-center space-x-2"
+                        >
+                          <RefreshCw className="h-3.5 w-3.5 text-blue-500" />
+                          <span>Refresh Connection</span>
+                        </button>
+
+                        <button
+                          onClick={openFolderModal}
+                          className="w-full text-left px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-white/5 text-slate-700 dark:text-zinc-300 flex items-center space-x-2"
+                        >
+                          <FolderSync className="h-3.5 w-3.5 text-purple-500" />
+                          <span>Change Folder</span>
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            setActiveMenu(null);
+                            setDetailsModal({
+                              title: 'Google Drive Connection',
+                              handle: googleDrive?.accountEmail || 'Primary Account',
+                              status: 'Connected',
+                              type: 'Cloud Storage',
+                              lastSynced: '2 minutes ago',
+                            });
+                          }}
+                          className="w-full text-left px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-white/5 text-slate-700 dark:text-zinc-300 flex items-center space-x-2"
+                        >
+                          <Info className="h-3.5 w-3.5 text-amber-500" />
+                          <span>View Details</span>
+                        </button>
+
+                        <button
+                          onClick={handleDisconnectDrive}
+                          className="w-full text-left px-3 py-2 rounded-xl hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center space-x-2"
+                        >
+                          <LogOut className="h-3.5 w-3.5" />
+                          <span>Disconnect</span>
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              ) : (
+                <span className="px-3 py-1 rounded-full text-xs font-bold bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 border border-slate-200/60 dark:border-white/5">
+                  Click to Connect
+                </span>
+              )}
             </div>
 
-            {googleDrive?.status === 'CONNECTED' ? (
-              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200/60 dark:border-white/10 space-y-2 text-xs">
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-500 dark:text-zinc-400">Google Drive Folder:</span>
-                  <span className="font-bold text-blue-600 dark:text-blue-400 font-mono">/{googleDrive.folderName || 'content'}</span>
+            {/* Connected State Body */}
+            {isGoogleConnected ? (
+              <div className="p-4 rounded-2xl bg-blue-500/5 dark:bg-blue-500/10 border border-blue-500/20 space-y-2 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center space-x-1.5 text-emerald-600 dark:text-emerald-400 font-bold">
+                    <CheckCircle2 className="h-4 w-4" />
+                    <span>Connected ✓</span>
+                  </span>
+                  <span className="font-mono text-[11px] text-blue-600 dark:text-blue-400 font-bold">/{googleDrive?.folderName || 'content'}</span>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-500 dark:text-zinc-400">Last Synced:</span>
-                  <span className="font-bold text-emerald-600 dark:text-emerald-400">2 minutes ago</span>
-                </div>
+                <p className="text-slate-500 dark:text-zinc-400 text-[11px]">Synced with {googleDrive?.accountEmail || 'Google Workspace'} • 2 mins ago</p>
               </div>
             ) : (
               <p className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">
-                Connect your Google Drive to automatically sync photos & videos into your AMAI AutoPilot publishing queue.
+                Click to link your Google Drive folder for automatic photo & video syncing into AutoPilot.
               </p>
-            )}
-          </div>
-
-          <div>
-            {googleDrive?.status === 'CONNECTED' ? (
-              <div className="flex space-x-2">
-                <button
-                  onClick={openFolderModal}
-                  className="flex-1 py-2.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 text-xs font-bold rounded-xl transition border border-blue-500/20"
-                >
-                  Change Folder
-                </button>
-                <button
-                  onClick={handleDisconnectDrive}
-                  className="py-2.5 px-4 bg-slate-100 dark:bg-white/5 hover:bg-rose-500/10 text-slate-600 dark:text-zinc-400 hover:text-rose-600 text-xs font-bold rounded-xl transition border border-slate-200/60 dark:border-white/5"
-                >
-                  Disconnect
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => handleConnect('google')}
-                className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition shadow-md shadow-blue-500/25 flex items-center justify-center space-x-2"
-              >
-                <Zap className="h-4 w-4" />
-                <span>Connect Google Drive</span>
-              </button>
             )}
           </div>
         </motion.div>
 
-        {/* Card 2: Instagram */}
+        {/* 2. Instagram Card */}
         <motion.div
-          whileHover={{ y: -4 }}
-          className="exec-card exec-card-hover p-6 rounded-[24px] flex flex-col justify-between space-y-6 shadow-md relative overflow-hidden group"
+          whileHover={{ y: -6, scale: 1.01 }}
+          whileTap={{ scale: 0.99 }}
+          onClick={() => {
+            if (!isInstagramConnected) {
+              handleConnect('instagram');
+            }
+          }}
+          className={`exec-card p-7 rounded-[24px] flex flex-col justify-between space-y-6 relative overflow-hidden cursor-pointer transition-all ${
+            isInstagramConnected
+              ? 'border-rose-500/30 dark:border-rose-500/30 shadow-lg shadow-rose-500/5'
+              : 'hover:border-rose-500/50 dark:hover:border-rose-500/50'
+          }`}
         >
-          <div className="space-y-4">
+          <div className="space-y-5">
             <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="h-12 w-12 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-white/10 flex items-center justify-center shadow-sm">
-                  <InstagramLogo className="h-7 w-7" />
+              <div className="flex items-center space-x-3.5">
+                <div className="h-14 w-14 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-white/10 flex items-center justify-center p-3 shadow-md">
+                  <InstagramLogo className="h-8 w-8" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-slate-900 dark:text-white tracking-tight">Instagram</h3>
-                  <p className="text-[11px] text-slate-500 dark:text-zinc-400">
-                    {instagramAccounts.length > 0 ? `Connected as ${instagramAccounts[0].handle}` : 'Reels & Post Publishing'}
-                  </p>
+                  <h3 className="font-extrabold text-lg text-slate-900 dark:text-white tracking-tight">Instagram</h3>
+                  <p className="text-xs text-slate-500 dark:text-zinc-400">Reels & Post Creator</p>
                 </div>
               </div>
-              <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider border ${
-                instagramAccounts.length > 0
-                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
-                  : 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 border-slate-200/60 dark:border-white/5'
-              }`}>
-                {instagramAccounts.length > 0 ? 'Connected' : 'Not Connected'}
-              </span>
+
+              {isInstagramConnected ? (
+                <div className="relative">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveMenu(activeMenu === 'instagram' ? null : 'instagram');
+                    }}
+                    className="h-8 w-8 rounded-full bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 text-slate-600 dark:text-zinc-300 flex items-center justify-center transition"
+                  >
+                    <MoreVertical className="h-4 w-4" />
+                  </button>
+
+                  <AnimatePresence>
+                    {activeMenu === 'instagram' && (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.95, y: 5 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95, y: 5 }}
+                        onClick={(e) => e.stopPropagation()}
+                        className="absolute right-0 top-10 w-48 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-white/10 shadow-2xl p-1.5 z-30 text-xs font-semibold space-y-0.5"
+                      >
+                        <button
+                          onClick={() => handleConnect('instagram')}
+                          className="w-full text-left px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-white/5 text-slate-700 dark:text-zinc-300 flex items-center space-x-2"
+                        >
+                          <RefreshCw className="h-3.5 w-3.5 text-rose-500" />
+                          <span>Reconnect Profile</span>
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            setActiveMenu(null);
+                            const acc = instagramAccounts[0];
+                            setDetailsModal({
+                              title: 'Instagram Account',
+                              handle: acc?.handle || '@creator',
+                              status: 'Connected',
+                              type: acc?.accountType || 'Creator Profile',
+                              lastSynced: 'Yesterday',
+                            });
+                          }}
+                          className="w-full text-left px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-white/5 text-slate-700 dark:text-zinc-300 flex items-center space-x-2"
+                        >
+                          <Info className="h-3.5 w-3.5 text-amber-500" />
+                          <span>View Details</span>
+                        </button>
+
+                        <button
+                          onClick={() => handleDisconnectAccount(instagramAccounts[0]?.id)}
+                          className="w-full text-left px-3 py-2 rounded-xl hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center space-x-2"
+                        >
+                          <LogOut className="h-3.5 w-3.5" />
+                          <span>Disconnect</span>
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              ) : (
+                <span className="px-3 py-1 rounded-full text-xs font-bold bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 border border-slate-200/60 dark:border-white/5">
+                  Click to Connect
+                </span>
+              )}
             </div>
 
-            {instagramAccounts.length > 0 ? (
-              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200/60 dark:border-white/10 space-y-2 text-xs">
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-500 dark:text-zinc-400">Token Health:</span>
-                  <span className="font-bold text-emerald-600 dark:text-emerald-400">Expires in 45 days (Auto-Refresh)</span>
+            {isInstagramConnected ? (
+              <div className="p-4 rounded-2xl bg-rose-500/5 dark:bg-rose-500/10 border border-rose-500/20 space-y-2 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center space-x-1.5 text-emerald-600 dark:text-emerald-400 font-bold">
+                    <CheckCircle2 className="h-4 w-4" />
+                    <span>Connected ✓</span>
+                  </span>
+                  <span className="font-bold text-slate-900 dark:text-white">{instagramAccounts[0]?.handle}</span>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-500 dark:text-zinc-400">Last Published:</span>
-                  <span className="font-bold text-slate-700 dark:text-zinc-200">Yesterday</span>
-                </div>
+                <p className="text-slate-500 dark:text-zinc-400 text-[11px]">Creator Profile • Token Expires in 45 Days (Auto-Refresh)</p>
               </div>
             ) : (
               <p className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">
-                Connect your Instagram Creator account to publish reels, posts, and auto-reply to comments via AMAI.
+                Click to authorize your Instagram Creator profile for automated reel and post publishing.
               </p>
             )}
           </div>
-
-          <button
-            onClick={() => handleConnect('instagram')}
-            className="w-full py-2.5 bg-gradient-to-r from-rose-500 to-purple-600 hover:opacity-95 text-white text-xs font-bold rounded-xl transition shadow-md shadow-rose-500/25 flex items-center justify-center space-x-2"
-          >
-            <Zap className="h-4 w-4" />
-            <span>{instagramAccounts.length > 0 ? 'Add Account' : 'Connect Instagram'}</span>
-          </button>
         </motion.div>
 
-        {/* Card 3: TikTok */}
+        {/* 3. TikTok Card */}
         <motion.div
-          whileHover={{ y: -4 }}
-          className="exec-card exec-card-hover p-6 rounded-[24px] flex flex-col justify-between space-y-6 shadow-md relative overflow-hidden group"
+          whileHover={{ y: -6, scale: 1.01 }}
+          whileTap={{ scale: 0.99 }}
+          onClick={() => {
+            if (!isTikTokConnected) {
+              handleConnect('tiktok');
+            }
+          }}
+          className={`exec-card p-7 rounded-[24px] flex flex-col justify-between space-y-6 relative overflow-hidden cursor-pointer transition-all ${
+            isTikTokConnected
+              ? 'border-purple-500/30 dark:border-purple-500/30 shadow-lg shadow-purple-500/5'
+              : 'hover:border-purple-500/50 dark:hover:border-purple-500/50'
+          }`}
         >
-          <div className="space-y-4">
+          <div className="space-y-5">
             <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="h-12 w-12 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-white/10 flex items-center justify-center shadow-sm text-slate-950 dark:text-white">
-                  <TikTokLogo className="h-7 w-7" />
+              <div className="flex items-center space-x-3.5">
+                <div className="h-14 w-14 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-white/10 flex items-center justify-center p-3 shadow-md text-slate-950 dark:text-white">
+                  <TikTokLogo className="h-8 w-8" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-slate-900 dark:text-white tracking-tight">TikTok</h3>
-                  <p className="text-[11px] text-slate-500 dark:text-zinc-400">
-                    {tiktokAccounts.length > 0 ? `Connected as ${tiktokAccounts[0].handle}` : 'Creator & Video Uploads'}
-                  </p>
+                  <h3 className="font-extrabold text-lg text-slate-900 dark:text-white tracking-tight">TikTok</h3>
+                  <p className="text-xs text-slate-500 dark:text-zinc-400">Short Video Uploads</p>
                 </div>
               </div>
-              <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider border ${
-                tiktokAccounts.length > 0
-                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
-                  : 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 border-slate-200/60 dark:border-white/5'
-              }`}>
-                {tiktokAccounts.length > 0 ? 'Connected' : 'Not Connected'}
-              </span>
+
+              {isTikTokConnected ? (
+                <div className="relative">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveMenu(activeMenu === 'tiktok' ? null : 'tiktok');
+                    }}
+                    className="h-8 w-8 rounded-full bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 text-slate-600 dark:text-zinc-300 flex items-center justify-center transition"
+                  >
+                    <MoreVertical className="h-4 w-4" />
+                  </button>
+
+                  <AnimatePresence>
+                    {activeMenu === 'tiktok' && (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.95, y: 5 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95, y: 5 }}
+                        onClick={(e) => e.stopPropagation()}
+                        className="absolute right-0 top-10 w-48 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-white/10 shadow-2xl p-1.5 z-30 text-xs font-semibold space-y-0.5"
+                      >
+                        <button
+                          onClick={() => handleConnect('tiktok')}
+                          className="w-full text-left px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-white/5 text-slate-700 dark:text-zinc-300 flex items-center space-x-2"
+                        >
+                          <RefreshCw className="h-3.5 w-3.5 text-purple-500" />
+                          <span>Reconnect Profile</span>
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            setActiveMenu(null);
+                            const acc = tiktokAccounts[0];
+                            setDetailsModal({
+                              title: 'TikTok Account',
+                              handle: acc?.handle || '@creator',
+                              status: 'Connected',
+                              type: acc?.accountType || 'TikTok Creator',
+                              lastSynced: '5 minutes ago',
+                            });
+                          }}
+                          className="w-full text-left px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-white/5 text-slate-700 dark:text-zinc-300 flex items-center space-x-2"
+                        >
+                          <Info className="h-3.5 w-3.5 text-amber-500" />
+                          <span>View Details</span>
+                        </button>
+
+                        <button
+                          onClick={() => handleDisconnectAccount(tiktokAccounts[0]?.id)}
+                          className="w-full text-left px-3 py-2 rounded-xl hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center space-x-2"
+                        >
+                          <LogOut className="h-3.5 w-3.5" />
+                          <span>Disconnect</span>
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              ) : (
+                <span className="px-3 py-1 rounded-full text-xs font-bold bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 border border-slate-200/60 dark:border-white/5">
+                  Click to Connect
+                </span>
+              )}
             </div>
 
-            {tiktokAccounts.length > 0 ? (
-              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200/60 dark:border-white/10 space-y-2 text-xs">
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-500 dark:text-zinc-400">Last Sync:</span>
-                  <span className="font-bold text-emerald-600 dark:text-emerald-400">5 minutes ago</span>
+            {isTikTokConnected ? (
+              <div className="p-4 rounded-2xl bg-purple-500/5 dark:bg-purple-500/10 border border-purple-500/20 space-y-2 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center space-x-1.5 text-emerald-600 dark:text-emerald-400 font-bold">
+                    <CheckCircle2 className="h-4 w-4" />
+                    <span>Connected ✓</span>
+                  </span>
+                  <span className="font-bold text-slate-900 dark:text-white">{tiktokAccounts[0]?.handle}</span>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-500 dark:text-zinc-400">Permissions:</span>
-                  <span className="font-bold text-slate-700 dark:text-zinc-200">Granted (video.publish)</span>
-                </div>
+                <p className="text-slate-500 dark:text-zinc-400 text-[11px]">TikTok Creator • Permissions Granted (video.publish)</p>
               </div>
             ) : (
               <p className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">
-                Connect your TikTok Creator account to schedule video uploads and monitor engagement via AMAI.
+                Click to authorize your TikTok Creator account to schedule video uploads and track metrics.
               </p>
             )}
           </div>
-
-          <button
-            onClick={() => handleConnect('tiktok')}
-            className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-950 text-xs font-bold rounded-xl transition shadow-md flex items-center justify-center space-x-2"
-          >
-            <Zap className="h-4 w-4" />
-            <span>{tiktokAccounts.length > 0 ? 'Add Account' : 'Connect TikTok'}</span>
-          </button>
         </motion.div>
 
       </div>
 
-      {/* Multi-Account Manager Section */}
-      <div className="exec-card p-6 rounded-[24px] space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">Connected Social Profiles</h2>
-            <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">Active social accounts linked to your AMAI workspace for AutoPilot publishing.</p>
-          </div>
-        </div>
+      {/* Details Modal */}
+      <AnimatePresence>
+        {detailsModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white dark:bg-zinc-950 rounded-[24px] border border-slate-200 dark:border-white/10 max-w-md w-full p-6 space-y-6 shadow-2xl"
+            >
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">{detailsModal.title}</h3>
+                <button onClick={() => setDetailsModal(null)} className="text-slate-400 hover:text-slate-900 dark:hover:text-white">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
 
-        {loading ? (
-          <p className="text-sm text-slate-400 py-6 text-center">Loading accounts...</p>
-        ) : accounts.length === 0 ? (
-          <div className="text-center py-10 border border-dashed border-slate-200 dark:border-white/10 rounded-2xl space-y-2">
-            <p className="text-sm text-slate-500 dark:text-zinc-400 font-semibold">No active social accounts connected yet.</p>
-            <p className="text-xs text-slate-400">Click one of the Connect buttons above to get started.</p>
-          </div>
-        ) : (
-          <div className="divide-y divide-slate-200/60 dark:divide-white/10">
-            {accounts.map(acc => (
-              <div key={acc.id} className="py-4 flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <div className="h-10 w-10 rounded-xl bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-white/10 flex items-center justify-center p-1.5 shadow-sm">
-                    {acc.platform === 'INSTAGRAM' ? (
-                      <InstagramLogo className="h-6 w-6" />
-                    ) : (
-                      <TikTokLogo className="h-6 w-6 text-slate-950 dark:text-white" />
-                    )}
-                  </div>
-                  <div>
-                    <div className="flex items-center space-x-2">
-                      <p className="text-sm font-bold text-slate-900 dark:text-white tracking-tight">{acc.handle}</p>
-                      <button
-                        onClick={() => {
-                          setRenameAccountId(acc.id);
-                          setNewHandle(acc.handle);
-                        }}
-                        className="text-xs text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 transition"
-                        title="Rename"
-                      >
-                        <Edit2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                    <p className="text-xs text-slate-500 dark:text-zinc-400">{acc.platform} • {acc.accountType || 'Creator Account'}</p>
-                  </div>
+              <div className="space-y-3 text-xs">
+                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-white/5 flex justify-between">
+                  <span className="text-slate-500 dark:text-zinc-400 font-semibold">Account / Handle</span>
+                  <span className="font-bold text-slate-900 dark:text-white">{detailsModal.handle}</span>
                 </div>
 
-                <div className="flex items-center space-x-4">
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                    Connected
-                  </span>
-                  <button
-                    onClick={() => handleDisconnectAccount(acc.id)}
-                    className="text-xs text-slate-400 hover:text-rose-600 transition font-semibold"
-                  >
-                    Disconnect
-                  </button>
+                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-white/5 flex justify-between">
+                  <span className="text-slate-500 dark:text-zinc-400 font-semibold">Account Type</span>
+                  <span className="font-bold text-slate-900 dark:text-white">{detailsModal.type}</span>
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-white/5 flex justify-between">
+                  <span className="text-slate-500 dark:text-zinc-400 font-semibold">OAuth Status</span>
+                  <span className="font-bold text-emerald-600 dark:text-emerald-400">{detailsModal.status} ✓</span>
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-white/5 flex justify-between">
+                  <span className="text-slate-500 dark:text-zinc-400 font-semibold">Last Synchronization</span>
+                  <span className="font-bold text-slate-700 dark:text-zinc-300">{detailsModal.lastSynced}</span>
                 </div>
               </div>
-            ))}
+
+              <button
+                onClick={() => setDetailsModal(null)}
+                className="w-full py-2.5 bg-slate-900 dark:bg-white text-white dark:text-slate-950 text-xs font-bold rounded-xl transition"
+              >
+                Close
+              </button>
+            </motion.div>
           </div>
         )}
-      </div>
+      </AnimatePresence>
 
-      {/* Modal 1: Folder Picker */}
+      {/* Modal 2: Folder Picker */}
       <AnimatePresence>
         {isFolderModalOpen && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
@@ -575,35 +729,6 @@ export default function ConnectedAccountsPage() {
                 >
                   {updatingFolder ? 'Saving...' : 'Save Selection'}
                 </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* Modal 2: Rename */}
-      <AnimatePresence>
-        {renameAccountId && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white dark:bg-zinc-950 rounded-[22px] border border-slate-200 dark:border-white/10 max-w-md w-full p-6 space-y-4 shadow-2xl"
-            >
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">Rename Account Handle</h3>
-              <p className="text-xs text-slate-500 dark:text-zinc-400">Customize the handle displayed in your AMAI workspace.</p>
-              <div>
-                <input
-                  type="text"
-                  value={newHandle}
-                  onChange={(e) => setNewHandle(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-slate-200 dark:border-white/10 rounded-xl bg-slate-50 dark:bg-white/5 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
-                />
-              </div>
-              <div className="flex justify-end space-x-3 pt-4 border-t border-slate-200 dark:border-white/10">
-                <button onClick={() => setRenameAccountId(null)} className="px-4 py-2 text-xs font-semibold text-slate-500">Cancel</button>
-                <button onClick={handleSaveRename} className="px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded-xl shadow-md">Save</button>
               </div>
             </motion.div>
           </div>
