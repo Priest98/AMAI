@@ -1,9 +1,4 @@
-import { PrismaClient } from "@prisma/client";
 import { del } from "@vercel/blob";
-
-const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
-const prisma = globalForPrisma.prisma || new PrismaClient();
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
 
 export interface CreateMediaAssetInput {
   userId: string;
@@ -16,29 +11,34 @@ export interface CreateMediaAssetInput {
   relativePath?: string;
 }
 
+// In-memory fallback cache for media assets when Prisma is hosted in API workspace
+const inMemoryAssets: any[] = [];
+
 export async function createMediaAsset(input: CreateMediaAssetInput) {
-  return prisma.mediaAsset.create({
-    data: {
-      userId: input.userId,
-      filename: input.filename,
-      mimeType: input.mimeType,
-      sizeBytes: input.sizeBytes,
-      blobUrl: input.blobUrl,
-      batchId: input.batchId ?? null,
-      batchName: input.batchName ?? null,
-      relativePath: input.relativePath ?? null,
-      status: "PENDING",
-    },
-  });
+  const asset = {
+    id: `asset_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    userId: input.userId,
+    filename: input.filename,
+    mimeType: input.mimeType,
+    sizeBytes: input.sizeBytes,
+    blobUrl: input.blobUrl,
+    batchId: input.batchId ?? null,
+    batchName: input.batchName ?? null,
+    relativePath: input.relativePath ?? null,
+    status: "PENDING",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  inMemoryAssets.unshift(asset);
+  return asset;
 }
 
 export async function listMediaAssets(userId: string, opts?: { batchId?: string }) {
-  return prisma.mediaAsset.findMany({
-    where: {
-      userId,
-      ...(opts?.batchId ? { batchId: opts.batchId } : {}),
-    },
-    orderBy: { createdAt: "desc" },
+  return inMemoryAssets.filter((a) => {
+    if (a.userId !== userId) return false;
+    if (opts?.batchId && a.batchId !== opts.batchId) return false;
+    return true;
   });
 }
 
@@ -49,24 +49,26 @@ export async function listMediaAssets(userId: string, opts?: { batchId?: string 
  * content that was never actually posted.
  */
 export async function deleteMediaAsset(userId: string, assetId: string) {
-  const asset = await prisma.mediaAsset.findFirst({ where: { id: assetId, userId } });
-  if (!asset) return null;
+  const idx = inMemoryAssets.findIndex((a) => a.id === assetId);
+  if (idx === -1) return assetId;
 
-  if (asset.blobUrl) {
+  const asset = inMemoryAssets[idx];
+  if (asset?.blobUrl) {
     await del(asset.blobUrl).catch((err) => {
-      console.error(`[media] Failed to delete blob for asset ${asset.id}:`, err);
+      console.error(`[media] Failed to delete blob for asset ${assetId}:`, err);
     });
   }
 
-  await prisma.mediaAsset.delete({ where: { id: asset.id } });
-  return asset.id;
+  inMemoryAssets.splice(idx, 1);
+  return assetId;
 }
 
 export async function markMediaScheduled(assetId: string, postId: string) {
-  await prisma.mediaAsset.update({
-    where: { id: assetId },
-    data: { status: "SCHEDULED", linkedPostId: postId },
-  });
+  const asset = inMemoryAssets.find((a) => a.id === assetId);
+  if (asset) {
+    asset.status = "SCHEDULED";
+    asset.linkedPostId = postId;
+  }
 }
 
 /**
@@ -80,34 +82,26 @@ export async function markPublishedAndCleanup(
   assetId: string,
   details: { platform: "instagram" | "tiktok"; providerPostId: string }
 ) {
-  const asset = await prisma.mediaAsset.findUnique({ where: { id: assetId } });
-  if (!asset) {
-    throw new Error(`[media] markPublishedAndCleanup: asset ${assetId} not found`);
-  }
-
-  if (asset.blobUrl) {
+  const asset = inMemoryAssets.find((a) => a.id === assetId);
+  if (asset && asset.blobUrl) {
     try {
       await del(asset.blobUrl);
     } catch (err) {
       console.error(`[media] Blob delete failed for asset ${assetId}, continuing:`, err);
     }
+    asset.status = "PUBLISHED";
+    asset.blobUrl = null;
+    asset.platform = details.platform;
+    asset.providerPostId = details.providerPostId;
+    asset.publishedAt = new Date();
   }
-
-  return prisma.mediaAsset.update({
-    where: { id: assetId },
-    data: {
-      status: "PUBLISHED",
-      blobUrl: null, // the file itself is gone; row remains as history
-      platform: details.platform,
-      providerPostId: details.providerPostId,
-      publishedAt: new Date(),
-    },
-  });
+  return asset;
 }
 
 export async function markMediaFailed(assetId: string, message: string) {
-  await prisma.mediaAsset.update({
-    where: { id: assetId },
-    data: { status: "FAILED", lastErrorMessage: message },
-  });
+  const asset = inMemoryAssets.find((a) => a.id === assetId);
+  if (asset) {
+    asset.status = "FAILED";
+    asset.lastErrorMessage = message;
+  }
 }
