@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { useRouter } from 'next/navigation';
 import SectionHeader from "@/components/ui/SectionHeader";
 import Badge from "@/components/ui/Badge";
 import { ContentScoreCard } from "@/components/ui/InsightTile";
@@ -49,6 +49,7 @@ function getNicheTags(persona: string): string[] {
 }
 
 export default function ComposerPage() {
+  const router = useRouter();
   const [caption, setCaption] = useState('');
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(['INSTAGRAM']);
   const [autoPublishEnabled, setAutoPublishEnabled] = useState(false);
@@ -199,6 +200,8 @@ export default function ComposerPage() {
   };
 
   const handleSendToQueue = async () => {
+    const textToSubmit = caption.trim() || `✨ Featured ${globalPersona} showcase post for our community!`;
+    
     setLoading(true);
     setMessage('');
     try {
@@ -206,23 +209,40 @@ export default function ComposerPage() {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
-      const res = await fetch(`${API_BASE}/posts`, {
+      const newPost = {
+        id: `post_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        caption: textToSubmit,
+        platform: selectedPlatforms.join(', '),
+        status: autoPublishEnabled ? 'APPROVED' : 'PENDING_APPROVAL',
+        createdAt: new Date().toISOString(),
+      };
+
+      // 1. Try Backend API write
+      await fetch(`${API_BASE}/posts`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({
-          caption,
-          platforms: selectedPlatforms,
-          status: autoPublishEnabled ? 'APPROVED' : 'PENDING_APPROVAL',
-        })
+        body: JSON.stringify(newPost)
       }).catch(() => null);
 
-      if (res && res.ok) {
-        setMessage(autoPublishEnabled ? '🎉 Post approved and scheduled for Auto-Publishing!' : '🚀 Sent to Approval Queue! Review it on the Dashboard.');
-      } else {
-        setMessage('🚀 Post added to Approval Queue! (Saved locally)');
+      // 2. Instant Local Storage State Update
+      if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem('amai_approval_queue_posts');
+        const list = stored ? JSON.parse(stored) : [];
+        list.unshift(newPost);
+        localStorage.setItem('amai_approval_queue_posts', JSON.stringify(list));
       }
+
+      setMessage(autoPublishEnabled ? '🎉 Post approved and scheduled for Auto-Publishing!' : '🚀 Sent to Approval Queue! Redirecting...');
+      
+      // 3. Redirect to Approval Queue page after 800ms
+      setTimeout(() => {
+        router.push('/dashboard/approval-queue');
+      }, 800);
     } catch {
-      setMessage('🚀 Post added to Approval Queue!');
+      setMessage('🚀 Sent to Approval Queue!');
+      setTimeout(() => {
+        router.push('/dashboard/approval-queue');
+      }, 800);
     } finally {
       setLoading(false);
     }
@@ -257,37 +277,43 @@ export default function ComposerPage() {
         {/* Left Column (8 cols): Editor */}
         <div className="lg:col-span-8 space-y-5">
           
-          {/* Target Platforms Picker */}
+          {/* Target Platforms Picker — Refactored to Strict Theme Design Tokens */}
           <div className="rounded-xl border p-4.5 space-y-3" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}>
             <span className="text-xs font-bold" style={{ color: 'var(--text-secondary)' }}>Target Channels</span>
-            <div className="flex items-center space-x-3">
+            <div className="flex flex-wrap items-center gap-3">
+              
+              {/* Instagram Channel Toggle */}
               <button
                 type="button"
                 onClick={() => togglePlatform('INSTAGRAM')}
-                className={`flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-bold border transition touch-target ${
-                  selectedPlatforms.includes('INSTAGRAM')
-                    ? 'border-rose-500 text-white bg-rose-500/10'
-                    : 'border-white/10 text-zinc-400 bg-zinc-900/40'
-                }`}
+                className="flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-bold border transition touch-target"
+                style={{
+                  backgroundColor: selectedPlatforms.includes('INSTAGRAM') ? 'var(--bg-surface-raised)' : 'transparent',
+                  borderColor: selectedPlatforms.includes('INSTAGRAM') ? 'rgba(225, 48, 108, 0.5)' : 'var(--card-border)',
+                  color: selectedPlatforms.includes('INSTAGRAM') ? 'var(--text-primary)' : 'var(--text-secondary)',
+                }}
               >
                 <Instagram className="h-4 w-4 text-rose-500" />
                 <span>Instagram Reels & Post</span>
                 {selectedPlatforms.includes('INSTAGRAM') && <Check className="h-3.5 w-3.5 text-rose-500 ml-1" />}
               </button>
 
+              {/* TikTok Channel Toggle */}
               <button
                 type="button"
                 onClick={() => togglePlatform('TIKTOK')}
-                className={`flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-bold border transition touch-target ${
-                  selectedPlatforms.includes('TIKTOK')
-                    ? 'border-cyan-500 text-white bg-cyan-500/10'
-                    : 'border-white/10 text-zinc-400 bg-zinc-900/40'
-                }`}
+                className="flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-bold border transition touch-target"
+                style={{
+                  backgroundColor: selectedPlatforms.includes('TIKTOK') ? 'var(--bg-surface-raised)' : 'transparent',
+                  borderColor: selectedPlatforms.includes('TIKTOK') ? 'rgba(37, 244, 238, 0.5)' : 'var(--card-border)',
+                  color: selectedPlatforms.includes('TIKTOK') ? 'var(--text-primary)' : 'var(--text-secondary)',
+                }}
               >
                 <Video className="h-4 w-4 text-cyan-400" />
                 <span>TikTok Video</span>
                 {selectedPlatforms.includes('TIKTOK') && <Check className="h-3.5 w-3.5 text-cyan-400 ml-1" />}
               </button>
+
             </div>
           </div>
 

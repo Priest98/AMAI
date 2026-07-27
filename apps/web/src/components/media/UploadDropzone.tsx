@@ -2,7 +2,7 @@
 
 import { upload } from "@vercel/blob/client";
 import { useCallback, useRef, useState } from "react";
-import { UploadCloud, FolderUp, FileUp, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
+import { UploadCloud, FolderUp, FileUp, CheckCircle, AlertCircle, Loader2, RotateCcw } from "lucide-react";
 
 interface UploadItem {
   id: string;
@@ -13,17 +13,18 @@ interface UploadItem {
   error?: string;
 }
 
-const ACCEPTED_TYPES = [
-  "video/mp4",
-  "video/quicktime",
-  "video/webm",
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-];
+const ALLOWED_EXTENSIONS = [".mp4", ".mov", ".webm", ".mkv", ".jpg", ".jpeg", ".png", ".webp"];
 
 function generateBatchId() {
   return `batch_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function isValidMediaFile(file: File): boolean {
+  if (file.type && (file.type.startsWith("video/") || file.type.startsWith("image/"))) {
+    return true;
+  }
+  const name = file.name.toLowerCase();
+  return ALLOWED_EXTENSIONS.some((ext) => name.endsWith(ext));
 }
 
 export default function UploadDropzone({ onUploaded }: { onUploaded?: () => void }) {
@@ -31,6 +32,81 @@ export default function UploadDropzone({ onUploaded }: { onUploaded?: () => void
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
+
+  const processSingleUpload = async (item: UploadItem, batchId?: string, batchName?: string) => {
+    setItems((prev) =>
+      prev.map((i) => (i.id === item.id ? { ...i, status: "uploading", progress: 30 } : i))
+    );
+
+    let uploadSuccess = false;
+
+    // 1. Try Vercel Blob Client upload first
+    try {
+      await upload(item.relativePath, item.file, {
+        access: "public",
+        handleUploadUrl: "/api/media/upload",
+        clientPayload: JSON.stringify({
+          batchId,
+          batchName,
+          relativePath: item.relativePath,
+        }),
+        onUploadProgress: ({ percentage }) => {
+          setItems((prev) =>
+            prev.map((i) => (i.id === item.id ? { ...i, progress: percentage } : i))
+          );
+        },
+      });
+      uploadSuccess = true;
+    } catch (blobErr) {
+      console.warn("[UploadDropzone] Vercel Blob client token unconfigured, switching to direct upload API...", blobErr);
+    }
+
+    // 2. Direct Upload API Fallback
+    if (!uploadSuccess) {
+      try {
+        setItems((prev) =>
+          prev.map((i) => (i.id === item.id ? { ...i, progress: 65 } : i))
+        );
+
+        const formData = new FormData();
+        formData.append("file", item.file);
+        formData.append("relativePath", item.relativePath);
+        if (batchId) formData.append("batchId", batchId);
+        if (batchName) formData.append("batchName", batchName);
+
+        const res = await fetch("/api/media/direct-upload", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (res.ok) {
+          uploadSuccess = true;
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || `Server returned ${res.status}: ${res.statusText}`);
+        }
+      } catch (directErr) {
+        const errorText = directErr instanceof Error ? directErr.message : "Media upload failed. Please try again.";
+        setItems((prev) =>
+          prev.map((i) =>
+            i.id === item.id
+              ? {
+                  ...i,
+                  status: "error",
+                  error: errorText,
+                }
+              : i
+          )
+        );
+      }
+    }
+
+    if (uploadSuccess) {
+      setItems((prev) =>
+        prev.map((i) => (i.id === item.id ? { ...i, status: "done", progress: 100 } : i))
+      );
+    }
+  };
 
   const uploadFiles = useCallback(
     async (files: { file: File; relativePath: string }[]) => {
@@ -49,73 +125,7 @@ export default function UploadDropzone({ onUploaded }: { onUploaded?: () => void
       setItems((prev) => [...prev, ...newItems]);
 
       for (const item of newItems) {
-        setItems((prev) =>
-          prev.map((i) => (i.id === item.id ? { ...i, status: "uploading", progress: 20 } : i))
-        );
-
-        let uploadSuccess = false;
-
-        // 1. Try Vercel Blob Client upload
-        try {
-          await upload(item.relativePath, item.file, {
-            access: "public",
-            handleUploadUrl: "/api/media/upload",
-            clientPayload: JSON.stringify({
-              batchId,
-              batchName,
-              relativePath: item.relativePath,
-            }),
-            onUploadProgress: ({ percentage }) => {
-              setItems((prev) =>
-                prev.map((i) => (i.id === item.id ? { ...i, progress: percentage } : i))
-              );
-            },
-          });
-          uploadSuccess = true;
-        } catch (blobErr) {
-          console.warn("[UploadDropzone] Vercel Blob token upload failed, trying direct upload fallback...", blobErr);
-        }
-
-        // 2. Direct Upload Fallback if Blob token is missing or failed
-        if (!uploadSuccess) {
-          try {
-            const formData = new FormData();
-            formData.append("file", item.file);
-            formData.append("relativePath", item.relativePath);
-            if (batchId) formData.append("batchId", batchId);
-            if (batchName) formData.append("batchName", batchName);
-
-            const res = await fetch("/api/media/direct-upload", {
-              method: "POST",
-              body: formData,
-            });
-
-            if (res.ok) {
-              uploadSuccess = true;
-            } else {
-              const errData = await res.json().catch(() => ({}));
-              throw new Error(errData.error || "Direct upload failed");
-            }
-          } catch (directErr) {
-            setItems((prev) =>
-              prev.map((i) =>
-                i.id === item.id
-                  ? {
-                      ...i,
-                      status: "error",
-                      error: directErr instanceof Error ? directErr.message : "Upload failed",
-                    }
-                  : i
-              )
-            );
-          }
-        }
-
-        if (uploadSuccess) {
-          setItems((prev) =>
-            prev.map((i) => (i.id === item.id ? { ...i, status: "done", progress: 100 } : i))
-          );
-        }
+        await processSingleUpload(item, batchId, batchName);
       }
 
       onUploaded?.();
@@ -127,7 +137,7 @@ export default function UploadDropzone({ onUploaded }: { onUploaded?: () => void
     if (!fileList || fileList.length === 0) return;
 
     const files = Array.from(fileList)
-      .filter((f) => ACCEPTED_TYPES.includes(f.type))
+      .filter(isValidMediaFile)
       .map((f) => ({
         file: f,
         relativePath: (f as File & { webkitRelativePath?: string }).webkitRelativePath || f.name,
@@ -151,7 +161,7 @@ export default function UploadDropzone({ onUploaded }: { onUploaded?: () => void
         }}
         onDragLeave={() => setIsDragging(false)}
         onDrop={handleDrop}
-        className={`rounded-2xl border-2 border-dashed p-6 sm:p-8 text-center transition-all duration-200 ${
+        className={`rounded-xl border-2 border-dashed p-6 sm:p-8 text-center transition-all duration-200 ${
           isDragging 
             ? "border-rose-500 bg-rose-500/5 dark:bg-rose-500/10" 
             : "border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-zinc-950/40 hover:border-slate-300 dark:hover:border-white/20"
@@ -193,7 +203,7 @@ export default function UploadDropzone({ onUploaded }: { onUploaded?: () => void
           ref={fileInputRef}
           type="file"
           multiple
-          accept={ACCEPTED_TYPES.join(",")}
+          accept="video/*,image/*,.mp4,.mov,.webm,.mkv,.jpg,.jpeg,.png,.webp"
           className="hidden"
           onChange={(e) => handleFileInput(e.target.files)}
         />
@@ -218,29 +228,43 @@ export default function UploadDropzone({ onUploaded }: { onUploaded?: () => void
               key={item.id}
               className="flex items-center justify-between rounded-xl border border-slate-200/60 dark:border-white/10 bg-white dark:bg-[#12151D] px-4 py-3 text-xs"
             >
-              <span className="truncate max-w-[60%] font-mono font-semibold text-slate-900 dark:text-white">
+              <span className="truncate max-w-[50%] font-mono font-semibold text-slate-900 dark:text-white">
                 {item.relativePath}
               </span>
+
               {item.status === "uploading" && (
-                <span className="text-amber-500 font-bold flex items-center space-x-1">
+                <span className="text-amber-500 font-bold flex items-center space-x-1.5">
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  <span>{item.progress}%</span>
+                  <span>Uploading {item.progress}%</span>
                 </span>
               )}
+
               {item.status === "done" && (
                 <span className="text-emerald-500 font-bold flex items-center space-x-1">
                   <CheckCircle className="h-3.5 w-3.5" />
-                  <span>Uploaded</span>
+                  <span>Uploaded Successfully</span>
                 </span>
               )}
+
               {item.status === "error" && (
-                <span className="text-rose-500 font-bold flex items-center space-x-1">
-                  <AlertCircle className="h-3.5 w-3.5" />
-                  <span>{item.error}</span>
-                </span>
+                <div className="flex items-center space-x-2">
+                  <span className="text-rose-500 font-semibold flex items-center space-x-1">
+                    <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                    <span>{item.error}</span>
+                  </span>
+                  <button
+                    onClick={() => processSingleUpload(item)}
+                    className="p-1 rounded bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 font-bold text-[10px] flex items-center space-x-1"
+                    title="Retry Upload"
+                  >
+                    <RotateCcw className="h-3 w-3" />
+                    <span>Retry</span>
+                  </button>
+                </div>
               )}
+
               {item.status === "queued" && (
-                <span className="text-slate-400 font-semibold">Waiting…</span>
+                <span className="text-slate-400 font-semibold">Queued...</span>
               )}
             </li>
           ))}
