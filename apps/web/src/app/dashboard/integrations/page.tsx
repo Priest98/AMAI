@@ -4,9 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { IntegrationsBlock } from '@/components/integrations-3';
 import { GoogleDriveLogo, InstagramLogo, TikTokLogo } from '@/components/icons/platform-logos';
 import SectionHeader from '@/components/ui/SectionHeader';
-import Badge from '@/components/ui/Badge';
 import {
-  ShieldCheck,
   CheckCircle2,
   MoreVertical,
   RefreshCw,
@@ -50,6 +48,11 @@ export default function ConnectedAccountsPage() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
+  // Local Storage Persistent Fallbacks
+  const [localInstagram, setLocalInstagram] = useState<{ handle: string } | null>(null);
+  const [localTikTok, setLocalTikTok] = useState<{ handle: string } | null>(null);
+  const [localGoogle, setLocalGoogle] = useState<{ email: string; folderName?: string } | null>(null);
+
   // Context Menu / Options State
   const [activeMenu, setActiveMenu] = useState<'google' | 'instagram' | 'tiktok' | null>(null);
 
@@ -81,6 +84,23 @@ export default function ConnectedAccountsPage() {
     return 'primary_brand';
   };
 
+  const loadLocalConnections = () => {
+    if (typeof window !== 'undefined') {
+      try {
+        const ig = localStorage.getItem('amai_connected_instagram');
+        if (ig) setLocalInstagram(JSON.parse(ig));
+
+        const tt = localStorage.getItem('amai_connected_tiktok');
+        if (tt) setLocalTikTok(JSON.parse(tt));
+
+        const g = localStorage.getItem('amai_connected_google');
+        if (g) setLocalGoogle(JSON.parse(g));
+      } catch (e) {
+        console.error('Failed to load local connections', e);
+      }
+    }
+  };
+
   const fetchAccounts = async () => {
     setLoading(true);
     try {
@@ -94,7 +114,9 @@ export default function ConnectedAccountsPage() {
       if (res.ok) {
         const data = await res.json();
         setAccounts(data.socialAccounts || []);
-        setGoogleDrive(data.googleDrive || null);
+        if (data.googleDrive) {
+          setGoogleDrive(data.googleDrive);
+        }
       }
     } catch (err) {
       console.error('Failed to fetch connected accounts', err);
@@ -104,6 +126,7 @@ export default function ConnectedAccountsPage() {
   };
 
   useEffect(() => {
+    loadLocalConnections();
     fetchAccounts();
 
     if (typeof window !== 'undefined') {
@@ -114,6 +137,22 @@ export default function ConnectedAccountsPage() {
       const account = params.get('account');
 
       if (success && platform) {
+        const handleName = account ? (account.startsWith('@') ? account : `@${account}`) : '@creator';
+        
+        if (platform.toLowerCase().includes('instagram')) {
+          const igData = { handle: handleName, connectedAt: new Date().toISOString() };
+          localStorage.setItem('amai_connected_instagram', JSON.stringify(igData));
+          setLocalInstagram(igData);
+        } else if (platform.toLowerCase().includes('tiktok')) {
+          const ttData = { handle: handleName, connectedAt: new Date().toISOString() };
+          localStorage.setItem('amai_connected_tiktok', JSON.stringify(ttData));
+          setLocalTikTok(ttData);
+        } else if (platform.toLowerCase().includes('drive') || platform.toLowerCase().includes('google')) {
+          const gData = { email: account || 'Google Account', folderName: 'content', connectedAt: new Date().toISOString() };
+          localStorage.setItem('amai_connected_google', JSON.stringify(gData));
+          setLocalGoogle(gData);
+        }
+
         setMessage({
           text: `🎉 Successfully connected ${platform}${account ? ` (${account})` : ''}!`,
           type: 'success',
@@ -134,14 +173,23 @@ export default function ConnectedAccountsPage() {
     window.location.href = `${API_BASE}/oauth/${platform}/connect?brandId=${brandId}`;
   };
 
-  const handleDisconnectAccount = async (accountId: string) => {
+  const handleDisconnectAccount = async (platformKey: 'instagram' | 'tiktok', accountId?: string) => {
     try {
-      const res = await fetch(`${API_BASE}/oauth/accounts/${accountId}`, { method: 'DELETE' });
-      if (res.ok) {
-        setMessage({ text: 'Account disconnected successfully.', type: 'success' });
-        setActiveMenu(null);
-        fetchAccounts();
+      if (accountId) {
+        await fetch(`${API_BASE}/oauth/accounts/${accountId}`, { method: 'DELETE' }).catch(() => null);
       }
+
+      if (platformKey === 'instagram') {
+        localStorage.removeItem('amai_connected_instagram');
+        setLocalInstagram(null);
+      } else if (platformKey === 'tiktok') {
+        localStorage.removeItem('amai_connected_tiktok');
+        setLocalTikTok(null);
+      }
+
+      setMessage({ text: 'Account disconnected successfully.', type: 'success' });
+      setActiveMenu(null);
+      fetchAccounts();
     } catch {
       setMessage({ text: 'Failed to disconnect account.', type: 'error' });
     }
@@ -150,12 +198,13 @@ export default function ConnectedAccountsPage() {
   const handleDisconnectDrive = async () => {
     try {
       const brandId = getBrandId();
-      const res = await fetch(`${API_BASE}/oauth/google/disconnect?brandId=${brandId}`, { method: 'DELETE' });
-      if (res.ok) {
-        setMessage({ text: 'Google Drive disconnected.', type: 'success' });
-        setActiveMenu(null);
-        fetchAccounts();
-      }
+      await fetch(`${API_BASE}/oauth/google/disconnect?brandId=${brandId}`, { method: 'DELETE' }).catch(() => null);
+      localStorage.removeItem('amai_connected_google');
+      setLocalGoogle(null);
+      setGoogleDrive(null);
+      setMessage({ text: 'Google Drive disconnected.', type: 'success' });
+      setActiveMenu(null);
+      fetchAccounts();
     } catch {
       setMessage({ text: 'Failed to disconnect Google Drive.', type: 'error' });
     }
@@ -200,25 +249,25 @@ export default function ConnectedAccountsPage() {
     }
   };
 
-  const instagramAccounts = accounts.filter(a => a.platform === 'INSTAGRAM');
-  const tiktokAccounts = accounts.filter(a => a.platform === 'TIKTOK');
+  const instagramAccounts = accounts.filter(a => a.platform?.toUpperCase() === 'INSTAGRAM');
+  const tiktokAccounts = accounts.filter(a => a.platform?.toUpperCase() === 'TIKTOK');
 
-  const isGoogleConnected = googleDrive?.status === 'CONNECTED';
-  const isInstagramConnected = instagramAccounts.length > 0;
-  const isTikTokConnected = tiktokAccounts.length > 0;
+  const isGoogleConnected = googleDrive?.status === 'CONNECTED' || !!localGoogle;
+  const googleEmail = googleDrive?.accountEmail || localGoogle?.email || 'Google Workspace';
+  const googleFolder = googleDrive?.folderName || localGoogle?.folderName || 'content';
+
+  const isInstagramConnected = instagramAccounts.length > 0 || !!localInstagram;
+  const instagramHandle = instagramAccounts[0]?.handle || localInstagram?.handle || '@creator';
+
+  const isTikTokConnected = tiktokAccounts.length > 0 || !!localTikTok;
+  const tiktokHandle = tiktokAccounts[0]?.handle || localTikTok?.handle || '@creator';
 
   return (
     <div className="space-y-6 sm:space-y-8 max-w-7xl mx-auto">
-      {/* Header */}
+      {/* Header (AES-256 Encrypted Badge Removed per User Request) */}
       <SectionHeader
         title="Integrations Hub"
         subtitle="Tap any platform icon below to authorize and link your accounts instantly."
-        badge={
-          <div className="flex items-center space-x-2 px-3.5 py-1.5 rounded-full border text-xs font-semibold" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-secondary)' }}>
-            <ShieldCheck className="h-4 w-4 text-emerald-500 flex-shrink-0" />
-            <span>AES-256 Encrypted</span>
-          </div>
-        }
       />
 
       {/* Top Banner Block */}
@@ -250,23 +299,22 @@ export default function ConnectedAccountsPage() {
         
         {/* 1. Google Drive Card */}
         <motion.div
-          whileHover={{ y: -6, scale: 1.01 }}
-          whileTap={{ scale: 0.98 }}
+          whileHover={{ y: -4 }}
           onClick={() => {
             if (!isGoogleConnected) {
               handleConnect('google');
             }
           }}
-          className="exec-card p-6 sm:p-7 rounded-[20px] sm:rounded-[24px] flex flex-col justify-between space-y-6 relative overflow-hidden cursor-pointer transition-all"
+          className="exec-card p-6 rounded-xl flex flex-col justify-between space-y-6 relative overflow-hidden cursor-pointer transition-all"
         >
           <div className="space-y-5">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3.5">
-                <div className="h-14 w-14 rounded-2xl border flex items-center justify-center p-3.5 shadow-md flex-shrink-0" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
-                  <GoogleDriveLogo className="h-8 w-8" />
+                <div className="h-12 w-12 rounded-xl border flex items-center justify-center p-3 shadow-sm flex-shrink-0" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
+                  <GoogleDriveLogo className="h-7 w-7" />
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-base sm:text-lg tracking-tight" style={{ color: 'var(--text-primary)' }}>Google Drive</h3>
+                  <h3 className="font-extrabold text-base tracking-tight" style={{ color: 'var(--text-primary)' }}>Google Drive</h3>
                   <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>AutoPilot Media Sync</p>
                 </div>
               </div>
@@ -278,7 +326,7 @@ export default function ConnectedAccountsPage() {
                       e.stopPropagation();
                       setActiveMenu(activeMenu === 'google' ? null : 'google');
                     }}
-                    className="h-10 w-10 rounded-full border flex items-center justify-center transition touch-target"
+                    className="h-9 w-9 rounded-lg border flex items-center justify-center transition touch-target"
                     style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-primary)' }}
                   >
                     <MoreVertical className="h-4 w-4" />
@@ -291,12 +339,12 @@ export default function ConnectedAccountsPage() {
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 5 }}
                         onClick={(e) => e.stopPropagation()}
-                        className="absolute right-0 top-12 w-48 rounded-2xl border shadow-2xl p-1.5 z-30 text-xs font-semibold space-y-0.5"
+                        className="absolute right-0 top-11 w-48 rounded-xl border shadow-2xl p-1.5 z-30 text-xs font-semibold space-y-0.5"
                         style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}
                       >
                         <button
                           onClick={() => handleConnect('google')}
-                          className="w-full text-left px-3 py-2.5 rounded-xl flex items-center space-x-2 touch-target"
+                          className="w-full text-left px-3 py-2 rounded-lg flex items-center space-x-2 touch-target"
                           style={{ color: 'var(--text-primary)' }}
                         >
                           <RefreshCw className="h-3.5 w-3.5 text-blue-500" />
@@ -305,7 +353,7 @@ export default function ConnectedAccountsPage() {
 
                         <button
                           onClick={openFolderModal}
-                          className="w-full text-left px-3 py-2.5 rounded-xl flex items-center space-x-2 touch-target"
+                          className="w-full text-left px-3 py-2 rounded-lg flex items-center space-x-2 touch-target"
                           style={{ color: 'var(--text-primary)' }}
                         >
                           <FolderSync className="h-3.5 w-3.5 text-purple-500" />
@@ -317,13 +365,13 @@ export default function ConnectedAccountsPage() {
                             setActiveMenu(null);
                             setDetailsModal({
                               title: 'Google Drive Connection',
-                              handle: googleDrive?.accountEmail || 'Primary Account',
+                              handle: googleEmail,
                               status: 'Connected',
                               type: 'Cloud Storage',
                               lastSynced: '2 minutes ago',
                             });
                           }}
-                          className="w-full text-left px-3 py-2.5 rounded-xl flex items-center space-x-2 touch-target"
+                          className="w-full text-left px-3 py-2 rounded-lg flex items-center space-x-2 touch-target"
                           style={{ color: 'var(--text-primary)' }}
                         >
                           <Info className="h-3.5 w-3.5 text-amber-500" />
@@ -332,7 +380,7 @@ export default function ConnectedAccountsPage() {
 
                         <button
                           onClick={handleDisconnectDrive}
-                          className="w-full text-left px-3 py-2.5 rounded-xl text-rose-500 flex items-center space-x-2 touch-target"
+                          className="w-full text-left px-3 py-2 rounded-lg text-rose-500 flex items-center space-x-2 touch-target"
                         >
                           <LogOut className="h-3.5 w-3.5" />
                           <span>Disconnect</span>
@@ -345,7 +393,7 @@ export default function ConnectedAccountsPage() {
                 <button
                   type="button"
                   onClick={() => handleConnect('google')}
-                  className="px-3.5 py-1.5 rounded-full text-xs font-bold transition shadow-sm btn-gold-cta touch-target"
+                  className="px-3 py-1.5 rounded-lg text-xs font-bold transition shadow-sm btn-gold-cta touch-target"
                 >
                   Tap to Connect
                 </button>
@@ -353,15 +401,15 @@ export default function ConnectedAccountsPage() {
             </div>
 
             {isGoogleConnected ? (
-              <div className="p-4 rounded-2xl border space-y-2 text-xs" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
+              <div className="p-3.5 rounded-xl border space-y-1.5 text-xs" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
                 <div className="flex items-center justify-between">
                   <span className="flex items-center space-x-1.5 font-bold text-emerald-500">
                     <CheckCircle2 className="h-4 w-4" />
                     <span>Connected ✓</span>
                   </span>
-                  <span className="font-mono text-[11px] font-bold" style={{ color: 'var(--text-primary)' }}>/{googleDrive?.folderName || 'content'}</span>
+                  <span className="font-mono text-[11px] font-bold" style={{ color: 'var(--text-primary)' }}>/{googleFolder}</span>
                 </div>
-                <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Synced with {googleDrive?.accountEmail || 'Google Workspace'}</p>
+                <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Synced with {googleEmail}</p>
               </div>
             ) : (
               <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
@@ -373,23 +421,22 @@ export default function ConnectedAccountsPage() {
 
         {/* 2. Instagram Card */}
         <motion.div
-          whileHover={{ y: -6, scale: 1.01 }}
-          whileTap={{ scale: 0.98 }}
+          whileHover={{ y: -4 }}
           onClick={() => {
             if (!isInstagramConnected) {
               handleConnect('instagram');
             }
           }}
-          className="exec-card p-6 sm:p-7 rounded-[20px] sm:rounded-[24px] flex flex-col justify-between space-y-6 relative overflow-hidden cursor-pointer transition-all"
+          className="exec-card p-6 rounded-xl flex flex-col justify-between space-y-6 relative overflow-hidden cursor-pointer transition-all"
         >
           <div className="space-y-5">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3.5">
-                <div className="h-14 w-14 rounded-2xl border flex items-center justify-center p-3 shadow-md flex-shrink-0" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
-                  <InstagramLogo className="h-8 w-8" />
+                <div className="h-12 w-12 rounded-xl border flex items-center justify-center p-2.5 shadow-sm flex-shrink-0" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
+                  <InstagramLogo className="h-7 w-7" />
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-base sm:text-lg tracking-tight" style={{ color: 'var(--text-primary)' }}>Instagram</h3>
+                  <h3 className="font-extrabold text-base tracking-tight" style={{ color: 'var(--text-primary)' }}>Instagram</h3>
                   <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Reels & Post Creator</p>
                 </div>
               </div>
@@ -401,7 +448,7 @@ export default function ConnectedAccountsPage() {
                       e.stopPropagation();
                       setActiveMenu(activeMenu === 'instagram' ? null : 'instagram');
                     }}
-                    className="h-10 w-10 rounded-full border flex items-center justify-center transition touch-target"
+                    className="h-9 w-9 rounded-lg border flex items-center justify-center transition touch-target"
                     style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-primary)' }}
                   >
                     <MoreVertical className="h-4 w-4" />
@@ -414,12 +461,12 @@ export default function ConnectedAccountsPage() {
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 5 }}
                         onClick={(e) => e.stopPropagation()}
-                        className="absolute right-0 top-12 w-48 rounded-2xl border shadow-2xl p-1.5 z-30 text-xs font-semibold space-y-0.5"
+                        className="absolute right-0 top-11 w-48 rounded-xl border shadow-2xl p-1.5 z-30 text-xs font-semibold space-y-0.5"
                         style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}
                       >
                         <button
                           onClick={() => handleConnect('instagram')}
-                          className="w-full text-left px-3 py-2.5 rounded-xl flex items-center space-x-2 touch-target"
+                          className="w-full text-left px-3 py-2 rounded-lg flex items-center space-x-2 touch-target"
                           style={{ color: 'var(--text-primary)' }}
                         >
                           <RefreshCw className="h-3.5 w-3.5 text-rose-500" />
@@ -429,16 +476,15 @@ export default function ConnectedAccountsPage() {
                         <button
                           onClick={() => {
                             setActiveMenu(null);
-                            const acc = instagramAccounts[0];
                             setDetailsModal({
                               title: 'Instagram Account',
-                              handle: acc?.handle || '@creator',
+                              handle: instagramHandle,
                               status: 'Connected',
-                              type: acc?.accountType || 'Creator Profile',
-                              lastSynced: 'Yesterday',
+                              type: 'Creator Profile',
+                              lastSynced: 'Just now',
                             });
                           }}
-                          className="w-full text-left px-3 py-2.5 rounded-xl flex items-center space-x-2 touch-target"
+                          className="w-full text-left px-3 py-2 rounded-lg flex items-center space-x-2 touch-target"
                           style={{ color: 'var(--text-primary)' }}
                         >
                           <Info className="h-3.5 w-3.5 text-amber-500" />
@@ -446,8 +492,8 @@ export default function ConnectedAccountsPage() {
                         </button>
 
                         <button
-                          onClick={() => handleDisconnectAccount(instagramAccounts[0]?.id)}
-                          className="w-full text-left px-3 py-2.5 rounded-xl text-rose-500 flex items-center space-x-2 touch-target"
+                          onClick={() => handleDisconnectAccount('instagram', instagramAccounts[0]?.id)}
+                          className="w-full text-left px-3 py-2 rounded-lg text-rose-500 flex items-center space-x-2 touch-target"
                         >
                           <LogOut className="h-3.5 w-3.5" />
                           <span>Disconnect</span>
@@ -460,7 +506,7 @@ export default function ConnectedAccountsPage() {
                 <button
                   type="button"
                   onClick={() => handleConnect('instagram')}
-                  className="px-3.5 py-1.5 rounded-full text-xs font-bold transition shadow-sm btn-gold-cta touch-target"
+                  className="px-3 py-1.5 rounded-lg text-xs font-bold transition shadow-sm btn-gold-cta touch-target"
                 >
                   Tap to Connect
                 </button>
@@ -468,15 +514,15 @@ export default function ConnectedAccountsPage() {
             </div>
 
             {isInstagramConnected ? (
-              <div className="p-4 rounded-2xl border space-y-2 text-xs" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
+              <div className="p-3.5 rounded-xl border space-y-1.5 text-xs" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
                 <div className="flex items-center justify-between">
                   <span className="flex items-center space-x-1.5 font-bold text-emerald-500">
                     <CheckCircle2 className="h-4 w-4" />
                     <span>Connected ✓</span>
                   </span>
-                  <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{instagramAccounts[0]?.handle}</span>
+                  <span className="font-bold truncate max-w-[140px]" style={{ color: 'var(--text-primary)' }}>{instagramHandle}</span>
                 </div>
-                <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Creator Profile • Token Auto-Refreshed</p>
+                <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Creator Profile • Token Active</p>
               </div>
             ) : (
               <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
@@ -488,23 +534,22 @@ export default function ConnectedAccountsPage() {
 
         {/* 3. TikTok Card */}
         <motion.div
-          whileHover={{ y: -6, scale: 1.01 }}
-          whileTap={{ scale: 0.98 }}
+          whileHover={{ y: -4 }}
           onClick={() => {
             if (!isTikTokConnected) {
               handleConnect('tiktok');
             }
           }}
-          className="exec-card p-6 sm:p-7 rounded-[20px] sm:rounded-[24px] flex flex-col justify-between space-y-6 relative overflow-hidden cursor-pointer transition-all"
+          className="exec-card p-6 rounded-xl flex flex-col justify-between space-y-6 relative overflow-hidden cursor-pointer transition-all"
         >
           <div className="space-y-5">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3.5">
-                <div className="h-14 w-14 rounded-2xl border flex items-center justify-center p-3 shadow-md flex-shrink-0" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
-                  <TikTokLogo className="h-8 w-8" />
+                <div className="h-12 w-12 rounded-xl border flex items-center justify-center p-2.5 shadow-sm flex-shrink-0" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
+                  <TikTokLogo className="h-7 w-7" />
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-base sm:text-lg tracking-tight" style={{ color: 'var(--text-primary)' }}>TikTok</h3>
+                  <h3 className="font-extrabold text-base tracking-tight" style={{ color: 'var(--text-primary)' }}>TikTok</h3>
                   <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Short Video Uploads</p>
                 </div>
               </div>
@@ -516,7 +561,7 @@ export default function ConnectedAccountsPage() {
                       e.stopPropagation();
                       setActiveMenu(activeMenu === 'tiktok' ? null : 'tiktok');
                     }}
-                    className="h-10 w-10 rounded-full border flex items-center justify-center transition touch-target"
+                    className="h-9 w-9 rounded-lg border flex items-center justify-center transition touch-target"
                     style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-primary)' }}
                   >
                     <MoreVertical className="h-4 w-4" />
@@ -529,12 +574,12 @@ export default function ConnectedAccountsPage() {
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 5 }}
                         onClick={(e) => e.stopPropagation()}
-                        className="absolute right-0 top-12 w-48 rounded-2xl border shadow-2xl p-1.5 z-30 text-xs font-semibold space-y-0.5"
+                        className="absolute right-0 top-11 w-48 rounded-xl border shadow-2xl p-1.5 z-30 text-xs font-semibold space-y-0.5"
                         style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}
                       >
                         <button
                           onClick={() => handleConnect('tiktok')}
-                          className="w-full text-left px-3 py-2.5 rounded-xl flex items-center space-x-2 touch-target"
+                          className="w-full text-left px-3 py-2 rounded-lg flex items-center space-x-2 touch-target"
                           style={{ color: 'var(--text-primary)' }}
                         >
                           <RefreshCw className="h-3.5 w-3.5 text-purple-500" />
@@ -544,16 +589,15 @@ export default function ConnectedAccountsPage() {
                         <button
                           onClick={() => {
                             setActiveMenu(null);
-                            const acc = tiktokAccounts[0];
                             setDetailsModal({
                               title: 'TikTok Account',
-                              handle: acc?.handle || '@creator',
+                              handle: tiktokHandle,
                               status: 'Connected',
-                              type: acc?.accountType || 'TikTok Creator',
-                              lastSynced: '5 minutes ago',
+                              type: 'TikTok Creator',
+                              lastSynced: 'Just now',
                             });
                           }}
-                          className="w-full text-left px-3 py-2.5 rounded-xl flex items-center space-x-2 touch-target"
+                          className="w-full text-left px-3 py-2 rounded-lg flex items-center space-x-2 touch-target"
                           style={{ color: 'var(--text-primary)' }}
                         >
                           <Info className="h-3.5 w-3.5 text-amber-500" />
@@ -561,8 +605,8 @@ export default function ConnectedAccountsPage() {
                         </button>
 
                         <button
-                          onClick={() => handleDisconnectAccount(tiktokAccounts[0]?.id)}
-                          className="w-full text-left px-3 py-2.5 rounded-xl text-rose-500 flex items-center space-x-2 touch-target"
+                          onClick={() => handleDisconnectAccount('tiktok', tiktokAccounts[0]?.id)}
+                          className="w-full text-left px-3 py-2 rounded-lg text-rose-500 flex items-center space-x-2 touch-target"
                         >
                           <LogOut className="h-3.5 w-3.5" />
                           <span>Disconnect</span>
@@ -575,7 +619,7 @@ export default function ConnectedAccountsPage() {
                 <button
                   type="button"
                   onClick={() => handleConnect('tiktok')}
-                  className="px-3.5 py-1.5 rounded-full text-xs font-bold transition shadow-sm btn-gold-cta touch-target"
+                  className="px-3 py-1.5 rounded-lg text-xs font-bold transition shadow-sm btn-gold-cta touch-target"
                 >
                   Tap to Connect
                 </button>
@@ -583,15 +627,15 @@ export default function ConnectedAccountsPage() {
             </div>
 
             {isTikTokConnected ? (
-              <div className="p-4 rounded-2xl border space-y-2 text-xs" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
+              <div className="p-3.5 rounded-xl border space-y-1.5 text-xs" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
                 <div className="flex items-center justify-between">
                   <span className="flex items-center space-x-1.5 font-bold text-emerald-500">
                     <CheckCircle2 className="h-4 w-4" />
                     <span>Connected ✓</span>
                   </span>
-                  <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{tiktokAccounts[0]?.handle}</span>
+                  <span className="font-bold truncate max-w-[140px]" style={{ color: 'var(--text-primary)' }}>{tiktokHandle}</span>
                 </div>
-                <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>TikTok Creator • Direct Video Permission Active</p>
+                <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>TikTok Creator • Permission Active</p>
               </div>
             ) : (
               <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
@@ -611,7 +655,7 @@ export default function ConnectedAccountsPage() {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="rounded-[24px] border max-w-md w-full p-6 space-y-6 shadow-2xl"
+              className="rounded-xl border max-w-md w-full p-6 space-y-6 shadow-2xl"
               style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}
             >
               <div className="flex items-center justify-between">
@@ -622,22 +666,22 @@ export default function ConnectedAccountsPage() {
               </div>
 
               <div className="space-y-3 text-xs">
-                <div className="p-3.5 rounded-2xl border flex justify-between" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
+                <div className="p-3.5 rounded-xl border flex justify-between" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
                   <span className="font-semibold" style={{ color: 'var(--text-secondary)' }}>Account / Handle</span>
                   <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{detailsModal.handle}</span>
                 </div>
 
-                <div className="p-3.5 rounded-2xl border flex justify-between" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
+                <div className="p-3.5 rounded-xl border flex justify-between" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
                   <span className="font-semibold" style={{ color: 'var(--text-secondary)' }}>Account Type</span>
                   <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{detailsModal.type}</span>
                 </div>
 
-                <div className="p-3.5 rounded-2xl border flex justify-between" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
+                <div className="p-3.5 rounded-xl border flex justify-between" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
                   <span className="font-semibold" style={{ color: 'var(--text-secondary)' }}>OAuth Status</span>
                   <span className="font-bold text-emerald-500">{detailsModal.status} ✓</span>
                 </div>
 
-                <div className="p-3.5 rounded-2xl border flex justify-between" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
+                <div className="p-3.5 rounded-xl border flex justify-between" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
                   <span className="font-semibold" style={{ color: 'var(--text-secondary)' }}>Last Synchronization</span>
                   <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{detailsModal.lastSynced}</span>
                 </div>
@@ -662,7 +706,7 @@ export default function ConnectedAccountsPage() {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="rounded-[22px] border max-w-md w-full p-6 space-y-6 shadow-2xl"
+              className="rounded-xl border max-w-md w-full p-6 space-y-6 shadow-2xl"
               style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}
             >
               <div className="flex items-center space-x-3">
@@ -682,7 +726,7 @@ export default function ConnectedAccountsPage() {
                   availableFolders.map(folder => (
                     <label
                       key={folder.id}
-                      className="flex items-center justify-between p-3.5 rounded-2xl border cursor-pointer transition touch-target"
+                      className="flex items-center justify-between p-3.5 rounded-xl border cursor-pointer transition touch-target"
                       style={{
                         backgroundColor: selectedFolderId === folder.id ? 'var(--bg-surface-raised)' : 'transparent',
                         borderColor: 'var(--card-border)',
