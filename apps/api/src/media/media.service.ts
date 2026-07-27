@@ -1,7 +1,7 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
-import { MediaType } from '@prisma/client';
+import { MediaStatus } from '@prisma/client';
 
 @Injectable()
 export class MediaService {
@@ -15,19 +15,15 @@ export class MediaService {
 
     const uploadedData = await this.storage.uploadFile(file, brandId);
 
-    let type: MediaType = MediaType.IMAGE;
-    if (file.mimetype.startsWith('video/')) {
-      type = MediaType.VIDEO;
-    }
-
     return this.prisma.mediaAsset.create({
       data: {
         brandId,
         folderId: folderId || null,
-        url: uploadedData.url,
-        type,
-        size: uploadedData.size,
-        mimeType: uploadedData.mimeType,
+        filename: file.originalname || 'uploaded_media',
+        blobUrl: uploadedData.url,
+        sizeBytes: uploadedData.size || file.size || 0,
+        mimeType: uploadedData.mimeType || file.mimetype,
+        status: MediaStatus.PENDING,
       }
     });
   }
