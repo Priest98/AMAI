@@ -9,7 +9,6 @@ import {
   CheckCircle2,
   Clock,
   Calendar,
-  AlertTriangle,
   ArrowUpRight,
   ShieldCheck,
   ThumbsUp,
@@ -39,17 +38,19 @@ export default function DashboardPage() {
   const [publishingMode, setPublishingMode] = useState<'MANUAL_APPROVAL' | 'AUTO_PUBLISH'>('MANUAL_APPROVAL');
   const [approvedCount, setApprovedCount] = useState<number>(0);
   const [posts, setPosts] = useState<any[]>([]);
-  const [connectedAccounts, setConnectedAccounts] = useState<any[]>([]);
+  const [connectedAccountsCount, setConnectedAccountsCount] = useState<number>(0);
+  const [connectedAccountList, setConnectedAccountList] = useState<string[]>([]);
   const [mediaAssets, setMediaAssets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchLiveData = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('marketing_os_token');
+      const token = typeof window !== 'undefined' ? localStorage.getItem('marketing_os_token') : null;
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
+      // 1. Fetch Posts
       const postsRes = await fetch(`${API_BASE}/posts`, { headers }).catch(() => null);
       if (postsRes && postsRes.ok) {
         const data = await postsRes.json();
@@ -58,14 +59,63 @@ export default function DashboardPage() {
         setPosts([]);
       }
 
-      const accountsRes = await fetch(`${API_BASE}/integrations`, { headers }).catch(() => null);
+      // 2. Fetch Connected Accounts API + Combine with Local Storage Persistence
+      let apiAccountsCount = 0;
+      const connectedLabels: string[] = [];
+
+      const accountsRes = await fetch(`${API_BASE}/oauth/accounts?brandId=primary_brand`, { headers }).catch(() => null);
       if (accountsRes && accountsRes.ok) {
         const data = await accountsRes.json();
-        setConnectedAccounts(Array.isArray(data) ? data : []);
-      } else {
-        setConnectedAccounts([]);
+        if (data.socialAccounts && Array.isArray(data.socialAccounts)) {
+          apiAccountsCount = data.socialAccounts.length;
+          data.socialAccounts.forEach((acc: any) => {
+            if (acc.handle) connectedLabels.push(`${acc.platform}: ${acc.handle}`);
+          });
+        }
+        if (data.googleDrive && data.googleDrive.status === 'CONNECTED') {
+          apiAccountsCount += 1;
+          connectedLabels.push(`Google Drive: ${data.googleDrive.accountEmail || 'Connected'}`);
+        }
       }
 
+      // Fallback check local storage
+      if (typeof window !== 'undefined') {
+        const ig = localStorage.getItem('amai_connected_instagram');
+        if (ig) {
+          try {
+            const parsed = JSON.parse(ig);
+            if (!connectedLabels.some(l => l.includes('INSTAGRAM') || l.includes('Instagram'))) {
+              connectedLabels.push(`Instagram: ${parsed.handle}`);
+            }
+          } catch {}
+        }
+
+        const tt = localStorage.getItem('amai_connected_tiktok');
+        if (tt) {
+          try {
+            const parsed = JSON.parse(tt);
+            if (!connectedLabels.some(l => l.includes('TIKTOK') || l.includes('TikTok'))) {
+              connectedLabels.push(`TikTok: ${parsed.handle}`);
+            }
+          } catch {}
+        }
+
+        const g = localStorage.getItem('amai_connected_google');
+        if (g) {
+          try {
+            const parsed = JSON.parse(g);
+            if (!connectedLabels.some(l => l.includes('Google Drive'))) {
+              connectedLabels.push(`Google Drive: ${parsed.email || 'Connected'}`);
+            }
+          } catch {}
+        }
+      }
+
+      const totalConnected = Math.max(apiAccountsCount, connectedLabels.length);
+      setConnectedAccountsCount(totalConnected);
+      setConnectedAccountList(connectedLabels);
+
+      // 3. Fetch Media Assets
       const mediaRes = await fetch('/api/media/list').catch(() => null);
       if (mediaRes && mediaRes.ok) {
         const data = await mediaRes.json();
@@ -148,13 +198,13 @@ export default function DashboardPage() {
         {/* Center Main Workspace */}
         <div className="lg:col-span-8 space-y-5 lg:space-y-6">
           
-          {/* Mobile Clean Stat Cards Grid */}
-          <motion.div variants={itemVariants} className="grid grid-cols-2 gap-3 sm:gap-3.5">
+          {/* Clean 3 KPI Stat Cards Grid (System Health Card Removed per User Request) */}
+          <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-3.5">
             <StatCard
               icon={<CheckCircle2 className="h-4 w-4 text-emerald-400" />}
               label="Active Channels"
-              value={connectedAccounts.length > 0 ? `${connectedAccounts.length} Connected` : "0 Connected"}
-              helperText={connectedAccounts.length > 0 ? `${connectedAccounts.length} channel(s) active` : "No accounts linked"}
+              value={connectedAccountsCount > 0 ? `${connectedAccountsCount} Connected` : "0 Connected"}
+              helperText={connectedAccountsCount > 0 ? `${connectedAccountsCount} channel(s) active` : "No accounts linked"}
               valueColor="var(--text-primary)"
             />
 
@@ -172,14 +222,6 @@ export default function DashboardPage() {
               value={`${approvedCount} Posts`}
               helperText="Total approved"
               valueColor="var(--text-primary)"
-            />
-
-            <StatCard
-              icon={<AlertTriangle className="h-4 w-4 text-emerald-400" />}
-              label="System Health"
-              value="100% Active"
-              helperText="All APIs online"
-              valueColor="var(--accent-success)"
             />
           </motion.div>
 
@@ -311,7 +353,7 @@ export default function DashboardPage() {
                   <Radio className="h-4 w-4 text-emerald-400" />
                   <span>Connected Channels</span>
                 </span>
-                <span className="font-mono text-xs" style={{ color: 'var(--text-secondary)' }}>{connectedAccounts.length} Active</span>
+                <span className="font-mono text-xs" style={{ color: 'var(--text-secondary)' }}>{connectedAccountsCount} Active</span>
               </div>
             </div>
 
