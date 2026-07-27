@@ -6,7 +6,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Logo } from '@/components/logo';
 import {
   LayoutDashboard,
-  PenTool,
   Zap,
   FolderKanban,
   Radio,
@@ -20,6 +19,7 @@ import {
   CheckSquare,
   BarChart3,
   Plus,
+  Upload,
 } from 'lucide-react';
 
 interface NavSubItem {
@@ -40,18 +40,16 @@ const navSections: NavSection[] = [
     ],
   },
   {
-    title: 'Publishing',
+    title: 'Automation & Queue',
     items: [
-      { label: 'Composer', href: '/dashboard/composer', icon: PenTool },
-      { label: 'Calendar', href: '/dashboard/autopilot', icon: CalendarIcon },
       { label: 'Approval Queue', href: '/dashboard/approval-queue', icon: CheckSquare },
+      { label: 'AutoPilot Settings', href: '/dashboard/autopilot', icon: Zap },
     ],
   },
   {
-    title: 'Media & Automation',
+    title: 'Media Assets',
     items: [
       { label: 'Media Library', href: '/dashboard/media', icon: FolderKanban },
-      { label: 'AutoPilot Engine', href: '/dashboard/autopilot', icon: Zap },
     ],
   },
   {
@@ -72,8 +70,8 @@ const navSections: NavSection[] = [
 const mobileTabItems = [
   { label: 'Home', href: '/dashboard', icon: LayoutDashboard },
   { label: 'AutoPilot', href: '/dashboard/autopilot', icon: Zap },
-  { label: 'Post', href: '/dashboard/composer', icon: Plus },
-  { label: 'Hub', href: '/dashboard/integrations', icon: Radio },
+  { label: 'Upload', href: '/dashboard/media', icon: Plus },
+  { label: 'Queue', href: '/dashboard/approval-queue', icon: CheckSquare },
   { label: 'Settings', href: '/dashboard/settings', icon: Settings },
 ];
 
@@ -177,13 +175,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {isDarkMode ? <Sun className="h-3.5 w-3.5 text-amber-400" /> : <Moon className="h-3.5 w-3.5 text-slate-700" />}
           </button>
 
-          {/* Primary Action Button (+ Post) — Hidden on mobile to keep top bar minimal */}
+          {/* Upload Media Primary CTA */}
           <Link
-            href="/dashboard/composer"
-            className="hidden sm:flex items-center space-x-1 px-3 py-1.5 text-xs font-bold text-white rounded-lg transition shadow-xs touch-target btn-emerald-cta"
+            href="/dashboard/media"
+            className="hidden sm:flex items-center space-x-1 px-3.5 py-1.5 text-xs font-bold text-white rounded-lg transition shadow-xs touch-target btn-emerald-cta"
           >
-            <Plus className="h-3.5 w-3.5" />
-            <span>Post</span>
+            <Upload className="h-3.5 w-3.5" />
+            <span>Upload Media</span>
           </Link>
         </div>
       </header>
@@ -334,20 +332,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
       </div>
 
-      {/* Mobile Bottom Bar — Elevated Floating CTA Button */}
+      {/* Mobile Bottom Bar — Streamlined Navigation with Center Upload Button */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 backdrop-blur-md border-t px-4 flex items-center justify-around z-30 shadow-lg" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}>
         {mobileTabItems.map((tab) => {
           const isActive = pathname === tab.href;
           const Icon = tab.icon;
-          const isPostTab = tab.label === 'Post';
+          const isUploadTab = tab.label === 'Upload';
 
-          if (isPostTab) {
+          if (isUploadTab) {
             return (
               <Link
                 key={tab.label}
                 href={tab.href}
                 className="flex items-center justify-center h-11 w-11 rounded-full text-white bg-gradient-to-r from-emerald-600 to-teal-500 shadow-xl -translate-y-2 border-2 border-slate-900 transition transform active:scale-95 touch-target"
-                title="Create New Post"
+                title="Upload New Media"
               >
                 <Plus className="h-6 w-6" />
               </Link>

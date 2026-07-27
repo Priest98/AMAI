@@ -4,11 +4,19 @@ import { getCurrentUserId } from "@/lib/oauth/current-user";
 import { createMediaAsset } from "@/lib/media/media-service";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60; // 60s execution limit for large media uploads
+export const maxDuration = 60;
+
+const NICHE_HASHTAGS: Record<string, string[]> = {
+  'Fashion Designer': ['#FashionDesign', '#OOTD', '#StyleInspo', '#Couture', '#GarmentDetails'],
+  'Restaurant': ['#Foodie', '#EatLocal', '#Gourmet', '#RestaurantLife', '#FoodGasm'],
+  'Real Estate': ['#RealEstate', '#DreamHome', '#PropertyListing', '#LuxuryRealty'],
+  'Beauty': ['#BeautyTips', '#SkinCareRoutine', '#GlowUp', '#Cosmetics'],
+  'Fitness': ['#FitnessMotivation', '#Workout', '#FitLife', '#ActiveWear'],
+};
 
 export async function POST(request: Request): Promise<NextResponse> {
   try {
-    const userId = await getCurrentUserId();
+    const userId = (await getCurrentUserId()) || "usr_primary";
     const formData = await request.formData();
 
     const file = formData.get("file") as File | null;
@@ -17,43 +25,40 @@ export async function POST(request: Request): Promise<NextResponse> {
     const relativePath = (formData.get("relativePath") as string) || file?.name || "file";
 
     if (!file) {
-      console.error("[api/media/direct-upload] No file found in FormData");
-      return NextResponse.json({ error: "No file provided in request" }, { status: 400 });
+      console.error("[api/media/direct-upload] No file provided");
+      return NextResponse.json({ error: "No file provided in upload request" }, { status: 400 });
     }
 
-    console.log(`[api/media/direct-upload] Processing upload: ${file.name} (${file.size} bytes, ${file.type})`);
+    console.log(`[api/media/direct-upload] File received: ${file.name} (${file.size} bytes)`);
 
     let blobUrl = "";
 
-    // 1. Try Vercel Blob store if BLOB_READ_WRITE_TOKEN is configured
+    // 1. Vercel Blob Put (if token available)
     if (process.env.BLOB_READ_WRITE_TOKEN) {
       try {
         const blob = await put(relativePath, file, { access: "public" });
         blobUrl = blob.url;
-        console.log(`[api/media/direct-upload] Successfully uploaded to Vercel Blob: ${blobUrl}`);
       } catch (blobErr) {
-        console.warn("[api/media/direct-upload] Vercel Blob put failed, creating local asset reference:", blobErr);
+        console.warn("[api/media/direct-upload] Vercel Blob put failed, generating local fallback URL", blobErr);
       }
     }
 
-    // 2. Safe Fallback URL (Avoid memory crash on giant video files)
+    // 2. Fallback Data URL or Stream reference
     if (!blobUrl) {
       if (file.size < 8 * 1024 * 1024) {
-        // Small image/video < 8MB: Base64 data URL
         const arrayBuffer = await file.arrayBuffer();
         const base64 = Buffer.from(arrayBuffer).toString("base64");
-        blobUrl = `data:${file.type || "application/octet-stream"};base64,${base64}`;
+        blobUrl = `data:${file.type || "image/jpeg"};base64,${base64}`;
       } else {
-        // Large video >= 8MB: Generate persistent local media URL reference
         const assetId = `file_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
         blobUrl = `/api/media/stream/${assetId}?name=${encodeURIComponent(file.name)}`;
       }
     }
 
     const asset = await createMediaAsset({
-      userId: userId || "usr_primary",
+      userId,
       filename: file.name,
-      mimeType: file.type || "video/mp4",
+      mimeType: file.type || "image/jpeg",
       sizeBytes: file.size,
       blobUrl,
       batchId,
@@ -61,10 +66,30 @@ export async function POST(request: Request): Promise<NextResponse> {
       relativePath,
     });
 
-    return NextResponse.json({ success: true, asset });
+    // 3. Automated Content Pipeline Trigger
+    const defaultNiche = "Fashion Designer";
+    const tags = (NICHE_HASHTAGS[defaultNiche] || NICHE_HASHTAGS['Fashion Designer']).join(' ');
+    const generatedCaption = `✨ Fresh look: Showcase for ${file.name.replace(/\.[^/.]+$/, "")}! Crafted specially for our ${defaultNiche} community. What do you think of this piece? ${tags}`;
+
+    const autoPost = {
+      id: `post_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      caption: generatedCaption,
+      platform: "INSTAGRAM, TIKTOK",
+      mediaUrl: blobUrl,
+      filename: file.name,
+      status: "PENDING_APPROVAL",
+      createdAt: new Date().toISOString(),
+      scheduledTime: "Today, 7:45 PM EST",
+    };
+
+    return NextResponse.json({
+      success: true,
+      asset,
+      autoPost,
+    });
   } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : "Unknown upload error";
-    console.error("[api/media/direct-upload] Error during direct upload:", errorMsg, error);
+    const errorMsg = error instanceof Error ? error.message : "Unknown error during media upload";
+    console.error("[api/media/direct-upload] Upload exception:", errorMsg);
     return NextResponse.json(
       { error: `Upload failed: ${errorMsg}` },
       { status: 500 }

@@ -33,16 +33,42 @@ export default function UploadDropzone({ onUploaded }: { onUploaded?: () => void
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
 
+  const saveAssetLocally = (asset: any, autoPost?: any) => {
+    if (typeof window === "undefined") return;
+
+    // 1. Save uploaded asset to local storage for immediate UI reactivity
+    try {
+      const stored = localStorage.getItem("amai_uploaded_assets");
+      const list = stored ? JSON.parse(stored) : [];
+      const updatedList = [asset, ...list.filter((a: any) => a.id !== asset.id)];
+      localStorage.setItem("amai_uploaded_assets", JSON.stringify(updatedList));
+    } catch {}
+
+    // 2. Trigger AutoPilot automation workflow
+    if (autoPost) {
+      try {
+        const isAutopilotOn = localStorage.getItem("amai_autopilot_enabled") === "true";
+        const key = isAutopilotOn ? "amai_scheduled_posts" : "amai_approval_queue_posts";
+        const storedPosts = localStorage.getItem(key);
+        const postList = storedPosts ? JSON.parse(storedPosts) : [];
+        postList.unshift(autoPost);
+        localStorage.setItem(key, JSON.stringify(postList));
+      } catch {}
+    }
+  };
+
   const processSingleUpload = async (item: UploadItem, batchId?: string, batchName?: string) => {
     setItems((prev) =>
       prev.map((i) => (i.id === item.id ? { ...i, status: "uploading", progress: 30 } : i))
     );
 
     let uploadSuccess = false;
+    let uploadedAsset: any = null;
+    let autoPostPayload: any = null;
 
-    // 1. Try Vercel Blob Client upload first
+    // 1. Try Vercel Blob Client upload
     try {
-      await upload(item.relativePath, item.file, {
+      const res = await upload(item.relativePath, item.file, {
         access: "public",
         handleUploadUrl: "/api/media/upload",
         clientPayload: JSON.stringify({
@@ -57,8 +83,17 @@ export default function UploadDropzone({ onUploaded }: { onUploaded?: () => void
         },
       });
       uploadSuccess = true;
+      uploadedAsset = {
+        id: `asset_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        filename: item.file.name,
+        mimeType: item.file.type || "image/jpeg",
+        sizeBytes: item.file.size,
+        blobUrl: res.url,
+        status: "PENDING",
+        createdAt: new Date().toISOString(),
+      };
     } catch (blobErr) {
-      console.warn("[UploadDropzone] Vercel Blob client token unconfigured, switching to direct upload API...", blobErr);
+      console.warn("[UploadDropzone] Vercel Blob client unconfigured, switching to direct upload API...", blobErr);
     }
 
     // 2. Direct Upload API Fallback
@@ -80,7 +115,18 @@ export default function UploadDropzone({ onUploaded }: { onUploaded?: () => void
         });
 
         if (res.ok) {
+          const data = await res.json();
           uploadSuccess = true;
+          uploadedAsset = data.asset || {
+            id: `asset_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+            filename: item.file.name,
+            mimeType: item.file.type || "image/jpeg",
+            sizeBytes: item.file.size,
+            blobUrl: URL.createObjectURL(item.file),
+            status: "PENDING",
+            createdAt: new Date().toISOString(),
+          };
+          autoPostPayload = data.autoPost;
         } else {
           const errData = await res.json().catch(() => ({}));
           throw new Error(errData.error || `Server returned ${res.status}: ${res.statusText}`);
@@ -101,10 +147,12 @@ export default function UploadDropzone({ onUploaded }: { onUploaded?: () => void
       }
     }
 
-    if (uploadSuccess) {
+    if (uploadSuccess && uploadedAsset) {
+      saveAssetLocally(uploadedAsset, autoPostPayload);
       setItems((prev) =>
         prev.map((i) => (i.id === item.id ? { ...i, status: "done", progress: 100 } : i))
       );
+      onUploaded?.();
     }
   };
 
@@ -127,8 +175,6 @@ export default function UploadDropzone({ onUploaded }: { onUploaded?: () => void
       for (const item of newItems) {
         await processSingleUpload(item, batchId, batchName);
       }
-
-      onUploaded?.();
     },
     [onUploaded]
   );
