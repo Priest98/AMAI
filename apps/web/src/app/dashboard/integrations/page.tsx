@@ -3,6 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { IntegrationsBlock } from '@/components/integrations-3';
 import { GoogleDriveLogo, InstagramLogo, TikTokLogo } from '@/components/icons/platform-logos';
+import SectionHeader from '@/components/ui/SectionHeader';
+import Badge from '@/components/ui/Badge';
 import {
   ShieldCheck,
   CheckCircle2,
@@ -208,19 +210,16 @@ export default function ConnectedAccountsPage() {
   return (
     <div className="space-y-6 sm:space-y-8 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Integrations Hub</h1>
-          <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">
-            Tap any platform icon below to authorize and link your accounts instantly.
-          </p>
-        </div>
-
-        <div className="flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-slate-100 dark:bg-white/5 border border-slate-200/60 dark:border-white/10 text-xs text-slate-700 dark:text-zinc-300 font-semibold self-start md:self-auto">
-          <ShieldCheck className="h-4 w-4 text-emerald-500 flex-shrink-0" />
-          <span>AES-256 Encrypted Storage Active</span>
-        </div>
-      </div>
+      <SectionHeader
+        title="Integrations Hub"
+        subtitle="Tap any platform icon below to authorize and link your accounts instantly."
+        badge={
+          <div className="flex items-center space-x-2 px-3.5 py-1.5 rounded-full border text-xs font-semibold" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-secondary)' }}>
+            <ShieldCheck className="h-4 w-4 text-emerald-500 flex-shrink-0" />
+            <span>AES-256 Encrypted</span>
+          </div>
+        }
+      />
 
       {/* Top Banner Block */}
       <IntegrationsBlock />
@@ -234,19 +233,19 @@ export default function ConnectedAccountsPage() {
             exit={{ opacity: 0, y: -10 }}
             className={`p-4 rounded-2xl text-xs font-semibold flex items-center justify-between border ${
               message.type === 'success'
-                ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20'
-                : 'bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/20'
+                ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
+                : 'bg-rose-500/10 text-rose-500 border-rose-500/20'
             }`}
           >
             <span>{message.text}</span>
-            <button onClick={() => setMessage(null)} className="text-slate-400 hover:text-slate-900 dark:hover:text-white touch-target">
+            <button onClick={() => setMessage(null)} className="touch-target" style={{ color: 'var(--text-secondary)' }}>
               <X className="h-4 w-4" />
             </button>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* ── Core Platform Cards Grid (Responsive Stacking for Mobile) ── */}
+      {/* ── Core Platform Cards Grid ── */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-6">
         
         {/* 1. Google Drive Card */}
@@ -258,21 +257,17 @@ export default function ConnectedAccountsPage() {
               handleConnect('google');
             }
           }}
-          className={`exec-card p-6 sm:p-7 rounded-[20px] sm:rounded-[24px] flex flex-col justify-between space-y-6 relative overflow-hidden cursor-pointer transition-all ${
-            isGoogleConnected
-              ? 'border-blue-500/30 dark:border-blue-500/30 shadow-lg shadow-blue-500/5'
-              : 'hover:border-blue-500/50 dark:hover:border-blue-500/50'
-          }`}
+          className="exec-card p-6 sm:p-7 rounded-[20px] sm:rounded-[24px] flex flex-col justify-between space-y-6 relative overflow-hidden cursor-pointer transition-all"
         >
           <div className="space-y-5">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3.5">
-                <div className="h-14 w-14 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-white/10 flex items-center justify-center p-3 shadow-md flex-shrink-0">
+                <div className="h-14 w-14 rounded-2xl border flex items-center justify-center p-3.5 shadow-md flex-shrink-0" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
                   <GoogleDriveLogo className="h-8 w-8" />
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-base sm:text-lg text-slate-900 dark:text-white tracking-tight">Google Drive</h3>
-                  <p className="text-xs text-slate-500 dark:text-zinc-400">AutoPilot Media Sync</p>
+                  <h3 className="font-extrabold text-base sm:text-lg tracking-tight" style={{ color: 'var(--text-primary)' }}>Google Drive</h3>
+                  <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>AutoPilot Media Sync</p>
                 </div>
               </div>
 
@@ -283,7 +278,8 @@ export default function ConnectedAccountsPage() {
                       e.stopPropagation();
                       setActiveMenu(activeMenu === 'google' ? null : 'google');
                     }}
-                    className="h-10 w-10 rounded-full bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 text-slate-600 dark:text-zinc-300 flex items-center justify-center transition touch-target"
+                    className="h-10 w-10 rounded-full border flex items-center justify-center transition touch-target"
+                    style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-primary)' }}
                   >
                     <MoreVertical className="h-4 w-4" />
                   </button>
@@ -295,11 +291,13 @@ export default function ConnectedAccountsPage() {
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 5 }}
                         onClick={(e) => e.stopPropagation()}
-                        className="absolute right-0 top-12 w-48 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-white/10 shadow-2xl p-1.5 z-30 text-xs font-semibold space-y-0.5"
+                        className="absolute right-0 top-12 w-48 rounded-2xl border shadow-2xl p-1.5 z-30 text-xs font-semibold space-y-0.5"
+                        style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}
                       >
                         <button
                           onClick={() => handleConnect('google')}
-                          className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-white/5 text-slate-700 dark:text-zinc-300 flex items-center space-x-2 touch-target"
+                          className="w-full text-left px-3 py-2.5 rounded-xl flex items-center space-x-2 touch-target"
+                          style={{ color: 'var(--text-primary)' }}
                         >
                           <RefreshCw className="h-3.5 w-3.5 text-blue-500" />
                           <span>Refresh Connection</span>
@@ -307,7 +305,8 @@ export default function ConnectedAccountsPage() {
 
                         <button
                           onClick={openFolderModal}
-                          className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-white/5 text-slate-700 dark:text-zinc-300 flex items-center space-x-2 touch-target"
+                          className="w-full text-left px-3 py-2.5 rounded-xl flex items-center space-x-2 touch-target"
+                          style={{ color: 'var(--text-primary)' }}
                         >
                           <FolderSync className="h-3.5 w-3.5 text-purple-500" />
                           <span>Change Folder</span>
@@ -324,7 +323,8 @@ export default function ConnectedAccountsPage() {
                               lastSynced: '2 minutes ago',
                             });
                           }}
-                          className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-white/5 text-slate-700 dark:text-zinc-300 flex items-center space-x-2 touch-target"
+                          className="w-full text-left px-3 py-2.5 rounded-xl flex items-center space-x-2 touch-target"
+                          style={{ color: 'var(--text-primary)' }}
                         >
                           <Info className="h-3.5 w-3.5 text-amber-500" />
                           <span>View Details</span>
@@ -332,7 +332,7 @@ export default function ConnectedAccountsPage() {
 
                         <button
                           onClick={handleDisconnectDrive}
-                          className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center space-x-2 touch-target"
+                          className="w-full text-left px-3 py-2.5 rounded-xl text-rose-500 flex items-center space-x-2 touch-target"
                         >
                           <LogOut className="h-3.5 w-3.5" />
                           <span>Disconnect</span>
@@ -342,25 +342,29 @@ export default function ConnectedAccountsPage() {
                   </AnimatePresence>
                 </div>
               ) : (
-                <span className="px-3 py-1 rounded-full text-xs font-bold bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 border border-slate-200/60 dark:border-white/5">
+                <button
+                  type="button"
+                  onClick={() => handleConnect('google')}
+                  className="px-3.5 py-1.5 rounded-full text-xs font-bold transition shadow-sm btn-gold-cta touch-target"
+                >
                   Tap to Connect
-                </span>
+                </button>
               )}
             </div>
 
             {isGoogleConnected ? (
-              <div className="p-4 rounded-2xl bg-blue-500/5 dark:bg-blue-500/10 border border-blue-500/20 space-y-2 text-xs">
+              <div className="p-4 rounded-2xl border space-y-2 text-xs" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
                 <div className="flex items-center justify-between">
-                  <span className="flex items-center space-x-1.5 text-emerald-600 dark:text-emerald-400 font-bold">
+                  <span className="flex items-center space-x-1.5 font-bold text-emerald-500">
                     <CheckCircle2 className="h-4 w-4" />
                     <span>Connected ✓</span>
                   </span>
-                  <span className="font-mono text-[11px] text-blue-600 dark:text-blue-400 font-bold">/{googleDrive?.folderName || 'content'}</span>
+                  <span className="font-mono text-[11px] font-bold" style={{ color: 'var(--text-primary)' }}>/{googleDrive?.folderName || 'content'}</span>
                 </div>
-                <p className="text-slate-500 dark:text-zinc-400 text-[11px]">Synced with {googleDrive?.accountEmail || 'Google Workspace'} • 2 mins ago</p>
+                <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Synced with {googleDrive?.accountEmail || 'Google Workspace'}</p>
               </div>
             ) : (
-              <p className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">
+              <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
                 Tap to link your Google Drive folder for automatic photo & video syncing into AutoPilot.
               </p>
             )}
@@ -376,21 +380,17 @@ export default function ConnectedAccountsPage() {
               handleConnect('instagram');
             }
           }}
-          className={`exec-card p-6 sm:p-7 rounded-[20px] sm:rounded-[24px] flex flex-col justify-between space-y-6 relative overflow-hidden cursor-pointer transition-all ${
-            isInstagramConnected
-              ? 'border-rose-500/30 dark:border-rose-500/30 shadow-lg shadow-rose-500/5'
-              : 'hover:border-rose-500/50 dark:hover:border-rose-500/50'
-          }`}
+          className="exec-card p-6 sm:p-7 rounded-[20px] sm:rounded-[24px] flex flex-col justify-between space-y-6 relative overflow-hidden cursor-pointer transition-all"
         >
           <div className="space-y-5">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3.5">
-                <div className="h-14 w-14 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-white/10 flex items-center justify-center p-3 shadow-md flex-shrink-0">
+                <div className="h-14 w-14 rounded-2xl border flex items-center justify-center p-3 shadow-md flex-shrink-0" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
                   <InstagramLogo className="h-8 w-8" />
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-base sm:text-lg text-slate-900 dark:text-white tracking-tight">Instagram</h3>
-                  <p className="text-xs text-slate-500 dark:text-zinc-400">Reels & Post Creator</p>
+                  <h3 className="font-extrabold text-base sm:text-lg tracking-tight" style={{ color: 'var(--text-primary)' }}>Instagram</h3>
+                  <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Reels & Post Creator</p>
                 </div>
               </div>
 
@@ -401,7 +401,8 @@ export default function ConnectedAccountsPage() {
                       e.stopPropagation();
                       setActiveMenu(activeMenu === 'instagram' ? null : 'instagram');
                     }}
-                    className="h-10 w-10 rounded-full bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 text-slate-600 dark:text-zinc-300 flex items-center justify-center transition touch-target"
+                    className="h-10 w-10 rounded-full border flex items-center justify-center transition touch-target"
+                    style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-primary)' }}
                   >
                     <MoreVertical className="h-4 w-4" />
                   </button>
@@ -413,11 +414,13 @@ export default function ConnectedAccountsPage() {
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 5 }}
                         onClick={(e) => e.stopPropagation()}
-                        className="absolute right-0 top-12 w-48 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-white/10 shadow-2xl p-1.5 z-30 text-xs font-semibold space-y-0.5"
+                        className="absolute right-0 top-12 w-48 rounded-2xl border shadow-2xl p-1.5 z-30 text-xs font-semibold space-y-0.5"
+                        style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}
                       >
                         <button
                           onClick={() => handleConnect('instagram')}
-                          className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-white/5 text-slate-700 dark:text-zinc-300 flex items-center space-x-2 touch-target"
+                          className="w-full text-left px-3 py-2.5 rounded-xl flex items-center space-x-2 touch-target"
+                          style={{ color: 'var(--text-primary)' }}
                         >
                           <RefreshCw className="h-3.5 w-3.5 text-rose-500" />
                           <span>Reconnect Profile</span>
@@ -435,7 +438,8 @@ export default function ConnectedAccountsPage() {
                               lastSynced: 'Yesterday',
                             });
                           }}
-                          className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-white/5 text-slate-700 dark:text-zinc-300 flex items-center space-x-2 touch-target"
+                          className="w-full text-left px-3 py-2.5 rounded-xl flex items-center space-x-2 touch-target"
+                          style={{ color: 'var(--text-primary)' }}
                         >
                           <Info className="h-3.5 w-3.5 text-amber-500" />
                           <span>View Details</span>
@@ -443,7 +447,7 @@ export default function ConnectedAccountsPage() {
 
                         <button
                           onClick={() => handleDisconnectAccount(instagramAccounts[0]?.id)}
-                          className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center space-x-2 touch-target"
+                          className="w-full text-left px-3 py-2.5 rounded-xl text-rose-500 flex items-center space-x-2 touch-target"
                         >
                           <LogOut className="h-3.5 w-3.5" />
                           <span>Disconnect</span>
@@ -453,25 +457,29 @@ export default function ConnectedAccountsPage() {
                   </AnimatePresence>
                 </div>
               ) : (
-                <span className="px-3 py-1 rounded-full text-xs font-bold bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 border border-slate-200/60 dark:border-white/5">
+                <button
+                  type="button"
+                  onClick={() => handleConnect('instagram')}
+                  className="px-3.5 py-1.5 rounded-full text-xs font-bold transition shadow-sm btn-gold-cta touch-target"
+                >
                   Tap to Connect
-                </span>
+                </button>
               )}
             </div>
 
             {isInstagramConnected ? (
-              <div className="p-4 rounded-2xl bg-rose-500/5 dark:bg-rose-500/10 border border-rose-500/20 space-y-2 text-xs">
+              <div className="p-4 rounded-2xl border space-y-2 text-xs" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
                 <div className="flex items-center justify-between">
-                  <span className="flex items-center space-x-1.5 text-emerald-600 dark:text-emerald-400 font-bold">
+                  <span className="flex items-center space-x-1.5 font-bold text-emerald-500">
                     <CheckCircle2 className="h-4 w-4" />
                     <span>Connected ✓</span>
                   </span>
-                  <span className="font-bold text-slate-900 dark:text-white">{instagramAccounts[0]?.handle}</span>
+                  <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{instagramAccounts[0]?.handle}</span>
                 </div>
-                <p className="text-slate-500 dark:text-zinc-400 text-[11px]">Creator Profile • Token Expires in 45 Days (Auto-Refresh)</p>
+                <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Creator Profile • Token Auto-Refreshed</p>
               </div>
             ) : (
-              <p className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">
+              <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
                 Tap to authorize your Instagram Creator profile for automated reel and post publishing.
               </p>
             )}
@@ -487,21 +495,17 @@ export default function ConnectedAccountsPage() {
               handleConnect('tiktok');
             }
           }}
-          className={`exec-card p-6 sm:p-7 rounded-[20px] sm:rounded-[24px] flex flex-col justify-between space-y-6 relative overflow-hidden cursor-pointer transition-all ${
-            isTikTokConnected
-              ? 'border-purple-500/30 dark:border-purple-500/30 shadow-lg shadow-purple-500/5'
-              : 'hover:border-purple-500/50 dark:hover:border-purple-500/50'
-          }`}
+          className="exec-card p-6 sm:p-7 rounded-[20px] sm:rounded-[24px] flex flex-col justify-between space-y-6 relative overflow-hidden cursor-pointer transition-all"
         >
           <div className="space-y-5">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3.5">
-                <div className="h-14 w-14 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-white/10 flex items-center justify-center p-3 shadow-md text-slate-950 dark:text-white flex-shrink-0">
+                <div className="h-14 w-14 rounded-2xl border flex items-center justify-center p-3 shadow-md flex-shrink-0" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
                   <TikTokLogo className="h-8 w-8" />
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-base sm:text-lg text-slate-900 dark:text-white tracking-tight">TikTok</h3>
-                  <p className="text-xs text-slate-500 dark:text-zinc-400">Short Video Uploads</p>
+                  <h3 className="font-extrabold text-base sm:text-lg tracking-tight" style={{ color: 'var(--text-primary)' }}>TikTok</h3>
+                  <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Short Video Uploads</p>
                 </div>
               </div>
 
@@ -512,7 +516,8 @@ export default function ConnectedAccountsPage() {
                       e.stopPropagation();
                       setActiveMenu(activeMenu === 'tiktok' ? null : 'tiktok');
                     }}
-                    className="h-10 w-10 rounded-full bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 text-slate-600 dark:text-zinc-300 flex items-center justify-center transition touch-target"
+                    className="h-10 w-10 rounded-full border flex items-center justify-center transition touch-target"
+                    style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-primary)' }}
                   >
                     <MoreVertical className="h-4 w-4" />
                   </button>
@@ -524,11 +529,13 @@ export default function ConnectedAccountsPage() {
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 5 }}
                         onClick={(e) => e.stopPropagation()}
-                        className="absolute right-0 top-12 w-48 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-white/10 shadow-2xl p-1.5 z-30 text-xs font-semibold space-y-0.5"
+                        className="absolute right-0 top-12 w-48 rounded-2xl border shadow-2xl p-1.5 z-30 text-xs font-semibold space-y-0.5"
+                        style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}
                       >
                         <button
                           onClick={() => handleConnect('tiktok')}
-                          className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-white/5 text-slate-700 dark:text-zinc-300 flex items-center space-x-2 touch-target"
+                          className="w-full text-left px-3 py-2.5 rounded-xl flex items-center space-x-2 touch-target"
+                          style={{ color: 'var(--text-primary)' }}
                         >
                           <RefreshCw className="h-3.5 w-3.5 text-purple-500" />
                           <span>Reconnect Profile</span>
@@ -546,7 +553,8 @@ export default function ConnectedAccountsPage() {
                               lastSynced: '5 minutes ago',
                             });
                           }}
-                          className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-white/5 text-slate-700 dark:text-zinc-300 flex items-center space-x-2 touch-target"
+                          className="w-full text-left px-3 py-2.5 rounded-xl flex items-center space-x-2 touch-target"
+                          style={{ color: 'var(--text-primary)' }}
                         >
                           <Info className="h-3.5 w-3.5 text-amber-500" />
                           <span>View Details</span>
@@ -554,7 +562,7 @@ export default function ConnectedAccountsPage() {
 
                         <button
                           onClick={() => handleDisconnectAccount(tiktokAccounts[0]?.id)}
-                          className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center space-x-2 touch-target"
+                          className="w-full text-left px-3 py-2.5 rounded-xl text-rose-500 flex items-center space-x-2 touch-target"
                         >
                           <LogOut className="h-3.5 w-3.5" />
                           <span>Disconnect</span>
@@ -564,25 +572,29 @@ export default function ConnectedAccountsPage() {
                   </AnimatePresence>
                 </div>
               ) : (
-                <span className="px-3 py-1 rounded-full text-xs font-bold bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 border border-slate-200/60 dark:border-white/5">
+                <button
+                  type="button"
+                  onClick={() => handleConnect('tiktok')}
+                  className="px-3.5 py-1.5 rounded-full text-xs font-bold transition shadow-sm btn-gold-cta touch-target"
+                >
                   Tap to Connect
-                </span>
+                </button>
               )}
             </div>
 
             {isTikTokConnected ? (
-              <div className="p-4 rounded-2xl bg-purple-500/5 dark:bg-purple-500/10 border border-purple-500/20 space-y-2 text-xs">
+              <div className="p-4 rounded-2xl border space-y-2 text-xs" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
                 <div className="flex items-center justify-between">
-                  <span className="flex items-center space-x-1.5 text-emerald-600 dark:text-emerald-400 font-bold">
+                  <span className="flex items-center space-x-1.5 font-bold text-emerald-500">
                     <CheckCircle2 className="h-4 w-4" />
                     <span>Connected ✓</span>
                   </span>
-                  <span className="font-bold text-slate-900 dark:text-white">{tiktokAccounts[0]?.handle}</span>
+                  <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{tiktokAccounts[0]?.handle}</span>
                 </div>
-                <p className="text-slate-500 dark:text-zinc-400 text-[11px]">TikTok Creator • Permissions Granted (video.publish)</p>
+                <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>TikTok Creator • Direct Video Permission Active</p>
               </div>
             ) : (
-              <p className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">
+              <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
                 Tap to authorize your TikTok Creator account to schedule video uploads and track metrics.
               </p>
             )}
@@ -599,40 +611,41 @@ export default function ConnectedAccountsPage() {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white dark:bg-zinc-950 rounded-[24px] border border-slate-200 dark:border-white/10 max-w-md w-full p-6 space-y-6 shadow-2xl"
+              className="rounded-[24px] border max-w-md w-full p-6 space-y-6 shadow-2xl"
+              style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}
             >
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">{detailsModal.title}</h3>
-                <button onClick={() => setDetailsModal(null)} className="text-slate-400 hover:text-slate-900 dark:hover:text-white touch-target">
+                <h3 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>{detailsModal.title}</h3>
+                <button onClick={() => setDetailsModal(null)} className="touch-target" style={{ color: 'var(--text-secondary)' }}>
                   <X className="h-5 w-5" />
                 </button>
               </div>
 
               <div className="space-y-3 text-xs">
-                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-white/5 flex justify-between">
-                  <span className="text-slate-500 dark:text-zinc-400 font-semibold">Account / Handle</span>
-                  <span className="font-bold text-slate-900 dark:text-white">{detailsModal.handle}</span>
+                <div className="p-3.5 rounded-2xl border flex justify-between" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
+                  <span className="font-semibold" style={{ color: 'var(--text-secondary)' }}>Account / Handle</span>
+                  <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{detailsModal.handle}</span>
                 </div>
 
-                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-white/5 flex justify-between">
-                  <span className="text-slate-500 dark:text-zinc-400 font-semibold">Account Type</span>
-                  <span className="font-bold text-slate-900 dark:text-white">{detailsModal.type}</span>
+                <div className="p-3.5 rounded-2xl border flex justify-between" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
+                  <span className="font-semibold" style={{ color: 'var(--text-secondary)' }}>Account Type</span>
+                  <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{detailsModal.type}</span>
                 </div>
 
-                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-white/5 flex justify-between">
-                  <span className="text-slate-500 dark:text-zinc-400 font-semibold">OAuth Status</span>
-                  <span className="font-bold text-emerald-600 dark:text-emerald-400">{detailsModal.status} ✓</span>
+                <div className="p-3.5 rounded-2xl border flex justify-between" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
+                  <span className="font-semibold" style={{ color: 'var(--text-secondary)' }}>OAuth Status</span>
+                  <span className="font-bold text-emerald-500">{detailsModal.status} ✓</span>
                 </div>
 
-                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-white/5 flex justify-between">
-                  <span className="text-slate-500 dark:text-zinc-400 font-semibold">Last Synchronization</span>
-                  <span className="font-bold text-slate-700 dark:text-zinc-300">{detailsModal.lastSynced}</span>
+                <div className="p-3.5 rounded-2xl border flex justify-between" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
+                  <span className="font-semibold" style={{ color: 'var(--text-secondary)' }}>Last Synchronization</span>
+                  <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{detailsModal.lastSynced}</span>
                 </div>
               </div>
 
               <button
                 onClick={() => setDetailsModal(null)}
-                className="w-full py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-950 text-xs font-bold rounded-xl transition touch-target"
+                className="w-full py-3 text-xs font-bold rounded-xl transition touch-target btn-emerald-cta"
               >
                 Close
               </button>
@@ -649,30 +662,32 @@ export default function ConnectedAccountsPage() {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white dark:bg-zinc-950 rounded-[22px] border border-slate-200 dark:border-white/10 max-w-md w-full p-6 space-y-6 shadow-2xl"
+              className="rounded-[22px] border max-w-md w-full p-6 space-y-6 shadow-2xl"
+              style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}
             >
               <div className="flex items-center space-x-3">
-                <div className="h-10 w-10 rounded-xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-white/10 flex items-center justify-center p-2 flex-shrink-0">
+                <div className="h-10 w-10 rounded-xl border flex items-center justify-center p-2 flex-shrink-0" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
                   <GoogleDriveLogo className="h-6 w-6" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-slate-900 dark:text-white">Select Google Drive Folder</h3>
-                  <p className="text-xs text-slate-500 dark:text-zinc-400">Choose which folder to sync with AMAI Auto-Pilot</p>
+                  <h3 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>Select Google Drive Folder</h3>
+                  <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Choose which folder to sync with AMAI Auto-Pilot</p>
                 </div>
               </div>
 
               <div className="space-y-2 max-h-60 overflow-y-auto">
                 {availableFolders.length === 0 ? (
-                  <p className="text-sm text-slate-400 text-center py-4">Loading folders...</p>
+                  <p className="text-sm text-center py-4" style={{ color: 'var(--text-secondary)' }}>Loading folders...</p>
                 ) : (
                   availableFolders.map(folder => (
                     <label
                       key={folder.id}
-                      className={`flex items-center justify-between p-3.5 rounded-2xl border cursor-pointer transition touch-target ${
-                        selectedFolderId === folder.id
-                          ? 'border-blue-500 bg-blue-500/10 text-blue-600 dark:text-blue-300 font-bold'
-                          : 'border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 text-slate-700 dark:text-zinc-300'
-                      }`}
+                      className="flex items-center justify-between p-3.5 rounded-2xl border cursor-pointer transition touch-target"
+                      style={{
+                        backgroundColor: selectedFolderId === folder.id ? 'var(--bg-surface-raised)' : 'transparent',
+                        borderColor: 'var(--card-border)',
+                        color: 'var(--text-primary)'
+                      }}
                     >
                       <div className="flex items-center space-x-3 text-xs">
                         <input
@@ -689,17 +704,18 @@ export default function ConnectedAccountsPage() {
                 )}
               </div>
 
-              <div className="flex justify-end space-x-3 pt-4 border-t border-slate-200 dark:border-white/10">
+              <div className="flex justify-end space-x-3 pt-4 border-t" style={{ borderColor: 'var(--card-border)' }}>
                 <button
                   onClick={() => setIsFolderModalOpen(false)}
-                  className="px-4 py-2.5 text-xs font-semibold text-slate-500 hover:text-slate-900 dark:hover:text-white touch-target"
+                  className="px-4 py-2.5 text-xs font-semibold touch-target"
+                  style={{ color: 'var(--text-secondary)' }}
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSaveFolder}
                   disabled={updatingFolder || !selectedFolderId}
-                  className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-md transition disabled:opacity-50 touch-target"
+                  className="px-4 py-2.5 text-xs font-bold rounded-xl shadow-md transition disabled:opacity-50 touch-target btn-emerald-cta"
                 >
                   {updatingFolder ? 'Saving...' : 'Save Selection'}
                 </button>
