@@ -9,22 +9,22 @@ export default function StorageProgressBar({ usedGB, totalGB }: StorageProgressB
   const percentage = Math.min(100, Math.round((usedGB / totalGB) * 100));
 
   return (
-    <div>
-      <div className="flex justify-between text-xs font-semibold mb-1.5">
+    <div className="space-y-1.5">
+      <div className="flex justify-between text-xs font-semibold">
         <span style={{ color: "var(--text-secondary)" }}>Storage Used</span>
-        <span style={{ color: "var(--accent-error)" }}>
+        <span style={{ color: "var(--accent-warning)" }}>
           {usedGB} GB / {totalGB} GB
         </span>
       </div>
       <div
-        className="h-2 rounded-full overflow-hidden"
+        className="h-1.5 rounded-full overflow-hidden"
         style={{ backgroundColor: "var(--bg-surface-raised)" }}
       >
         <div
           className="h-full rounded-full transition-all duration-300"
           style={{
             width: `${percentage}%`,
-            backgroundColor: "var(--accent-primary)",
+            backgroundColor: "var(--accent-warning)",
           }}
         />
       </div>

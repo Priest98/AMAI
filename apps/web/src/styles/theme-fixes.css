@@ -1,7 +1,8 @@
 /**
- * Luxury Dual Theme System:
- * - Light Mode: Warm Sand & Deep Forest Emerald / Champagne Gold
- * - Dark Mode: Midnight Leather & Velvet Plum / Champagne Gold (100% matched to user screenshot)
+ * Sleek, High-Density Luxury Theme System:
+ * - Sharper border radius (rounded-xl)
+ * - Tighter spacing & compact typography
+ * - High-contrast legibility across Light & Dark modes
  */
 
 :root,
@@ -13,7 +14,7 @@
   --card-bg: #F4EFEA;
   --card-border: rgba(112, 99, 86, 0.18);
   --card-hover-border: rgba(112, 99, 86, 0.35);
-  --card-shadow: 0 12px 32px -10px rgba(80, 68, 56, 0.12);
+  --card-shadow: 0 4px 16px -4px rgba(80, 68, 56, 0.08);
 
   --accent-primary: #1F4A38;
   --accent-success: #276749;
@@ -37,20 +38,20 @@
   --bg-surface: #15161C;
   --bg-surface-raised: #1F2029;
   --card-bg: #15161C;
-  --card-border: rgba(212, 184, 150, 0.28);
-  --card-hover-border: rgba(212, 184, 150, 0.5);
-  --card-shadow: 0 16px 40px -10px rgba(0, 0, 0, 0.8);
+  --card-border: rgba(212, 184, 150, 0.22);
+  --card-hover-border: rgba(212, 184, 150, 0.45);
+  --card-shadow: 0 6px 20px -6px rgba(0, 0, 0, 0.6);
 
-  --accent-primary: #3E182B; /* Deep Velvet Plum */
+  --accent-primary: #3E182B;
   --accent-success: #00D9B5;
-  --accent-warning: #D4B896; /* Champagne Gold */
+  --accent-warning: #D4B896;
   --accent-error: #EF4444;
 
-  --text-primary: #FFFFFF;   /* Pure White Header Text */
-  --text-secondary: #A1A1AA; /* Muted Champagne Gray */
+  --text-primary: #FFFFFF;
+  --text-secondary: #A1A1AA;
   --text-muted: #71717A;
 
-  --gradient-primary-cta: linear-gradient(135deg, #3E182B 0%, #2B101E 100%);
+  --gradient-primary-cta: linear-gradient(135deg, #3E182B 0%, #270F1B 100%);
   --gradient-gold-cta: linear-gradient(135deg, #D4B896 0%, #C7A77C 100%);
 }
 
@@ -68,12 +69,12 @@
   opacity: 1 !important;
 }
 
-/* Badge Styling */
+/* Compact Badge Styling */
 .badge-purple,
 .badge-gold {
-  background: linear-gradient(135deg, rgba(212, 184, 150, 0.2) 0%, rgba(212, 184, 150, 0.1) 100%);
+  background: linear-gradient(135deg, rgba(212, 184, 150, 0.15) 0%, rgba(212, 184, 150, 0.08) 100%);
   color: #D4B896;
-  border: 1px solid rgba(212, 184, 150, 0.35);
+  border: 1px solid rgba(212, 184, 150, 0.3);
 }
 
 .surface-tile {
@@ -85,7 +86,7 @@
 .surface-tile .tile-label {
   color: var(--text-secondary);
   text-transform: uppercase;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   letter-spacing: 0.03em;
 }
 
@@ -93,23 +94,21 @@
   color: var(--accent-warning);
 }
 
-/* Primary Action Button (Velvet Plum with Rose Gold Border) */
+/* Compact CTA Buttons */
 .gradient-cta,
 .btn-emerald-cta {
   background: linear-gradient(135deg, #3E182B 0%, #270F1B 100%) !important;
   color: #FFFFFF !important;
-  border: 1px solid rgba(212, 184, 150, 0.4) !important;
-  box-shadow: 0 8px 24px -4px rgba(62, 24, 43, 0.5);
+  border: 1px solid rgba(212, 184, 150, 0.35) !important;
+  box-shadow: 0 4px 12px -2px rgba(62, 24, 43, 0.4);
 }
 
-/* Secondary Action Button */
 .btn-gold-cta {
-  background: linear-gradient(135deg, #270F1B 0%, #1D0A14 100%) !important;
+  background: transparent !important;
   color: #D4B896 !important;
-  border: 1px solid rgba(212, 184, 150, 0.3) !important;
-  box-shadow: 0 4px 15px -4px rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(212, 184, 150, 0.25) !important;
 }
 
 .btn-gold-cta:hover {
-  border-color: rgba(212, 184, 150, 0.6) !important;
+  border-color: rgba(212, 184, 150, 0.5) !important;
 }

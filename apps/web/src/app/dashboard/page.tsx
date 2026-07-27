@@ -24,14 +24,14 @@ const containerVariants = {
   show: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.08,
+      staggerChildren: 0.05,
     },
   },
 };
 
 const itemVariants = {
-  hidden: { opacity: 0, y: 12 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: [0.16, 1, 0.3, 1] } },
+  hidden: { opacity: 0, y: 8 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.25, ease: [0.16, 1, 0.3, 1] } },
 };
 
 export default function DashboardPage() {
@@ -49,7 +49,6 @@ export default function DashboardPage() {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
-      // Fetch live posts
       const postsRes = await fetch(`${API_BASE}/posts`, { headers }).catch(() => null);
       if (postsRes && postsRes.ok) {
         const data = await postsRes.json();
@@ -58,7 +57,6 @@ export default function DashboardPage() {
         setPosts([]);
       }
 
-      // Fetch live accounts
       const accountsRes = await fetch(`${API_BASE}/integrations`, { headers }).catch(() => null);
       if (accountsRes && accountsRes.ok) {
         const data = await accountsRes.json();
@@ -67,7 +65,6 @@ export default function DashboardPage() {
         setConnectedAccounts([]);
       }
 
-      // Fetch live media assets
       const mediaRes = await fetch('/api/media/list').catch(() => null);
       if (mediaRes && mediaRes.ok) {
         const data = await mediaRes.json();
@@ -118,39 +115,32 @@ export default function DashboardPage() {
       variants={containerVariants}
       initial="hidden"
       animate="show"
-      className="space-y-6 sm:space-y-8 max-w-7xl mx-auto"
+      className="space-y-4 max-w-7xl mx-auto"
     >
-      {/* Active Publishing Mode Banner */}
-      <motion.div variants={itemVariants} className="flex items-center justify-between p-4 rounded-2xl exec-card">
-        <div className="flex items-center space-x-3">
-          <div className="h-8 w-8 rounded-full flex items-center justify-center" style={{ backgroundColor: 'var(--bg-surface-raised)' }}>
-            <ShieldCheck className="h-4 w-4" style={{ color: 'var(--accent-warning)' }} />
+      {/* Tightened Publishing Mode Banner */}
+      <motion.div variants={itemVariants} className="flex items-center justify-between p-3 px-4 rounded-xl border" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}>
+        <div className="flex items-center space-x-2.5">
+          <div className="h-6 w-6 rounded-md flex items-center justify-center" style={{ backgroundColor: 'var(--bg-surface-raised)' }}>
+            <ShieldCheck className="h-3.5 w-3.5 text-amber-400" />
           </div>
-          <div>
-            <p className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>
-              Publishing Mode: <span className="font-extrabold">{publishingMode === 'AUTO_PUBLISH' ? 'Auto-Publish Active' : 'Manual Approval Queue Active (Default)'}</span>
-            </p>
-            <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
-              {publishingMode === 'AUTO_PUBLISH' 
-                ? 'Posts dispatch automatically at AI-predicted peak engagement windows.' 
-                : 'All AI-generated content requires your manual approval before publishing.'}
-            </p>
-          </div>
+          <p className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
+            Publishing Mode: <span className="font-bold">{publishingMode === 'AUTO_PUBLISH' ? 'Auto-Publish Active' : 'Manual Approval Queue Active (Default)'}</span>
+          </p>
         </div>
 
         <Link
           href="/dashboard/settings"
-          className="px-3.5 py-1.5 rounded-xl text-xs font-bold transition border touch-target"
+          className="px-3 py-1 rounded-md text-[11px] font-semibold border transition touch-target"
           style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-primary)' }}
         >
           Change Mode
         </Link>
       </motion.div>
 
-      {/* Live Stat Cards */}
-      <motion.div variants={itemVariants} className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+      {/* Tight Rectangular KPI Stat Cards Grid */}
+      <motion.div variants={itemVariants} className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard
-          icon={<CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />}
+          icon={<CheckCircle2 className="h-4 w-4 text-emerald-400" />}
           label="Active Channels"
           value={`${connectedAccounts.length} Connected`}
           helperText={connectedAccounts.length > 0 ? `${connectedAccounts.length} channel(s) active` : "No accounts connected yet"}
@@ -158,7 +148,7 @@ export default function DashboardPage() {
         />
 
         <StatCard
-          icon={<Clock className="h-5 w-5" style={{ color: 'var(--accent-warning)' }} />}
+          icon={<Clock className="h-4 w-4 text-amber-400" />}
           label="Needs Approval"
           value={pendingApprovalPosts.length.toString()}
           helperText="Awaiting manual review"
@@ -166,7 +156,7 @@ export default function DashboardPage() {
         />
 
         <StatCard
-          icon={<Calendar className="h-5 w-5" style={{ color: 'var(--accent-warning)' }} />}
+          icon={<Calendar className="h-4 w-4 text-purple-400" />}
           label="Approved Posts"
           value={approvedCount.toString()}
           helperText="Total manually approved"
@@ -174,7 +164,7 @@ export default function DashboardPage() {
         />
 
         <StatCard
-          icon={<AlertTriangle className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />}
+          icon={<AlertTriangle className="h-4 w-4 text-emerald-400" />}
           label="System Health"
           value="100%"
           helperText="All APIs connected"
@@ -182,39 +172,39 @@ export default function DashboardPage() {
         />
       </motion.div>
 
-      {/* Main Grid: Live Approval Queue & Storage */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      {/* Main High-Density Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         
-        {/* Live Content Pipeline & Approval Review Queue */}
+        {/* Content Pipeline & Approval Review Queue */}
         <motion.div variants={itemVariants} className="lg:col-span-8 flex flex-col">
-          <div className="exec-card p-6 sm:p-7 rounded-[24px] flex flex-col justify-between space-y-6 flex-1">
+          <div className="rounded-xl border p-4.5 flex flex-col justify-between space-y-4 flex-1" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}>
             
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="section-header-title text-base sm:text-lg font-bold">
+                <h2 className="text-sm font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
                   Approval Queue & Content Pipeline
                 </h2>
-                <p className="section-header-subtitle text-xs mt-0.5">Review and approve AI content before publishing</p>
+                <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Review and approve AI content before publishing</p>
               </div>
 
               <Link
                 href="/dashboard/composer"
-                className="h-9 w-9 rounded-full flex items-center justify-center transition border touch-target"
+                className="h-7 w-7 rounded-md flex items-center justify-center transition border touch-target"
                 style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-primary)' }}
               >
-                <ArrowUpRight className="h-4 w-4" />
+                <ArrowUpRight className="h-3.5 w-3.5" />
               </Link>
             </div>
 
-            {/* Live Approval Queue Items */}
+            {/* Streamlined Empty State Box (Reduced Height by 40%) */}
             {posts.length === 0 ? (
-              <div className="text-center py-12 border-2 border-dashed rounded-2xl p-6" style={{ borderColor: 'var(--card-border)' }}>
+              <div className="text-center py-6 px-4 border-2 border-dashed rounded-xl" style={{ borderColor: 'var(--card-border)' }}>
                 <p className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>No posts in approval queue.</p>
-                <p className="text-[11px] mt-1" style={{ color: 'var(--text-secondary)' }}>Create your first AI post or connect Google Drive to start generating content automatically.</p>
-                <div className="mt-4 flex justify-center space-x-3">
+                <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-secondary)' }}>Create your first AI post or connect Google Drive to start generating content automatically.</p>
+                <div className="mt-3 flex justify-center space-x-2.5">
                   <Link
                     href="/dashboard/composer"
-                    className="px-4 py-2 rounded-xl text-xs font-bold text-white btn-emerald-cta touch-target flex items-center space-x-1.5"
+                    className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white btn-emerald-cta touch-target flex items-center space-x-1"
                   >
                     <Plus className="h-3.5 w-3.5" />
                     <span>Create Post</span>
@@ -222,7 +212,7 @@ export default function DashboardPage() {
 
                   <Link
                     href="/dashboard/integrations"
-                    className="px-4 py-2 rounded-xl text-xs font-bold border btn-gold-cta touch-target flex items-center space-x-1.5"
+                    className="px-3 py-1.5 rounded-lg text-xs font-semibold border btn-gold-cta touch-target flex items-center space-x-1"
                   >
                     <Radio className="h-3.5 w-3.5" />
                     <span>Connect Accounts</span>
@@ -230,20 +220,20 @@ export default function DashboardPage() {
                 </div>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {posts.map((item) => (
-                  <div key={item.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-2xl border gap-3" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
-                    <div className="flex items-center space-x-3">
-                      <div className="h-10 w-10 rounded-2xl flex items-center justify-center font-extrabold text-xs flex-shrink-0 shadow-sm btn-emerald-cta">
+                  <div key={item.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg border gap-2" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
+                    <div className="flex items-center space-x-2.5">
+                      <div className="h-8 w-8 rounded-lg flex items-center justify-center font-bold text-xs flex-shrink-0 btn-emerald-cta">
                         {item.caption ? item.caption.substring(0, 2).toUpperCase() : 'PO'}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-xs font-bold truncate tracking-tight" style={{ color: 'var(--text-primary)' }}>{item.caption || 'Untitled Post'}</p>
+                        <p className="text-xs font-semibold truncate tracking-tight" style={{ color: 'var(--text-primary)' }}>{item.caption || 'Untitled Post'}</p>
                         <p className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>{item.platform || 'Multi-platform'}</p>
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between sm:justify-end space-x-3">
+                    <div className="flex items-center justify-between sm:justify-end space-x-2">
                       <Badge variant={item.status === 'DRAFT' || item.status === 'PENDING_APPROVAL' ? 'warning' : 'success'}>
                         {item.status}
                       </Badge>
@@ -251,13 +241,13 @@ export default function DashboardPage() {
                       {(item.status === 'DRAFT' || item.status === 'PENDING_APPROVAL') ? (
                         <button
                           onClick={() => handleApprovePost(item.id)}
-                          className="px-3.5 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-bold transition flex items-center space-x-1 touch-target shadow-sm"
+                          className="px-3 py-1 rounded-md bg-emerald-600 text-white text-xs font-semibold transition flex items-center space-x-1 touch-target shadow-xs"
                         >
-                          <ThumbsUp className="h-3.5 w-3.5" />
+                          <ThumbsUp className="h-3 w-3" />
                           <span>Approve</span>
                         </button>
                       ) : (
-                        <span className="text-[11px] font-semibold px-2 py-1" style={{ color: 'var(--text-secondary)' }}>
+                        <span className="text-[11px] font-medium px-2 py-0.5" style={{ color: 'var(--text-secondary)' }}>
                           Ready
                         </span>
                       )}
@@ -268,13 +258,11 @@ export default function DashboardPage() {
             )}
 
             {/* Bottom Status Banner */}
-            <div className="p-4 rounded-2xl border flex items-center justify-between text-xs" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
-              <div className="flex items-center space-x-3">
-                <div className="h-8 w-8 rounded-full flex items-center justify-center font-extrabold text-xs flex-shrink-0" style={{ backgroundColor: 'var(--bg-surface)' }}>
-                  🛡️
-                </div>
+            <div className="p-2.5 rounded-lg border flex items-center justify-between text-xs" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
+              <div className="flex items-center space-x-2.5">
+                <span className="text-xs">🛡️</span>
                 <div>
-                  <p className="font-bold text-xs" style={{ color: 'var(--text-primary)' }}>Approval-First Protection</p>
+                  <p className="font-semibold text-xs" style={{ color: 'var(--text-primary)' }}>Approval-First Protection</p>
                   <p className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>Posts remain in queue until manually approved</p>
                 </div>
               </div>
@@ -283,36 +271,38 @@ export default function DashboardPage() {
           </div>
         </motion.div>
 
-        {/* Live AutoPilot Storage Card */}
+        {/* Sleek Storage Panel & Borderless List Layout */}
         <motion.div variants={itemVariants} className="lg:col-span-4 flex flex-col">
-          <div className="exec-card p-6 sm:p-7 rounded-[24px] flex flex-col justify-between space-y-6 flex-1">
+          <div className="rounded-xl border p-4.5 flex flex-col justify-between space-y-4 flex-1" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}>
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="section-header-title text-base font-bold">AutoPilot Storage</h3>
-                <p className="section-header-subtitle text-xs mt-0.5">Google Drive & Media Assets</p>
+                <h3 className="text-sm font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>AutoPilot Storage</h3>
+                <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Google Drive & Media Assets</p>
               </div>
               <Badge variant={mediaAssets.length > 0 ? "success" : "neutral"}>
                 {mediaAssets.length > 0 ? "Active" : "Ready"}
               </Badge>
             </div>
 
+            {/* Thinner Storage Progress Bar */}
             <StorageProgressBar usedGB={mediaAssets.length * 0.2} totalGB={500} />
 
-            <div className="space-y-2 pt-1">
-              <div className="p-3 rounded-xl border text-xs flex justify-between items-center" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
+            {/* Borderless List Layout with Minimal Dividers */}
+            <div className="divide-y border-t border-b py-1 space-y-0" style={{ borderColor: 'var(--card-border)' }}>
+              <div className="py-2.5 text-xs flex justify-between items-center">
                 <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>Media Library Assets</span>
-                <span className="font-mono text-[11px]" style={{ color: 'var(--text-secondary)' }}>{mediaAssets.length} Uploaded Assets</span>
+                <span className="font-mono text-[11px]" style={{ color: 'var(--text-secondary)' }}>{mediaAssets.length} Uploaded</span>
               </div>
 
-              <div className="p-3 rounded-xl border text-xs flex justify-between items-center" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
+              <div className="py-2.5 text-xs flex justify-between items-center">
                 <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>Connected Accounts</span>
                 <span className="font-mono text-[11px]" style={{ color: 'var(--text-secondary)' }}>{connectedAccounts.length} Active Channels</span>
               </div>
             </div>
 
-            <div className="pt-3 border-t flex items-center justify-between text-xs" style={{ borderColor: 'var(--card-border)', color: 'var(--text-secondary)' }}>
-              <span>Folder: <span className="font-mono font-bold" style={{ color: 'var(--text-primary)' }}>/content</span></span>
-              <Link href="/dashboard/integrations" className="link-neutral text-xs font-bold hover:underline">
+            <div className="pt-2 flex items-center justify-between text-xs" style={{ color: 'var(--text-secondary)' }}>
+              <span>Folder: <span className="font-mono font-semibold" style={{ color: 'var(--text-primary)' }}>/content</span></span>
+              <Link href="/dashboard/integrations" className="link-neutral text-xs font-semibold hover:underline">
                 Connect →
               </Link>
             </div>

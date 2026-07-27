@@ -9,7 +9,7 @@
   --card-bg: #F4EFEA;
   --card-border: rgba(112, 99, 86, 0.18);
   --card-hover-border: rgba(112, 99, 86, 0.35);
-  --card-shadow: 0 12px 32px -10px rgba(80, 68, 56, 0.12);
+  --card-shadow: 0 4px 16px -4px rgba(80, 68, 56, 0.08);
 
   --accent-primary: #1F4A38;
   --accent-success: #276749;
@@ -29,9 +29,9 @@
   --bg-surface: #15161C;
   --bg-surface-raised: #1F2029;
   --card-bg: #15161C;
-  --card-border: rgba(212, 184, 150, 0.28);
-  --card-hover-border: rgba(212, 184, 150, 0.5);
-  --card-shadow: 0 16px 40px -10px rgba(0, 0, 0, 0.8);
+  --card-border: rgba(212, 184, 150, 0.22);
+  --card-hover-border: rgba(212, 184, 150, 0.45);
+  --card-shadow: 0 6px 20px -6px rgba(0, 0, 0, 0.6);
 
   --accent-primary: #3E182B;
   --accent-success: #00D9B5;
@@ -69,12 +69,11 @@ body {
 }
 
 input, select, textarea {
-  font-size: 16px !important;
+  font-size: 15px !important;
 }
 
 .touch-target {
-  min-width: 44px;
-  min-height: 44px;
+  min-height: 36px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -84,23 +83,17 @@ input, select, textarea {
   background-color: var(--card-bg);
   border: 1px solid var(--card-border);
   box-shadow: var(--card-shadow);
-  border-radius: 24px;
-  transition: background-color 250ms cubic-bezier(0.16, 1, 0.3, 1), border-color 250ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 250ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@media (max-width: 640px) {
-  .exec-card {
-    border-radius: 20px;
-  }
+  border-radius: 14px;
+  transition: background-color 200ms ease, border-color 200ms ease, box-shadow 200ms ease;
 }
 
 .btn-primary-gradient {
   background: var(--gradient-primary-cta);
   color: #FFFFFF;
-  border-radius: 9999px;
-  font-weight: 700;
-  box-shadow: 0 8px 24px -4px rgba(62, 24, 43, 0.5);
-  border: 1px solid rgba(212, 184, 150, 0.4);
+  border-radius: 10px;
+  font-weight: 600;
+  box-shadow: 0 4px 14px -2px rgba(62, 24, 43, 0.4);
+  border: 1px solid rgba(212, 184, 150, 0.35);
   transition: opacity 150ms ease, transform 150ms ease;
 }
 
@@ -109,12 +102,12 @@ input, select, textarea {
 }
 
 .btn-primary-gradient:active {
-  transform: scale(0.97);
+  transform: scale(0.98);
 }
 
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
@@ -122,10 +115,10 @@ input, select, textarea {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(212, 184, 150, 0.3);
+  background: rgba(212, 184, 150, 0.25);
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(212, 184, 150, 0.5);
+  background: rgba(212, 184, 150, 0.45);
 }

@@ -9,13 +9,10 @@ interface SectionHeaderProps {
 
 export default function SectionHeader({ title, subtitle, badge, action }: SectionHeaderProps) {
   return (
-    <div className="flex flex-col sm:flex-row sm:items-start justify-between mb-6 gap-4">
-      <div>
-        <div className="flex items-center gap-3">
-          <h1 className="section-header-title text-2xl font-semibold">{title}</h1>
-          {badge}
-        </div>
-        {subtitle && <p className="section-header-subtitle text-sm mt-1">{subtitle}</p>}
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-2">
+      <div className="flex items-center gap-2.5">
+        <h1 className="section-header-title text-lg sm:text-xl font-bold tracking-tight">{title}</h1>
+        {badge}
       </div>
       {action}
     </div>

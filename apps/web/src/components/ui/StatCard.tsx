@@ -18,30 +18,38 @@ export default function StatCard({
   onExpand,
 }: StatCardProps) {
   return (
-    <div className="rounded-2xl p-5 border border-[var(--card-border)] exec-card-hover" style={{ backgroundColor: "var(--bg-surface)" }}>
-      <div className="flex items-center justify-between mb-4">
-        <div>{icon}</div>
+    <div
+      className="rounded-xl p-3.5 border transition flex flex-col justify-between"
+      style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--card-border)" }}
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-2">
+          <div className="p-1 rounded-lg" style={{ backgroundColor: "var(--bg-surface-raised)" }}>
+            {icon}
+          </div>
+          <span className="text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
+            {label}
+          </span>
+        </div>
+
         {onExpand && (
           <button
             onClick={onExpand}
-            className="w-8 h-8 rounded-full flex items-center justify-center transition hover:opacity-80 touch-target"
-            style={{ backgroundColor: "var(--bg-surface-raised)" }}
+            className="w-6 h-6 rounded-md flex items-center justify-center text-xs transition hover:opacity-80 touch-target"
+            style={{ backgroundColor: "var(--bg-surface-raised)", color: "var(--text-secondary)" }}
           >
             ↗
           </button>
         )}
       </div>
 
-      <div className="text-sm font-semibold mb-1" style={{ color: "var(--text-secondary)" }}>
-        {label}
-      </div>
-
-      <div className="text-3xl font-bold mb-1 tracking-tight" style={{ color: valueColor }}>
-        {value}
-      </div>
-
-      <div className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-        {helperText}
+      <div className="mt-2.5 flex items-baseline justify-between">
+        <div className="text-xl font-bold tracking-tight" style={{ color: valueColor }}>
+          {value}
+        </div>
+        <div className="text-[11px] font-medium" style={{ color: "var(--text-secondary)" }}>
+          {helperText}
+        </div>
       </div>
     </div>
   );
