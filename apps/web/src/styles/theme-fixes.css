@@ -1,59 +1,38 @@
 /**
- * Theme tokens — drop into globals.css (or wherever your Tailwind base
- * layer / CSS variables currently live). These are the values from the
- * original design spec; the point of centralizing them here is that no
- * component should ever hardcode a raw hex color again — everything
- * references these variables, so a contrast fix here fixes it everywhere
- * at once instead of needing to be found and patched per-component.
+ * Luxury Warm Sand & Champagne Gold / Deep Emerald Theme
+ * Modeled directly after the user's custom design screenshot.
  */
 
 :root,
-[data-theme="dark"],
-.dark {
-  --bg-base: #0b0e14;
-  --bg-surface: #151923;
-  --bg-surface-raised: #1c2130; /* one step lighter than --bg-surface, for cards nested inside cards */
-
-  --accent-primary: #6c5ce7;
-  --accent-success: #00d9b5;
-  --accent-warning: #ffb020;
-  --accent-error: #ef4444;
-
-  --text-primary: #f5f6fa;
-  --text-secondary: #9aa0ac;
-
-  /* The ONE place the gradient is allowed to be defined. Reference this
-     token only for the primary "+Post" CTA — nowhere else. */
-  --gradient-primary-cta: linear-gradient(135deg, #ff6b9d, #a855f7);
-}
-
 [data-theme="light"],
-.light {
-  --bg-base: #fafafa;
-  --bg-surface: #ffffff;
-  --bg-surface-raised: #f3f4f6;
+[data-theme="dark"],
+.light,
+.dark {
+  --bg-base: #E8E1D7;
+  --bg-surface: #F4EFEA;
+  --bg-surface-raised: #E4DCD3;
+  --card-bg: #F4EFEA;
+  --card-border: rgba(112, 99, 86, 0.16);
+  --card-hover-border: rgba(112, 99, 86, 0.32);
+  --card-shadow: 0 12px 32px -10px rgba(80, 68, 56, 0.12);
 
-  --accent-primary: #2563eb;
-  --accent-success: #10b981;
-  --accent-warning: #f59e0b;
-  --accent-error: #ef4444;
+  --accent-primary: #1F4A38; /* Deep Forest Emerald */
+  --accent-success: #276749;
+  --accent-warning: #C7A77C; /* Champagne Gold */
+  --accent-error: #9B2C2C;
 
-  --text-primary: #111827;
-  --text-secondary: #6b7280;
+  --text-primary: #2C241E;   /* Deep Warm Espresso */
+  --text-secondary: #706356; /* Soft Muted Bronze */
+  --text-muted: #8F8173;
 
-  --gradient-primary-cta: linear-gradient(135deg, #ff6b9d, #a855f7);
+  --font-sans: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'Geist Mono', monospace;
+
+  /* Champagne Metallic Gradient */
+  --gradient-primary-cta: linear-gradient(135deg, #1F4A38 0%, #295D47 100%);
+  --gradient-gold-cta: linear-gradient(135deg, #D4C1A5 0%, #C7A77C 100%);
 }
 
-/**
- * Fix for the recurring "washed-out header text" bug.
- *
- * The bug pattern seen across Composer, Publishing Engine, and
- * Connected Hub is almost certainly ONE shared header component using
- * something like `text-transparent bg-clip-text bg-gradient-to-r ...`
- * with an opacity or gradient stop that ends up near-invisible against
- * a dark card. Force every element carrying this class to fall back to
- * a solid, high-contrast color instead of a gradient-text trick.
- */
 .section-header-title {
   color: var(--text-primary) !important;
   background: none !important;
@@ -68,34 +47,18 @@
   opacity: 1 !important;
 }
 
-/**
- * Fix for low-contrast badges/pills (e.g. "READ-ONLY STRATEGY",
- * "Tone Persona: Fashion Designer"). These were rendering as a color
- * very close to their own background — force a real background +
- * foreground contrast pair instead of a subtle tint-on-tint.
- */
-.badge-purple {
-  background-color: rgba(108, 92, 231, 0.16);
-  color: #c9bdfd; /* light enough against the 0.16-opacity purple bg to stay readable */
-  border: 1px solid rgba(108, 92, 231, 0.35);
+/* Champagne Gold Badge Pill */
+.badge-purple,
+.badge-gold {
+  background: linear-gradient(135deg, #E6D9C7 0%, #DACBB7 100%);
+  color: #5C4A38;
+  border: 1px solid rgba(199, 167, 124, 0.4);
 }
 
-[data-theme="light"] .badge-purple,
-.light .badge-purple {
-  background-color: rgba(37, 99, 235, 0.1);
-  color: #1d4ed8;
-  border: 1px solid rgba(37, 99, 235, 0.25);
-}
-
-/**
- * Utility class for any inner stat/insight tile that was previously
- * hardcoded white (e.g. "Best Posting Days", "AI Content Score" card).
- * Use this instead of bg-white so it matches the surrounding dark UI
- * automatically, and flips correctly in light mode too.
- */
 .surface-tile {
   background-color: var(--bg-surface-raised);
   color: var(--text-primary);
+  border: 1px solid var(--card-border);
 }
 
 .surface-tile .tile-label {
@@ -105,21 +68,22 @@
   letter-spacing: 0.03em;
 }
 
-/**
- * Neutral link/action color — for things like "Configure →" that were
- * incorrectly styled in the error/red color despite being a totally
- * normal, non-destructive action.
- */
 .link-neutral {
   color: var(--accent-primary);
 }
 
-/**
- * The ONLY place a gradient fill is allowed. Everything else
- * (progress bars, secondary buttons, badges) must use a flat
- * var(--accent-*) color instead.
- */
-.gradient-cta {
-  background: var(--gradient-primary-cta);
-  color: white;
+/* Deep Emerald CTA Button */
+.gradient-cta,
+.btn-emerald-cta {
+  background: linear-gradient(135deg, #1F4A38 0%, #2A5E48 100%) !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 8px 20px -4px rgba(31, 74, 56, 0.35);
+}
+
+/* Champagne Gold CTA Button */
+.btn-gold-cta {
+  background: linear-gradient(135deg, #D5C2A7 0%, #C7A77C 100%) !important;
+  color: #3D3023 !important;
+  border: 1px solid rgba(199, 167, 124, 0.5);
+  box-shadow: 0 8px 20px -4px rgba(199, 167, 124, 0.3);
 }

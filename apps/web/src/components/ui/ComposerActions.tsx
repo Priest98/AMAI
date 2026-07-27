@@ -13,35 +13,26 @@ export default function ComposerActions({
 }: ComposerActionsProps) {
   return (
     <div className="space-y-3">
-      {/* Always the primary action, always present, always full width */}
+      {/* Primary Action — Deep Emerald Pill Button matching user screenshot */}
       <button
         onClick={onSendToApproval}
-        className="w-full rounded-2xl py-3.5 font-bold text-xs shadow-md transition touch-target"
-        style={{
-          backgroundColor: "var(--accent-primary)",
-          color: "white",
-        }}
+        className="w-full rounded-2xl py-3.5 font-bold text-xs shadow-lg transition touch-target btn-emerald-cta"
       >
         Send to Approval Queue
       </button>
 
-      {/* Only rendered once account unlocks Auto-Publish */}
+      {/* Secondary Action — Champagne Gold Metallic Button */}
       {autoPublishEnabled && (
         <button
           onClick={onScheduleDirectly}
-          className="w-full rounded-2xl py-2.5 text-xs font-semibold border transition touch-target"
-          style={{
-            borderColor: "var(--accent-primary)",
-            color: "var(--accent-primary)",
-            backgroundColor: "transparent",
-          }}
+          className="w-full rounded-2xl py-3 text-xs font-bold transition touch-target btn-gold-cta"
         >
           Publish with Smart AI Time
         </button>
       )}
 
       {!autoPublishEnabled && (
-        <p className="text-[11px] text-center font-medium" style={{ color: "var(--text-secondary)" }}>
+        <p className="text-[11px] text-center font-semibold text-[#706356]">
           Direct publishing unlocks after you've approved a few posts.
         </p>
       )}
