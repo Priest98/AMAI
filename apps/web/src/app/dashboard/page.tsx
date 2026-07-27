@@ -13,7 +13,11 @@ import {
   ArrowUpRight,
   ShieldCheck,
   ThumbsUp,
+  Plus,
+  Radio,
 } from 'lucide-react';
+
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'https://marketing-os-backend-api.vercel.app/api').replace(/\/$/, '');
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -33,13 +37,48 @@ const itemVariants = {
 export default function DashboardPage() {
   const [publishingMode, setPublishingMode] = useState<'MANUAL_APPROVAL' | 'AUTO_PUBLISH'>('MANUAL_APPROVAL');
   const [approvedCount, setApprovedCount] = useState<number>(0);
+  const [posts, setPosts] = useState<any[]>([]);
+  const [connectedAccounts, setConnectedAccounts] = useState<any[]>([]);
+  const [mediaAssets, setMediaAssets] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const [posts, setPosts] = useState([
-    { id: 1, name: 'Fashion Reel Spring Promo', platform: 'Instagram Reels', status: 'Need Approval' },
-    { id: 2, name: 'Behind the Scenes Vlog', platform: 'TikTok Video', status: 'Need Approval' },
-    { id: 3, name: 'Product Review Highlight', platform: 'Instagram Reels', status: 'Approved' },
-    { id: 4, name: 'Small Business Growth Tips', platform: 'TikTok Video', status: 'Scheduled' },
-  ]);
+  const fetchLiveData = async () => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('marketing_os_token');
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      // Fetch live posts
+      const postsRes = await fetch(`${API_BASE}/posts`, { headers }).catch(() => null);
+      if (postsRes && postsRes.ok) {
+        const data = await postsRes.json();
+        setPosts(Array.isArray(data) ? data : []);
+      } else {
+        setPosts([]);
+      }
+
+      // Fetch live accounts
+      const accountsRes = await fetch(`${API_BASE}/integrations`, { headers }).catch(() => null);
+      if (accountsRes && accountsRes.ok) {
+        const data = await accountsRes.json();
+        setConnectedAccounts(Array.isArray(data) ? data : []);
+      } else {
+        setConnectedAccounts([]);
+      }
+
+      // Fetch live media assets
+      const mediaRes = await fetch('/api/media/list').catch(() => null);
+      if (mediaRes && mediaRes.ok) {
+        const data = await mediaRes.json();
+        setMediaAssets(data.assets || []);
+      }
+    } catch (e) {
+      console.error('Failed to fetch live data', e);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     const savedMode = localStorage.getItem('amai_publishing_mode');
@@ -51,35 +90,47 @@ export default function DashboardPage() {
     if (savedCount) {
       setApprovedCount(parseInt(savedCount, 10));
     }
+
+    fetchLiveData();
   }, []);
 
-  const handleApprovePost = (id: number) => {
-    setPosts(prev => prev.map(p => p.id === id ? { ...p, status: 'Approved' } : p));
-    const newCount = approvedCount + 1;
-    setApprovedCount(newCount);
-    localStorage.setItem('amai_approved_count', newCount.toString());
+  const handleApprovePost = async (id: string) => {
+    try {
+      const token = localStorage.getItem('marketing_os_token');
+      await fetch(`${API_BASE}/posts/${id}/approve`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      }).catch(() => null);
+
+      setPosts(prev => prev.map(p => p.id === id ? { ...p, status: 'APPROVED' } : p));
+      const newCount = approvedCount + 1;
+      setApprovedCount(newCount);
+      localStorage.setItem('amai_approved_count', newCount.toString());
+    } catch (e) {
+      console.error('Failed to approve post', e);
+    }
   };
+
+  const pendingApprovalPosts = posts.filter(p => p.status === 'DRAFT' || p.status === 'PENDING_APPROVAL');
 
   return (
     <motion.div
       variants={containerVariants}
       initial="hidden"
       animate="show"
-      className="space-y-6 sm:space-y-8 max-w-7xl mx-auto ambient-bg"
+      className="space-y-6 sm:space-y-8 max-w-7xl mx-auto"
     >
       {/* Active Publishing Mode Banner */}
       <motion.div variants={itemVariants} className="flex items-center justify-between p-4 rounded-2xl exec-card">
         <div className="flex items-center space-x-3">
-          <div className={`h-8 w-8 rounded-full flex items-center justify-center ${
-            publishingMode === 'AUTO_PUBLISH' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500'
-          }`}>
-            <ShieldCheck className="h-4 w-4" />
+          <div className="h-8 w-8 rounded-full flex items-center justify-center" style={{ backgroundColor: 'var(--bg-surface-raised)' }}>
+            <ShieldCheck className="h-4 w-4" style={{ color: 'var(--accent-warning)' }} />
           </div>
           <div>
-            <p className="text-xs font-bold text-slate-900 dark:text-white">
+            <p className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>
               Publishing Mode: <span className="font-extrabold">{publishingMode === 'AUTO_PUBLISH' ? 'Auto-Publish Active' : 'Manual Approval Queue Active (Default)'}</span>
             </p>
-            <p className="text-[11px] text-slate-500 dark:text-zinc-400">
+            <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
               {publishingMode === 'AUTO_PUBLISH' 
                 ? 'Posts dispatch automatically at AI-predicted peak engagement windows.' 
                 : 'All AI-generated content requires your manual approval before publishing.'}
@@ -89,32 +140,33 @@ export default function DashboardPage() {
 
         <Link
           href="/dashboard/settings"
-          className="px-3.5 py-1.5 rounded-xl bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-zinc-300 text-xs font-bold hover:bg-slate-200 dark:hover:bg-white/20 transition touch-target"
+          className="px-3.5 py-1.5 rounded-xl text-xs font-bold transition border touch-target"
+          style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-primary)' }}
         >
           Change Mode
         </Link>
       </motion.div>
 
-      {/* Explicit StatCards */}
+      {/* Live Stat Cards */}
       <motion.div variants={itemVariants} className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         <StatCard
-          icon={<CheckCircle2 className="h-5 w-5 text-emerald-500" />}
+          icon={<CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />}
           label="Active Channels"
-          value="3 / 3"
-          helperText="Google Drive, IG & TikTok active"
+          value={`${connectedAccounts.length} Connected`}
+          helperText={connectedAccounts.length > 0 ? `${connectedAccounts.length} channel(s) active` : "No accounts connected yet"}
           valueColor="var(--text-primary)"
         />
 
         <StatCard
-          icon={<Clock className="h-5 w-5 text-amber-500" />}
+          icon={<Clock className="h-5 w-5" style={{ color: 'var(--accent-warning)' }} />}
           label="Needs Approval"
-          value={posts.filter(p => p.status === 'Need Approval').length.toString()}
+          value={pendingApprovalPosts.length.toString()}
           helperText="Awaiting manual review"
           valueColor="var(--accent-warning)"
         />
 
         <StatCard
-          icon={<Calendar className="h-5 w-5 text-purple-500" />}
+          icon={<Calendar className="h-5 w-5" style={{ color: 'var(--accent-warning)' }} />}
           label="Approved Posts"
           value={approvedCount.toString()}
           helperText="Total manually approved"
@@ -122,7 +174,7 @@ export default function DashboardPage() {
         />
 
         <StatCard
-          icon={<AlertTriangle className="h-5 w-5 text-emerald-500" />}
+          icon={<AlertTriangle className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />}
           label="System Health"
           value="100%"
           helperText="All APIs connected"
@@ -130,12 +182,12 @@ export default function DashboardPage() {
         />
       </motion.div>
 
-      {/* Main Grid: Approval Queue (Primary) & AutoPilot Storage (Secondary) */}
+      {/* Main Grid: Live Approval Queue & Storage */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
-        {/* PRIMARY: Content Pipeline & Approval Review Queue (lg:col-span-8) */}
+        {/* Live Content Pipeline & Approval Review Queue */}
         <motion.div variants={itemVariants} className="lg:col-span-8 flex flex-col">
-          <div className="exec-card p-6 sm:p-7 rounded-[20px] sm:rounded-[24px] flex flex-col justify-between space-y-6 flex-1">
+          <div className="exec-card p-6 sm:p-7 rounded-[24px] flex flex-col justify-between space-y-6 flex-1">
             
             <div className="flex items-center justify-between">
               <div>
@@ -147,58 +199,83 @@ export default function DashboardPage() {
 
               <Link
                 href="/dashboard/composer"
-                className="h-9 w-9 rounded-full bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-600 dark:text-zinc-300 flex items-center justify-center transition touch-target"
+                className="h-9 w-9 rounded-full flex items-center justify-center transition border touch-target"
+                style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-primary)' }}
               >
                 <ArrowUpRight className="h-4 w-4" />
               </Link>
             </div>
 
-            {/* Approval Queue Items */}
-            <div className="space-y-3">
-              {posts.map((item) => (
-                <div key={item.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200/60 dark:border-white/5 gap-3">
-                  <div className="flex items-center space-x-3">
-                    <div className="h-10 w-10 rounded-2xl bg-gradient-to-tr from-rose-500 to-purple-600 text-white flex items-center justify-center font-extrabold text-xs flex-shrink-0 shadow-sm">
-                      {item.name.substring(0, 2).toUpperCase()}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs font-bold text-slate-900 dark:text-white tracking-tight truncate">{item.name}</p>
-                      <p className="text-[10px] text-slate-400 dark:text-zinc-500">{item.platform}</p>
-                    </div>
-                  </div>
+            {/* Live Approval Queue Items */}
+            {posts.length === 0 ? (
+              <div className="text-center py-12 border-2 border-dashed rounded-2xl p-6" style={{ borderColor: 'var(--card-border)' }}>
+                <p className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>No posts in approval queue.</p>
+                <p className="text-[11px] mt-1" style={{ color: 'var(--text-secondary)' }}>Create your first AI post or connect Google Drive to start generating content automatically.</p>
+                <div className="mt-4 flex justify-center space-x-3">
+                  <Link
+                    href="/dashboard/composer"
+                    className="px-4 py-2 rounded-xl text-xs font-bold text-white btn-emerald-cta touch-target flex items-center space-x-1.5"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    <span>Create Post</span>
+                  </Link>
 
-                  <div className="flex items-center justify-between sm:justify-end space-x-3">
-                    <Badge variant={item.status === 'Need Approval' ? 'warning' : item.status === 'Approved' ? 'success' : 'purple'}>
-                      {item.status}
-                    </Badge>
-
-                    {item.status === 'Need Approval' ? (
-                      <button
-                        onClick={() => handleApprovePost(item.id)}
-                        className="px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold transition flex items-center space-x-1 touch-target shadow-sm"
-                      >
-                        <ThumbsUp className="h-3.5 w-3.5" />
-                        <span>Approve</span>
-                      </button>
-                    ) : (
-                      <span className="text-[11px] font-semibold text-slate-400 dark:text-zinc-500 px-2 py-1">
-                        Ready
-                      </span>
-                    )}
-                  </div>
+                  <Link
+                    href="/dashboard/integrations"
+                    className="px-4 py-2 rounded-xl text-xs font-bold border btn-gold-cta touch-target flex items-center space-x-1.5"
+                  >
+                    <Radio className="h-3.5 w-3.5" />
+                    <span>Connect Accounts</span>
+                  </Link>
                 </div>
-              ))}
-            </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {posts.map((item) => (
+                  <div key={item.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-2xl border gap-3" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
+                    <div className="flex items-center space-x-3">
+                      <div className="h-10 w-10 rounded-2xl flex items-center justify-center font-extrabold text-xs flex-shrink-0 shadow-sm btn-emerald-cta">
+                        {item.caption ? item.caption.substring(0, 2).toUpperCase() : 'PO'}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-bold truncate tracking-tight" style={{ color: 'var(--text-primary)' }}>{item.caption || 'Untitled Post'}</p>
+                        <p className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>{item.platform || 'Multi-platform'}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between sm:justify-end space-x-3">
+                      <Badge variant={item.status === 'DRAFT' || item.status === 'PENDING_APPROVAL' ? 'warning' : 'success'}>
+                        {item.status}
+                      </Badge>
+
+                      {(item.status === 'DRAFT' || item.status === 'PENDING_APPROVAL') ? (
+                        <button
+                          onClick={() => handleApprovePost(item.id)}
+                          className="px-3.5 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-bold transition flex items-center space-x-1 touch-target shadow-sm"
+                        >
+                          <ThumbsUp className="h-3.5 w-3.5" />
+                          <span>Approve</span>
+                        </button>
+                      ) : (
+                        <span className="text-[11px] font-semibold px-2 py-1" style={{ color: 'var(--text-secondary)' }}>
+                          Ready
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* Bottom Status Banner */}
-            <div className="p-4 rounded-2xl bg-slate-100/70 dark:bg-white/5 border border-slate-200/60 dark:border-white/5 flex items-center justify-between text-xs">
+            <div className="p-4 rounded-2xl border flex items-center justify-between text-xs" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
               <div className="flex items-center space-x-3">
-                <div className="h-8 w-8 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center font-extrabold text-xs flex-shrink-0">
+                <div className="h-8 w-8 rounded-full flex items-center justify-center font-extrabold text-xs flex-shrink-0" style={{ backgroundColor: 'var(--bg-surface)' }}>
                   🛡️
                 </div>
                 <div>
-                  <p className="font-bold text-slate-900 dark:text-white text-xs">Approval-First Protection</p>
-                  <p className="text-[10px] text-slate-500 dark:text-zinc-400">Posts remain in queue until manually approved</p>
+                  <p className="font-bold text-xs" style={{ color: 'var(--text-primary)' }}>Approval-First Protection</p>
+                  <p className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>Posts remain in queue until manually approved</p>
                 </div>
               </div>
             </div>
@@ -206,35 +283,37 @@ export default function DashboardPage() {
           </div>
         </motion.div>
 
-        {/* SECONDARY: AutoPilot Storage Card (lg:col-span-4) */}
+        {/* Live AutoPilot Storage Card */}
         <motion.div variants={itemVariants} className="lg:col-span-4 flex flex-col">
-          <div className="exec-card p-6 sm:p-7 rounded-[20px] sm:rounded-[24px] flex flex-col justify-between space-y-6 flex-1">
+          <div className="exec-card p-6 sm:p-7 rounded-[24px] flex flex-col justify-between space-y-6 flex-1">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="section-header-title text-base font-bold">AutoPilot Storage</h3>
-                <p className="section-header-subtitle text-xs mt-0.5">Google Drive sync pipeline</p>
+                <p className="section-header-subtitle text-xs mt-0.5">Google Drive & Media Assets</p>
               </div>
-              <Badge variant="success">Synced</Badge>
+              <Badge variant={mediaAssets.length > 0 ? "success" : "neutral"}>
+                {mediaAssets.length > 0 ? "Active" : "Ready"}
+              </Badge>
             </div>
 
-            <StorageProgressBar usedGB={124} totalGB={500} />
+            <StorageProgressBar usedGB={mediaAssets.length * 0.2} totalGB={500} />
 
             <div className="space-y-2 pt-1">
-              <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 text-xs flex justify-between items-center">
-                <span className="font-semibold text-slate-700 dark:text-zinc-300">Instagram Reels</span>
-                <span className="font-mono text-[11px] text-slate-500">60 GB • 24 Videos</span>
+              <div className="p-3 rounded-xl border text-xs flex justify-between items-center" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
+                <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>Media Library Assets</span>
+                <span className="font-mono text-[11px]" style={{ color: 'var(--text-secondary)' }}>{mediaAssets.length} Uploaded Assets</span>
               </div>
 
-              <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 text-xs flex justify-between items-center">
-                <span className="font-semibold text-slate-700 dark:text-zinc-300">TikTok Videos</span>
-                <span className="font-mono text-[11px] text-slate-500">35 GB • 18 Videos</span>
+              <div className="p-3 rounded-xl border text-xs flex justify-between items-center" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
+                <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>Connected Accounts</span>
+                <span className="font-mono text-[11px]" style={{ color: 'var(--text-secondary)' }}>{connectedAccounts.length} Active Channels</span>
               </div>
             </div>
 
-            <div className="pt-3 border-t border-slate-200/60 dark:border-white/10 flex items-center justify-between text-xs text-slate-500 dark:text-zinc-400">
-              <span>Folder: <span className="font-mono font-bold text-slate-900 dark:text-white">/content</span></span>
-              <Link href="/dashboard/autopilot" className="link-neutral text-xs font-bold hover:underline">
-                Configure →
+            <div className="pt-3 border-t flex items-center justify-between text-xs" style={{ borderColor: 'var(--card-border)', color: 'var(--text-secondary)' }}>
+              <span>Folder: <span className="font-mono font-bold" style={{ color: 'var(--text-primary)' }}>/content</span></span>
+              <Link href="/dashboard/integrations" className="link-neutral text-xs font-bold hover:underline">
+                Connect →
               </Link>
             </div>
           </div>
