@@ -139,19 +139,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const currentDateStr = new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
 
   return (
-    <div className={`flex h-screen overflow-hidden font-sans ambient-bg transition-colors duration-300 ${
-      isDarkMode ? 'dark bg-[#0B0D12] text-slate-100' : 'bg-[#F7F8FC] text-slate-900'
-    }`}>
-      
-      {/* ── Desktop Collapsible Professional Sidebar (260px ↔ 72px) ── */}
+    <div
+      className={`flex h-screen overflow-hidden font-sans transition-colors duration-300 ${
+        isDarkMode ? 'dark' : 'light'
+      }`}
+      style={{ backgroundColor: 'var(--bg-base)', color: 'var(--text-primary)' }}
+    >
+      {/* ── Desktop Collapsible Sidebar ── */}
       <motion.aside
         initial={false}
         animate={{ width: isCollapsed ? 72 : 260 }}
         transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-        className="hidden md:flex flex-col m-3 rounded-[24px] exec-card relative z-30 overflow-hidden select-none bg-white dark:bg-[#12151D] border border-slate-200/60 dark:border-white/5"
+        className="hidden md:flex flex-col m-3 rounded-[24px] exec-card relative z-30 overflow-hidden select-none"
+        style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}
       >
         {/* Brand Header */}
-        <div className="h-16 flex items-center justify-between px-4 border-b border-slate-200/60 dark:border-white/5">
+        <div className="h-16 flex items-center justify-between px-4 border-b border-slate-200/40 dark:border-white/10">
           <Link href="/dashboard" className="flex items-center space-x-3 group">
             {isCollapsed ? (
               <Logo variant="monogram" className="h-8 w-8" />
@@ -162,7 +165,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
           <button
             onClick={toggleCollapse}
-            className="h-8 w-8 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-500 dark:text-zinc-400 flex items-center justify-center transition flex-shrink-0 touch-target"
+            className="h-8 w-8 rounded-xl flex items-center justify-center transition flex-shrink-0 touch-target"
+            style={{ backgroundColor: 'var(--bg-surface-raised)', color: 'var(--text-secondary)' }}
             title={isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
           >
             {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
@@ -174,7 +178,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {navSections.map((section, idx) => (
             <div key={idx} className="space-y-1">
               {!isCollapsed && section.title && (
-                <h3 className="px-3 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-zinc-500 mb-1">
+                <h3 className="px-3 text-[10px] font-extrabold uppercase tracking-wider mb-1" style={{ color: 'var(--text-secondary)' }}>
                   {section.title}
                 </h3>
               )}
@@ -189,22 +193,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       href={item.href}
                       className={`relative flex items-center ${
                         isCollapsed ? 'justify-center px-0' : 'space-x-3 px-3.5'
-                      } py-2.5 rounded-2xl text-sm font-semibold transition-all ${
-                        isActive
-                          ? 'text-slate-900 dark:text-white font-bold'
-                          : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 hover:bg-slate-100/80 dark:hover:bg-white/5'
-                      }`}
+                      } py-2.5 rounded-2xl text-sm font-semibold transition-all`}
+                      style={{
+                        color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+                      }}
                     >
                       {isActive && (
                         <motion.div
                           layoutId="sidebarActivePill"
-                          className="absolute inset-0 rounded-2xl bg-slate-100 dark:bg-white/10 dark:border dark:border-white/10 shadow-sm"
+                          className="absolute inset-0 rounded-2xl border shadow-sm"
+                          style={{
+                            background: 'var(--gradient-gold-cta)',
+                            borderColor: 'rgba(199, 167, 124, 0.4)',
+                          }}
                           transition={{ type: 'spring', stiffness: 380, damping: 30 }}
                         />
                       )}
-                      <Icon className={`h-4 w-4 relative z-10 transition-colors ${
-                        isActive ? 'text-rose-600 dark:text-rose-400' : 'text-slate-400 dark:text-zinc-400 group-hover:text-slate-700 dark:group-hover:text-zinc-200'
-                      }`} />
+                      <Icon
+                        className="h-4 w-4 relative z-10 transition-colors"
+                        style={{ color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)' }}
+                      />
                       {!isCollapsed && (
                         <span className="relative z-10 truncate tracking-tight">{item.label}</span>
                       )}
@@ -212,7 +220,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
                     {/* Tooltip for Collapsed Sidebar */}
                     {isCollapsed && (
-                      <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 px-2.5 py-1 rounded-lg bg-slate-900 dark:bg-zinc-900 text-white text-xs font-semibold whitespace-nowrap shadow-xl opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50">
+                      <div
+                        className="absolute left-full ml-3 top-1/2 -translate-y-1/2 px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap shadow-xl opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50"
+                        style={{ backgroundColor: 'var(--bg-surface-raised)', color: 'var(--text-primary)' }}
+                      >
                         {item.label}
                       </div>
                     )}
@@ -224,19 +235,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </nav>
 
         {/* User Profile Footer */}
-        <div className="p-3 border-t border-slate-200/60 dark:border-white/5 bg-slate-50/50 dark:bg-zinc-950/40">
-          <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} p-2.5 rounded-2xl bg-white dark:bg-white/5 border border-slate-200/60 dark:border-white/5 shadow-sm`}>
+        <div className="p-3 border-t border-slate-200/40 dark:border-white/10" style={{ backgroundColor: 'var(--bg-surface-raised)' }}>
+          <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} p-2.5 rounded-2xl border shadow-sm`} style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}>
             <div className="flex items-center space-x-3 min-w-0">
               <div className="relative flex-shrink-0">
-                <div className="h-8 w-8 rounded-xl bg-gradient-to-tr from-rose-500 to-purple-600 flex items-center justify-center text-white font-bold text-xs shadow-md">
+                <div className="h-8 w-8 rounded-xl bg-gradient-to-tr from-amber-600 to-emerald-800 flex items-center justify-center text-white font-bold text-xs shadow-md">
                   {userInitials}
                 </div>
                 <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-zinc-950" />
               </div>
               {!isCollapsed && (
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs font-bold text-slate-900 dark:text-white truncate tracking-tight">{userName}</p>
-                  <p className="text-[10px] text-slate-500 dark:text-zinc-400 truncate">pro_workspace</p>
+                  <p className="text-xs font-bold truncate tracking-tight" style={{ color: 'var(--text-primary)' }}>{userName}</p>
+                  <p className="text-[10px] truncate" style={{ color: 'var(--text-secondary)' }}>pro_workspace</p>
                 </div>
               )}
             </div>
@@ -244,7 +255,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {!isCollapsed && (
               <button
                 onClick={handleLogout}
-                className="h-8 w-8 rounded-lg hover:bg-rose-500/10 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 flex items-center justify-center transition flex-shrink-0 touch-target"
+                className="h-8 w-8 rounded-lg flex items-center justify-center transition flex-shrink-0 touch-target hover:opacity-80"
+                style={{ color: 'var(--text-secondary)' }}
                 title="Sign out"
               >
                 <LogOut className="h-3.5 w-3.5" />
@@ -254,7 +266,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
       </motion.aside>
 
-      {/* ── Native Mobile Drawer (Slide-Over) ── */}
+      {/* ── Native Mobile Drawer ── */}
       <AnimatePresence>
         {isMobileOpen && (
           <>
@@ -270,14 +282,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: 'spring', damping: 28, stiffness: 220 }}
-              className="fixed top-0 left-0 bottom-0 w-[85vw] max-w-xs bg-white dark:bg-[#12151D] border-r border-slate-200 dark:border-white/10 z-50 p-5 flex flex-col justify-between md:hidden shadow-2xl overflow-y-auto"
+              className="fixed top-0 left-0 bottom-0 w-[85vw] max-w-xs z-50 p-5 flex flex-col justify-between md:hidden shadow-2xl overflow-y-auto border-r"
+              style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}
             >
               <div className="space-y-6">
-                <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-white/10">
+                <div className="flex items-center justify-between pb-4 border-b border-slate-200/40 dark:border-white/10">
                   <Logo variant="full" className="h-8" />
                   <button
                     onClick={() => setIsMobileOpen(false)}
-                    className="h-10 w-10 rounded-full bg-slate-100 dark:bg-white/10 text-slate-500 dark:text-zinc-400 flex items-center justify-center touch-target"
+                    className="h-10 w-10 rounded-full flex items-center justify-center touch-target"
+                    style={{ backgroundColor: 'var(--bg-surface-raised)', color: 'var(--text-secondary)' }}
                   >
                     <X className="h-5 w-5" />
                   </button>
@@ -287,7 +301,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   {navSections.map((section, idx) => (
                     <div key={idx} className="space-y-1">
                       {section.title && (
-                        <h3 className="px-3 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-zinc-500 mb-1">
+                        <h3 className="px-3 text-[10px] font-extrabold uppercase tracking-wider mb-1" style={{ color: 'var(--text-secondary)' }}>
                           {section.title}
                         </h3>
                       )}
@@ -299,13 +313,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                             key={item.href}
                             href={item.href}
                             onClick={() => setIsMobileOpen(false)}
-                            className={`flex items-center space-x-3 px-4 py-3 rounded-2xl text-sm font-semibold transition touch-target ${
-                              isActive
-                                ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
-                                : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5'
-                            }`}
+                            className="flex items-center space-x-3 px-4 py-3 rounded-2xl text-sm font-semibold transition touch-target"
+                            style={{
+                              backgroundColor: isActive ? 'var(--bg-surface-raised)' : 'transparent',
+                              color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+                            }}
                           >
-                            <Icon className={`h-5 w-5 ${isActive ? 'text-rose-600 dark:text-rose-400' : 'text-slate-400'}`} />
+                            <Icon className="h-5 w-5" style={{ color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)' }} />
                             <span>{item.label}</span>
                           </Link>
                         );
@@ -315,17 +329,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </nav>
               </div>
 
-              <div className="pt-4 border-t border-slate-200 dark:border-white/10 flex items-center justify-between">
+              <div className="pt-4 border-t border-slate-200/40 dark:border-white/10 flex items-center justify-between">
                 <div className="flex items-center space-x-3 min-w-0">
-                  <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-rose-500 to-purple-600 flex items-center justify-center font-bold text-white text-xs shadow-md flex-shrink-0">
+                  <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-amber-600 to-emerald-800 flex items-center justify-center font-bold text-white text-xs shadow-md flex-shrink-0">
                     {userInitials}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{userName}</p>
-                    <p className="text-[10px] text-slate-400 truncate">Pro Account</p>
+                    <p className="text-xs font-bold truncate" style={{ color: 'var(--text-primary)' }}>{userName}</p>
+                    <p className="text-[10px] truncate" style={{ color: 'var(--text-secondary)' }}>Pro Account</p>
                   </div>
                 </div>
-                <button onClick={handleLogout} className="h-10 w-10 rounded-xl hover:bg-rose-500/10 text-slate-400 hover:text-rose-600 flex items-center justify-center touch-target flex-shrink-0">
+                <button onClick={handleLogout} className="h-10 w-10 rounded-xl flex items-center justify-center touch-target flex-shrink-0" style={{ color: 'var(--text-secondary)' }}>
                   <LogOut className="h-5 w-5" />
                 </button>
               </div>
@@ -338,46 +352,51 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative z-10 pb-16 md:pb-0">
         
         {/* Responsive Mobile Top Header Bar */}
-        <header className="h-16 flex items-center justify-between px-4 sm:px-6 m-2 sm:m-3 mb-0 rounded-[20px] sm:rounded-[24px] exec-card z-20 bg-white dark:bg-[#12151D] border border-slate-200/60 dark:border-white/5">
+        <header
+          className="h-16 flex items-center justify-between px-4 sm:px-6 m-2 sm:m-3 mb-0 rounded-[20px] sm:rounded-[24px] exec-card z-20"
+          style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}
+        >
           <div className="flex items-center space-x-3">
             <button
               onClick={() => setIsMobileOpen(true)}
-              className="md:hidden text-slate-500 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-white h-10 w-10 rounded-xl hover:bg-slate-100 dark:hover:bg-white/5 flex items-center justify-center touch-target"
+              className="md:hidden h-10 w-10 rounded-xl flex items-center justify-center touch-target"
+              style={{ color: 'var(--text-secondary)' }}
               aria-label="Open Mobile Menu"
             >
               <Menu className="h-6 w-6" />
             </button>
 
             <div className="min-w-0">
-              <h1 className="text-sm sm:text-lg font-bold text-slate-900 dark:text-white tracking-tight truncate">
+              <h1 className="text-sm sm:text-lg font-bold tracking-tight truncate" style={{ color: 'var(--text-primary)' }}>
                 Hello, {userName}
               </h1>
-              <p className="text-[11px] text-slate-500 dark:text-zinc-400 hidden sm:block truncate">Automate your content pipeline from Google Drive to Instagram & TikTok with AMAI.</p>
+              <p className="text-[11px] hidden sm:block truncate" style={{ color: 'var(--text-secondary)' }}>Automate your content pipeline from Google Drive to Instagram & TikTok with AMAI.</p>
             </div>
           </div>
 
-          {/* Top Header Right Controls: Date Picker, Theme Toggle, + Create Post (NO Sparkle Icon) */}
+          {/* Top Header Right Controls */}
           <div className="flex items-center space-x-2.5">
             
             {/* Live Date Badge */}
-            <div className="hidden sm:flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-slate-100 dark:bg-white/5 text-xs font-semibold text-slate-600 dark:text-zinc-300 border border-slate-200/60 dark:border-white/5">
-              <CalendarIcon className="h-3.5 w-3.5 text-slate-400 dark:text-zinc-400" />
+            <div className="hidden sm:flex items-center space-x-2 px-3.5 py-1.5 rounded-full text-xs font-semibold border" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-secondary)' }}>
+              <CalendarIcon className="h-3.5 w-3.5" style={{ color: 'var(--text-secondary)' }} />
               <span>{currentDateStr}</span>
             </div>
 
             {/* Light / Dark Mode Toggle Button */}
             <button
               onClick={toggleTheme}
-              className="h-10 w-10 rounded-full bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-white/10 transition border border-slate-200/60 dark:border-white/5 flex items-center justify-center touch-target"
+              className="h-10 w-10 rounded-full transition border flex items-center justify-center touch-target"
+              style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-primary)' }}
               title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
             >
               {isDarkMode ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-slate-700" />}
             </button>
 
-            {/* Primary Action Button (Clean: + Create Post ONLY, Sparkle Icon Removed) */}
+            {/* Primary Action Button */}
             <Link
               href="/dashboard/composer"
-              className="flex items-center justify-center px-4 py-2 text-xs font-bold text-white bg-gradient-to-r from-rose-500 via-purple-600 to-indigo-600 rounded-full hover:opacity-95 transition shadow-lg shadow-rose-500/25 active:scale-95 border border-white/20 touch-target"
+              className="flex items-center justify-center px-4 py-2 text-xs font-bold text-white rounded-full transition shadow-lg touch-target btn-emerald-cta"
             >
               <span className="hidden xs:inline">+ Create Post</span>
               <span className="xs:hidden">+ Post</span>
@@ -392,8 +411,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </div>
 
-        {/* ── Native Mobile Glass Bottom Navigation Bar (Thumb Ergonomics) ── */}
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white/90 dark:bg-[#12151D]/90 backdrop-blur-xl border-t border-slate-200/80 dark:border-white/10 px-3 flex items-center justify-around z-30 shadow-2xl">
+        {/* ── Mobile Bottom Navigation Bar ── */}
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 backdrop-blur-xl border-t px-3 flex items-center justify-around z-30 shadow-2xl" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}>
           {mobileTabItems.map((tab) => {
             const isActive = pathname === tab.href;
             const Icon = tab.icon;
@@ -402,11 +421,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <Link
                 key={tab.label}
                 href={tab.href}
-                className={`flex flex-col items-center justify-center w-14 h-12 rounded-xl transition touch-target ${
-                  isActive
-                    ? 'text-rose-600 dark:text-rose-400 font-bold'
-                    : 'text-slate-400 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-zinc-300'
-                }`}
+                className="flex flex-col items-center justify-center w-14 h-12 rounded-xl transition touch-target"
+                style={{ color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)' }}
               >
                 <Icon className={`h-5 w-5 ${isActive ? 'scale-110' : ''}`} />
                 <span className="text-[10px] mt-0.5 tracking-tight">{tab.label}</span>

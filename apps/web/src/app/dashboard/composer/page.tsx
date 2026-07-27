@@ -11,7 +11,6 @@ import {
   Wand2,
   Brain,
   Tag,
-  Award,
   Hash,
 } from 'lucide-react';
 
@@ -196,7 +195,8 @@ export default function ComposerPage() {
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs font-semibold flex items-center justify-between"
+          className="p-4 rounded-2xl border text-xs font-semibold flex items-center justify-between"
+          style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-primary)' }}
         >
           <span>{message}</span>
           <Check className="h-4 w-4 text-emerald-500" />
@@ -211,7 +211,7 @@ export default function ComposerPage() {
             
             {/* Target Platforms */}
             <div>
-              <label className="block text-xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider mb-3">
+              <label className="block text-xs font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--text-secondary)' }}>
                 Target Platforms
               </label>
               
@@ -219,11 +219,12 @@ export default function ComposerPage() {
                 <button 
                   type="button"
                   onClick={() => togglePlatform('INSTAGRAM')}
-                  className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-bold transition border touch-target ${
-                    selectedPlatforms.includes('INSTAGRAM')
-                      ? 'border-rose-500 bg-rose-500/10 text-rose-600 dark:text-rose-400 shadow-md'
-                      : 'border-slate-200 dark:border-white/10 text-slate-500 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-white/5'
-                  }`}
+                  className="flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-bold transition border touch-target"
+                  style={{
+                    backgroundColor: selectedPlatforms.includes('INSTAGRAM') ? 'var(--bg-surface-raised)' : 'transparent',
+                    borderColor: 'var(--card-border)',
+                    color: 'var(--text-primary)'
+                  }}
                 >
                   <span className="font-black">IG</span>
                   <span>Instagram Reels</span>
@@ -232,11 +233,12 @@ export default function ComposerPage() {
                 <button 
                   type="button"
                   onClick={() => togglePlatform('TIKTOK')}
-                  className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-bold transition border touch-target ${
-                    selectedPlatforms.includes('TIKTOK')
-                      ? 'border-purple-500 bg-purple-500/10 text-purple-600 dark:text-purple-400 shadow-md'
-                      : 'border-slate-200 dark:border-white/10 text-slate-500 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-white/5'
-                  }`}
+                  className="flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-bold transition border touch-target"
+                  style={{
+                    backgroundColor: selectedPlatforms.includes('TIKTOK') ? 'var(--bg-surface-raised)' : 'transparent',
+                    borderColor: 'var(--card-border)',
+                    color: 'var(--text-primary)'
+                  }}
                 >
                   <span className="font-black">TK</span>
                   <span>TikTok Video</span>
@@ -245,22 +247,23 @@ export default function ComposerPage() {
             </div>
 
             {/* Read-Only Global Persona Chip */}
-            <div className="flex items-center space-x-2 p-3 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200/60 dark:border-white/5">
-              <Tag className="h-4 w-4 text-purple-500 flex-shrink-0" />
-              <span className="text-xs text-slate-500 dark:text-zinc-400">Account Tone Persona:</span>
+            <div className="flex items-center space-x-2 p-3 rounded-2xl border" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
+              <Tag className="h-4 w-4 flex-shrink-0" style={{ color: 'var(--accent-warning)' }} />
+              <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>Account Tone Persona:</span>
               <Badge variant="purple">{globalPersona} (Global Setting)</Badge>
             </div>
 
             {/* Caption Area */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="block text-xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
+                <label className="block text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
                   Caption & AI Copywriter
                 </label>
                 <button
                   onClick={() => handleScoreContent(caption)}
                   disabled={scoringAi}
-                  className="text-xs font-bold text-rose-600 dark:text-rose-400 hover:underline flex items-center space-x-1"
+                  className="text-xs font-bold hover:underline flex items-center space-x-1"
+                  style={{ color: 'var(--text-primary)' }}
                 >
                   <Brain className="h-3.5 w-3.5" />
                   <span>{scoringAi ? 'Scoring...' : 'Recalculate'}</span>
@@ -272,7 +275,12 @@ export default function ComposerPage() {
                   value={caption}
                   onChange={(e) => setCaption(e.target.value)}
                   onBlur={() => handleScoreContent(caption)}
-                  className="w-full h-48 p-4 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-zinc-950/60 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-rose-500/50 resize-none font-sans leading-relaxed"
+                  className="w-full h-48 p-4 rounded-2xl border text-sm focus:outline-none resize-none font-sans leading-relaxed"
+                  style={{
+                    backgroundColor: 'var(--bg-surface-raised)',
+                    borderColor: 'var(--card-border)',
+                    color: 'var(--text-primary)'
+                  }}
                   placeholder="What do you want to publish? Type topic or tap AI Spark..."
                 />
                 
@@ -280,7 +288,7 @@ export default function ComposerPage() {
                   type="button"
                   onClick={handleGenerateAi}
                   disabled={generatingAi}
-                  className="absolute bottom-4 right-3 flex items-center space-x-2 px-4 py-2 gradient-cta text-white text-xs font-bold rounded-xl transition shadow-lg border border-white/20 disabled:opacity-50 touch-target"
+                  className="absolute bottom-4 right-3 flex items-center space-x-2 px-4 py-2 text-white text-xs font-bold rounded-xl transition shadow-lg border disabled:opacity-50 touch-target btn-emerald-cta"
                 >
                   <Sparkles className="h-3.5 w-3.5" />
                   <span>{generatingAi ? 'Generating AI...' : `AI Spark`}</span>
@@ -288,26 +296,26 @@ export default function ComposerPage() {
               </div>
 
               <div className="flex justify-between items-center pt-2">
-                <span className="text-[11px] text-slate-400 dark:text-zinc-500 font-mono">{caption.length} / 2200 characters</span>
+                <span className="text-[11px] font-mono" style={{ color: 'var(--text-secondary)' }}>{caption.length} / 2200 characters</span>
               </div>
             </div>
 
             {/* AI Hashtag Intelligence Section */}
-            <div className="pt-4 border-t border-slate-200/60 dark:border-white/10 space-y-4">
+            <div className="pt-4 border-t space-y-4" style={{ borderColor: 'var(--card-border)' }}>
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-900 dark:text-white flex items-center space-x-1.5">
-                    <Hash className="h-4 w-4 text-purple-500" />
+                  <h3 className="text-xs font-extrabold uppercase tracking-wider flex items-center space-x-1.5" style={{ color: 'var(--text-primary)' }}>
+                    <Hash className="h-4 w-4" style={{ color: 'var(--accent-warning)' }} />
                     <span>AI Hashtag Intelligence</span>
                   </h3>
-                  <p className="text-[11px] text-slate-500 dark:text-zinc-400">Generate mixed hashtag clusters</p>
+                  <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Generate mixed hashtag clusters</p>
                 </div>
 
                 <button
                   type="button"
                   onClick={handleGenerateHashtags}
                   disabled={generatingHashtags}
-                  className="px-3.5 py-1.5 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400 border border-purple-500/20 text-xs font-bold transition flex items-center space-x-1.5 touch-target"
+                  className="px-3.5 py-1.5 rounded-xl border text-xs font-bold transition flex items-center space-x-1.5 touch-target btn-emerald-cta"
                 >
                   <Wand2 className="h-3.5 w-3.5" />
                   <span>{generatingHashtags ? 'Researching...' : 'Generate Tags'}</span>
@@ -315,19 +323,20 @@ export default function ComposerPage() {
               </div>
 
               {hashtags && (
-                <div className="p-4 rounded-2xl bg-purple-500/5 dark:bg-purple-500/10 border border-purple-500/20 space-y-3">
+                <div className="p-4 rounded-2xl border space-y-3" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold text-purple-600 dark:text-purple-300 uppercase">Recommended Mix</span>
+                    <span className="text-[10px] font-bold uppercase" style={{ color: 'var(--text-secondary)' }}>Recommended Mix</span>
                     <button
                       onClick={() => handleAppendHashtagGroup(hashtags.allHashtags)}
-                      className="text-[10px] font-bold text-purple-600 dark:text-purple-400 hover:underline"
+                      className="text-[10px] font-bold hover:underline"
+                      style={{ color: 'var(--text-primary)' }}
                     >
                       + Insert All Tags
                     </button>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                     {hashtags.allHashtags.map((tag, idx) => (
-                      <span key={idx} className="px-2.5 py-1 rounded-lg bg-white dark:bg-zinc-900 text-purple-600 dark:text-purple-300 text-xs font-mono border border-purple-500/20">
+                      <span key={idx} className="px-2.5 py-1 rounded-lg text-xs font-mono border" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)', color: 'var(--text-primary)' }}>
                         {tag}
                       </span>
                     ))}
@@ -349,7 +358,7 @@ export default function ComposerPage() {
           />
 
           <div className="exec-card p-6 sm:p-7 rounded-[24px] space-y-4">
-            <h3 className="font-extrabold text-slate-900 dark:text-white tracking-tight">Post Actions & Publishing</h3>
+            <h3 className="font-extrabold tracking-tight" style={{ color: 'var(--text-primary)' }}>Post Actions & Publishing</h3>
             
             <ComposerActions
               autoPublishEnabled={autoPublishEnabled}
