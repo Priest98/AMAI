@@ -1,19 +1,19 @@
 /**
- * Luxury Warm Sand & Champagne Gold / Deep Emerald Theme
- * Modeled directly after the user's custom design screenshot.
+ * Luxury Dual Theme System:
+ * - Light Mode: Warm Sand & Deep Forest Emerald / Champagne Gold
+ * - Dark Mode: Midnight Leather & Rose Gold / Velvet Plum
+ * Modeled directly after the user's custom design screenshots for both Light & Dark modes!
  */
 
 :root,
 [data-theme="light"],
-[data-theme="dark"],
-.light,
-.dark {
+.light {
   --bg-base: #E8E1D7;
   --bg-surface: #F4EFEA;
   --bg-surface-raised: #E4DCD3;
   --card-bg: #F4EFEA;
-  --card-border: rgba(112, 99, 86, 0.16);
-  --card-hover-border: rgba(112, 99, 86, 0.32);
+  --card-border: rgba(112, 99, 86, 0.18);
+  --card-hover-border: rgba(112, 99, 86, 0.35);
   --card-shadow: 0 12px 32px -10px rgba(80, 68, 56, 0.12);
 
   --accent-primary: #1F4A38; /* Deep Forest Emerald */
@@ -28,9 +28,31 @@
   --font-sans: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'Geist Mono', monospace;
 
-  /* Champagne Metallic Gradient */
-  --gradient-primary-cta: linear-gradient(135deg, #1F4A38 0%, #295D47 100%);
+  --gradient-primary-cta: linear-gradient(135deg, #1F4A38 0%, #2A5E48 100%);
   --gradient-gold-cta: linear-gradient(135deg, #D4C1A5 0%, #C7A77C 100%);
+}
+
+[data-theme="dark"],
+.dark {
+  --bg-base: #0E0D11;
+  --bg-surface: #18171E;
+  --bg-surface-raised: #23222B;
+  --card-bg: #18171E;
+  --card-border: rgba(199, 167, 124, 0.22);
+  --card-hover-border: rgba(199, 167, 124, 0.45);
+  --card-shadow: 0 14px 40px -10px rgba(0, 0, 0, 0.7);
+
+  --accent-primary: #4A2038; /* Velvet Plum */
+  --accent-success: #00D9B5;
+  --accent-warning: #D4B896; /* Rose Gold / Champagne */
+  --accent-error: #EF4444;
+
+  --text-primary: #F5EFE6;   /* Warm Off-White Cream */
+  --text-secondary: #A89F91; /* Warm Muted Beige */
+  --text-muted: #7A7266;
+
+  --gradient-primary-cta: linear-gradient(135deg, #4A2038 0%, #2D1322 100%);
+  --gradient-gold-cta: linear-gradient(135deg, #D4B896 0%, #B89A76 100%);
 }
 
 .section-header-title {
@@ -47,12 +69,12 @@
   opacity: 1 !important;
 }
 
-/* Champagne Gold Badge Pill */
+/* Badge Styling */
 .badge-purple,
 .badge-gold {
-  background: linear-gradient(135deg, #E6D9C7 0%, #DACBB7 100%);
-  color: #5C4A38;
-  border: 1px solid rgba(199, 167, 124, 0.4);
+  background: linear-gradient(135deg, rgba(199, 167, 124, 0.2) 0%, rgba(199, 167, 124, 0.1) 100%);
+  color: var(--text-primary);
+  border: 1px solid rgba(199, 167, 124, 0.35);
 }
 
 .surface-tile {
@@ -69,21 +91,26 @@
 }
 
 .link-neutral {
-  color: var(--accent-primary);
+  color: var(--accent-warning);
 }
 
-/* Deep Emerald CTA Button */
+/* Primary Action Button (Light Mode: Emerald, Dark Mode: Velvet Plum with Metallic Rose Gold Border) */
 .gradient-cta,
 .btn-emerald-cta {
-  background: linear-gradient(135deg, #1F4A38 0%, #2A5E48 100%) !important;
+  background: var(--gradient-primary-cta) !important;
   color: #FFFFFF !important;
-  box-shadow: 0 8px 20px -4px rgba(31, 74, 56, 0.35);
+  border: 1px solid rgba(199, 167, 124, 0.3);
+  box-shadow: 0 8px 20px -4px rgba(0, 0, 0, 0.4);
 }
 
-/* Champagne Gold CTA Button */
+/* Secondary Action Button */
 .btn-gold-cta {
-  background: linear-gradient(135deg, #D5C2A7 0%, #C7A77C 100%) !important;
-  color: #3D3023 !important;
-  border: 1px solid rgba(199, 167, 124, 0.5);
-  box-shadow: 0 8px 20px -4px rgba(199, 167, 124, 0.3);
+  background: transparent !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--card-border) !important;
+  box-shadow: 0 4px 15px -4px rgba(0, 0, 0, 0.2);
+}
+
+.btn-gold-cta:hover {
+  border-color: var(--accent-warning) !important;
 }

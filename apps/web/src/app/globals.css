@@ -2,14 +2,13 @@
 @import "../styles/theme-fixes.css";
 
 :root,
-.light,
-.dark {
+.light {
   --bg-base: #E8E1D7;
   --bg-surface: #F4EFEA;
   --bg-surface-raised: #E4DCD3;
   --card-bg: #F4EFEA;
-  --card-border: rgba(112, 99, 86, 0.16);
-  --card-hover-border: rgba(112, 99, 86, 0.32);
+  --card-border: rgba(112, 99, 86, 0.18);
+  --card-hover-border: rgba(112, 99, 86, 0.35);
   --card-shadow: 0 12px 32px -10px rgba(80, 68, 56, 0.12);
 
   --accent-primary: #1F4A38;
@@ -23,6 +22,25 @@
 
   --font-sans: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'Geist Mono', monospace;
+}
+
+.dark {
+  --bg-base: #0E0D11;
+  --bg-surface: #18171E;
+  --bg-surface-raised: #23222B;
+  --card-bg: #18171E;
+  --card-border: rgba(199, 167, 124, 0.22);
+  --card-hover-border: rgba(199, 167, 124, 0.45);
+  --card-shadow: 0 14px 40px -10px rgba(0, 0, 0, 0.7);
+
+  --accent-primary: #4A2038;
+  --accent-success: #00D9B5;
+  --accent-warning: #D4B896;
+  --accent-error: #EF4444;
+
+  --text-primary: #F5EFE6;
+  --text-secondary: #A89F91;
+  --text-muted: #7A7266;
 }
 
 @theme inline {
@@ -77,11 +95,11 @@ input, select, textarea {
 }
 
 .btn-primary-gradient {
-  background: linear-gradient(135deg, #1F4A38 0%, #2A5E48 100%);
+  background: var(--gradient-primary-cta);
   color: #FFFFFF;
   border-radius: 9999px;
   font-weight: 700;
-  box-shadow: 0 8px 20px -4px rgba(31, 74, 56, 0.35);
+  box-shadow: 0 8px 20px -4px rgba(0, 0, 0, 0.4);
   transition: opacity 150ms ease, transform 150ms ease;
 }
 
@@ -103,10 +121,10 @@ input, select, textarea {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(112, 99, 86, 0.3);
+  background: rgba(199, 167, 124, 0.3);
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(112, 99, 86, 0.5);
+  background: rgba(199, 167, 124, 0.5);
 }
