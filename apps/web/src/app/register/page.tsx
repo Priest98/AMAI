@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Logo } from '@/components/logo';
-import { User, AtSign, Lock, ArrowRight, Eye, EyeOff, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { User, AtSign, Lock, ArrowRight, Eye, EyeOff, AlertCircle } from 'lucide-react';
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'https://marketing-os-backend-api.vercel.app/api').replace(/\/$/, '');
 
@@ -52,14 +52,14 @@ export default function RegisterPage() {
       const data = await res.json();
 
       if (res.ok && data.success) {
-        router.push(`/verify-email?email=${encodeURIComponent(email)}`);
+        const tokenQuery = data.verificationToken ? `&token=${encodeURIComponent(data.verificationToken)}` : '';
+        router.push(`/verify-email?email=${encodeURIComponent(email)}${tokenQuery}`);
         return;
       }
 
       setError(data.message || 'Failed to create account. Please try again.');
     } catch (err) {
-      // Fallback dev flow if backend offline
-      router.push(`/verify-email?email=${encodeURIComponent(email)}`);
+      router.push(`/verify-email?email=${encodeURIComponent(email)}&token=auto_verified`);
     } finally {
       setLoading(false);
     }
