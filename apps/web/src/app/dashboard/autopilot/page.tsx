@@ -1,14 +1,13 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import SectionHeader from "@/components/ui/SectionHeader";
+import Badge from "@/components/ui/Badge";
+import { InsightTile } from "@/components/ui/InsightTile";
 import {
-  Zap,
-  RefreshCw,
   Brain,
   BarChart3,
-  Check,
+  RefreshCw,
   Tag,
-  ShieldCheck,
 } from 'lucide-react';
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'https://marketing-os-backend-api.vercel.app/api').replace(/\/$/, '');
@@ -76,32 +75,23 @@ export default function AutoPilotPage() {
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
-      
-      {/* Page Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center space-x-2">
-            <span>Smart Publishing Engine & Audience Insights</span>
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
-              Read-Only Strategy
-            </span>
-          </h1>
-          <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">
-            Read-only strategy and audience engagement analytics to inform your content pipeline.
-          </p>
-        </div>
+      <SectionHeader
+        title="Smart Publishing Engine & Audience Insights"
+        subtitle="Read-only strategy and audience engagement analytics to inform your content pipeline."
+        badge={<Badge variant="purple">READ-ONLY STRATEGY</Badge>}
+        action={
+          <button
+            onClick={fetchAiPrediction}
+            disabled={loadingAi}
+            className="flex items-center space-x-2 px-4 py-2 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-xs font-bold text-slate-700 dark:text-zinc-300 border border-slate-200/60 dark:border-white/10 transition touch-target"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${loadingAi ? 'animate-spin' : ''}`} />
+            <span>Recalculate</span>
+          </button>
+        }
+      />
 
-        <button
-          onClick={fetchAiPrediction}
-          disabled={loadingAi}
-          className="flex items-center space-x-2 px-4 py-2 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-xs font-bold text-slate-700 dark:text-zinc-300 border border-slate-200/60 dark:border-white/10 transition touch-target"
-        >
-          <RefreshCw className={`h-3.5 w-3.5 ${loadingAi ? 'animate-spin' : ''}`} />
-          <span>Recalculate</span>
-        </button>
-      </div>
-
-      {/* ── Single Source of Truth: Compact Peak Reach Summary Line ── */}
+      {/* Single Source of Truth: Compact Peak Reach Summary Line */}
       <div className="exec-card p-6 rounded-[24px] space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center space-x-3">
@@ -109,7 +99,7 @@ export default function AutoPilotPage() {
               <Brain className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-900 dark:text-white tracking-tight">
+              <h2 className="section-header-title text-base font-bold">
                 Recommended Peak Engagement Hours
               </h2>
               <p className="text-xs font-extrabold text-emerald-600 dark:text-emerald-400 mt-0.5">
@@ -121,14 +111,12 @@ export default function AutoPilotPage() {
           <div className="flex items-center space-x-2 text-xs font-semibold text-slate-500 dark:text-zinc-400">
             <Tag className="h-4 w-4 text-purple-500" />
             <span>Tone Persona:</span>
-            <span className="font-bold text-slate-900 dark:text-white bg-purple-500/10 text-purple-600 dark:text-purple-300 px-2.5 py-0.5 rounded-full border border-purple-500/20">
-              {globalPersona}
-            </span>
+            <Badge variant="purple">{globalPersona}</Badge>
           </div>
         </div>
       </div>
 
-      {/* ── Audience Intelligence Insights Grid ── */}
+      {/* Audience Intelligence Insights Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Left Column: Audience Intelligence Insights */}
@@ -140,36 +128,19 @@ export default function AutoPilotPage() {
                   <BarChart3 className="h-5 w-5" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">Audience Intelligence Insights</h2>
-                  <p className="text-xs text-slate-500 dark:text-zinc-400">Data models trained on historical account engagement</p>
+                  <h2 className="section-header-title text-lg font-bold">Audience Intelligence Insights</h2>
+                  <p className="section-header-subtitle text-xs">Data models trained on historical account engagement</p>
                 </div>
               </div>
 
-              <span className="px-2.5 py-1 rounded-full badge-success text-[10px] font-extrabold uppercase">
-                {insights.monthlyGrowthRate}
-              </span>
+              <Badge variant="success">{insights.monthlyGrowthRate}</Badge>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200/60 dark:border-white/5 space-y-1">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">Best Posting Days</span>
-                <p className="text-sm font-extrabold text-slate-900 dark:text-white">{insights.bestPostingDays.join(', ')}</p>
-              </div>
-
-              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200/60 dark:border-white/5 space-y-1">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">Optimal Hours</span>
-                <p className="text-sm font-extrabold text-slate-900 dark:text-white">{insights.bestPostingHours}</p>
-              </div>
-
-              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200/60 dark:border-white/5 space-y-1">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">Top Content Format</span>
-                <p className="text-xs font-bold text-slate-900 dark:text-white">{insights.bestContentType}</p>
-              </div>
-
-              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200/60 dark:border-white/5 space-y-1">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">Optimal Caption Length</span>
-                <p className="text-xs font-bold text-slate-900 dark:text-white">{insights.bestCaptionLength}</p>
-              </div>
+              <InsightTile label="Best Posting Days" value={insights.bestPostingDays.join(', ')} />
+              <InsightTile label="Optimal Hours" value={insights.bestPostingHours} />
+              <InsightTile label="Top Content Format" value={insights.bestContentType} />
+              <InsightTile label="Optimal Caption Length" value={insights.bestCaptionLength} />
             </div>
           </div>
         </div>
@@ -177,7 +148,7 @@ export default function AutoPilotPage() {
         {/* Right Column: Information Summary Card */}
         <div className="space-y-6">
           <div className="exec-card p-6 rounded-[24px] space-y-4">
-            <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-400 dark:text-zinc-500">Strategy Summary</h3>
+            <h3 className="section-header-title text-xs font-extrabold uppercase tracking-wider">Strategy Summary</h3>
             <p className="text-xs text-slate-600 dark:text-zinc-300 leading-relaxed">
               Use these insights to schedule posts in the Composer. All scheduling choices are configured per post in the Composer interface.
             </p>

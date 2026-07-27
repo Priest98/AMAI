@@ -2,18 +2,16 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
+import StatCard from "@/components/ui/StatCard";
+import StorageProgressBar from "@/components/ui/StorageProgressBar";
+import Badge from "@/components/ui/Badge";
 import {
-  Zap,
   CheckCircle2,
   Clock,
   Calendar,
   AlertTriangle,
   ArrowUpRight,
-  MoreVertical,
-  ChevronDown,
-  X,
   ShieldCheck,
-  Check,
   ThumbsUp,
 } from 'lucide-react';
 
@@ -97,103 +95,39 @@ export default function DashboardPage() {
         </Link>
       </motion.div>
 
-      {/* Top Metric Cards */}
+      {/* Explicit StatCards */}
       <motion.div variants={itemVariants} className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-        
-        {/* Metric 1 */}
-        <div className="exec-card exec-card-hover p-5 sm:p-6 rounded-[20px] sm:rounded-[24px] flex flex-col justify-between space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="h-10 w-10 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">
-              <CheckCircle2 className="h-5 w-5" />
-            </div>
-            <Link
-              href="/dashboard/integrations"
-              className="h-9 w-9 rounded-full bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-500 dark:text-zinc-400 flex items-center justify-center transition touch-target"
-              title="Manage Connections"
-            >
-              <ArrowUpRight className="h-4 w-4" />
-            </Link>
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-slate-500 dark:text-zinc-400">Active Channels</p>
-            <div className="flex items-baseline space-x-2 mt-1">
-              <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">3 / 3</span>
-            </div>
-            <p className="text-[11px] text-slate-400 dark:text-zinc-500 mt-1">Google Drive, IG & TikTok active</p>
-          </div>
-        </div>
+        <StatCard
+          icon={<CheckCircle2 className="h-5 w-5 text-emerald-500" />}
+          label="Active Channels"
+          value="3 / 3"
+          helperText="Google Drive, IG & TikTok active"
+          valueColor="var(--text-primary)"
+        />
 
-        {/* Metric 2 */}
-        <div className="exec-card exec-card-hover p-5 sm:p-6 rounded-[20px] sm:rounded-[24px] flex flex-col justify-between space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="h-10 w-10 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold">
-              <Clock className="h-5 w-5" />
-            </div>
-            <Link
-              href="/dashboard/composer"
-              className="h-9 w-9 rounded-full bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-500 dark:text-zinc-400 flex items-center justify-center transition touch-target"
-              title="Open Composer"
-            >
-              <ArrowUpRight className="h-4 w-4" />
-            </Link>
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-slate-500 dark:text-zinc-400">Needs Approval</p>
-            <div className="flex items-baseline space-x-2 mt-1">
-              <span className="text-2xl sm:text-3xl font-extrabold text-amber-600 dark:text-amber-400 tracking-tight">
-                {posts.filter(p => p.status === 'Need Approval').length}
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-400 dark:text-zinc-500 mt-1">Awaiting manual review</p>
-          </div>
-        </div>
+        <StatCard
+          icon={<Clock className="h-5 w-5 text-amber-500" />}
+          label="Needs Approval"
+          value={posts.filter(p => p.status === 'Need Approval').length.toString()}
+          helperText="Awaiting manual review"
+          valueColor="var(--accent-warning)"
+        />
 
-        {/* Metric 3 */}
-        <div className="exec-card exec-card-hover p-5 sm:p-6 rounded-[20px] sm:rounded-[24px] flex flex-col justify-between space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="h-10 w-10 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold">
-              <Calendar className="h-5 w-5" />
-            </div>
-            <Link
-              href="/dashboard/autopilot"
-              className="h-9 w-9 rounded-full bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-500 dark:text-zinc-400 flex items-center justify-center transition touch-target"
-              title="Configure Automation"
-            >
-              <ArrowUpRight className="h-4 w-4" />
-            </Link>
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-slate-500 dark:text-zinc-400">Approved Posts</p>
-            <div className="flex items-baseline space-x-2 mt-1">
-              <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">{approvedCount}</span>
-            </div>
-            <p className="text-[11px] text-slate-400 dark:text-zinc-500 mt-1">Total manually approved</p>
-          </div>
-        </div>
+        <StatCard
+          icon={<Calendar className="h-5 w-5 text-purple-500" />}
+          label="Approved Posts"
+          value={approvedCount.toString()}
+          helperText="Total manually approved"
+          valueColor="var(--text-primary)"
+        />
 
-        {/* Metric 4 */}
-        <div className="exec-card exec-card-hover p-5 sm:p-6 rounded-[20px] sm:rounded-[24px] flex flex-col justify-between space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="h-10 w-10 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold">
-              <AlertTriangle className="h-5 w-5" />
-            </div>
-            <Link
-              href="/dashboard/settings"
-              className="h-9 w-9 rounded-full bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-500 dark:text-zinc-400 flex items-center justify-center transition touch-target"
-              title="View Settings"
-            >
-              <ArrowUpRight className="h-4 w-4" />
-            </Link>
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-slate-500 dark:text-zinc-400">System Health</p>
-            <div className="flex items-baseline space-x-2 mt-1">
-              <span className="text-2xl sm:text-3xl font-extrabold text-emerald-600 dark:text-emerald-400 tracking-tight">100%</span>
-            </div>
-            <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold mt-1">All APIs connected</p>
-          </div>
-        </div>
-
+        <StatCard
+          icon={<AlertTriangle className="h-5 w-5 text-emerald-500" />}
+          label="System Health"
+          value="100%"
+          helperText="All APIs connected"
+          valueColor="var(--accent-success)"
+        />
       </motion.div>
 
       {/* Main Grid: Approval Queue (Primary) & AutoPilot Storage (Secondary) */}
@@ -203,13 +137,12 @@ export default function DashboardPage() {
         <motion.div variants={itemVariants} className="lg:col-span-8 flex flex-col">
           <div className="exec-card p-6 sm:p-7 rounded-[20px] sm:rounded-[24px] flex flex-col justify-between space-y-6 flex-1">
             
-            {/* Solid High-Contrast Heading */}
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white tracking-tight">
+                <h2 className="section-header-title text-base sm:text-lg font-bold">
                   Approval Queue & Content Pipeline
                 </h2>
-                <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">Review and approve AI content before publishing</p>
+                <p className="section-header-subtitle text-xs mt-0.5">Review and approve AI content before publishing</p>
               </div>
 
               <Link
@@ -235,15 +168,9 @@ export default function DashboardPage() {
                   </div>
 
                   <div className="flex items-center justify-between sm:justify-end space-x-3">
-                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase ${
-                      item.status === 'Need Approval'
-                        ? 'badge-warning'
-                        : item.status === 'Approved'
-                        ? 'badge-success'
-                        : 'badge-primary'
-                    }`}>
+                    <Badge variant={item.status === 'Need Approval' ? 'warning' : item.status === 'Approved' ? 'success' : 'purple'}>
                       {item.status}
-                    </span>
+                    </Badge>
 
                     {item.status === 'Need Approval' ? (
                       <button
@@ -282,49 +209,34 @@ export default function DashboardPage() {
         {/* SECONDARY: AutoPilot Storage Card (lg:col-span-4) */}
         <motion.div variants={itemVariants} className="lg:col-span-4 flex flex-col">
           <div className="exec-card p-6 sm:p-7 rounded-[20px] sm:rounded-[24px] flex flex-col justify-between space-y-6 flex-1">
-            
-            {/* Header */}
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-base font-bold text-slate-900 dark:text-white tracking-tight">AutoPilot Storage</h3>
-                <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">Google Drive sync pipeline</p>
+                <h3 className="section-header-title text-base font-bold">AutoPilot Storage</h3>
+                <p className="section-header-subtitle text-xs mt-0.5">Google Drive sync pipeline</p>
               </div>
-              <span className="px-2.5 py-1 rounded-full badge-success text-[10px] font-bold">Synced</span>
+              <Badge variant="success">Synced</Badge>
             </div>
 
-            {/* Progress Bar & Breakdown */}
-            <div className="space-y-4 my-2">
-              <div className="space-y-1.5">
-                <div className="flex justify-between text-xs font-bold">
-                  <span className="text-slate-700 dark:text-zinc-300">Storage Used</span>
-                  <span className="text-rose-500">124 GB / 500 GB</span>
-                </div>
-                <div className="h-2 w-full bg-slate-100 dark:bg-white/10 rounded-full overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-rose-500 to-purple-600 rounded-full w-[25%]" />
-                </div>
+            <StorageProgressBar usedGB={124} totalGB={500} />
+
+            <div className="space-y-2 pt-1">
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 text-xs flex justify-between items-center">
+                <span className="font-semibold text-slate-700 dark:text-zinc-300">Instagram Reels</span>
+                <span className="font-mono text-[11px] text-slate-500">60 GB • 24 Videos</span>
               </div>
 
-              <div className="space-y-2 pt-2">
-                <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 text-xs flex justify-between items-center">
-                  <span className="font-semibold text-slate-700 dark:text-zinc-300">Instagram Reels</span>
-                  <span className="font-mono text-[11px] text-slate-500">60 GB • 24 Videos</span>
-                </div>
-
-                <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 text-xs flex justify-between items-center">
-                  <span className="font-semibold text-slate-700 dark:text-zinc-300">TikTok Videos</span>
-                  <span className="font-mono text-[11px] text-slate-500">35 GB • 18 Videos</span>
-                </div>
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 text-xs flex justify-between items-center">
+                <span className="font-semibold text-slate-700 dark:text-zinc-300">TikTok Videos</span>
+                <span className="font-mono text-[11px] text-slate-500">35 GB • 18 Videos</span>
               </div>
             </div>
 
-            {/* Folder Footer */}
             <div className="pt-3 border-t border-slate-200/60 dark:border-white/10 flex items-center justify-between text-xs text-slate-500 dark:text-zinc-400">
               <span>Folder: <span className="font-mono font-bold text-slate-900 dark:text-white">/content</span></span>
-              <Link href="/dashboard/autopilot" className="font-bold text-rose-500 hover:underline">
+              <Link href="/dashboard/autopilot" className="link-neutral text-xs font-bold hover:underline">
                 Configure →
               </Link>
             </div>
-
           </div>
         </motion.div>
 

@@ -1,8 +1,10 @@
 @import "tailwindcss";
+@import "../styles/theme-fixes.css";
 
 :root {
   --bg-base: #FAFAFA;
   --bg-surface: #FFFFFF;
+  --bg-surface-raised: #F3F4F6;
   --card-bg: #FFFFFF;
   --card-border: rgba(17, 24, 39, 0.08);
   --card-hover-border: rgba(17, 24, 39, 0.16);
@@ -24,6 +26,7 @@
 .dark {
   --bg-base: #0B0E14;
   --bg-surface: #151923;
+  --bg-surface-raised: #1C2130;
   --card-bg: #151923;
   --card-border: rgba(255, 255, 255, 0.08);
   --card-hover-border: rgba(255, 255, 255, 0.18);
@@ -64,12 +67,10 @@ body {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
-/* Prevent auto-zooming on input focus on iOS Safari */
 input, select, textarea {
   font-size: 16px !important;
 }
 
-/* Mobile Touch Target Guidelines (Minimum 44px) */
 .touch-target {
   min-width: 44px;
   min-height: 44px;
@@ -78,17 +79,6 @@ input, select, textarea {
   justify-content: center;
 }
 
-/* Clear, Solid Legible Headings (No Opacity Bug / Low Contrast Gradients) */
-h1, h2, h3, h4, h5, h6, .heading-legible {
-  color: var(--text-primary) !important;
-  font-weight: 700;
-  opacity: 1 !important;
-  -webkit-text-fill-color: initial !important;
-  background-clip: unset !important;
-  -webkit-background-clip: unset !important;
-}
-
-/* 24px Layered Floating Cards */
 .exec-card {
   background-color: var(--card-bg);
   border: 1px solid var(--card-border);
@@ -103,43 +93,8 @@ h1, h2, h3, h4, h5, h6, .heading-legible {
   }
 }
 
-.exec-card-hover {
-  transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1), border-color 200ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 200ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.exec-card-hover:hover {
-  transform: translateY(-2px);
-  border-color: var(--card-hover-border);
-}
-
-/* Flat Semantic Badges (No Gradients for Status Badges) */
-.badge-success {
-  background-color: rgba(0, 217, 181, 0.12);
-  color: var(--accent-success);
-  border: 1px solid rgba(0, 217, 181, 0.25);
-}
-
-.badge-warning {
-  background-color: rgba(255, 176, 32, 0.12);
-  color: var(--accent-warning);
-  border: 1px solid rgba(255, 176, 32, 0.25);
-}
-
-.badge-primary {
-  background-color: rgba(108, 92, 231, 0.12);
-  color: var(--accent-primary);
-  border: 1px solid rgba(108, 92, 231, 0.25);
-}
-
-.badge-error {
-  background-color: rgba(239, 68, 68, 0.12);
-  color: var(--accent-error);
-  border: 1px solid rgba(239, 68, 68, 0.25);
-}
-
-/* Gradient Rule: Reserved EXCLUSIVELY for Primary "+ Create Post" CTA Button */
 .btn-primary-gradient {
-  background: linear-gradient(135deg, #6C5CE7 0%, #8B5CF6 100%);
+  background: var(--gradient-primary-cta, linear-gradient(135deg, #6C5CE7 0%, #8B5CF6 100%));
   color: #FFFFFF;
   border-radius: 9999px;
   font-weight: 700;
@@ -155,7 +110,6 @@ h1, h2, h3, h4, h5, h6, .heading-legible {
   transform: scale(0.97);
 }
 
-/* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;

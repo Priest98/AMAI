@@ -1,0 +1,125 @@
+/**
+ * Theme tokens — drop into globals.css (or wherever your Tailwind base
+ * layer / CSS variables currently live). These are the values from the
+ * original design spec; the point of centralizing them here is that no
+ * component should ever hardcode a raw hex color again — everything
+ * references these variables, so a contrast fix here fixes it everywhere
+ * at once instead of needing to be found and patched per-component.
+ */
+
+:root,
+[data-theme="dark"],
+.dark {
+  --bg-base: #0b0e14;
+  --bg-surface: #151923;
+  --bg-surface-raised: #1c2130; /* one step lighter than --bg-surface, for cards nested inside cards */
+
+  --accent-primary: #6c5ce7;
+  --accent-success: #00d9b5;
+  --accent-warning: #ffb020;
+  --accent-error: #ef4444;
+
+  --text-primary: #f5f6fa;
+  --text-secondary: #9aa0ac;
+
+  /* The ONE place the gradient is allowed to be defined. Reference this
+     token only for the primary "+Post" CTA — nowhere else. */
+  --gradient-primary-cta: linear-gradient(135deg, #ff6b9d, #a855f7);
+}
+
+[data-theme="light"],
+.light {
+  --bg-base: #fafafa;
+  --bg-surface: #ffffff;
+  --bg-surface-raised: #f3f4f6;
+
+  --accent-primary: #2563eb;
+  --accent-success: #10b981;
+  --accent-warning: #f59e0b;
+  --accent-error: #ef4444;
+
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+
+  --gradient-primary-cta: linear-gradient(135deg, #ff6b9d, #a855f7);
+}
+
+/**
+ * Fix for the recurring "washed-out header text" bug.
+ *
+ * The bug pattern seen across Composer, Publishing Engine, and
+ * Connected Hub is almost certainly ONE shared header component using
+ * something like `text-transparent bg-clip-text bg-gradient-to-r ...`
+ * with an opacity or gradient stop that ends up near-invisible against
+ * a dark card. Force every element carrying this class to fall back to
+ * a solid, high-contrast color instead of a gradient-text trick.
+ */
+.section-header-title {
+  color: var(--text-primary) !important;
+  background: none !important;
+  -webkit-background-clip: unset !important;
+  background-clip: unset !important;
+  -webkit-text-fill-color: unset !important;
+  opacity: 1 !important;
+}
+
+.section-header-subtitle {
+  color: var(--text-secondary) !important;
+  opacity: 1 !important;
+}
+
+/**
+ * Fix for low-contrast badges/pills (e.g. "READ-ONLY STRATEGY",
+ * "Tone Persona: Fashion Designer"). These were rendering as a color
+ * very close to their own background — force a real background +
+ * foreground contrast pair instead of a subtle tint-on-tint.
+ */
+.badge-purple {
+  background-color: rgba(108, 92, 231, 0.16);
+  color: #c9bdfd; /* light enough against the 0.16-opacity purple bg to stay readable */
+  border: 1px solid rgba(108, 92, 231, 0.35);
+}
+
+[data-theme="light"] .badge-purple,
+.light .badge-purple {
+  background-color: rgba(37, 99, 235, 0.1);
+  color: #1d4ed8;
+  border: 1px solid rgba(37, 99, 235, 0.25);
+}
+
+/**
+ * Utility class for any inner stat/insight tile that was previously
+ * hardcoded white (e.g. "Best Posting Days", "AI Content Score" card).
+ * Use this instead of bg-white so it matches the surrounding dark UI
+ * automatically, and flips correctly in light mode too.
+ */
+.surface-tile {
+  background-color: var(--bg-surface-raised);
+  color: var(--text-primary);
+}
+
+.surface-tile .tile-label {
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.03em;
+}
+
+/**
+ * Neutral link/action color — for things like "Configure →" that were
+ * incorrectly styled in the error/red color despite being a totally
+ * normal, non-destructive action.
+ */
+.link-neutral {
+  color: var(--accent-primary);
+}
+
+/**
+ * The ONLY place a gradient fill is allowed. Everything else
+ * (progress bars, secondary buttons, badges) must use a flat
+ * var(--accent-*) color instead.
+ */
+.gradient-cta {
+  background: var(--gradient-primary-cta);
+  color: white;
+}
