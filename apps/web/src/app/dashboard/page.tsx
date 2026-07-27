@@ -116,71 +116,75 @@ export default function DashboardPage() {
       variants={containerVariants}
       initial="hidden"
       animate="show"
-      className="space-y-6"
+      className="space-y-4 sm:space-y-6"
     >
-      {/* Tightened Publishing Mode Banner */}
-      <motion.div variants={itemVariants} className="flex items-center justify-between p-3 px-4 rounded-xl border" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}>
-        <div className="flex items-center space-x-2.5">
-          <div className="h-6 w-6 rounded-md flex items-center justify-center" style={{ backgroundColor: 'var(--bg-surface-raised)' }}>
+      {/* Responsive Publishing Mode Banner */}
+      <motion.div
+        variants={itemVariants}
+        className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 px-4 rounded-xl border gap-2.5"
+        style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}
+      >
+        <div className="flex items-center space-x-2.5 min-w-0">
+          <div className="h-6 w-6 rounded-md flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'var(--bg-surface-raised)' }}>
             <ShieldCheck className="h-3.5 w-3.5 text-amber-400" />
           </div>
-          <p className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
-            Publishing Mode: <span className="font-bold">{publishingMode === 'AUTO_PUBLISH' ? 'Auto-Publish Active' : 'Manual Approval Queue Active (Default)'}</span>
+          <p className="text-xs font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
+            Publishing Mode: <span className="font-bold">{publishingMode === 'AUTO_PUBLISH' ? 'Auto-Publish Active' : 'Manual Approval Queue Active'}</span>
           </p>
         </div>
 
         <Link
           href="/dashboard/settings"
-          className="px-3 py-1 rounded-md text-[11px] font-semibold border transition touch-target"
+          className="self-start sm:self-auto px-3 py-1 rounded-md text-[11px] font-semibold border transition touch-target flex-shrink-0"
           style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-primary)' }}
         >
           Change Mode
         </Link>
       </motion.div>
 
-      {/* 3-Column Grid Layout Split: Center Main Workspace (8 cols) & Right Context Panel (4 cols) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
+      {/* 3-Column Grid Layout Split */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-8 items-start">
         
-        {/* Center Main Workspace (lg:col-span-8) */}
-        <div className="lg:col-span-8 space-y-6">
+        {/* Center Main Workspace */}
+        <div className="lg:col-span-8 space-y-5 lg:space-y-6">
           
-          {/* Main KPI Stat Cards Grid */}
-          <motion.div variants={itemVariants} className="grid grid-cols-2 gap-3.5">
+          {/* Mobile Clean Stat Cards Grid */}
+          <motion.div variants={itemVariants} className="grid grid-cols-2 gap-3 sm:gap-3.5">
             <StatCard
               icon={<CheckCircle2 className="h-4 w-4 text-emerald-400" />}
               label="Active Channels"
-              value={`${connectedAccounts.length} Connected`}
-              helperText={connectedAccounts.length > 0 ? `${connectedAccounts.length} channel(s) active` : "No accounts connected"}
+              value={connectedAccounts.length > 0 ? `${connectedAccounts.length} Connected` : "0 Connected"}
+              helperText={connectedAccounts.length > 0 ? `${connectedAccounts.length} channel(s) active` : "No accounts linked"}
               valueColor="var(--text-primary)"
             />
 
             <StatCard
               icon={<Clock className="h-4 w-4 text-amber-400" />}
               label="Needs Approval"
-              value={pendingApprovalPosts.length.toString()}
-              helperText="Awaiting manual review"
+              value={`${pendingApprovalPosts.length} Pending`}
+              helperText="Awaiting review"
               valueColor="var(--accent-warning)"
             />
 
             <StatCard
               icon={<Calendar className="h-4 w-4 text-purple-400" />}
               label="Approved Posts"
-              value={approvedCount.toString()}
-              helperText="Total manually approved"
+              value={`${approvedCount} Posts`}
+              helperText="Total approved"
               valueColor="var(--text-primary)"
             />
 
             <StatCard
               icon={<AlertTriangle className="h-4 w-4 text-emerald-400" />}
               label="System Health"
-              value="100%"
-              helperText="All APIs connected"
+              value="100% Active"
+              helperText="All APIs online"
               valueColor="var(--accent-success)"
             />
           </motion.div>
 
           {/* Content Pipeline & Approval Review Queue */}
-          <motion.div variants={itemVariants} className="rounded-xl border p-5 space-y-4" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}>
+          <motion.div variants={itemVariants} className="rounded-xl border p-4 sm:p-5 space-y-4" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}>
             
             <div className="flex items-center justify-between">
               <div>
@@ -199,12 +203,12 @@ export default function DashboardPage() {
               </Link>
             </div>
 
-            {/* Streamlined Empty State Box */}
+            {/* Streamlined Mobile Friendly Empty State Box */}
             {posts.length === 0 ? (
-              <div className="text-center py-6 px-4 border-2 border-dashed rounded-xl" style={{ borderColor: 'var(--card-border)' }}>
+              <div className="text-center py-6 px-3.5 border-2 border-dashed rounded-xl" style={{ borderColor: 'var(--card-border)' }}>
                 <p className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>No posts in approval queue.</p>
                 <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>Create your first AI post or connect Google Drive to start generating content automatically.</p>
-                <div className="mt-3 flex justify-center space-x-2.5">
+                <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
                   <Link
                     href="/dashboard/composer"
                     className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white btn-emerald-cta touch-target flex items-center space-x-1"
@@ -274,9 +278,9 @@ export default function DashboardPage() {
           </motion.div>
         </div>
 
-        {/* Column 3: Right Context Panel (lg:col-span-4) */}
+        {/* Column 3: Right Context Panel */}
         <motion.aside variants={itemVariants} className="lg:col-span-4 space-y-4">
-          <div className="rounded-xl border p-5 space-y-5" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}>
+          <div className="rounded-xl border p-4 sm:p-5 space-y-5" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}>
             
             {/* Header */}
             <div className="flex items-center justify-between">
@@ -292,7 +296,7 @@ export default function DashboardPage() {
             {/* Thinner Storage Progress Bar */}
             <StorageProgressBar usedGB={mediaAssets.length * 0.2} totalGB={500} />
 
-            {/* Flattened Borderless List Layout with Minimal Dividers */}
+            {/* Flattened Borderless List Layout */}
             <div className="divide-y border-t border-b space-y-0" style={{ borderColor: 'var(--card-border)' }}>
               <div className="py-3 text-xs flex items-center justify-between">
                 <span className="font-semibold flex items-center space-x-2" style={{ color: 'var(--text-primary)' }}>
