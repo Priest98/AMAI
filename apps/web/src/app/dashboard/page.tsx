@@ -15,6 +15,7 @@ import {
   ThumbsUp,
   Plus,
   Radio,
+  Folder,
 } from 'lucide-react';
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'https://marketing-os-backend-api.vercel.app/api').replace(/\/$/, '');
@@ -115,7 +116,7 @@ export default function DashboardPage() {
       variants={containerVariants}
       initial="hidden"
       animate="show"
-      className="space-y-4 max-w-7xl mx-auto"
+      className="space-y-6"
     >
       {/* Tightened Publishing Mode Banner */}
       <motion.div variants={itemVariants} className="flex items-center justify-between p-3 px-4 rounded-xl border" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}>
@@ -137,54 +138,56 @@ export default function DashboardPage() {
         </Link>
       </motion.div>
 
-      {/* Tight Rectangular KPI Stat Cards Grid */}
-      <motion.div variants={itemVariants} className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatCard
-          icon={<CheckCircle2 className="h-4 w-4 text-emerald-400" />}
-          label="Active Channels"
-          value={`${connectedAccounts.length} Connected`}
-          helperText={connectedAccounts.length > 0 ? `${connectedAccounts.length} channel(s) active` : "No accounts connected yet"}
-          valueColor="var(--text-primary)"
-        />
-
-        <StatCard
-          icon={<Clock className="h-4 w-4 text-amber-400" />}
-          label="Needs Approval"
-          value={pendingApprovalPosts.length.toString()}
-          helperText="Awaiting manual review"
-          valueColor="var(--accent-warning)"
-        />
-
-        <StatCard
-          icon={<Calendar className="h-4 w-4 text-purple-400" />}
-          label="Approved Posts"
-          value={approvedCount.toString()}
-          helperText="Total manually approved"
-          valueColor="var(--text-primary)"
-        />
-
-        <StatCard
-          icon={<AlertTriangle className="h-4 w-4 text-emerald-400" />}
-          label="System Health"
-          value="100%"
-          helperText="All APIs connected"
-          valueColor="var(--accent-success)"
-        />
-      </motion.div>
-
-      {/* Main High-Density Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+      {/* 3-Column Grid Layout Split: Center Main Workspace (8 cols) & Right Context Panel (4 cols) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
         
-        {/* Content Pipeline & Approval Review Queue */}
-        <motion.div variants={itemVariants} className="lg:col-span-8 flex flex-col">
-          <div className="rounded-xl border p-4.5 flex flex-col justify-between space-y-4 flex-1" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}>
+        {/* Center Main Workspace (lg:col-span-8) */}
+        <div className="lg:col-span-8 space-y-6">
+          
+          {/* Main KPI Stat Cards Grid */}
+          <motion.div variants={itemVariants} className="grid grid-cols-2 gap-3.5">
+            <StatCard
+              icon={<CheckCircle2 className="h-4 w-4 text-emerald-400" />}
+              label="Active Channels"
+              value={`${connectedAccounts.length} Connected`}
+              helperText={connectedAccounts.length > 0 ? `${connectedAccounts.length} channel(s) active` : "No accounts connected"}
+              valueColor="var(--text-primary)"
+            />
+
+            <StatCard
+              icon={<Clock className="h-4 w-4 text-amber-400" />}
+              label="Needs Approval"
+              value={pendingApprovalPosts.length.toString()}
+              helperText="Awaiting manual review"
+              valueColor="var(--accent-warning)"
+            />
+
+            <StatCard
+              icon={<Calendar className="h-4 w-4 text-purple-400" />}
+              label="Approved Posts"
+              value={approvedCount.toString()}
+              helperText="Total manually approved"
+              valueColor="var(--text-primary)"
+            />
+
+            <StatCard
+              icon={<AlertTriangle className="h-4 w-4 text-emerald-400" />}
+              label="System Health"
+              value="100%"
+              helperText="All APIs connected"
+              valueColor="var(--accent-success)"
+            />
+          </motion.div>
+
+          {/* Content Pipeline & Approval Review Queue */}
+          <motion.div variants={itemVariants} className="rounded-xl border p-5 space-y-4" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}>
             
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-sm font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
                   Approval Queue & Content Pipeline
                 </h2>
-                <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Review and approve AI content before publishing</p>
+                <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Review and approve AI content before publishing</p>
               </div>
 
               <Link
@@ -196,11 +199,11 @@ export default function DashboardPage() {
               </Link>
             </div>
 
-            {/* Streamlined Empty State Box (Reduced Height by 40%) */}
+            {/* Streamlined Empty State Box */}
             {posts.length === 0 ? (
               <div className="text-center py-6 px-4 border-2 border-dashed rounded-xl" style={{ borderColor: 'var(--card-border)' }}>
                 <p className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>No posts in approval queue.</p>
-                <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-secondary)' }}>Create your first AI post or connect Google Drive to start generating content automatically.</p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>Create your first AI post or connect Google Drive to start generating content automatically.</p>
                 <div className="mt-3 flex justify-center space-x-2.5">
                   <Link
                     href="/dashboard/composer"
@@ -229,7 +232,7 @@ export default function DashboardPage() {
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="text-xs font-semibold truncate tracking-tight" style={{ color: 'var(--text-primary)' }}>{item.caption || 'Untitled Post'}</p>
-                        <p className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>{item.platform || 'Multi-platform'}</p>
+                        <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{item.platform || 'Multi-platform'}</p>
                       </div>
                     </div>
 
@@ -247,7 +250,7 @@ export default function DashboardPage() {
                           <span>Approve</span>
                         </button>
                       ) : (
-                        <span className="text-[11px] font-medium px-2 py-0.5" style={{ color: 'var(--text-secondary)' }}>
+                        <span className="text-xs font-medium px-2 py-0.5" style={{ color: 'var(--text-secondary)' }}>
                           Ready
                         </span>
                       )}
@@ -258,26 +261,28 @@ export default function DashboardPage() {
             )}
 
             {/* Bottom Status Banner */}
-            <div className="p-2.5 rounded-lg border flex items-center justify-between text-xs" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
+            <div className="p-3 rounded-lg border flex items-center justify-between text-xs" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
               <div className="flex items-center space-x-2.5">
                 <span className="text-xs">🛡️</span>
                 <div>
                   <p className="font-semibold text-xs" style={{ color: 'var(--text-primary)' }}>Approval-First Protection</p>
-                  <p className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>Posts remain in queue until manually approved</p>
+                  <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Posts remain in queue until manually approved</p>
                 </div>
               </div>
             </div>
 
-          </div>
-        </motion.div>
+          </motion.div>
+        </div>
 
-        {/* Sleek Storage Panel & Borderless List Layout */}
-        <motion.div variants={itemVariants} className="lg:col-span-4 flex flex-col">
-          <div className="rounded-xl border p-4.5 flex flex-col justify-between space-y-4 flex-1" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}>
+        {/* Column 3: Right Context Panel (lg:col-span-4) */}
+        <motion.aside variants={itemVariants} className="lg:col-span-4 space-y-4">
+          <div className="rounded-xl border p-5 space-y-5" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}>
+            
+            {/* Header */}
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-sm font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>AutoPilot Storage</h3>
-                <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Google Drive & Media Assets</p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>Google Drive & Media Assets</p>
               </div>
               <Badge variant={mediaAssets.length > 0 ? "success" : "neutral"}>
                 {mediaAssets.length > 0 ? "Active" : "Ready"}
@@ -287,27 +292,35 @@ export default function DashboardPage() {
             {/* Thinner Storage Progress Bar */}
             <StorageProgressBar usedGB={mediaAssets.length * 0.2} totalGB={500} />
 
-            {/* Borderless List Layout with Minimal Dividers */}
-            <div className="divide-y border-t border-b py-1 space-y-0" style={{ borderColor: 'var(--card-border)' }}>
-              <div className="py-2.5 text-xs flex justify-between items-center">
-                <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>Media Library Assets</span>
-                <span className="font-mono text-[11px]" style={{ color: 'var(--text-secondary)' }}>{mediaAssets.length} Uploaded</span>
+            {/* Flattened Borderless List Layout with Minimal Dividers */}
+            <div className="divide-y border-t border-b space-y-0" style={{ borderColor: 'var(--card-border)' }}>
+              <div className="py-3 text-xs flex items-center justify-between">
+                <span className="font-semibold flex items-center space-x-2" style={{ color: 'var(--text-primary)' }}>
+                  <Folder className="h-4 w-4 text-amber-400" />
+                  <span>Media Library Assets</span>
+                </span>
+                <span className="font-mono text-xs" style={{ color: 'var(--text-secondary)' }}>{mediaAssets.length} Uploaded</span>
               </div>
 
-              <div className="py-2.5 text-xs flex justify-between items-center">
-                <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>Connected Accounts</span>
-                <span className="font-mono text-[11px]" style={{ color: 'var(--text-secondary)' }}>{connectedAccounts.length} Active Channels</span>
+              <div className="py-3 text-xs flex items-center justify-between">
+                <span className="font-semibold flex items-center space-x-2" style={{ color: 'var(--text-primary)' }}>
+                  <Radio className="h-4 w-4 text-emerald-400" />
+                  <span>Connected Channels</span>
+                </span>
+                <span className="font-mono text-xs" style={{ color: 'var(--text-secondary)' }}>{connectedAccounts.length} Active</span>
               </div>
             </div>
 
-            <div className="pt-2 flex items-center justify-between text-xs" style={{ color: 'var(--text-secondary)' }}>
+            {/* Footer Metadata */}
+            <div className="pt-1 flex items-center justify-between text-xs" style={{ color: 'var(--text-secondary)' }}>
               <span>Folder: <span className="font-mono font-semibold" style={{ color: 'var(--text-primary)' }}>/content</span></span>
               <Link href="/dashboard/integrations" className="link-neutral text-xs font-semibold hover:underline">
-                Connect →
+                Manage →
               </Link>
             </div>
+
           </div>
-        </motion.div>
+        </motion.aside>
 
       </div>
     </motion.div>
