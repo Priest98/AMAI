@@ -25,22 +25,22 @@
 }
 
 .dark {
-  --bg-base: #0E0D11;
-  --bg-surface: #18171E;
-  --bg-surface-raised: #23222B;
-  --card-bg: #18171E;
-  --card-border: rgba(199, 167, 124, 0.22);
-  --card-hover-border: rgba(199, 167, 124, 0.45);
-  --card-shadow: 0 14px 40px -10px rgba(0, 0, 0, 0.7);
+  --bg-base: #0B0C10;
+  --bg-surface: #15161C;
+  --bg-surface-raised: #1F2029;
+  --card-bg: #15161C;
+  --card-border: rgba(212, 184, 150, 0.28);
+  --card-hover-border: rgba(212, 184, 150, 0.5);
+  --card-shadow: 0 16px 40px -10px rgba(0, 0, 0, 0.8);
 
-  --accent-primary: #4A2038;
+  --accent-primary: #3E182B;
   --accent-success: #00D9B5;
   --accent-warning: #D4B896;
   --accent-error: #EF4444;
 
-  --text-primary: #F5EFE6;
-  --text-secondary: #A89F91;
-  --text-muted: #7A7266;
+  --text-primary: #FFFFFF;
+  --text-secondary: #A1A1AA;
+  --text-muted: #71717A;
 }
 
 @theme inline {
@@ -99,7 +99,8 @@ input, select, textarea {
   color: #FFFFFF;
   border-radius: 9999px;
   font-weight: 700;
-  box-shadow: 0 8px 20px -4px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 8px 24px -4px rgba(62, 24, 43, 0.5);
+  border: 1px solid rgba(212, 184, 150, 0.4);
   transition: opacity 150ms ease, transform 150ms ease;
 }
 
@@ -121,10 +122,10 @@ input, select, textarea {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(199, 167, 124, 0.3);
+  background: rgba(212, 184, 150, 0.3);
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(199, 167, 124, 0.5);
+  background: rgba(212, 184, 150, 0.5);
 }
