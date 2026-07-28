@@ -5,6 +5,7 @@ import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
 import { JwtService } from '@nestjs/jwt';
 import { Role } from '@prisma/client';
+import { getAppUrl } from '../common/app-url.util';
 
 @Injectable()
 export class AuthService {
@@ -76,8 +77,8 @@ export class AuthService {
           <tr>
             <td align="center" style="padding-top: 32px; font-size: 11px; color: #475569;">
               © ${new Date().getFullYear()} AMAI Inc. All rights reserved.<br>
-              <a href="https://marketing-os-eight-virid.vercel.app/privacy" style="color: #8B5CF6; text-decoration: none;">Privacy Policy</a> • 
-              <a href="https://marketing-os-eight-virid.vercel.app/terms" style="color: #8B5CF6; text-decoration: none;">Terms of Service</a>
+              <a href="${getAppUrl()}/privacy" style="color: #8B5CF6; text-decoration: none;">Privacy Policy</a> • 
+              <a href="${getAppUrl()}/terms" style="color: #8B5CF6; text-decoration: none;">Terms of Service</a>
             </td>
           </tr>
 
@@ -154,15 +155,12 @@ export class AuthService {
       });
     } catch (dbErr: any) {
       this.logger.error(`Database user creation error: ${dbErr.message}`);
-      // Fallback mock registration object to guarantee zero user friction during DB connection glitches
-      user = {
-        id: `usr_${Date.now()}`,
-        email: cleanEmail,
-        fullName: dto.fullName,
-      };
+      throw new BadRequestException(
+        'We could not create your account right now. Please try again in a moment.',
+      );
     }
 
-    const appUrl = (process.env.APP_URL || 'https://marketing-os-eight-virid.vercel.app').replace(/\/$/, '');
+    const appUrl = getAppUrl();
     const verificationUrl = `${appUrl}/verify-email?token=${verificationToken}`;
 
     const emailHtml = this.generateWelcomeEmailHtml(user.fullName || 'Creator', verificationUrl);
@@ -207,7 +205,7 @@ export class AuthService {
 
   async resendVerification(dto: ResendVerificationDto) {
     const verificationToken = crypto.randomBytes(32).toString('hex');
-    const appUrl = (process.env.APP_URL || 'https://marketing-os-eight-virid.vercel.app').replace(/\/$/, '');
+    const appUrl = getAppUrl();
     const verificationUrl = `${appUrl}/verify-email?token=${verificationToken}`;
     this.logger.log(`[EMAIL DISPATCH] Resent Verification Email to ${dto.email}. Link: ${verificationUrl}`);
 
@@ -218,18 +216,55 @@ export class AuthService {
   }
 
   async forgotPassword(dto: ForgotPasswordDto) {
+    const cleanEmail = dto.email.toLowerCase().trim();
     const passwordResetToken = crypto.randomBytes(32).toString('hex');
-    const appUrl = (process.env.APP_URL || 'https://marketing-os-eight-virid.vercel.app').replace(/\/$/, '');
-    const resetUrl = `${appUrl}/reset-password?token=${passwordResetToken}`;
-    this.logger.log(`[EMAIL DISPATCH] Password Reset Email sent to ${dto.email}. Reset Link: ${resetUrl}`);
+    const passwordResetExpiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
+    try {
+      const user = await this.prisma.user.findUnique({ where: { email: cleanEmail } });
+      if (user) {
+        await this.prisma.user.update({
+          where: { id: user.id },
+          data: { passwordResetToken, passwordResetExpiresAt },
+        });
+
+        const appUrl = getAppUrl();
+        const resetUrl = `${appUrl}/reset-password?token=${passwordResetToken}`;
+        this.logger.log(`[EMAIL DISPATCH] Password Reset Email sent to ${cleanEmail}. Reset Link: ${resetUrl}`);
+      }
+    } catch (e: any) {
+      this.logger.warn(`forgotPassword lookup error: ${e.message}`);
+    }
+
+    // Always return the same generic response whether or not the account
+    // exists — this avoids leaking which emails are registered.
     return {
       success: true,
-      message: 'A password reset link has been sent to your email inbox.',
+      message: 'If an account exists for that email, a password reset link has been sent.',
     };
   }
 
   async resetPassword(dto: ResetPasswordDto) {
+    const user = await this.prisma.user.findUnique({
+      where: { passwordResetToken: dto.token },
+    });
+
+    if (!user || !user.passwordResetExpiresAt || user.passwordResetExpiresAt < new Date()) {
+      throw new BadRequestException('This password reset link is invalid or has expired. Please request a new one.');
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(dto.newPassword, salt);
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash,
+        passwordResetToken: null,
+        passwordResetExpiresAt: null,
+      },
+    });
+
     return {
       success: true,
       message: 'Password reset successfully! Please log in with your new password.',
@@ -239,33 +274,31 @@ export class AuthService {
   async login(dto: LoginDto) {
     const cleanEmail = dto.email.toLowerCase().trim();
 
+    let user: any;
     try {
-      const user = await this.prisma.user.findUnique({
+      user = await this.prisma.user.findUnique({
         where: { email: cleanEmail },
       });
-
-      if (user) {
-        const isPasswordValid = await bcrypt.compare(dto.password, user.passwordHash);
-        if (!isPasswordValid) {
-          throw new UnauthorizedException('Invalid email address or password.');
-        }
-
-        return this.generateAuthResponse(user);
-      }
     } catch (err: any) {
-      if (err instanceof UnauthorizedException) throw err;
-      this.logger.warn(`Prisma login lookup error: ${err.message}`);
+      this.logger.error(`Prisma login lookup error: ${err.message}`);
+      throw new BadRequestException('Login is temporarily unavailable. Please try again in a moment.');
     }
 
-    // Fallback login generation to ensure zero friction
-    const mockUser = {
-      id: `usr_${Date.now()}`,
-      email: cleanEmail,
-      fullName: cleanEmail.split('@')[0],
-      emailVerified: true,
-    };
+    if (!user) {
+      throw new UnauthorizedException('Invalid email address or password.');
+    }
 
-    return this.generateAuthResponse(mockUser);
+    const isPasswordValid = await bcrypt.compare(dto.password, user.passwordHash);
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Invalid email address or password.');
+    }
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { lastLogin: new Date() },
+    }).catch(() => {});
+
+    return this.generateAuthResponse(user);
   }
 
   private async generateAuthResponse(user: any) {

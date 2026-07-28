@@ -5,8 +5,8 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Logo } from '@/components/logo';
 import { Mail, CheckCircle2, AlertCircle, RefreshCw, ArrowRight, ExternalLink, Zap } from 'lucide-react';
+import { API_BASE } from '@/lib/api';
 
-const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'https://marketing-os-backend-api.vercel.app/api').replace(/\/$/, '');
 
 function VerifyEmailContent() {
   const searchParams = useSearchParams();

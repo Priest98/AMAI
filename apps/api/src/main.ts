@@ -8,9 +8,12 @@ async function bootstrap() {
   // Add /api prefix so frontend can call /api/auth/login, /api/brands, etc.
   app.setGlobalPrefix('api');
 
+  // Local dev only — the Vercel serverless entrypoint (api/index.ts) has its
+  // own CORS setup. Frontend and API share one domain in production, so this
+  // only matters when running the Next.js dev server against a local API.
   const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
   app.enableCors({
-    origin: [frontendUrl, 'https://marketing-os-eight-virid.vercel.app', 'http://localhost:3000'],
+    origin: [frontendUrl, 'http://localhost:3000'],
     credentials: true,
   });
   

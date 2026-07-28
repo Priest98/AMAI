@@ -4,8 +4,8 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Logo } from '@/components/logo';
 import { AtSign, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
+import { API_BASE } from '@/lib/api';
 
-const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'https://marketing-os-backend-api.vercel.app/api').replace(/\/$/, '');
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');

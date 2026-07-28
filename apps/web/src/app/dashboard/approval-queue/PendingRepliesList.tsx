@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { Check, X, MessageSquare, Share2, ExternalLink, RefreshCw, AlertCircle } from 'lucide-react';
+import { apiFetch, getBrandId } from '@/lib/api';
 
 export interface PendingCommentReplyResponse {
   id: string;
@@ -16,64 +17,19 @@ export interface PendingCommentReplyResponse {
   createdAt: string;
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-
-function getAuthToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem('marketing_os_token');
-}
-
-function getAuthHeaders(): Record<string, string> {
-  const token = getAuthToken();
-  return token
-    ? { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
-    : { 'Content-Type': 'application/json' };
-}
-
-function getBrandIdFromToken(): string | null {
-  const token = getAuthToken();
-  if (!token) return null;
-  try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    return payload.brandId || null;
-  } catch {
-    return null;
-  }
-}
-
 export default function PendingRepliesList() {
   const [replies, setReplies] = useState<PendingCommentReplyResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  // Derive brandId from the JWT rather than hardcoding it
-  const brandId = getBrandIdFromToken();
+  const brandId = getBrandId();
 
   const fetchReplies = useCallback(async () => {
-    if (!brandId) {
-      setError('Could not determine your brand. Please log out and log back in.');
-      setLoading(false);
-      return;
-    }
-
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/growth/${brandId}/pending-replies`, {
-        headers: getAuthHeaders(),
-      });
-
-      if (res.status === 401) {
-        setError('Session expired. Please refresh the page.');
-        return;
-      }
-
-      if (!res.ok) {
-        throw new Error(`Server error: ${res.status}`);
-      }
-
-      const data = await res.json();
+      const data = await apiFetch<PendingCommentReplyResponse[]>(`/growth/${brandId}/pending-replies`);
       setReplies(data);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error';
@@ -90,11 +46,7 @@ export default function PendingRepliesList() {
   const handleApprove = async (id: string) => {
     setActionLoading(id);
     try {
-      const res = await fetch(`${API_BASE}/growth/replies/${id}/approve`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-      });
-      if (!res.ok) throw new Error('Approve failed');
+      await apiFetch(`/growth/replies/${id}/approve`, { method: 'POST' });
       setReplies((prev) => prev.filter((r) => r.id !== id));
     } catch (err) {
       alert('Failed to approve reply. Please try again.');
@@ -106,11 +58,7 @@ export default function PendingRepliesList() {
   const handleReject = async (id: string) => {
     setActionLoading(id);
     try {
-      const res = await fetch(`${API_BASE}/growth/replies/${id}/reject`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-      });
-      if (!res.ok) throw new Error('Reject failed');
+      await apiFetch(`/growth/replies/${id}/reject`, { method: 'POST' });
       setReplies((prev) => prev.filter((r) => r.id !== id));
     } catch (err) {
       alert('Failed to reject reply. Please try again.');

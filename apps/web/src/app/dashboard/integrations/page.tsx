@@ -13,8 +13,7 @@ import {
   Info,
   X,
 } from 'lucide-react';
-
-const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'https://marketing-os-backend-api.vercel.app/api').replace(/\/$/, '');
+import { API_BASE } from '@/lib/api';
 
 interface ConnectedAccount {
   id: string;
@@ -315,7 +314,7 @@ export default function ConnectedAccountsPage() {
                 </div>
                 <div>
                   <h3 className="font-extrabold text-base tracking-tight" style={{ color: 'var(--text-primary)' }}>Google Drive</h3>
-                  <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>AutoPilot Media Sync</p>
+                  <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>AMAI Engine Media Sync</p>
                 </div>
               </div>
 
@@ -413,7 +412,7 @@ export default function ConnectedAccountsPage() {
               </div>
             ) : (
               <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                Tap to link your Google Drive folder for automatic photo & video syncing into AutoPilot.
+                Tap to link your Google Drive folder for automatic photo & video syncing into AMAI.
               </p>
             )}
           </div>
