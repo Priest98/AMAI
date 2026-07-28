@@ -11,7 +11,13 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new Error('[FATAL] JWT_SECRET environment variable is not set. Application cannot start securely.');
     }
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      // Falls back to a `?token=` query param so the SSE activity stream
+      // (browser EventSource can't set an Authorization header) can still
+      // authenticate — the Bearer header is used everywhere else.
+      jwtFromRequest: ExtractJwt.fromExtractors([
+        ExtractJwt.fromAuthHeaderAsBearerToken(),
+        (req: any) => req?.query?.token || null,
+      ]),
       ignoreExpiration: false,
       secretOrKey: secret,
     });
@@ -25,6 +31,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (!user) {
       throw new UnauthorizedException();
     }
-    return user;
+
+    // Merge the brandId claim (resolved from real org/brand membership at
+    // login time — see AuthService.generateAuthResponse) onto the request
+    // user so downstream guards can verify brand-scoped access.
+    return { ...user, brandId: payload.brandId };
   }
 }

@@ -1,7 +1,10 @@
-import { Controller, Post, Get, Body, Param, UploadedFile, UseInterceptors, BadRequestException, Query } from '@nestjs/common';
+import { Controller, Post, Get, Delete, Body, Param, UploadedFile, UseInterceptors, BadRequestException, Query, UseGuards } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { BrandAccessGuard } from '../auth/brand-access.guard';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { MediaService } from './media.service';
 
+@UseGuards(JwtAuthGuard, BrandAccessGuard)
 @Controller('brands/:brandId/media')
 export class MediaController {
   constructor(private readonly mediaService: MediaService) {}
@@ -33,6 +36,14 @@ export class MediaController {
     @Query('folderId') folderId?: string
   ) {
     return this.mediaService.getAssets(brandId, folderId);
+  }
+
+  @Delete('assets/:assetId')
+  async deleteAsset(
+    @Param('brandId') brandId: string,
+    @Param('assetId') assetId: string,
+  ) {
+    return this.mediaService.deleteAsset(brandId, assetId);
   }
 
   @Post('folders')
