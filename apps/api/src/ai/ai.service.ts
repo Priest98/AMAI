@@ -2,20 +2,6 @@ import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common
 import { GoogleGenAI } from '@google/genai';
 import { PrismaService } from '../prisma/prisma.service';
 
-export interface ContentScoreResult {
-  overallScore: number;
-  verdict: 'Ready to Publish' | 'Needs Improvement';
-  recommendation: string;
-  breakdown: {
-    contentQuality: number;
-    captionQuality: number;
-    hashtagQuality: number;
-    postingTimeScore: number;
-    engagementPotential: number;
-  };
-  suggestions: string[];
-}
-
 export interface BestTimeResult {
   recommendedTime: string;
   formattedTime: string;
@@ -135,74 +121,6 @@ Keep the caption under character limits for ${platform}.`;
   }
 
   /**
-   * Evaluates caption & post quality, returning a score (0-100) and actionable suggestions.
-   */
-  async analyzeCaptionAndScore(caption: string, platform: string = 'Instagram', mediaType: string = 'Reels'): Promise<ContentScoreResult> {
-    if (!caption) {
-      return {
-        overallScore: 60,
-        verdict: 'Needs Improvement',
-        recommendation: 'Add a caption with a clear hook and Call-To-Action (CTA).',
-        breakdown: {
-          contentQuality: 60,
-          captionQuality: 50,
-          hashtagQuality: 50,
-          postingTimeScore: 85,
-          engagementPotential: 55,
-        },
-        suggestions: ['Add an opening hook in the first 3 lines', 'Include a Call-to-Action to boost replies'],
-      };
-    }
-
-    const hasHook = caption.length > 20;
-    const hasCTA = /comment|share|link|bio|save|like|follow|what do you think|drop/i.test(caption);
-    const hasHashtags = /#\w+/.test(caption);
-    const hashtagCount = (caption.match(/#\w+/g) || []).length;
-
-    let captionScore = 70;
-    const suggestions: string[] = [];
-
-    if (hasHook) {
-      captionScore += 10;
-      suggestions.push('Strong opening hook (+10 pts)');
-    } else {
-      suggestions.push('Add a compelling opening sentence to hook viewers');
-    }
-
-    if (hasCTA) {
-      captionScore += 10;
-      suggestions.push('Clear Call-to-Action included (+10 pts)');
-    } else {
-      suggestions.push('Include a question or CTA (e.g. "What do you think?") to boost engagement');
-    }
-
-    if (hasHashtags && hashtagCount >= 3 && hashtagCount <= 8) {
-      captionScore += 10;
-      suggestions.push('Optimal hashtag density (3-8 tags) (+10 pts)');
-    } else if (hashtagCount < 3) {
-      suggestions.push('Add 3-5 relevant niche hashtags for reach');
-    }
-
-    const overallScore = Math.min(98, Math.max(50, captionScore));
-
-    return {
-      overallScore,
-      verdict: overallScore >= 85 ? 'Ready to Publish' : 'Needs Improvement',
-      recommendation: overallScore >= 85 
-        ? 'High engagement potential! Optimal hook length and formatting.' 
-        : 'Good start. Enhance your CTA and hashtags to maximize reach.',
-      breakdown: {
-        contentQuality: 92,
-        captionQuality: captionScore,
-        hashtagQuality: hasHashtags ? 90 : 65,
-        postingTimeScore: 94,
-        engagementPotential: Math.min(99, overallScore + 3),
-      },
-      suggestions,
-    };
-  }
-
-  /**
    * Algorithm & Niche-Compliant Hashtag Generator (Strictly no generic AI tags unless requested)
    */
   async generateHashtags(topic: string = 'General', platform: string = 'Instagram', niche: string = 'Content Creator'): Promise<HashtagsResult> {
@@ -226,12 +144,45 @@ Keep the caption under character limits for ${platform}.`;
   }
 
   /**
-   * Predicts the optimal publishing time window based on account performance & platform trends.
+   * Determines the next upcoming "best time to post" window.
+   *
+   * This is a heuristic based on well-documented platform engagement
+   * patterns (evenings tend to outperform mornings for both Instagram and
+   * TikTok) — it picks the *next* occurrence of that window rather than a
+   * fixed offset, so it varies with when the content was actually
+   * uploaded. This is intentionally simple for the MVP; once there's
+   * enough PublishingLog history per brand, this is the place to swap in
+   * real engagement-based scoring without changing any calling code.
    */
   async predictBestPostingTime(platform: string = 'Instagram', brandId: string = 'primary_brand'): Promise<BestTimeResult> {
+    const PEAK_WINDOWS: Record<string, { hour: number; minute: number; label: string }[]> = {
+      Instagram: [{ hour: 12, minute: 0, label: 'lunchtime' }, { hour: 19, minute: 30, label: 'evening' }],
+      TikTok: [{ hour: 9, minute: 0, label: 'morning commute' }, { hour: 20, minute: 0, label: 'evening wind-down' }],
+      Facebook: [{ hour: 13, minute: 0, label: 'early afternoon' }],
+      X: [{ hour: 9, minute: 0, label: 'morning' }, { hour: 17, minute: 0, label: 'end of workday' }],
+      LinkedIn: [{ hour: 8, minute: 30, label: 'start of workday' }],
+    };
+    const normalizedPlatform = Object.keys(PEAK_WINDOWS).find(
+      (k) => k.toLowerCase() === platform.toLowerCase(),
+    ) || 'Instagram';
+    const windows = PEAK_WINDOWS[normalizedPlatform];
+
     const now = new Date();
-    const targetDate = new Date(now.getTime() + 4 * 60 * 60 * 1000);
-    
+    let best: Date | null = null;
+    for (let dayOffset = 0; dayOffset <= 2 && !best; dayOffset++) {
+      for (const w of windows) {
+        const candidate = new Date(now);
+        candidate.setDate(now.getDate() + dayOffset);
+        candidate.setHours(w.hour, w.minute, 0, 0);
+        if (candidate.getTime() > now.getTime() + 30 * 60 * 1000) {
+          best = candidate;
+          break;
+        }
+      }
+    }
+    const targetDate = best || new Date(now.getTime() + 4 * 60 * 60 * 1000);
+    const hoursAway = (targetDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+
     const formattedTime = targetDate.toLocaleDateString('en-US', {
       weekday: 'long',
       hour: 'numeric',
@@ -239,31 +190,16 @@ Keep the caption under character limits for ${platform}.`;
       hour12: true,
     });
 
+    // Sooner, well-known peak windows get slightly higher confidence than
+    // ones several days out.
+    const confidence = Math.max(70, Math.round(92 - hoursAway * 0.5));
+
     return {
       recommendedTime: targetDate.toISOString(),
-      formattedTime: formattedTime,
-      confidence: 94,
-      reason: `Historical engagement peaks on ${platform} during evening hours (7:00 PM - 9:00 PM).`,
-      peakWindow: '7:30 PM – 8:30 PM (Est. +35% Impressions)',
-    };
-  }
-
-  /**
-   * Personalized Audience Intelligence Insights.
-   */
-  async getAudienceInsights(brandId: string = 'primary_brand') {
-    return {
-      bestPostingDays: ['Wednesday', 'Friday', 'Sunday'],
-      bestPostingHours: '7:00 PM – 9:15 PM EST',
-      bestContentType: 'Instagram Reels & TikTok Videos (92% completion rate)',
-      bestCaptionLength: '120 – 180 characters',
-      topPerformingHashtags: ['#FashionInspo', '#StyleDetails', '#OutfitOfTheDay', '#Creators'],
-      peakEngagementTimes: [
-        { day: 'Wed', hour: '7:45 PM', rate: '+42% higher reach' },
-        { day: 'Fri', hour: '6:30 PM', rate: '+38% higher reach' },
-        { day: 'Sun', hour: '8:00 PM', rate: '+29% higher reach' },
-      ],
-      monthlyGrowthRate: '+24.5% Engagement',
+      formattedTime,
+      confidence,
+      reason: `${normalizedPlatform} engagement tends to peak during this window based on typical audience activity patterns.`,
+      peakWindow: formattedTime,
     };
   }
 }
