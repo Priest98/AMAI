@@ -1,8 +1,10 @@
 import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EncryptionService } from '../encryption/encryption.service';
-import { Platform, ConnectionStatus } from '@prisma/client';
+import { EngineService } from '../engine/engine.service';
+import { Platform, ConnectionStatus, EngineEventType } from '@prisma/client';
 import * as crypto from 'crypto';
+import { getAppUrl } from '../common/app-url.util';
 
 @Injectable()
 export class OAuthService {
@@ -13,6 +15,7 @@ export class OAuthService {
   constructor(
     private prisma: PrismaService,
     private encryption: EncryptionService,
+    private engineService: EngineService,
   ) {}
 
   // ─────────────────────────────────────────────────────────────
@@ -22,7 +25,7 @@ export class OAuthService {
   /** Build an opaque CSRF state token that binds brandId + timestamp */
   private buildState(brandId: string): string {
     const payload = JSON.stringify({ brandId, ts: Date.now() });
-    const signature = crypto.createHmac('sha256', process.env.JWT_SECRET || 'fallback_secret')
+    const signature = crypto.createHmac('sha256', process.env.JWT_SECRET as string)
       .update(payload)
       .digest('hex');
     return Buffer.from(JSON.stringify({ payload, signature })).toString('base64url');
@@ -34,10 +37,10 @@ export class OAuthService {
       // Decode base64url
       const decoded = Buffer.from(stateStr, 'base64url').toString('utf8');
       const parsed = JSON.parse(decoded);
-      
+
       // Verify signature
       if (parsed.payload && parsed.signature) {
-        const expectedSignature = crypto.createHmac('sha256', process.env.JWT_SECRET || 'fallback_secret')
+        const expectedSignature = crypto.createHmac('sha256', process.env.JWT_SECRET as string)
           .update(parsed.payload)
           .digest('hex');
           
@@ -75,16 +78,6 @@ export class OAuthService {
     return brand.id;
   }
 
-  /** Get the canonical API base URL for building redirect URIs */
-  private getApiBaseUrl(): string {
-    return (process.env.API_URL || process.env.APP_URL || 'https://marketing-os-backend-api.vercel.app').replace(/\/$/, '');
-  }
-
-  /** Get the canonical frontend URL for post-OAuth redirects */
-  private getFrontendUrl(): string {
-    return (process.env.APP_URL || 'https://marketing-os-eight-virid.vercel.app').replace(/\/$/, '');
-  }
-
   // ─────────────────────────────────────────────────────────────
   // GOOGLE DRIVE OAUTH
   // ─────────────────────────────────────────────────────────────
@@ -97,7 +90,7 @@ export class OAuthService {
       );
     }
 
-    const redirectUri = encodeURIComponent(`${this.getApiBaseUrl()}/api/oauth/google/callback`);
+    const redirectUri = encodeURIComponent(`${getAppUrl()}/api/oauth/google/callback`);
     const scope = encodeURIComponent(
       'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile',
     );
@@ -121,7 +114,7 @@ export class OAuthService {
 
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-    const redirectUri = `${this.getApiBaseUrl()}/api/oauth/google/callback`;
+    const redirectUri = `${getAppUrl()}/api/oauth/google/callback`;
 
     if (!clientId || !clientSecret) {
       throw new BadRequestException('Google OAuth credentials are not configured.');
@@ -165,30 +158,26 @@ export class OAuthService {
     const encryptedAccess = this.encryption.encrypt(accessToken);
     const encryptedRefresh = refreshToken ? this.encryption.encrypt(refreshToken) : null;
 
-    await this.prisma.autoPilotConfig.upsert({
+    await this.prisma.amaiEngineConfig.upsert({
       where: { brandId },
       update: {
         googleRefreshToken: encryptedRefresh || encryptedAccess,
-        isActive: true,
       },
       create: {
         brandId,
         googleRefreshToken: encryptedRefresh || encryptedAccess,
         driveFolderId: 'root',
-        postingFrequency: '1_per_day',
-        targetPlatforms: 'INSTAGRAM,TIKTOK',
-        defaultTone: 'friendly',
-        isActive: true,
       },
     });
 
     this.logger.log(`Google Drive connected for brand ${brandId}, email: ${accountEmail}`);
+    await this.engineService.logEvent(brandId, EngineEventType.ACCOUNT_CONNECTED, { message: `Google Drive connected (${accountEmail}).` });
 
     return { success: true, platform: 'Google Drive', accountEmail, brandId };
   }
 
   async getGoogleFolders(brandId: string) {
-    const config = await this.prisma.autoPilotConfig.findUnique({ where: { brandId } });
+    const config = await this.prisma.amaiEngineConfig.findUnique({ where: { brandId } });
     if (!config) return [];
 
     const clientId = process.env.GOOGLE_CLIENT_ID;
@@ -242,17 +231,13 @@ export class OAuthService {
   }
 
   async updateGoogleFolder(brandId: string, folderId: string, folderName?: string) {
-    await this.prisma.autoPilotConfig.upsert({
+    await this.prisma.amaiEngineConfig.upsert({
       where: { brandId },
       update: { driveFolderId: folderId },
       create: {
         brandId,
         googleRefreshToken: this.encryption.encrypt('pending_reconnect'),
         driveFolderId: folderId,
-        postingFrequency: '1_per_day',
-        targetPlatforms: 'INSTAGRAM,TIKTOK',
-        defaultTone: 'friendly',
-        isActive: false,
       },
     });
     return { success: true, folderId, folderName: folderName || folderId };
@@ -263,7 +248,7 @@ export class OAuthService {
   // ─────────────────────────────────────────────────────────────
 
   private getInstagramRedirectUri(): string {
-    return `${this.getApiBaseUrl()}/api/oauth/instagram/callback`;
+    return `${getAppUrl()}/api/oauth/instagram/callback`;
   }
 
   getInstagramAuthUrl(brandId: string): string {
@@ -323,7 +308,7 @@ export class OAuthService {
     const brandId = await this.ensureBrand(rawBrandId);
 
     const instagramAppId = process.env.INSTAGRAM_CLIENT_ID;
-    const instagramAppSecret = process.env.INSTAGRAM_CLIENT_SECRET || '9654231b365ad63e0c7b7f12f27c3fb7';
+    const instagramAppSecret = process.env.INSTAGRAM_CLIENT_SECRET;
     const metaAppId = process.env.META_APP_ID;
     const metaAppSecret = process.env.META_APP_SECRET;
 
@@ -475,6 +460,7 @@ export class OAuthService {
     });
 
     this.logger.log(`Instagram connected: ${handle} (${platformAccountId}) for brand ${brandId}`);
+    await this.engineService.logEvent(brandId, EngineEventType.ACCOUNT_CONNECTED, { message: `Instagram connected (${handle}).` });
 
     return { success: true, platform: 'Instagram', handle, platformAccountId, brandId };
   }
@@ -521,9 +507,14 @@ export class OAuthService {
   // ─────────────────────────────────────────────────────────────
 
   getTikTokAuthUrl(brandId: string): string {
-    const clientKey = process.env.TIKTOK_CLIENT_KEY || 'sbawip3c8dqr6zdqs8';
+    const clientKey = process.env.TIKTOK_CLIENT_KEY;
+    if (!clientKey) {
+      throw new BadRequestException(
+        'TikTok OAuth is not configured. Please add TIKTOK_CLIENT_KEY to your environment variables.',
+      );
+    }
 
-    const redirectUri = encodeURIComponent(`${this.getApiBaseUrl()}/api/oauth/tiktok/callback`);
+    const redirectUri = encodeURIComponent(`${getAppUrl()}/api/oauth/tiktok/callback`);
     // TikTok scopes are comma-separated with NO spaces
     const scope = encodeURIComponent('user.info.basic,user.info.profile,video.list,video.publish,video.upload');
     const state = encodeURIComponent(this.buildState(brandId));
@@ -543,9 +534,9 @@ export class OAuthService {
     const { brandId: rawBrandId } = this.parseState(stateStr);
     const brandId = await this.ensureBrand(rawBrandId);
 
-    const clientKey = process.env.TIKTOK_CLIENT_KEY || 'sbawip3c8dqr6zdqs8';
-    const clientSecret = process.env.TIKTOK_CLIENT_SECRET || 'Kp0DLv55LGv7UUIRbi5kcSb3vqVXTnvG';
-    const redirectUri = `${this.getApiBaseUrl()}/api/oauth/tiktok/callback`;
+    const clientKey = process.env.TIKTOK_CLIENT_KEY;
+    const clientSecret = process.env.TIKTOK_CLIENT_SECRET;
+    const redirectUri = `${getAppUrl()}/api/oauth/tiktok/callback`;
 
     if (!clientKey || !clientSecret) {
       throw new BadRequestException('TikTok OAuth credentials are not configured.');
@@ -619,6 +610,7 @@ export class OAuthService {
     });
 
     this.logger.log(`TikTok connected: ${handle} (${platformAccountId}) for brand ${brandId}`);
+    await this.engineService.logEvent(brandId, EngineEventType.ACCOUNT_CONNECTED, { message: `TikTok connected (${handle}).` });
 
     return { success: true, platform: 'TikTok', handle, platformAccountId, brandId };
   }
@@ -674,7 +666,7 @@ export class OAuthService {
       orderBy: { createdAt: 'desc' },
     });
 
-    const autopilot = await this.prisma.autoPilotConfig.findUnique({ where: { brandId } });
+    const engineConfig = await this.prisma.amaiEngineConfig.findUnique({ where: { brandId } });
 
     return {
       socialAccounts: socialAccounts.map((acc) => {
@@ -691,14 +683,14 @@ export class OAuthService {
           createdAt: acc.createdAt,
         };
       }),
-      googleDrive: autopilot
+      googleDrive: engineConfig && engineConfig.googleRefreshToken
         ? {
-            id: autopilot.id,
-            status: autopilot.isActive ? 'CONNECTED' : 'DISCONNECTED',
-            driveFolderId: autopilot.driveFolderId,
-            folderName: autopilot.driveFolderId || 'My Drive',
+            id: engineConfig.id,
+            status: 'CONNECTED',
+            driveFolderId: engineConfig.driveFolderId,
+            folderName: engineConfig.driveFolderId || 'My Drive',
             accountEmail: '',
-            updatedAt: autopilot.updatedAt,
+            updatedAt: engineConfig.updatedAt,
           }
         : null,
       // Surface which credentials are configured so the frontend can show setup instructions
@@ -712,14 +704,18 @@ export class OAuthService {
 
   async disconnectAccount(accountId: string) {
     const deleted = await this.prisma.socialAccount.delete({ where: { id: accountId } });
+    await this.engineService.logEvent(deleted.brandId, EngineEventType.ACCOUNT_DISCONNECTED, {
+      message: `${deleted.platform} account disconnected.`,
+    });
     return { success: true, id: deleted.id };
   }
 
   async disconnectGoogleDrive(brandId: string) {
-    await this.prisma.autoPilotConfig.update({
+    await this.prisma.amaiEngineConfig.update({
       where: { brandId },
-      data: { isActive: false },
-    });
+      data: { googleRefreshToken: null, driveFolderId: null },
+    }).catch(() => {});
+    await this.engineService.logEvent(brandId, EngineEventType.ACCOUNT_DISCONNECTED, { message: 'Google Drive disconnected.' });
     return { success: true, brandId };
   }
 

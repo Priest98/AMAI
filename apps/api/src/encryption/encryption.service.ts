@@ -3,9 +3,16 @@ import * as crypto from 'crypto';
 
 @Injectable()
 export class EncryptionService {
-  // In production, this should come from an environment variable (32 bytes)
   private readonly algorithm = 'aes-256-gcm';
-  private readonly secretKey = crypto.scryptSync(process.env.ENCRYPTION_SECRET || 'fallback_secret_key_for_dev_only', 'salt', 32);
+  private readonly secretKey: Buffer;
+
+  constructor() {
+    const secret = process.env.ENCRYPTION_SECRET;
+    if (!secret) {
+      throw new Error('[FATAL] ENCRYPTION_SECRET environment variable is not set. Application cannot start securely — it is used to encrypt connected-account access tokens at rest.');
+    }
+    this.secretKey = crypto.scryptSync(secret, 'salt', 32);
+  }
 
   encrypt(text: string): string {
     const iv = crypto.randomBytes(16);

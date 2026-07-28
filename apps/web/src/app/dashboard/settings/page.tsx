@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { brandFetch, getCurrentUser } from '@/lib/api';
 import {
   Building,
   User,
@@ -9,66 +10,69 @@ import {
   Zap,
 } from 'lucide-react';
 
+type ApprovalMode = 'MANUAL' | 'AUTO';
+
+const PERSONAS = [
+  { label: '👗 Fashion Designer', tone: 'Fashion Designer' },
+  { label: '🛍️ Small Business Owner', tone: 'Small Business' },
+  { label: '🍽️ Restaurant / Bistro', tone: 'Restaurant' },
+  { label: '🏡 Real Estate & Realty', tone: 'Real Estate' },
+  { label: '💄 Beauty & Skincare', tone: 'Beauty' },
+  { label: '💪 Fitness & Health', tone: 'Fitness' },
+];
+
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<'publishing' | 'workspace' | 'profile'>('publishing');
-  
-  // Publishing Mode (Manual Approval vs Auto-Publish)
-  const [publishingMode, setPublishingMode] = useState<'MANUAL_APPROVAL' | 'AUTO_PUBLISH'>('MANUAL_APPROVAL');
-  const [approvedPostCount, setApprovedPostCount] = useState<number>(10);
-  const [showUnlockPrompt, setShowUnlockPrompt] = useState<boolean>(true);
-
-  // Global Niche & Persona Preset
+  const [activeTab, setActiveTab] = useState<'publishing' | 'profile'>('publishing');
+  const [approvalMode, setApprovalModeState] = useState<ApprovalMode>('MANUAL');
   const [globalPersona, setGlobalPersona] = useState<string>('Fashion Designer');
-
-  const [orgName, setOrgName] = useState('My Marketing Workspace');
-  const [userEmail, setUserEmail] = useState('user@marketing-os.com');
+  const [userEmail, setUserEmail] = useState('');
   const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Read from localStorage
-    const savedMode = localStorage.getItem('amai_publishing_mode');
-    if (savedMode === 'AUTO_PUBLISH') {
-      setPublishingMode('AUTO_PUBLISH');
-    }
+    const user = getCurrentUser();
+    if (user) setUserEmail(user.email);
 
-    const savedCount = localStorage.getItem('amai_approved_count');
-    if (savedCount) {
-      setApprovedPostCount(parseInt(savedCount, 10));
-    }
-
-    const savedPersona = localStorage.getItem('amai_global_persona');
-    if (savedPersona) {
-      setGlobalPersona(savedPersona);
-    }
+    brandFetch<{ approvalMode: ApprovalMode; defaultTone: string }>('/engine/state')
+      .then((cfg) => {
+        setApprovalModeState(cfg.approvalMode);
+        if (cfg.defaultTone) setGlobalPersona(cfg.defaultTone);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
 
-  const handleTogglePublishingMode = (mode: 'MANUAL_APPROVAL' | 'AUTO_PUBLISH') => {
-    setPublishingMode(mode);
-    localStorage.setItem('amai_publishing_mode', mode);
-    setMessage(`Publishing mode updated to ${mode === 'AUTO_PUBLISH' ? 'Auto-Publish' : 'Manual Approval'}`);
-    setTimeout(() => setMessage(''), 3000);
+  const flash = (msg: string) => { setMessage(msg); setTimeout(() => setMessage(''), 3000); };
+
+  const handleTogglePublishingMode = async (mode: ApprovalMode) => {
+    setApprovalModeState(mode);
+    try {
+      await brandFetch('/engine/approval-mode', { method: 'PATCH', body: JSON.stringify({ approvalMode: mode }) });
+      flash(`Approval mode updated to ${mode === 'AUTO' ? 'Auto Approval' : 'Manual Approval'}.`);
+    } catch (e: any) {
+      flash(e.message || 'Could not update approval mode.');
+    }
   };
 
-  const handleEnableAutoPublishUnlock = () => {
-    setPublishingMode('AUTO_PUBLISH');
-    localStorage.setItem('amai_publishing_mode', 'AUTO_PUBLISH');
-    setShowUnlockPrompt(false);
-    setMessage('Auto-Publish mode enabled!');
-    setTimeout(() => setMessage(''), 3000);
+  const handlePersonaSelect = async (tone: string) => {
+    setGlobalPersona(tone);
+    try {
+      await brandFetch('/engine/config', { method: 'PATCH', body: JSON.stringify({ defaultTone: tone }) });
+      flash('Persona updated.');
+    } catch (e: any) {
+      flash(e.message || 'Could not update persona.');
+    }
   };
 
-  const handleSave = (e: React.FormEvent) => {
-    e.preventDefault();
-    localStorage.setItem('amai_global_persona', globalPersona);
-    setMessage('Settings saved successfully!');
-    setTimeout(() => setMessage(''), 3000);
-  };
+  if (loading) {
+    return <div className="p-10 text-center text-xs" style={{ color: 'var(--text-secondary)' }}>Loading settings…</div>;
+  }
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto pb-24 sm:pb-12">
       <div>
-        <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Workspace Settings</h1>
-        <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">Configure publishing modes, global persona presets, and workspace preferences.</p>
+        <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Settings</h1>
+        <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">Approval mode, brand persona, and your account.</p>
       </div>
 
       <AnimatePresence>
@@ -88,8 +92,7 @@ export default function SettingsPage() {
       {/* Tab Navigation */}
       <div className="p-1 rounded-xl border flex space-x-2" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}>
         {[
-          { id: 'publishing', label: 'Publishing Mode & Persona', icon: Zap },
-          { id: 'workspace', label: 'Workspace', icon: Building },
+          { id: 'publishing', label: 'Approval Mode & Persona', icon: Zap },
           { id: 'profile', label: 'Profile', icon: User },
         ].map((tab) => {
           const Icon = tab.icon;
@@ -116,125 +119,60 @@ export default function SettingsPage() {
         })}
       </div>
 
-      {/* ── Tab 1: Publishing Mode & Global Persona ── */}
       {activeTab === 'publishing' && (
         <div className="space-y-6">
-          
-          {/* Unlock Prompt Banner when threshold reached */}
-          {approvedPostCount >= 10 && publishingMode === 'MANUAL_APPROVAL' && showUnlockPrompt && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.98 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="p-5 rounded-2xl bg-gradient-to-r from-purple-500/10 via-indigo-500/10 to-rose-500/10 border border-purple-500/20 space-y-3"
-            >
-              <div className="flex items-start space-x-3">
-                <div className="h-9 w-9 rounded-xl bg-purple-500 text-white flex items-center justify-center font-extrabold text-sm shadow-md shrink-0">
-                  🎉
-                </div>
-                <div className="space-y-1">
-                  <h3 className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white">
-                    You've approved 10 posts — want to turn on Auto-Publish so future posts go out automatically?
-                  </h3>
-                  <p className="text-[11px] text-slate-500 dark:text-zinc-400">
-                    Your account has reached the milestone threshold. You can enable hands-free auto-publishing anytime.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center space-x-3 pt-1">
-                <button
-                  onClick={handleEnableAutoPublishUnlock}
-                  className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-black text-xs font-bold rounded-xl shadow-md transition touch-target"
-                >
-                  Enable Auto-Publish
-                </button>
-
-                <button
-                  onClick={() => setShowUnlockPrompt(false)}
-                  className="px-4 py-2 bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-zinc-300 text-xs font-semibold rounded-xl transition touch-target"
-                >
-                  Not now
-                </button>
-              </div>
-            </motion.div>
-          )}
-
-          {/* Publishing Mode Toggle Box */}
           <div className="rounded-2xl border p-5 space-y-4" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}>
             <div>
-              <h3 className="text-sm font-extrabold text-slate-900 dark:text-white tracking-tight">Account Publishing Mode</h3>
-              <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">Control whether AI-generated posts require manual human approval before dispatching.</p>
+              <h3 className="text-sm font-extrabold text-slate-900 dark:text-white tracking-tight">Approval Mode</h3>
+              <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">Control whether AMAI-prepared posts require your review before publishing.</p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              
-              {/* Option 1: Manual Approval (Default) */}
               <div
-                onClick={() => handleTogglePublishingMode('MANUAL_APPROVAL')}
+                onClick={() => handleTogglePublishingMode('MANUAL')}
                 className={`p-4 rounded-xl border cursor-pointer transition touch-target ${
-                  publishingMode === 'MANUAL_APPROVAL'
-                    ? 'border-emerald-500/60 bg-emerald-500/10'
-                    : 'border-slate-200 dark:border-white/10'
+                  approvalMode === 'MANUAL' ? 'border-emerald-500/60 bg-emerald-500/10' : 'border-slate-200 dark:border-white/10'
                 }`}
-                style={{ backgroundColor: publishingMode === 'MANUAL_APPROVAL' ? undefined : 'var(--bg-surface)' }}
+                style={{ backgroundColor: approvalMode === 'MANUAL' ? undefined : 'var(--bg-surface)' }}
               >
                 <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-xs font-extrabold text-slate-900 dark:text-white">Manual Approval Queue (Default)</span>
-                  {publishingMode === 'MANUAL_APPROVAL' && (
-                    <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                  )}
+                  <span className="text-xs font-extrabold text-slate-900 dark:text-white">Manual Approval (Default)</span>
+                  {approvalMode === 'MANUAL' && <span className="h-2 w-2 rounded-full bg-emerald-400" />}
                 </div>
                 <p className="text-[11px] text-slate-500 dark:text-zinc-400 leading-relaxed">
-                  Every post is placed into the Approval Queue for manual review prior to publishing.
+                  Every post is placed into the Approval Queue for your review before publishing.
                 </p>
               </div>
 
-              {/* Option 2: Auto-Publish */}
               <div
-                onClick={() => handleTogglePublishingMode('AUTO_PUBLISH')}
+                onClick={() => handleTogglePublishingMode('AUTO')}
                 className={`p-4 rounded-xl border cursor-pointer transition touch-target ${
-                  publishingMode === 'AUTO_PUBLISH'
-                    ? 'border-amber-500/60 bg-amber-500/10'
-                    : 'border-slate-200 dark:border-white/10'
+                  approvalMode === 'AUTO' ? 'border-amber-500/60 bg-amber-500/10' : 'border-slate-200 dark:border-white/10'
                 }`}
-                style={{ backgroundColor: publishingMode === 'AUTO_PUBLISH' ? undefined : 'var(--bg-surface)' }}
+                style={{ backgroundColor: approvalMode === 'AUTO' ? undefined : 'var(--bg-surface)' }}
               >
                 <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-xs font-extrabold text-slate-900 dark:text-white">Auto-Publish Mode</span>
-                  {publishingMode === 'AUTO_PUBLISH' && (
-                    <span className="h-2 w-2 rounded-full bg-amber-400" />
-                  )}
+                  <span className="text-xs font-extrabold text-slate-900 dark:text-white">Auto Approval</span>
+                  {approvalMode === 'AUTO' && <span className="h-2 w-2 rounded-full bg-amber-400" />}
                 </div>
                 <p className="text-[11px] text-slate-500 dark:text-zinc-400 leading-relaxed">
-                  Posts are published automatically during peak engagement windows without waiting for manual approval.
+                  Posts publish automatically during AI-selected peak engagement windows.
                 </p>
               </div>
-
             </div>
           </div>
 
-          {/* Account Global Niche & Persona Preset */}
           <div className="rounded-2xl border p-5 space-y-4" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}>
             <div>
-              <h3 className="text-sm font-extrabold text-slate-900 dark:text-white tracking-tight">Global Business Niche & Persona</h3>
-              <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">Select your business niche to customize AI caption tone, vocabulary, and hashtag generation.</p>
+              <h3 className="text-sm font-extrabold text-slate-900 dark:text-white tracking-tight">Brand Persona</h3>
+              <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">Sets the tone, vocabulary, and hashtags AMAI uses when writing captions.</p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
-              {[
-                { label: '👗 Fashion Designer', tone: 'Fashion Designer' },
-                { label: '🛍️ Small Business Owner', tone: 'Small Business' },
-                { label: '🍽️ Restaurant / Bistro', tone: 'Restaurant' },
-                { label: '🏡 Real Estate & Realty', tone: 'Real Estate' },
-                { label: '💄 Beauty & Skincare', tone: 'Beauty' },
-                { label: '💪 Fitness & Health', tone: 'Fitness' },
-              ].map((persona, idx) => (
+              {PERSONAS.map((persona, idx) => (
                 <button
                   key={idx}
-                  onClick={() => {
-                    setGlobalPersona(persona.tone);
-                    localStorage.setItem('amai_global_persona', persona.tone);
-                  }}
+                  onClick={() => handlePersonaSelect(persona.tone)}
                   className={`p-3 rounded-xl border text-xs font-bold transition text-left touch-target ${
                     globalPersona === persona.tone
                       ? 'border-amber-500/60 bg-amber-500/10 text-amber-400'
@@ -247,64 +185,25 @@ export default function SettingsPage() {
               ))}
             </div>
           </div>
-
         </div>
       )}
 
-      {/* Tab 2: Workspace */}
-      {activeTab === 'workspace' && (
-        <form onSubmit={handleSave} className="rounded-2xl border p-6 space-y-5" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}>
-          <div className="space-y-4">
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight">Workspace Preferences</h3>
-            <div>
-              <label className="block text-xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider mb-2">Organization Name</label>
-              <input
-                type="text"
-                value={orgName}
-                onChange={(e) => setOrgName(e.target.value)}
-                className="w-full p-3 rounded-xl border text-xs outline-none focus:ring-1 focus:ring-amber-500/50"
-                style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-primary)' }}
-              />
-            </div>
-          </div>
-
-          <div className="pt-4 border-t border-slate-200/60 dark:border-white/10 flex justify-end">
-            <button
-              type="submit"
-              className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-black font-bold text-xs rounded-xl shadow-md transition touch-target"
-            >
-              Save Preferences
-            </button>
-          </div>
-        </form>
-      )}
-
-      {/* Tab 3: Profile */}
       {activeTab === 'profile' && (
-        <form onSubmit={handleSave} className="rounded-2xl border p-6 space-y-5" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}>
+        <div className="rounded-2xl border p-6 space-y-5" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}>
           <div className="space-y-4">
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight">User Account</h3>
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight">Your Account</h3>
             <div>
               <label className="block text-xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider mb-2">Email Address</label>
               <input
                 type="email"
                 value={userEmail}
-                onChange={(e) => setUserEmail(e.target.value)}
-                className="w-full p-3 rounded-xl border text-xs outline-none focus:ring-1 focus:ring-amber-500/50"
+                disabled
+                className="w-full p-3 rounded-xl border text-xs outline-none opacity-70 cursor-not-allowed"
                 style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-primary)' }}
               />
             </div>
           </div>
-
-          <div className="pt-4 border-t border-slate-200/60 dark:border-white/10 flex justify-end">
-            <button
-              type="submit"
-              className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-black font-bold text-xs rounded-xl shadow-md transition touch-target"
-            >
-              Save Profile
-            </button>
-          </div>
-        </form>
+        </div>
       )}
     </div>
   );

@@ -63,7 +63,7 @@ model Brand {
   createdAt           DateTime              @default(now()) @db.Timestamptz(6)
   updatedAt           DateTime              @default(now()) @updatedAt @db.Timestamptz(6)
   aiUsageLogs         AiUsageLog[]
-  autoPilotConfigs    AutoPilotConfig?
+  amaiEngineConfig    AmaiEngineConfig?
   organization        Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   growthSettings      GrowthSettings?
   mediaAssets         MediaAsset[]
@@ -71,6 +71,7 @@ model Brand {
   PendingCommentReply PendingCommentReply[]
   posts               Post[]
   socialAccounts      SocialAccount[]
+  engineEvents        EngineEvent[]
 }
 
 model GrowthSettings {
@@ -117,7 +118,9 @@ model MediaFolder {
 }
 
 enum MediaStatus {
-  PENDING
+  PENDING // just uploaded, AMAI Engine has not finished analysing/preparing it yet
+  PROCESSING // AMAI Engine is analysing content, generating caption/hashtags/best time
+  READY // AMAI Engine finished preparing a post from this asset
   SCHEDULED
   PUBLISHED
   FAILED
@@ -135,6 +138,7 @@ model MediaAsset {
   mimeType         String
   sizeBytes        Int         @default(0)
   blobUrl          String?
+  source           ContentSource @default(DIRECT_UPLOAD)
   status           MediaStatus @default(PENDING)
   linkedPostId     String?
   platform         String?
@@ -157,10 +161,15 @@ model Post {
   id               String       @id @default(dbgenerated("(gen_random_uuid())::text"))
   brandId          String
   caption          String
+  hashtags         String[]     @default([])
+  source           ContentSource @default(MANUAL)
   status           PostStatus   @default(DRAFT)
   scheduledAt      DateTime?    @db.Timestamptz(6)
   optimalScore     Int?
   peakTimeDetected Boolean      @default(false)
+  approvedAt       DateTime?    @db.Timestamptz(6)
+  rejectedAt       DateTime?    @db.Timestamptz(6)
+  publishedAt      DateTime?    @db.Timestamptz(6)
   createdAt        DateTime     @default(now()) @db.Timestamptz(6)
   updatedAt        DateTime     @default(now()) @updatedAt @db.Timestamptz(6)
   brand            Brand        @relation(fields: [brandId], references: [id], onDelete: Cascade, onUpdate: NoAction)
@@ -215,17 +224,18 @@ model PublishingLog {
   postTarget   PostTarget   @relation(fields: [postTargetId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
-model AutoPilotConfig {
+/// The AMAI Engine's per-brand configuration: whether it is Active/Paused,
+/// which Approval Mode governs publishing, and (optionally) the connected
+/// Google Drive sync folder. This replaces the old AutoPilotConfig model.
+model AmaiEngineConfig {
   id                 String         @id @default(dbgenerated("(gen_random_uuid())::text"))
   brandId            String         @unique
-  googleRefreshToken String
-  driveFolderId      String
-  postingFrequency   String
-  postsPerDay        Int            @default(5)
-  targetPlatforms    String
-  defaultTone        String
+  state              EngineState    @default(ACTIVE)
+  approvalMode       ApprovalMode   @default(MANUAL)
+  defaultTone        String         @default("friendly")
+  googleRefreshToken String?
+  driveFolderId      String?
   webhookToken       String?        @unique
-  isActive           Boolean        @default(false)
   createdAt          DateTime       @default(now()) @db.Timestamptz(6)
   updatedAt          DateTime       @default(now()) @updatedAt @db.Timestamptz(6)
   brand              Brand          @relation(fields: [brandId], references: [id], onDelete: Cascade, onUpdate: NoAction)
@@ -233,13 +243,13 @@ model AutoPilotConfig {
 }
 
 model DriveSyncLog {
-  id           String          @id @default(dbgenerated("(gen_random_uuid())::text"))
+  id           String           @id @default(dbgenerated("(gen_random_uuid())::text"))
   configId     String
   googleFileId String
   status       TargetStatus
   postId       String?
-  createdAt    DateTime        @default(now()) @db.Timestamptz(6)
-  config       AutoPilotConfig @relation(fields: [configId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  createdAt    DateTime         @default(now()) @db.Timestamptz(6)
+  config       AmaiEngineConfig @relation(fields: [configId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([configId, googleFileId])
 }
@@ -259,6 +269,22 @@ model PendingCommentReply {
   brand               Brand       @relation(fields: [brandId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([brandId, status], map: "idx_pending_reply_brand_status")
+}
+
+/// Append-only audit trail of everything the AMAI Engine does. Powers the
+/// real-time activity feed / SSE stream so the dashboard updates instantly
+/// without page refreshes.
+model EngineEvent {
+  id           String          @id @default(dbgenerated("(gen_random_uuid())::text"))
+  brandId      String
+  type         EngineEventType
+  postId       String?
+  mediaAssetId String?
+  message      String?
+  createdAt    DateTime        @default(now()) @db.Timestamptz(6)
+  brand        Brand           @relation(fields: [brandId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([brandId, createdAt], map: "idx_engine_event_brand_created")
 }
 
 enum Role {
@@ -284,17 +310,13 @@ enum ConnectionStatus {
   EXPIRED
 }
 
-enum MediaType {
-  IMAGE
-  VIDEO
-}
-
 enum PostStatus {
   DRAFT
   NEEDS_APPROVAL
   SCHEDULED
   PUBLISHED
   FAILED
+  REJECTED
 }
 
 enum TargetStatus {
@@ -308,4 +330,47 @@ enum ReplyStatus {
   APPROVED
   REJECTED
   PUBLISHED
+}
+
+/// Two states only, per the AMAI Engine product philosophy.
+/// ACTIVE   -> engine prepares AND publishes content automatically.
+/// PAUSED   -> engine keeps analysing uploads, generating captions/hashtags,
+///             and preparing posts, but nothing is published until approved.
+enum EngineState {
+  ACTIVE
+  PAUSED
+}
+
+/// Two modes only.
+/// MANUAL -> every prepared post goes to the Approval Queue.
+/// AUTO   -> prepared posts are scheduled and published automatically
+///           at the AI-selected best time, no queue required.
+enum ApprovalMode {
+  MANUAL
+  AUTO
+}
+
+enum ContentSource {
+  DIRECT_UPLOAD
+  GOOGLE_DRIVE
+  MANUAL
+}
+
+enum EngineEventType {
+  MEDIA_UPLOADED
+  ANALYSIS_STARTED
+  CAPTION_GENERATED
+  HASHTAGS_GENERATED
+  BEST_TIME_DETERMINED
+  APPROVAL_QUEUED
+  AUTO_SCHEDULED
+  POST_APPROVED
+  POST_REJECTED
+  POST_EDITED
+  PUBLISH_SUCCEEDED
+  PUBLISH_FAILED
+  ACCOUNT_CONNECTED
+  ACCOUNT_DISCONNECTED
+  ENGINE_STATE_CHANGED
+  APPROVAL_MODE_CHANGED
 }

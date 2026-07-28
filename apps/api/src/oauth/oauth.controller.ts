@@ -1,13 +1,14 @@
 import { Controller, Get, Post, Delete, Patch, Query, Body, Param, Res, HttpStatus, UseGuards } from '@nestjs/common';
 import { OAuthService } from './oauth.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { getAppUrl } from '../common/app-url.util';
 
 @Controller('oauth')
 export class OAuthController {
   constructor(private readonly oauthService: OAuthService) {}
 
   private get appUrl(): string {
-    return (process.env.APP_URL || 'https://marketing-os-eight-virid.vercel.app').replace(/\/$/, '');
+    return getAppUrl();
   }
 
   // ─────────────────────────────────────────────────────────────

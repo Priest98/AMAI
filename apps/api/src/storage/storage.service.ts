@@ -1,70 +1,86 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
-// import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
+import { put, del } from '@vercel/blob';
 
+/**
+ * Real media storage backed by Vercel Blob.
+ *
+ * Requires a BLOB_READ_WRITE_TOKEN environment variable (create a Blob store
+ * in your Vercel project -> Storage -> Blob, then copy the token into
+ * apps/api/.env and your deployment's environment variables).
+ */
 @Injectable()
 export class StorageService {
-  // private supabase: SupabaseClient;
-  private bucketName = 'media-uploads';
+  private readonly logger = new Logger(StorageService.name);
 
-  constructor() {
-    /* 
-    this.supabase = createClient(
-      process.env.SUPABASE_URL || 'https://placeholder.supabase.co',
-      process.env.SUPABASE_SERVICE_KEY || 'placeholder-key'
-    );
-    */
+  private get token(): string | undefined {
+    return process.env.BLOB_READ_WRITE_TOKEN;
   }
 
   async uploadFile(file: Express.Multer.File, brandId: string): Promise<{ url: string; size: number; mimeType: string }> {
+    if (!this.token) {
+      throw new InternalServerErrorException(
+        'Media storage is not configured. Ask an admin to add BLOB_READ_WRITE_TOKEN to the API environment variables.',
+      );
+    }
+
+    const safeName = (file.originalname || 'upload').replace(/[^a-zA-Z0-9.\-_]/g, '_');
+    const pathname = `${brandId}/${Date.now()}-${safeName}`;
+
     try {
-      const fileName = `${brandId}/${Date.now()}-${file.originalname.replace(/[^a-zA-Z0-9.-]/g, '')}`;
-      
-      // Mocked Supabase Upload
-      /*
-      const { data, error } = await this.supabase.storage
-        .from(this.bucketName)
-        .upload(fileName, file.buffer, {
-          contentType: file.mimetype,
-          upsert: false,
-        });
+      const blob = await put(pathname, file.buffer, {
+        access: 'public',
+        contentType: file.mimetype,
+        token: this.token,
+        addRandomSuffix: true,
+      });
 
-      if (error) throw error;
-      
-      const { data: publicUrlData } = this.supabase.storage
-        .from(this.bucketName)
-        .getPublicUrl(data.path);
-      */
-
-      // Simulated Return Data
       return {
-        url: `https://mock-supabase.url/storage/v1/object/public/${this.bucketName}/${fileName}`,
+        url: blob.url,
         size: file.size,
         mimeType: file.mimetype,
       };
-    } catch (error) {
-      console.error('Storage upload error:', error);
-      throw new InternalServerErrorException('Failed to upload file to storage');
+    } catch (error: any) {
+      this.logger.error(`Storage upload error: ${error?.message || error}`);
+      throw new InternalServerErrorException(
+        'We could not upload that file to storage. Please try again — if this keeps happening, the file may be too large or an unsupported format.',
+      );
+    }
+  }
+
+  /** Used by non-multer upload sources, e.g. files pulled in from Google Drive. */
+  async uploadBuffer(buffer: Buffer, filename: string, mimeType: string, brandId: string): Promise<{ url: string; size: number; mimeType: string }> {
+    if (!this.token) {
+      throw new InternalServerErrorException(
+        'Media storage is not configured. Ask an admin to add BLOB_READ_WRITE_TOKEN to the API environment variables.',
+      );
+    }
+
+    const safeName = (filename || 'drive-file').replace(/[^a-zA-Z0-9.\-_]/g, '_');
+    const pathname = `${brandId}/${Date.now()}-${safeName}`;
+
+    try {
+      const blob = await put(pathname, buffer, {
+        access: 'public',
+        contentType: mimeType,
+        token: this.token,
+        addRandomSuffix: true,
+      });
+
+      return { url: blob.url, size: buffer.byteLength, mimeType };
+    } catch (error: any) {
+      this.logger.error(`Storage upload (buffer) error: ${error?.message || error}`);
+      throw new InternalServerErrorException('We could not save that file to storage.');
     }
   }
 
   async deleteFile(fileUrl: string): Promise<void> {
+    if (!fileUrl || !this.token) return;
     try {
-      const urlParts = fileUrl.split(`${this.bucketName}/`);
-      if (urlParts.length !== 2) return;
-      
-      const path = urlParts[1];
-
-      // Mocked Delete
-      /*
-      const { error } = await this.supabase.storage
-        .from(this.bucketName)
-        .remove([path]);
-
-      if (error) throw error;
-      */
-    } catch (error) {
-      console.error('Storage delete error:', error);
-      throw new InternalServerErrorException('Failed to delete file from storage');
+      await del(fileUrl, { token: this.token });
+    } catch (error: any) {
+      // Deletion failures shouldn't block the caller's primary action (e.g.
+      // marking a post published) — log and move on.
+      this.logger.warn(`Storage delete error for ${fileUrl}: ${error?.message || error}`);
     }
   }
 }

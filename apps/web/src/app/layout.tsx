@@ -28,9 +28,21 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="icon" href="/app-icon.jpg" />
+        {/*
+          Applies the saved theme to <html> before first paint so both the
+          CSS-variable theme AND Tailwind's `dark:` utilities agree on
+          light/dark — previously <html> was hardcoded to "dark" forever,
+          which silently broke Light Mode for any component using Tailwind
+          dark: classes. Defaults to dark to match the product's prior look.
+        */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var t=localStorage.getItem('marketing_os_theme');document.documentElement.classList.add(t==='light'?'light':'dark');}catch(e){document.documentElement.classList.add('dark');}`,
+          }}
+        />
       </head>
       <body className="antialiased">{children}</body>
     </html>

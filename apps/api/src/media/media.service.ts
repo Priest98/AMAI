@@ -1,13 +1,15 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
-import { MediaStatus } from '@prisma/client';
+import { MediaStatus, ContentSource } from '@prisma/client';
 
 @Injectable()
 export class MediaService {
   constructor(
     private prisma: PrismaService,
-    private storage: StorageService
+    private storage: StorageService,
+    private events: EventEmitter2,
   ) {}
 
   async uploadAsset(brandId: string, file: Express.Multer.File, folderId?: string) {
@@ -15,7 +17,7 @@ export class MediaService {
 
     const uploadedData = await this.storage.uploadFile(file, brandId);
 
-    return this.prisma.mediaAsset.create({
+    const asset = await this.prisma.mediaAsset.create({
       data: {
         brandId,
         folderId: folderId || null,
@@ -23,9 +25,27 @@ export class MediaService {
         blobUrl: uploadedData.url,
         sizeBytes: uploadedData.size || file.size || 0,
         mimeType: uploadedData.mimeType || file.mimetype,
+        source: ContentSource.DIRECT_UPLOAD,
         status: MediaStatus.PENDING,
       }
     });
+
+    // Upload is always the trigger — the AMAI Engine picks this up
+    // regardless of Active/Paused state (Paused only blocks publishing).
+    this.events.emit('media.uploaded', { mediaAssetId: asset.id });
+
+    return asset;
+  }
+
+  async deleteAsset(brandId: string, assetId: string) {
+    const asset = await this.prisma.mediaAsset.findFirst({ where: { id: assetId, brandId } });
+    if (!asset) throw new NotFoundException('Media asset not found.');
+
+    if (asset.blobUrl) {
+      await this.storage.deleteFile(asset.blobUrl);
+    }
+    await this.prisma.mediaAsset.delete({ where: { id: assetId } });
+    return { success: true, id: assetId };
   }
 
   async getAssets(brandId: string, folderId?: string) {

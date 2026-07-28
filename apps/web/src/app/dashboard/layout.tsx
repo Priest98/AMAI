@@ -17,6 +17,7 @@ import {
   Moon,
   Calendar as CalendarIcon,
   CheckSquare,
+  CheckCircle2,
   BarChart3,
   Plus,
   Upload,
@@ -43,7 +44,9 @@ const navSections: NavSection[] = [
     title: 'Automation & Queue',
     items: [
       { label: 'Approval Queue', href: '/dashboard/approval-queue', icon: CheckSquare },
-      { label: 'AutoPilot Settings', href: '/dashboard/autopilot', icon: Zap },
+      { label: 'Scheduled Posts', href: '/dashboard/scheduled', icon: CalendarIcon },
+      { label: 'Published Posts', href: '/dashboard/published', icon: CheckCircle2 },
+      { label: 'AMAI Engine', href: '/dashboard/engine', icon: Zap },
     ],
   },
   {
@@ -55,7 +58,7 @@ const navSections: NavSection[] = [
   {
     title: 'Integrations',
     items: [
-      { label: 'Connected Hub', href: '/dashboard/integrations', icon: Radio },
+      { label: 'Integrations', href: '/dashboard/integrations', icon: Radio },
     ],
   },
   {
@@ -69,7 +72,7 @@ const navSections: NavSection[] = [
 
 const mobileTabItems = [
   { label: 'Home', href: '/dashboard', icon: LayoutDashboard },
-  { label: 'AutoPilot', href: '/dashboard/autopilot', icon: Zap },
+  { label: 'Engine', href: '/dashboard/engine', icon: Zap },
   { label: 'Upload', href: '/dashboard/media', icon: Plus },
   { label: 'Queue', href: '/dashboard/approval-queue', icon: CheckSquare },
   { label: 'Settings', href: '/dashboard/settings', icon: Settings },
@@ -104,10 +107,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     // Load saved theme preference
     const savedTheme = localStorage.getItem('marketing_os_theme');
-    if (savedTheme === 'light') {
-      setIsDarkMode(false);
-    }
+    setIsDarkMode(savedTheme !== 'light');
   }, [router]);
+
+  // Keep <html> in sync too — Tailwind's `dark:` utilities key off an
+  // ancestor with the "dark" class, so this must live on <html>, not just
+  // this layout's own wrapper div (see apps/web/src/app/layout.tsx).
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.remove('dark', 'light');
+    root.classList.add(isDarkMode ? 'dark' : 'light');
+  }, [isDarkMode]);
 
   const toggleTheme = () => {
     const nextTheme = !isDarkMode;

@@ -42,6 +42,10 @@ export class PostsService {
         brandId,
         ...(status ? { status } : {})
       },
+      include: {
+        targets: { select: { platform: true, status: true } },
+        media: { include: { asset: { select: { blobUrl: true, mimeType: true, filename: true } } } },
+      },
       orderBy: { createdAt: 'desc' }
     });
   }
