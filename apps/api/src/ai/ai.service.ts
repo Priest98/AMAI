@@ -65,6 +65,52 @@ export class AiService {
     this.ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || 'placeholder' });
   }
 
+  private isGeminiConfigured(): boolean {
+    return !!(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'placeholder');
+  }
+
+  /**
+   * Real media analysis: downloads the image and sends it to Gemini's
+   * multimodal endpoint to get a short, concrete description of what's
+   * actually in the frame — not a guess based on the filename. Returns
+   * null (rather than throwing) if Gemini isn't configured or the call
+   * fails for any reason, so callers can fall back to the filename
+   * heuristic without the whole pipeline breaking. Video analysis isn't
+   * implemented here yet (would need the Files API for anything beyond a
+   * few MB) — video assets always use the filename fallback for now.
+   */
+  async analyzeImage(imageUrl: string): Promise<string | null> {
+    if (!this.isGeminiConfigured()) return null;
+
+    try {
+      const imageRes = await fetch(imageUrl);
+      if (!imageRes.ok) return null;
+      const mimeType = imageRes.headers.get('content-type') || 'image/jpeg';
+      const arrayBuffer = await imageRes.arrayBuffer();
+      const base64 = Buffer.from(arrayBuffer).toString('base64');
+
+      const response = await this.ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: [
+          {
+            role: 'user',
+            parts: [
+              { text: 'Describe the main subject of this image in 3-8 words, suitable as a social media post topic. Just the phrase, no punctuation, no preamble.' },
+              { inlineData: { mimeType, data: base64 } },
+            ],
+          },
+        ],
+      });
+
+      const text = response.text?.trim();
+      return text && text.length > 0 ? text : null;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown Gemini vision error';
+      this.logger.warn(`Image analysis failed, falling back to filename heuristic: ${message}`);
+      return null;
+    }
+  }
+
   /**
    * Context-Aware & Niche-Specific AI Caption Generation
    */
@@ -121,9 +167,48 @@ Keep the caption under character limits for ${platform}.`;
   }
 
   /**
-   * Algorithm & Niche-Compliant Hashtag Generator (Strictly no generic AI tags unless requested)
+   * AI-generated hashtags specific to the actual topic and niche. Falls
+   * back to the static niche map only when Gemini isn't configured or the
+   * call fails — previously this always returned the same fixed list per
+   * niche regardless of what was actually posted, which wasn't real
+   * hashtag generation at all.
    */
   async generateHashtags(topic: string = 'General', platform: string = 'Instagram', niche: string = 'Content Creator'): Promise<HashtagsResult> {
+    if (this.isGeminiConfigured()) {
+      try {
+        const prompt = `Generate hashtags for a ${platform} post about "${topic}" in the ${niche} niche.
+Return strictly valid JSON, no markdown, no commentary, in this exact shape:
+{"highVolume": ["#tag", ...5], "mediumCompetition": ["#tag", ...5], "nicheHashtags": ["#tag", ...5], "brandedHashtags": ["#tag", ...2]}
+highVolume = broad, high-traffic tags. mediumCompetition = moderately specific tags. nicheHashtags = very specific to "${topic}". brandedHashtags = two short, on-brand tags for the ${niche} niche. All hashtags must start with # and contain no spaces.`;
+
+        const response = await this.ai.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: prompt,
+        });
+
+        const raw = (response.text || '').trim().replace(/^```json\s*|```$/g, '').trim();
+        const parsed = JSON.parse(raw);
+        const highVolume: string[] = parsed.highVolume || [];
+        const mediumCompetition: string[] = parsed.mediumCompetition || [];
+        const nicheHashtags: string[] = parsed.nicheHashtags || [];
+        const brandedHashtags: string[] = parsed.brandedHashtags || [];
+
+        if (highVolume.length || mediumCompetition.length || nicheHashtags.length) {
+          return {
+            highVolume,
+            mediumCompetition,
+            nicheHashtags,
+            brandedHashtags,
+            allHashtags: [...highVolume, ...mediumCompetition, ...nicheHashtags, ...brandedHashtags],
+          };
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown Gemini error';
+        this.logger.warn(`Gemini hashtag generation failed, falling back to niche defaults: ${message}`);
+      }
+    }
+
+    // Fallback: static niche defaults (used when Gemini isn't configured or fails).
     const nicheKey = Object.keys(NICHE_HASHTAG_MAP).find(k => k.toLowerCase() === niche.toLowerCase()) || 'Content Creator';
     const nicheData = NICHE_HASHTAG_MAP[nicheKey] || NICHE_HASHTAG_MAP['Content Creator'];
 
@@ -132,14 +217,12 @@ Keep the caption under character limits for ${platform}.`;
     const nicheHashtags = [...nicheData.niche];
     const brandedHashtags = [`#${nicheKey.replace(/\s+/g, '')}Life`, `#${nicheKey.replace(/\s+/g, '')}Community`];
 
-    const allHashtags = [...highVolume, ...mediumCompetition, ...nicheHashtags, ...brandedHashtags];
-
     return {
       highVolume,
       mediumCompetition,
       nicheHashtags,
       brandedHashtags,
-      allHashtags,
+      allHashtags: [...highVolume, ...mediumCompetition, ...nicheHashtags, ...brandedHashtags],
     };
   }
 

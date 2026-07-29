@@ -1,14 +1,14 @@
 import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { OnEvent, EventEmitter2 } from '@nestjs/event-emitter';
-import { InjectQueue } from '@nestjs/bullmq';
-import { Queue } from 'bullmq';
 import { PrismaService } from '../prisma/prisma.service';
 import { AiService } from '../ai/ai.service';
+import { PublishingService } from '../queue/publishing.service';
 import {
   EngineState,
   ApprovalMode,
   MediaStatus,
   PostStatus,
+  TargetStatus,
   ContentSource,
   EngineEventType,
   ConnectionStatus,
@@ -26,7 +26,7 @@ export class EngineService {
     private prisma: PrismaService,
     private aiService: AiService,
     private events: EventEmitter2,
-    @InjectQueue('publish-queue') private publishQueue: Queue,
+    private publishingService: PublishingService,
   ) {}
 
   // ─────────────────────────────────────────────────────────────
@@ -119,11 +119,19 @@ export class EngineService {
       message: `Analysing "${asset.filename}"...`,
     });
 
-    // 1. Analyse — lightweight heuristic topic extraction from the filename
-    // and batch name (a full vision-model pass can be dropped in here later
-    // without changing anything downstream).
-    const topic = this.deriveTopicFromFilename(asset.filename, asset.batchName);
+    // 1. Analyse — real Gemini vision analysis of the actual image content
+    // when possible. Falls back to a filename-based heuristic if Gemini
+    // isn't configured, the vision call fails, or the asset is a video
+    // (video content analysis isn't implemented yet — always uses the
+    // filename fallback).
     const isVideo = asset.mimeType?.startsWith('video/');
+    let topic: string;
+    if (!isVideo && asset.blobUrl) {
+      const visionTopic = await this.aiService.analyzeImage(asset.blobUrl);
+      topic = visionTopic || this.deriveTopicFromFilename(asset.filename, asset.batchName);
+    } else {
+      topic = this.deriveTopicFromFilename(asset.filename, asset.batchName);
+    }
 
     const connectedAccounts = await this.prisma.socialAccount.findMany({
       where: { brandId, status: ConnectionStatus.CONNECTED },
@@ -196,7 +204,9 @@ export class EngineService {
         mediaAssetId: asset.id,
         message: `Post auto-scheduled for ${bestTime.formattedTime}.`,
       });
-      await this.enqueuePublish(post.id, post.scheduledAt!);
+      // No queue to push to — the post is now SCHEDULED in the DB, and the
+      // /api/cron/publish-due endpoint (Vercel Cron) picks up anything due
+      // on its next run. See PublishingService.publishDuePosts().
     } else {
       await this.logEvent(brandId, EngineEventType.APPROVAL_QUEUED, {
         postId: post.id,
@@ -237,7 +247,7 @@ export class EngineService {
     });
 
     await this.logEvent(brandId, EngineEventType.POST_APPROVED, { postId, message: 'Post approved and scheduled.' });
-    await this.enqueuePublish(postId, scheduledAt);
+    // Picked up by the next /api/cron/publish-due run once scheduledAt is due.
 
     return updated;
   }
@@ -262,6 +272,37 @@ export class EngineService {
     return updated;
   }
 
+  /**
+   * Manually retries a permanently FAILED post: resets its failed targets
+   * back to PENDING and republishes immediately, rather than waiting for
+   * the next /api/cron/publish-due pass.
+   */
+  async retryPost(brandId: string, postId: string) {
+    const post = await this.getBrandPostOrThrow(brandId, postId);
+    if (post.status !== PostStatus.FAILED) {
+      throw new BadRequestException('Only failed posts can be retried.');
+    }
+
+    await this.prisma.postTarget.updateMany({
+      where: { postId, status: TargetStatus.FAILED },
+      data: { status: TargetStatus.PENDING },
+    });
+
+    const updated = await this.prisma.post.update({
+      where: { id: postId },
+      data: { status: PostStatus.SCHEDULED, scheduledAt: new Date() },
+    });
+
+    await this.logEvent(brandId, EngineEventType.POST_EDITED, { postId, message: 'Retrying failed post now.' });
+
+    const targets = await this.prisma.postTarget.findMany({ where: { postId, status: TargetStatus.PENDING } });
+    for (const target of targets) {
+      this.publishingService.publishOne(target.id).catch(() => {});
+    }
+
+    return updated;
+  }
+
   async editPost(brandId: string, postId: string, dto: { caption?: string; hashtags?: string[]; scheduledAt?: string }) {
     const post = await this.getBrandPostOrThrow(brandId, postId);
     if (post.status !== PostStatus.NEEDS_APPROVAL && post.status !== PostStatus.SCHEDULED) {
@@ -279,11 +320,9 @@ export class EngineService {
 
     await this.logEvent(brandId, EngineEventType.POST_EDITED, { postId, message: 'Post edited.' });
 
-    // If it was already scheduled and the time changed, re-enqueue with the
-    // new delay (BullMQ dedups on jobId per PostTarget, see enqueuePublish).
-    if (post.status === PostStatus.SCHEDULED && dto.scheduledAt) {
-      await this.enqueuePublish(postId, new Date(dto.scheduledAt));
-    }
+    // If it was already scheduled and the time changed, the next
+    // /api/cron/publish-due run will naturally pick it up at the new time —
+    // nothing to re-enqueue since there's no queue anymore.
 
     return updated;
   }
@@ -294,22 +333,6 @@ export class EngineService {
     return post;
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // QUEUEING
-  // ─────────────────────────────────────────────────────────────
-
-  async enqueuePublish(postId: string, scheduledAt: Date) {
-    const targets = await this.prisma.postTarget.findMany({ where: { postId, status: 'PENDING' } });
-    const delay = Math.max(0, scheduledAt.getTime() - Date.now());
-
-    for (const target of targets) {
-      await this.publishQueue.add(
-        'publish',
-        { postTargetId: target.id },
-        { jobId: target.id, delay, removeOnComplete: true, attempts: 3, backoff: { type: 'exponential', delay: 30_000 } },
-      );
-    }
-  }
 
   // ─────────────────────────────────────────────────────────────
   // EVENT LOG (audit trail + real-time SSE feed)

@@ -1,43 +1,69 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq';
-import { Job } from 'bullmq';
-import { Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
 import { EncryptionService } from '../encryption/encryption.service';
 import { StorageService } from '../storage/storage.service';
 import { Platform, TargetStatus, PostStatus, MediaStatus, EngineEventType } from '@prisma/client';
 
-interface PublishJobData {
-  postTargetId: string;
-}
+const MAX_PUBLISH_ATTEMPTS = 3;
 
 /**
- * Publishes one PostTarget (one post -> one connected platform account) to
- * the real platform API using the brand's connected SocialAccount token.
+ * Publishes posts to the real platform APIs (Instagram Graph API, TikTok
+ * Content Posting API) using the brand's connected SocialAccount token.
  *
- * This calls real Instagram Graph API / TikTok Content Posting API
- * endpoints — actually publishing requires a live, connected, approved
- * business account for that platform, so this path can only be exercised
- * end-to-end once real OAuth credentials are configured and an account is
- * connected. Every failure path is caught and logged to PublishingLog so
- * the UI can always show a meaningful reason instead of a generic error.
+ * This used to run as a BullMQ worker (a persistent process pulling
+ * delayed jobs off a Redis queue), but Vercel serverless functions can't
+ * host a persistent worker — there's no process guaranteed to be alive
+ * when a delayed job becomes ready. Instead, `publishDuePosts()` is called
+ * directly by the /api/cron/publish-due endpoint, which Vercel Cron hits
+ * on a schedule (see vercel.json). Every request just synchronously
+ * publishes whatever is due right now — no queue, no worker, no Redis.
  */
-@Processor('publish-queue')
-export class PublisherWorker extends WorkerHost {
-  private readonly logger = new Logger(PublisherWorker.name);
+@Injectable()
+export class PublishingService {
+  private readonly logger = new Logger(PublishingService.name);
 
   constructor(
     private prisma: PrismaService,
     private encryption: EncryptionService,
     private storage: StorageService,
     private events: EventEmitter2,
-  ) {
-    super();
+  ) {}
+
+  /** Finds every post that's due and publishes each of its pending targets. */
+  async publishDuePosts() {
+    const due = await this.prisma.post.findMany({
+      where: { status: PostStatus.SCHEDULED, scheduledAt: { lte: new Date() } },
+      include: { targets: { where: { status: TargetStatus.PENDING } } },
+      take: 50,
+    });
+
+    let published = 0;
+    let failed = 0;
+    for (const post of due) {
+      for (const target of post.targets) {
+        try {
+          await this.publishOne(target.id);
+          published++;
+        } catch {
+          failed++; // publishOne already logs + records this; keep going.
+        }
+      }
+    }
+
+    if (due.length > 0) {
+      this.logger.log(`publishDuePosts: checked ${due.length} due post(s), ${published} published, ${failed} failed this pass.`);
+    }
+    return { checked: due.length, published, failed };
   }
 
-  async process(job: Job<PublishJobData>) {
-    const { postTargetId } = job.data;
-
+  /**
+   * Publishes one PostTarget (one post -> one connected platform account).
+   * On failure, retries up to MAX_PUBLISH_ATTEMPTS times across future cron
+   * runs (left PENDING so the next pass picks it up again) before being
+   * marked permanently FAILED.
+   */
+  async publishOne(postTargetId: string) {
     const target = await this.prisma.postTarget.findUnique({
       where: { id: postTargetId },
       include: {
@@ -47,11 +73,11 @@ export class PublisherWorker extends WorkerHost {
     });
 
     if (!target) {
-      this.logger.warn(`PostTarget ${postTargetId} no longer exists — skipping job.`);
+      this.logger.warn(`PostTarget ${postTargetId} no longer exists — skipping.`);
       return;
     }
     if (target.status !== 'PENDING') {
-      return; // already resolved (e.g. re-enqueued by the safety-net cron)
+      return; // already resolved
     }
 
     const mediaAsset = target.post.media[0]?.asset;
@@ -78,40 +104,50 @@ export class PublisherWorker extends WorkerHost {
         }),
       ]);
 
-      await this.events.emitAsync('engine.activity', await this.prisma.engineEvent.create({
-        data: {
-          brandId: target.post.brandId,
-          type: EngineEventType.PUBLISH_SUCCEEDED,
-          postId: target.postId,
-          message: `Published to ${target.platform}.`,
-        },
-      }));
+      const event = await this.prisma.engineEvent.create({
+        data: { brandId: target.post.brandId, type: EngineEventType.PUBLISH_SUCCEEDED, postId: target.postId, message: `Published to ${target.platform}.` },
+      });
+      this.events.emit('engine.activity', event);
 
       await this.finalizeIfComplete(target.postId, target.platform, providerPostId, mediaAsset.id);
     } catch (error: any) {
       const message = error?.message || 'Publish failed for an unknown reason.';
       this.logger.error(`Publish failed for target ${target.id} (${target.platform}): ${message}`);
 
+      const priorFailures = await this.prisma.publishingLog.count({
+        where: { postTargetId: target.id, status: TargetStatus.FAILED },
+      });
+      const isTerminal = priorFailures + 1 >= MAX_PUBLISH_ATTEMPTS;
+
       await this.prisma.$transaction([
-        this.prisma.postTarget.update({ where: { id: target.id }, data: { status: TargetStatus.FAILED } }),
+        this.prisma.postTarget.update({
+          where: { id: target.id },
+          data: { status: isTerminal ? TargetStatus.FAILED : TargetStatus.PENDING },
+        }),
         this.prisma.publishingLog.create({
           data: { postTargetId: target.id, status: TargetStatus.FAILED, errorMessage: message },
         }),
       ]);
 
-      await this.prisma.engineEvent.create({
-        data: { brandId: target.post.brandId, type: EngineEventType.PUBLISH_FAILED, postId: target.postId, message },
-      }).then((e) => this.events.emit('engine.activity', e));
+      if (isTerminal) {
+        const event = await this.prisma.engineEvent.create({
+          data: { brandId: target.post.brandId, type: EngineEventType.PUBLISH_FAILED, postId: target.postId, message },
+        });
+        this.events.emit('engine.activity', event);
 
-      if (mediaAsset) {
-        await this.prisma.mediaAsset.update({
-          where: { id: mediaAsset.id },
-          data: { status: MediaStatus.FAILED, lastErrorMessage: message },
-        }).catch(() => {});
+        if (mediaAsset) {
+          await this.prisma.mediaAsset.update({
+            where: { id: mediaAsset.id },
+            data: { status: MediaStatus.FAILED, lastErrorMessage: message },
+          }).catch(() => {});
+        }
+
+        await this.finalizeIfComplete(target.postId, target.platform, null, mediaAsset?.id);
+      } else {
+        this.logger.warn(`Target ${target.id} left PENDING for retry (attempt ${priorFailures + 1}/${MAX_PUBLISH_ATTEMPTS}).`);
       }
 
-      await this.finalizeIfComplete(target.postId, target.platform, null, mediaAsset?.id);
-      throw error; // let BullMQ apply its retry/backoff policy
+      throw error;
     }
   }
 

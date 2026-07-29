@@ -54,6 +54,11 @@ export class PostsController {
     return this.engineService.rejectPost(brandId, postId);
   }
 
+  @Post(':postId/retry')
+  async retryPost(@Param('brandId') brandId: string, @Param('postId') postId: string) {
+    return this.engineService.retryPost(brandId, postId);
+  }
+
   @Patch(':postId')
   async editPost(
     @Param('brandId') brandId: string,

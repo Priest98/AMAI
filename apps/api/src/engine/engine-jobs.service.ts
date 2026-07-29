@@ -1,59 +1,40 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
 import { EncryptionService } from '../encryption/encryption.service';
 import { StorageService } from '../storage/storage.service';
 import { GoogleDriveService } from './google-drive.service';
-import { EngineService } from './engine.service';
-import { PostStatus, ContentSource, MediaStatus, TargetStatus } from '@prisma/client';
+import { ContentSource, MediaStatus, TargetStatus } from '@prisma/client';
 
+/**
+ * Google Drive sync — pulls new files from each brand's connected folder
+ * and feeds them into the AMAI Engine exactly like a Direct Upload would.
+ *
+ * This used to run on an in-process @Cron(EVERY_10_MINUTES) timer, but
+ * Vercel serverless functions don't stay alive long enough for NestJS's
+ * @nestjs/schedule to ever fire it in production — there's no guarantee a
+ * function instance is running when the timer would tick. `syncAll()` is
+ * now called directly by the /api/cron/sync-drive endpoint, which Vercel
+ * Cron hits on a schedule instead (see vercel.json).
+ */
 @Injectable()
-export class EngineCron {
-  private readonly logger = new Logger(EngineCron.name);
+export class EngineJobsService {
+  private readonly logger = new Logger(EngineJobsService.name);
 
   constructor(
     private prisma: PrismaService,
     private encryption: EncryptionService,
     private storage: StorageService,
     private driveService: GoogleDriveService,
-    private engineService: EngineService,
     private events: EventEmitter2,
   ) {}
 
-  /**
-   * Safety net: re-enqueues any post that's due to publish but doesn't have
-   * an active job (e.g. the API restarted). BullMQ dedupes by jobId
-   * (= PostTarget id) so this never double-publishes.
-   */
-  @Cron(CronExpression.EVERY_5_MINUTES)
-  async publishDuePosts() {
-    const due = await this.prisma.post.findMany({
-      where: { status: PostStatus.SCHEDULED, scheduledAt: { lte: new Date() } },
-      include: { targets: { where: { status: TargetStatus.PENDING } } },
-      take: 50,
-    });
-
-    if (due.length === 0) return;
-    this.logger.log(`Found ${due.length} due post(s) — ensuring they're queued to publish.`);
-
-    for (const post of due) {
-      if (post.targets.length === 0) continue;
-      await this.engineService.enqueuePublish(post.id, post.scheduledAt || new Date());
-    }
-  }
-
-  /**
-   * Pulls new files from each brand's connected Google Drive folder and
-   * feeds them into the AMAI Engine exactly like a Direct Upload would —
-   * uploading is always the trigger, regardless of source.
-   */
-  @Cron(CronExpression.EVERY_10_MINUTES)
-  async syncGoogleDrive() {
+  async syncAllGoogleDrive() {
     const configs = await this.prisma.amaiEngineConfig.findMany({
       where: { googleRefreshToken: { not: null } },
     });
 
+    let ingested = 0;
     for (const config of configs) {
       if (!config.googleRefreshToken || !config.driveFolderId) continue;
 
@@ -91,6 +72,7 @@ export class EngineCron {
             });
 
             this.events.emit('media.uploaded', { mediaAssetId: asset.id });
+            ingested++;
           } catch (fileErr: any) {
             this.logger.warn(`Drive sync: failed to ingest file ${file.id} for brand ${config.brandId}: ${fileErr?.message || fileErr}`);
           }
@@ -99,5 +81,10 @@ export class EngineCron {
         this.logger.warn(`Drive sync failed for brand ${config.brandId}: ${err?.message || err}`);
       }
     }
+
+    if (configs.length > 0) {
+      this.logger.log(`syncAllGoogleDrive: checked ${configs.length} brand(s), ingested ${ingested} new file(s).`);
+    }
+    return { checked: configs.length, ingested };
   }
 }
