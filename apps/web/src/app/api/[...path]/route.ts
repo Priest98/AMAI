@@ -98,6 +98,15 @@ async function proxy(req: NextRequest): Promise<Response> {
     method: req.method,
     headers,
     body: hasBody ? req.body : undefined,
+    // Forward redirects to the browser instead of following them here.
+    // OAuth connect endpoints (Instagram, TikTok, Google) respond with a
+    // 302 to the provider's consent screen. With the default 'follow'
+    // mode, this server-side fetch would silently follow that redirect,
+    // fetch the provider's HTML itself, and hand back a 200 response
+    // containing a page that was never meant to render outside the
+    // provider's own origin (broken relative asset paths, blocked JS,
+    // no cookies) — which is exactly what produced the blank page.
+    redirect: 'manual',
   };
   if (hasBody) {
     init.duplex = 'half';
