@@ -22,9 +22,10 @@ export class OAuthController {
       const authUrl = this.oauthService.getGoogleAuthUrl(targetBrand);
       return res.redirect(authUrl);
     } catch (err: any) {
-      // Surface setup error directly to the integrations page
+      // Surface setup error directly to the Media Library page (Google
+      // Drive lives there now, not Integrations).
       return res.redirect(
-        `${this.appUrl}/dashboard/integrations?error=${encodeURIComponent(err.message)}`,
+        `${this.appUrl}/dashboard/media?error=${encodeURIComponent(err.message)}`,
       );
     }
   }
@@ -38,24 +39,24 @@ export class OAuthController {
   ) {
     if (error) {
       return res.redirect(
-        `${this.appUrl}/dashboard/integrations?error=${encodeURIComponent(`Google OAuth denied: ${error}`)}`,
+        `${this.appUrl}/dashboard/media?error=${encodeURIComponent(`Google OAuth denied: ${error}`)}`,
       );
     }
 
     if (!code) {
       return res.redirect(
-        `${this.appUrl}/dashboard/integrations?error=${encodeURIComponent('No authorization code received from Google.')}`,
+        `${this.appUrl}/dashboard/media?error=${encodeURIComponent('No authorization code received from Google.')}`,
       );
     }
 
     try {
       const result = await this.oauthService.handleGoogleCallback(code, state);
       return res.redirect(
-        `${this.appUrl}/dashboard/integrations?success=true&platform=Google%20Drive&account=${encodeURIComponent(result.accountEmail)}`,
+        `${this.appUrl}/dashboard/media?success=true&platform=Google%20Drive&account=${encodeURIComponent(result.accountEmail)}`,
       );
     } catch (err: any) {
       return res.redirect(
-        `${this.appUrl}/dashboard/integrations?error=${encodeURIComponent(err.message || 'Google OAuth failed')}`,
+        `${this.appUrl}/dashboard/media?error=${encodeURIComponent(err.message || 'Google OAuth failed')}`,
       );
     }
   }

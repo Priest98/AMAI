@@ -1,9 +1,10 @@
-import { Controller, Get, Patch, Body, Param, Sse, MessageEvent, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, Sse, MessageEvent, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { BrandAccessGuard } from '../auth/brand-access.guard';
 import { Observable, fromEvent, map, filter } from 'rxjs';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { EngineService } from './engine.service';
+import { EngineJobsService } from './engine-jobs.service';
 import { EngineState, ApprovalMode } from '@prisma/client';
 
 @UseGuards(JwtAuthGuard, BrandAccessGuard)
@@ -11,6 +12,7 @@ import { EngineState, ApprovalMode } from '@prisma/client';
 export class EngineController {
   constructor(
     private readonly engineService: EngineService,
+    private readonly engineJobsService: EngineJobsService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
@@ -37,6 +39,16 @@ export class EngineController {
   @Get('activity')
   async getActivity(@Param('brandId') brandId: string) {
     return this.engineService.getRecentEvents(brandId);
+  }
+
+  /**
+   * Manual "Sync Now" trigger for the Media Library page's Google Drive
+   * source — runs the same ingestion logic the daily cron uses, scoped to
+   * just this brand, instead of waiting for the next scheduled pass.
+   */
+  @Post('sync-drive')
+  async syncDriveNow(@Param('brandId') brandId: string) {
+    return this.engineJobsService.syncBrandDrive(brandId);
   }
 
   /**

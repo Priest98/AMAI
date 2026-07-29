@@ -1,9 +1,15 @@
 "use client";
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
 import UploadDropzone from "@/components/media/UploadDropzone";
-import { brandFetch } from '@/lib/api';
+import { apiFetch, brandFetch, getBrandId, API_BASE } from '@/lib/api';
 import { useEngineEvents } from '@/lib/useEngineEvents';
-import { Trash2, Film, Loader2, Sparkles, AlertCircle } from 'lucide-react';
+import { GoogleDriveLogo } from '@/components/icons/platform-logos';
+import {
+  Trash2, Film, Loader2, Sparkles, AlertCircle, CheckCircle2, MoreVertical,
+  RefreshCw, FolderSync, LogOut, X, Upload,
+} from 'lucide-react';
 
 interface MediaAsset {
   id: string;
@@ -15,6 +21,21 @@ interface MediaAsset {
   createdAt: string;
 }
 
+interface GoogleDriveConfig {
+  id: string;
+  status: string;
+  driveFolderId: string;
+  folderName: string;
+  accountEmail: string;
+  updatedAt: string;
+}
+
+interface FolderOption {
+  id: string;
+  name: string;
+  isSelected?: boolean;
+}
+
 const STATUS_LABEL: Record<string, { label: string; className: string }> = {
   PENDING: { label: 'Uploaded', className: 'bg-slate-500/20 text-slate-300 border-slate-500/30' },
   PROCESSING: { label: 'AMAI is preparing this…', className: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
@@ -23,6 +44,327 @@ const STATUS_LABEL: Record<string, { label: string; className: string }> = {
   PUBLISHED: { label: 'Published', className: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
   FAILED: { label: 'Failed', className: 'bg-rose-500/20 text-rose-400 border-rose-500/30' },
 };
+
+function MediaSourceSection() {
+  const searchParams = useSearchParams();
+  const [googleDrive, setGoogleDrive] = useState<GoogleDriveConfig | null>(null);
+  const [localGoogle, setLocalGoogle] = useState<{ email: string; folderName?: string } | null>(null);
+  const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+
+  const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
+  const [availableFolders, setAvailableFolders] = useState<FolderOption[]>([]);
+  const [selectedFolderId, setSelectedFolderId] = useState('');
+  const [updatingFolder, setUpdatingFolder] = useState(false);
+
+  const fetchDriveStatus = useCallback(async () => {
+    try {
+      const data = await apiFetch<{ googleDrive?: GoogleDriveConfig }>(`/oauth/accounts?brandId=${getBrandId()}`);
+      if (data?.googleDrive) setGoogleDrive(data.googleDrive);
+    } catch {
+      // Non-fatal — the card just shows "not connected" until this succeeds.
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const g = localStorage.getItem('amai_connected_google');
+        if (g) setLocalGoogle(JSON.parse(g));
+      } catch {}
+    }
+    fetchDriveStatus();
+  }, [fetchDriveStatus]);
+
+  useEffect(() => {
+    const success = searchParams.get('success');
+    const error = searchParams.get('error');
+    const platform = searchParams.get('platform');
+    const account = searchParams.get('account');
+
+    if (success && platform) {
+      const gData = { email: account || 'Google Account', folderName: 'content', connectedAt: new Date().toISOString() };
+      localStorage.setItem('amai_connected_google', JSON.stringify(gData));
+      setLocalGoogle(gData);
+      setMessage({ text: `Google Drive connected${account ? ` (${account})` : ''}.`, type: 'success' });
+      window.history.replaceState({}, document.title, window.location.pathname);
+      fetchDriveStatus();
+    } else if (error) {
+      setMessage({ text: error, type: 'error' });
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const isConnected = googleDrive?.status === 'CONNECTED' || !!localGoogle;
+  const email = googleDrive?.accountEmail || localGoogle?.email || 'Google Workspace';
+  const folder = googleDrive?.folderName || localGoogle?.folderName || 'content';
+
+  const handleConnect = () => {
+    window.location.href = `${API_BASE}/oauth/google/connect?brandId=${getBrandId()}`;
+  };
+
+  const handleDisconnect = async () => {
+    try {
+      await apiFetch(`/oauth/google/disconnect?brandId=${getBrandId()}`, { method: 'DELETE' });
+    } catch {}
+    localStorage.removeItem('amai_connected_google');
+    setLocalGoogle(null);
+    setGoogleDrive(null);
+    setMenuOpen(false);
+    setMessage({ text: 'Google Drive disconnected.', type: 'success' });
+  };
+
+  const handleSyncNow = async () => {
+    setSyncing(true);
+    setMenuOpen(false);
+    try {
+      const result = await brandFetch<{ ingested: number; connected: boolean }>('/engine/sync-drive', { method: 'POST' });
+      if (!result.connected) {
+        setMessage({ text: 'Connect a Drive folder first, then sync.', type: 'error' });
+      } else if (result.ingested > 0) {
+        setMessage({ text: `Synced — pulled in ${result.ingested} new file${result.ingested === 1 ? '' : 's'}.`, type: 'success' });
+      } else {
+        setMessage({ text: 'Synced — no new files since last check.', type: 'success' });
+      }
+    } catch (e: any) {
+      setMessage({ text: e.message || 'Sync failed. Please try again.', type: 'error' });
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const openFolderModal = async () => {
+    setMenuOpen(false);
+    setIsFolderModalOpen(true);
+    try {
+      const folders = await apiFetch<FolderOption[]>(`/oauth/google/folders?brandId=${getBrandId()}`);
+      setAvailableFolders(folders);
+      const current = folders.find((f) => f.isSelected);
+      if (current) setSelectedFolderId(current.id);
+    } catch {
+      setMessage({ text: 'Could not load your Drive folders.', type: 'error' });
+    }
+  };
+
+  const handleSaveFolder = async () => {
+    setUpdatingFolder(true);
+    try {
+      const chosen = availableFolders.find((f) => f.id === selectedFolderId);
+      await apiFetch('/oauth/google/select-folder', {
+        method: 'POST',
+        body: JSON.stringify({ brandId: getBrandId(), folderId: selectedFolderId, folderName: chosen?.name }),
+      });
+      setMessage({ text: `Watching folder "${chosen?.name || selectedFolderId}".`, type: 'success' });
+      setIsFolderModalOpen(false);
+      fetchDriveStatus();
+    } catch (e: any) {
+      setMessage({ text: e.message || 'Could not update the folder.', type: 'error' });
+    } finally {
+      setUpdatingFolder(false);
+    }
+  };
+
+  return (
+    <div className="rounded-2xl border p-5" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}>
+      <h2 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white tracking-tight mb-3">Media Source</h2>
+
+      <AnimatePresence>
+        {message && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className={`mb-3 p-3 rounded-xl text-xs font-semibold flex items-center justify-between border ${
+              message.type === 'success'
+                ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
+                : 'bg-rose-500/10 text-rose-500 border-rose-500/20'
+            }`}
+          >
+            <span>{message.text}</span>
+            <button onClick={() => setMessage(null)} style={{ color: 'var(--text-secondary)' }}>
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Upload Directly */}
+        <div className="rounded-xl border p-4 space-y-3" style={{ borderColor: 'var(--card-border)' }}>
+          <div className="flex items-center space-x-2">
+            <div className="h-9 w-9 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'var(--bg-surface-raised)' }}>
+              <Upload className="h-4 w-4" style={{ color: 'var(--text-secondary)' }} />
+            </div>
+            <div>
+              <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Upload directly</p>
+              <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Drop photos or videos in below</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Google Drive */}
+        <div className="rounded-xl border p-4 space-y-3 relative" style={{ borderColor: 'var(--card-border)' }}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <div className="h-9 w-9 rounded-lg flex items-center justify-center p-1.5" style={{ backgroundColor: 'var(--bg-surface-raised)' }}>
+                <GoogleDriveLogo className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Google Drive</p>
+                <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Auto-sync a watched folder</p>
+              </div>
+            </div>
+
+            {isConnected ? (
+              <div className="relative">
+                <button
+                  onClick={() => setMenuOpen(!menuOpen)}
+                  className="h-8 w-8 rounded-lg border flex items-center justify-center touch-target"
+                  style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-primary)' }}
+                >
+                  <MoreVertical className="h-4 w-4" />
+                </button>
+                <AnimatePresence>
+                  {menuOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95, y: 5 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95, y: 5 }}
+                      className="absolute right-0 top-10 w-44 rounded-xl border shadow-2xl p-1.5 z-30 text-xs font-semibold space-y-0.5"
+                      style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}
+                    >
+                      <button
+                        onClick={handleSyncNow}
+                        disabled={syncing}
+                        className="w-full text-left px-3 py-2 rounded-lg flex items-center space-x-2 touch-target disabled:opacity-50"
+                        style={{ color: 'var(--text-primary)' }}
+                      >
+                        <RefreshCw className={`h-3.5 w-3.5 text-blue-500 ${syncing ? 'animate-spin' : ''}`} />
+                        <span>{syncing ? 'Syncing…' : 'Sync Now'}</span>
+                      </button>
+                      <button
+                        onClick={openFolderModal}
+                        className="w-full text-left px-3 py-2 rounded-lg flex items-center space-x-2 touch-target"
+                        style={{ color: 'var(--text-primary)' }}
+                      >
+                        <FolderSync className="h-3.5 w-3.5 text-purple-500" />
+                        <span>Change Folder</span>
+                      </button>
+                      <button
+                        onClick={handleDisconnect}
+                        className="w-full text-left px-3 py-2 rounded-lg text-rose-500 flex items-center space-x-2 touch-target"
+                      >
+                        <LogOut className="h-3.5 w-3.5" />
+                        <span>Disconnect</span>
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            ) : (
+              <button
+                onClick={handleConnect}
+                className="px-3 py-1.5 rounded-lg text-xs font-bold transition shadow-sm btn-gold-cta touch-target"
+              >
+                Connect
+              </button>
+            )}
+          </div>
+
+          {isConnected ? (
+            <div className="p-2.5 rounded-lg border text-[11px] space-y-1" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
+              <div className="flex items-center justify-between">
+                <span className="flex items-center space-x-1 font-bold text-emerald-500">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  <span>Watching</span>
+                </span>
+                <span className="font-mono font-bold" style={{ color: 'var(--text-primary)' }}>/{folder}</span>
+              </div>
+              <p style={{ color: 'var(--text-secondary)' }}>{email}</p>
+            </div>
+          ) : (
+            <p className="text-[11px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+              Connect a folder and AMAI pulls in new files automatically, same as a direct upload.
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Folder Picker Modal */}
+      <AnimatePresence>
+        {isFolderModalOpen && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="rounded-xl border max-w-md w-full p-6 space-y-6 shadow-2xl"
+              style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}
+            >
+              <div className="flex items-center space-x-3">
+                <div className="h-10 w-10 rounded-xl border flex items-center justify-center p-2 flex-shrink-0" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
+                  <GoogleDriveLogo className="h-6 w-6" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>Select Google Drive folder</h3>
+                  <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Choose which folder AMAI should watch</p>
+                </div>
+              </div>
+
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {availableFolders.length === 0 ? (
+                  <p className="text-sm text-center py-4" style={{ color: 'var(--text-secondary)' }}>Loading folders…</p>
+                ) : (
+                  availableFolders.map((f) => (
+                    <label
+                      key={f.id}
+                      className="flex items-center justify-between p-3.5 rounded-xl border cursor-pointer transition touch-target"
+                      style={{
+                        backgroundColor: selectedFolderId === f.id ? 'var(--bg-surface-raised)' : 'transparent',
+                        borderColor: 'var(--card-border)',
+                        color: 'var(--text-primary)',
+                      }}
+                    >
+                      <div className="flex items-center space-x-3 text-xs">
+                        <input
+                          type="radio"
+                          name="folder_select"
+                          checked={selectedFolderId === f.id}
+                          onChange={() => setSelectedFolderId(f.id)}
+                          className="text-blue-600 h-4 w-4"
+                        />
+                        <span>{f.name}</span>
+                      </div>
+                    </label>
+                  ))
+                )}
+              </div>
+
+              <div className="flex justify-end space-x-3 pt-4 border-t" style={{ borderColor: 'var(--card-border)' }}>
+                <button
+                  onClick={() => setIsFolderModalOpen(false)}
+                  className="px-4 py-2.5 text-xs font-semibold touch-target"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveFolder}
+                  disabled={updatingFolder || !selectedFolderId}
+                  className="px-4 py-2.5 text-xs font-bold rounded-xl shadow-md transition disabled:opacity-50 touch-target btn-emerald-cta"
+                >
+                  {updatingFolder ? 'Saving…' : 'Save Selection'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
 
 export default function MediaLibraryPage() {
   const [assets, setAssets] = useState<MediaAsset[]>([]);
@@ -44,8 +386,8 @@ export default function MediaLibraryPage() {
   useEffect(() => { fetchMediaAssets(); }, [fetchMediaAssets]);
 
   // Live updates: as soon as the AMAI Engine finishes analysing/preparing an
-  // uploaded file, this refetches so the status badge updates without a
-  // page refresh.
+  // uploaded file (whether it came from a direct upload or a Drive sync),
+  // this refetches so the status badge updates without a page refresh.
   useEngineEvents((event) => {
     if (event.mediaAssetId || event.type === 'MEDIA_UPLOADED') {
       fetchMediaAssets();
@@ -84,6 +426,11 @@ export default function MediaLibraryPage() {
           <span>{error}</span>
         </div>
       )}
+
+      {/* Media Source — Upload Directly / Google Drive */}
+      <Suspense fallback={null}>
+        <MediaSourceSection />
+      </Suspense>
 
       {/* Upload Dropzone Component */}
       <div className="rounded-2xl border p-5" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}>
