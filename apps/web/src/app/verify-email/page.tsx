@@ -90,7 +90,7 @@ function VerifyEmailContent() {
 
         {verifying ? (
           <div className="space-y-4 py-8">
-            <div className="h-16 w-16 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center mx-auto animate-pulse">
+            <div className="h-16 w-16 rounded-full bg-red-500/10 text-red-500 flex items-center justify-center mx-auto animate-pulse">
               <RefreshCw className="h-8 w-8 animate-spin" />
             </div>
             <h2 className="text-xl font-extrabold text-slate-900 dark:text-white">Verifying your email...</h2>
@@ -110,7 +110,7 @@ function VerifyEmailContent() {
 
             <Link
               href="/login"
-              className="w-full py-4 px-6 bg-gradient-to-r from-rose-500 via-purple-600 to-indigo-600 text-white font-bold text-sm rounded-2xl shadow-xl shadow-rose-500/20 transition flex items-center justify-center space-x-2 border border-white/20 touch-target inline-flex"
+              className="w-full py-4 px-6 bg-gradient-to-r from-indigo-900 via-violet-700 to-violet-600 text-white font-bold text-sm rounded-2xl shadow-xl shadow-violet-600/20 transition flex items-center justify-center space-x-2 border border-white/20 touch-target inline-flex"
             >
               <span>Continue to Sign In</span>
               <ArrowRight className="h-4 w-4" />
@@ -118,7 +118,7 @@ function VerifyEmailContent() {
           </div>
         ) : (
           <div className="space-y-6">
-            <div className="h-16 w-16 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center mx-auto border border-purple-500/20">
+            <div className="h-16 w-16 rounded-full bg-violet-500/10 text-violet-600 dark:text-violet-400 flex items-center justify-center mx-auto border border-violet-500/20">
               <Mail className="h-8 w-8" />
             </div>
 
@@ -130,7 +130,7 @@ function VerifyEmailContent() {
             </div>
 
             {error && (
-              <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-semibold flex items-center justify-center space-x-2">
+              <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-xs font-semibold flex items-center justify-center space-x-2">
                 <AlertCircle className="h-4 w-4 flex-shrink-0" />
                 <span>{error}</span>
               </div>
@@ -163,7 +163,7 @@ function VerifyEmailContent() {
               </button>
 
               <div className="pt-2">
-                <Link href="/register" className="text-xs font-semibold text-rose-600 dark:text-rose-400 hover:underline">
+                <Link href="/register" className="text-xs font-semibold text-violet-600 dark:text-violet-400 hover:underline">
                   Wrong email address? Change Email
                 </Link>
               </div>

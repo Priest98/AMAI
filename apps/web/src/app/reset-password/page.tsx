@@ -97,7 +97,7 @@ function ResetPasswordContent() {
             </div>
             <Link
               href="/login"
-              className="w-full py-4 px-6 bg-gradient-to-r from-rose-500 via-purple-600 to-indigo-600 text-white font-bold text-sm rounded-2xl shadow-xl shadow-rose-500/20 transition flex items-center justify-center space-x-2 border border-white/20 touch-target inline-flex"
+              className="w-full py-4 px-6 bg-gradient-to-r from-indigo-900 via-violet-700 to-violet-600 text-white font-bold text-sm rounded-2xl shadow-xl shadow-violet-600/20 transition flex items-center justify-center space-x-2 border border-white/20 touch-target inline-flex"
             >
               <span>Sign In Now</span>
               <ArrowRight className="h-4 w-4" />
@@ -106,7 +106,7 @@ function ResetPasswordContent() {
         ) : (
           <form onSubmit={handleResetPassword} className="space-y-4">
             {error && (
-              <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-semibold flex items-center space-x-2">
+              <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-xs font-semibold flex items-center space-x-2">
                 <AlertCircle className="h-4 w-4 flex-shrink-0" />
                 <span>{error}</span>
               </div>
@@ -124,7 +124,7 @@ function ResetPasswordContent() {
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="Minimum 8 characters"
-                  className="w-full pl-11 pr-11 py-3.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-zinc-950/60 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-rose-500/50 transition"
+                  className="w-full pl-11 pr-11 py-3.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-zinc-950/60 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-violet-500/50 transition"
                 />
                 <button
                   type="button"
@@ -148,7 +148,7 @@ function ResetPasswordContent() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Repeat new password"
-                  className="w-full pl-11 pr-4 py-3.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-zinc-950/60 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-rose-500/50 transition"
+                  className="w-full pl-11 pr-4 py-3.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-zinc-950/60 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-violet-500/50 transition"
                 />
               </div>
             </div>
@@ -156,7 +156,7 @@ function ResetPasswordContent() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-4 px-6 bg-gradient-to-r from-rose-500 via-purple-600 to-indigo-600 hover:opacity-95 text-white font-bold text-sm rounded-2xl shadow-xl shadow-rose-500/20 transition flex items-center justify-center space-x-2 border border-white/20 touch-target disabled:opacity-50 mt-2"
+              className="w-full py-4 px-6 bg-gradient-to-r from-indigo-900 via-violet-700 to-violet-600 hover:opacity-95 text-white font-bold text-sm rounded-2xl shadow-xl shadow-violet-600/20 transition flex items-center justify-center space-x-2 border border-white/20 touch-target disabled:opacity-50 mt-2"
             >
               <span>{loading ? 'Updating Password...' : 'Save New Password'}</span>
               <ArrowRight className="h-4 w-4" />

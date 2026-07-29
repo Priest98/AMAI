@@ -1,46 +1,65 @@
 @import "tailwindcss";
 @import "../styles/theme-fixes.css";
 
+/*
+ * AMAI Design System — Light & Dark
+ *
+ * Light: clean, premium, spacious, calm (Notion / Linear / Vercel / Stripe
+ * territory). Dark: soft charcoal, never pure black, a premium AI control
+ * centre. Both themes share the same tokens, typography, spacing and
+ * components — switching themes changes only the atmosphere.
+ */
+
 :root,
 .light {
-  --bg-base: #E8E1D7;
-  --bg-surface: #F4EFEA;
-  --bg-surface-raised: #E4DCD3;
-  --card-bg: #F4EFEA;
-  --card-border: rgba(112, 99, 86, 0.18);
-  --card-hover-border: rgba(112, 99, 86, 0.35);
-  --card-shadow: 0 4px 16px -4px rgba(80, 68, 56, 0.08);
+  --bg-base: #F8FAFC;
+  --bg-surface: #FFFFFF;
+  --bg-surface-raised: #FFFFFF;
+  --hover-surface: #F1F5F9;
+  --card-bg: #FFFFFF;
+  --card-border: #E2E8F0;
+  --card-hover-border: #CBD5E1;
+  --card-shadow: 0 1px 2px 0 rgba(15, 23, 42, 0.04), 0 4px 16px -4px rgba(15, 23, 42, 0.08);
 
-  --accent-primary: #1F4A38;
-  --accent-success: #276749;
-  --accent-warning: #C7A77C;
-  --accent-error: #9B2C2C;
+  --accent-primary: #312E81;
+  --accent-secondary: #7C3AED;
+  --accent-success: #10B981;
+  --accent-warning: #F59E0B;
+  --accent-error: #EF4444;
 
-  --text-primary: #2C241E;
-  --text-secondary: #706356;
-  --text-muted: #8F8173;
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --text-muted: #94A3B8;
+
+  --gradient-primary-cta: linear-gradient(135deg, #312E81 0%, #7C3AED 100%);
+  --gradient-gold-cta: linear-gradient(135deg, #312E81 0%, #7C3AED 100%);
 
   --font-sans: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'Geist Mono', monospace;
 }
 
 .dark {
-  --bg-base: #0B0C10;
-  --bg-surface: #15161C;
-  --bg-surface-raised: #1F2029;
-  --card-bg: #15161C;
-  --card-border: rgba(212, 184, 150, 0.22);
-  --card-hover-border: rgba(212, 184, 150, 0.45);
-  --card-shadow: 0 6px 20px -6px rgba(0, 0, 0, 0.6);
+  --bg-base: #0F172A;
+  --bg-surface: #1E293B;
+  --bg-surface-raised: #1E293B;
+  --hover-surface: #334155;
+  --card-bg: #1E293B;
+  --card-border: rgba(248, 250, 252, 0.08);
+  --card-hover-border: rgba(248, 250, 252, 0.16);
+  --card-shadow: 0 4px 16px -4px rgba(0, 0, 0, 0.5), 0 1px 2px rgba(0, 0, 0, 0.3);
 
-  --accent-primary: #3E182B;
-  --accent-success: #00D9B5;
-  --accent-warning: #D4B896;
+  --accent-primary: #7C3AED;
+  --accent-secondary: #8B5CF6;
+  --accent-success: #10B981;
+  --accent-warning: #F59E0B;
   --accent-error: #EF4444;
 
-  --text-primary: #FFFFFF;
-  --text-secondary: #A1A1AA;
-  --text-muted: #71717A;
+  --text-primary: #F8FAFC;
+  --text-secondary: #CBD5E1;
+  --text-muted: #94A3B8;
+
+  --gradient-primary-cta: linear-gradient(135deg, #312E81 0%, #7C3AED 100%);
+  --gradient-gold-cta: linear-gradient(135deg, #312E81 0%, #7C3AED 100%);
 }
 
 @theme inline {
@@ -92,8 +111,8 @@ input, select, textarea {
   color: #FFFFFF;
   border-radius: 10px;
   font-weight: 600;
-  box-shadow: 0 4px 14px -2px rgba(62, 24, 43, 0.4);
-  border: 1px solid rgba(212, 184, 150, 0.35);
+  box-shadow: 0 4px 14px -2px rgba(124, 58, 237, 0.35);
+  border: 1px solid rgba(124, 58, 237, 0.35);
   transition: opacity 150ms ease, transform 150ms ease;
 }
 
@@ -115,10 +134,10 @@ input, select, textarea {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(212, 184, 150, 0.25);
+  background: rgba(124, 58, 237, 0.25);
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(212, 184, 150, 0.45);
+  background: rgba(124, 58, 237, 0.45);
 }
