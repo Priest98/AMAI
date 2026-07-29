@@ -15,6 +15,41 @@ import path from "path";
 // outputFileTracingRoot points at the monorepo root so Vercel's build
 // correctly includes apps/api/src/** (imported by the route handler above)
 // in the serverless function bundle, since it lives outside apps/web.
+//
+// serverExternalPackages: the NestJS/Prisma dependency tree relies on
+// dynamic, try/catch-wrapped requires for optional peers it doesn't
+// actually need (e.g. @nestjs/core opportunistically requires
+// @nestjs/websockets and @nestjs/microservices, neither of which is
+// installed since this app uses neither feature) and, for Prisma, native
+// binary engines webpack can't statically bundle. Marking these packages
+// external tells Next's build to leave them as plain runtime `require()`
+// calls instead of trying to bundle them, which is what lets Nest's own
+// optional-require fallback work the same way it does under a normal
+// `node dist/main.js` run.
+const nestAndPrismaPackages = [
+  "@nestjs/bullmq",
+  "@nestjs/common",
+  "@nestjs/config",
+  "@nestjs/core",
+  "@nestjs/event-emitter",
+  "@nestjs/jwt",
+  "@nestjs/passport",
+  "@nestjs/platform-express",
+  "@nestjs/schedule",
+  "@nestjs/throttler",
+  "@prisma/client",
+  "prisma",
+  "bullmq",
+  "class-transformer",
+  "class-validator",
+  "express",
+  "passport",
+  "passport-jwt",
+  "passport-oauth2",
+  "reflect-metadata",
+  "rxjs",
+];
+
 const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
@@ -23,6 +58,7 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   outputFileTracingRoot: path.join(__dirname, "../../"),
+  serverExternalPackages: nestAndPrismaPackages,
 };
 
 export default nextConfig;
