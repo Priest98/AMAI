@@ -1,11 +1,20 @@
 import type { NextConfig } from "next";
+import path from "path";
 
-// NOTE: API routing is handled by the root vercel.json rewrite
-// (/api/:path* -> the bundled NestJS serverless function), not here. This
-// file previously also defined a conflicting rewrite that forwarded to a
-// separate, now-retired "marketing-os-backend-api" Vercel project — that
-// caused API calls to silently hit a stale/nonexistent deployment. Do not
-// re-add an API rewrite here; the frontend and API share one origin.
+// API routing: /api/* is handled natively by Next.js itself via the
+// catch-all Route Handler at src/app/api/[...path]/route.ts, which boots
+// the NestJS app (apps/api) in-process and reverse-proxies to it. This
+// replaced an earlier vercel.json rewrite approach — Vercel's
+// `framework: "nextjs"` mode reserves the whole /api/* namespace for Next's
+// own router, so no rewrite (relative or absolute) could hand requests off
+// to a separate sibling serverless function without either being silently
+// swallowed into a 500 or, for a self-referencing absolute URL, causing an
+// infinite rewrite loop. Do not reintroduce an /api rewrite here or in
+// vercel.json.
+//
+// outputFileTracingRoot points at the monorepo root so Vercel's build
+// correctly includes apps/api/src/** (imported by the route handler above)
+// in the serverless function bundle, since it lives outside apps/web.
 const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
@@ -13,6 +22,7 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  outputFileTracingRoot: path.join(__dirname, "../../"),
 };
 
 export default nextConfig;
