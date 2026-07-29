@@ -80,6 +80,7 @@ export default function ApprovalQueuePage() {
   const [message, setMessage] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
+  const [liveProgress, setLiveProgress] = useState<string | null>(null);
 
   const loadPosts = useCallback(async () => {
     try {
@@ -106,6 +107,12 @@ export default function ApprovalQueuePage() {
   useEngineEvents((event) => {
     if (['APPROVAL_QUEUED', 'POST_APPROVED', 'POST_REJECTED', 'POST_EDITED'].includes(event.type)) {
       loadPosts();
+    }
+    // Live "AMAI Engine running…" progress while a Publish Now request is
+    // in flight — these events are broadcast by the real backend publisher
+    // as it actually talks to Instagram/TikTok, not a simulated timeline.
+    if (event.postId === busyId && ['PUBLISH_STARTED', 'PUBLISH_UPLOADING'].includes(event.type)) {
+      setLiveProgress(event.message || event.type);
     }
   });
 
@@ -222,18 +229,50 @@ export default function ApprovalQueuePage() {
     }
   };
 
-  /** Saves the edited fields and publishes immediately instead of waiting for the scheduled time. */
+  /**
+   * Saves the edited fields and publishes immediately instead of waiting
+   * for the scheduled time. This now actually awaits the real Instagram/
+   * TikTok API calls on the backend (fixed a bug where the request
+   * returned before publishing had genuinely completed, so the UI could
+   * claim success on a post that was never actually posted) — the request
+   * can legitimately take up to ~30-40s for video, during which the
+   * "AMAI Engine running…" status below updates live from real backend
+   * events as they happen.
+   */
   const handlePublishNow = async (id: string) => {
     setBusyId(id); setBusyAction('publish');
+    setLiveProgress('Starting the AMAI Engine…');
     try {
-      await brandFetch(`/posts/${id}/approve`, { method: 'POST', body: JSON.stringify({ ...buildEditBody(), publishNow: true }) });
+      const result = await brandFetch<{ status: string; publishErrors?: { platform: string; error: string }[] }>(
+        `/posts/${id}/approve`,
+        { method: 'POST', body: JSON.stringify({ ...buildEditBody(), publishNow: true }) },
+      );
+
+      // The post already left NEEDS_APPROVAL the moment /approve ran
+      // (before publishing was even attempted), so it's out of this queue
+      // either way — the branches below only decide what to tell the user.
       setPosts((prev) => prev.filter((p) => p.id !== id));
       setEditingPostId(null);
-      flash('🚀 Publishing now.');
+
+      const reasons = (result.publishErrors || []).map((e) => `${e.platform}: ${e.error}`).join(' · ');
+      if (result.status === 'PUBLISHED') {
+        flash('✅ Published — live on the connected platform(s) now.');
+      } else if (result.status === 'FAILED') {
+        // Every target exhausted its retries — a real, terminal failure.
+        flash(`Publishing failed. ${reasons || 'Check the connected account and try again.'}`);
+      } else if (reasons) {
+        // Hit a retriable error on this attempt (e.g. a transient platform
+        // timeout) — the backend already reverted it to SCHEDULED and will
+        // retry automatically on the next publish pass, this is not a fake
+        // success message.
+        flash(`Hit a temporary issue and will retry automatically. ${reasons}`);
+      } else {
+        flash('Publishing — check Scheduled Posts for status.');
+      }
     } catch (e: any) {
       flash(e.message || 'Could not publish this post.');
     } finally {
-      setBusyId(null); setBusyAction(null);
+      setBusyId(null); setBusyAction(null); setLiveProgress(null);
     }
   };
 
@@ -487,6 +526,19 @@ export default function ApprovalQueuePage() {
                           <span>Publish Now</span>
                         </button>
                       </div>
+
+                      {/* Real progress from the backend as it actually talks to
+                          Instagram/TikTok — driven by PUBLISH_STARTED /
+                          PUBLISH_UPLOADING SSE events, not a fake timer. */}
+                      {isBusy && busyAction === 'publish' && liveProgress && (
+                        <div
+                          className="flex items-center space-x-2 text-[11px] font-semibold rounded-lg px-3 py-2 border"
+                          style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-secondary)' }}
+                        >
+                          <Loader2 className="h-3 w-3 animate-spin text-violet-500" />
+                          <span>{liveProgress}</span>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <>

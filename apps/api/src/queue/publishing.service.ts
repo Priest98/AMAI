@@ -32,8 +32,21 @@ export class PublishingService {
 
   /** Finds every post that's due and publishes each of its pending targets. */
   async publishDuePosts() {
+    // Also sweeps up posts stuck in PUBLISHING for more than 5 minutes —
+    // the normal path always reverts PUBLISHING back to SCHEDULED on a
+    // non-terminal failure (see publishOne), but a hard function kill
+    // mid-attempt (rare, but Vercel functions have no completion guarantee)
+    // could theoretically strand a row there with pending targets. This is
+    // the safety net so that scenario self-heals instead of a post sitting
+    // forever in a state neither the queue nor the user can see progress on.
+    const staleCutoff = new Date(Date.now() - 5 * 60 * 1000);
     const due = await this.prisma.post.findMany({
-      where: { status: PostStatus.SCHEDULED, scheduledAt: { lte: new Date() } },
+      where: {
+        OR: [
+          { status: PostStatus.SCHEDULED, scheduledAt: { lte: new Date() } },
+          { status: PostStatus.PUBLISHING, updatedAt: { lte: staleCutoff } },
+        ],
+      },
       include: { targets: { where: { status: TargetStatus.PENDING } } },
       take: 50,
     });
@@ -82,12 +95,37 @@ export class PublishingService {
 
     const mediaAsset = target.post.media[0]?.asset;
 
+    // Flip the parent Post into a real PUBLISHING state and broadcast the
+    // start of the attempt over SSE before touching any platform API — this
+    // is what the Approval Queue's live progress panel watches for, and
+    // it's also what makes "stuck in SCHEDULED forever" visibly wrong if a
+    // publish attempt ever gets interrupted, instead of silently looking
+    // like nothing happened.
+    await this.prisma.post.updateMany({
+      where: { id: target.postId, status: { in: [PostStatus.SCHEDULED, PostStatus.PUBLISHING] } },
+      data: { status: PostStatus.PUBLISHING },
+    });
+    {
+      const startedEvent = await this.prisma.engineEvent.create({
+        data: { brandId: target.post.brandId, type: EngineEventType.PUBLISH_STARTED, postId: target.postId, message: `Publishing to ${target.platform}…` },
+      });
+      this.events.emit('engine.activity', startedEvent);
+    }
+
     try {
       if (!mediaAsset?.blobUrl) {
         throw new Error('No media file is attached to this post.');
       }
 
       const accessToken = this.encryption.decrypt(target.socialAccount.accessToken);
+
+      {
+        const uploadingEvent = await this.prisma.engineEvent.create({
+          data: { brandId: target.post.brandId, type: EngineEventType.PUBLISH_UPLOADING, postId: target.postId, message: `Sending media to ${target.platform}…` },
+        });
+        this.events.emit('engine.activity', uploadingEvent);
+      }
+
       const providerPostId = await this.publishToPlatform(
         target.platform,
         target.socialAccount.platformAccountId,
@@ -145,6 +183,14 @@ export class PublishingService {
         await this.finalizeIfComplete(target.postId, target.platform, null, mediaAsset?.id);
       } else {
         this.logger.warn(`Target ${target.id} left PENDING for retry (attempt ${priorFailures + 1}/${MAX_PUBLISH_ATTEMPTS}).`);
+        // This target will be retried later (by the next cron pass or a
+        // manual Retry), so the post must not stay stuck in PUBLISHING —
+        // publishDuePosts only looks for status: SCHEDULED. Revert it so
+        // the retry path can actually find this post again.
+        await this.prisma.post.updateMany({
+          where: { id: target.postId, status: PostStatus.PUBLISHING },
+          data: { status: PostStatus.SCHEDULED },
+        });
       }
 
       throw error;
@@ -218,6 +264,15 @@ export class PublishingService {
       throw new Error(containerData?.error?.message || 'Instagram rejected the media container.');
     }
 
+    // Video/Reels containers process asynchronously on Instagram's side —
+    // calling media_publish before the container reaches FINISHED returns
+    // a "media not ready" error. Poll status_code with a short backoff
+    // before attempting to publish. Images are already synchronous and
+    // report FINISHED immediately, so this is a fast no-op for photo posts.
+    if (isVideo) {
+      await this.waitForInstagramContainerReady(containerData.id, accessToken);
+    }
+
     const publishRes = await fetch(`https://graph.instagram.com/v19.0/${igUserId}/media_publish`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -229,6 +284,38 @@ export class PublishingService {
     }
 
     return publishData.id;
+  }
+
+  /**
+   * Polls an Instagram media container until it reports FINISHED (ready to
+   * publish) or ERROR. Reels/videos are fetched and transcoded by
+   * Instagram asynchronously after container creation, so media_publish
+   * has to wait for that to actually finish first.
+   */
+  private async waitForInstagramContainerReady(containerId: string, accessToken: string): Promise<void> {
+    // Kept short and bounded on purpose: this runs synchronously inside the
+    // publish request/response cycle, which — same as the rest of this app —
+    // is a Vercel serverless function capped at 60s total. 6 polls at a 6s
+    // interval is ~30s worst case, leaving headroom for container creation,
+    // media_publish, and DB writes in the same request.
+    const maxAttempts = 6;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const res = await fetch(
+        `https://graph.instagram.com/v19.0/${containerId}?fields=status_code&access_token=${encodeURIComponent(accessToken)}`,
+      );
+      const data = await res.json();
+      const statusCode = data?.status_code;
+
+      if (statusCode === 'FINISHED') return;
+      if (statusCode === 'ERROR') {
+        throw new Error('Instagram failed to process the uploaded video.');
+      }
+      // IN_PROGRESS or EXPIRED (rare) — keep waiting up to maxAttempts.
+      if (attempt < maxAttempts) {
+        await new Promise((resolve) => setTimeout(resolve, 6000));
+      }
+    }
+    throw new Error('Instagram is still processing this video — it will be retried automatically on the next publish pass.');
   }
 
   /** TikTok Content Posting API (PULL_FROM_URL init flow). */

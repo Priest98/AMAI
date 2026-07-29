@@ -269,17 +269,28 @@ export class EngineService {
 
     await this.logEvent(brandId, EngineEventType.POST_APPROVED, {
       postId,
-      message: overrides?.publishNow ? 'Post approved and publishing now.' : 'Post approved and scheduled.',
+      message: overrides?.publishNow ? 'Post approved — publishing now.' : 'Post approved and scheduled.',
     });
 
     if (overrides?.publishNow) {
-      // Fire-and-forget, same pattern as retryPost — don't block the HTTP
-      // response on external platform API latency. Failures are recorded
-      // per-target by publishOne itself.
+      // Must be awaited, not fire-and-forget: a Vercel serverless function
+      // can be frozen the instant its HTTP response is flushed, so any
+      // background work still in flight (the actual Instagram/TikTok API
+      // calls) has no guarantee of ever finishing. That was the root cause
+      // of "Publish Now" silently doing nothing — the approve request
+      // returned success immediately, the post left the Approval Queue,
+      // and publishOne() may never have actually run to completion.
+      // Awaiting here means the HTTP response only completes once every
+      // target has genuinely resolved (published or failed) against the
+      // real platform API, and the response reflects the true outcome.
       const targets = await this.prisma.postTarget.findMany({ where: { postId, status: TargetStatus.PENDING } });
-      for (const target of targets) {
-        this.publishingService.publishOne(target.id).catch(() => {});
-      }
+      const results = await Promise.allSettled(targets.map((t) => this.publishingService.publishOne(t.id)));
+      const publishErrors = results
+        .map((r, i) => (r.status === 'rejected' ? { platform: targets[i].platform, error: (r as PromiseRejectedResult).reason?.message || 'Publish failed.' } : null))
+        .filter((e): e is { platform: Platform; error: string } => e !== null);
+
+      const finalPost = await this.prisma.post.findUnique({ where: { id: postId } });
+      return { ...finalPost, publishErrors };
     }
     // Otherwise: picked up by the next /api/cron/publish-due run once scheduledAt is due.
 
@@ -329,12 +340,17 @@ export class EngineService {
 
     await this.logEvent(brandId, EngineEventType.POST_EDITED, { postId, message: 'Retrying failed post now.' });
 
+    // Same fix as approvePost's publishNow path: awaited, not fire-and-forget,
+    // so the response reflects what actually happened rather than assuming
+    // background work completed after the function may have been frozen.
     const targets = await this.prisma.postTarget.findMany({ where: { postId, status: TargetStatus.PENDING } });
-    for (const target of targets) {
-      this.publishingService.publishOne(target.id).catch(() => {});
-    }
+    const results = await Promise.allSettled(targets.map((t) => this.publishingService.publishOne(t.id)));
+    const publishErrors = results
+      .map((r, i) => (r.status === 'rejected' ? { platform: targets[i].platform, error: (r as PromiseRejectedResult).reason?.message || 'Publish failed.' } : null))
+      .filter((e): e is { platform: Platform; error: string } => e !== null);
 
-    return updated;
+    const finalPost = await this.prisma.post.findUnique({ where: { id: postId } });
+    return { ...finalPost, publishErrors };
   }
 
   async editPost(
