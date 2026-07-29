@@ -52,7 +52,7 @@ export default function ScheduledPostsPage() {
       />
 
       {error && (
-        <div className="p-3.5 rounded-xl border bg-rose-500/10 border-rose-500/20 text-rose-400 text-xs font-semibold">{error}</div>
+        <div className="p-3.5 rounded-xl border bg-red-500/10 border-red-500/20 text-red-400 text-xs font-semibold">{error}</div>
       )}
 
       {loading ? (

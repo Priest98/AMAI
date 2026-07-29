@@ -139,7 +139,7 @@ export default function UploadDropzone({ onUploaded }: { onUploaded?: (asset: an
         onDrop={handleDrop}
         className={`rounded-xl border-2 border-dashed p-6 sm:p-8 text-center transition-all duration-200 ${
           isDragging
-            ? "border-rose-500 bg-rose-500/5 dark:bg-rose-500/10"
+            ? "border-violet-500 bg-violet-500/5 dark:bg-violet-500/10"
             : "border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-zinc-950/40 hover:border-slate-300 dark:hover:border-white/20"
         }`}
       >
@@ -222,13 +222,13 @@ export default function UploadDropzone({ onUploaded }: { onUploaded?: (asset: an
 
               {item.status === "error" && (
                 <div className="flex items-center space-x-2 min-w-0">
-                  <span className="text-rose-500 font-semibold flex items-center space-x-1 min-w-0">
+                  <span className="text-red-500 font-semibold flex items-center space-x-1 min-w-0">
                     <AlertCircle className="h-3.5 w-3.5 shrink-0" />
                     <span className="truncate">{item.error}</span>
                   </span>
                   <button
                     onClick={() => processSingleUpload(item)}
-                    className="p-1 rounded bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 font-bold text-[10px] flex items-center space-x-1 shrink-0"
+                    className="p-1 rounded bg-red-500/10 hover:bg-red-500/20 text-red-400 font-bold text-[10px] flex items-center space-x-1 shrink-0"
                     title="Retry Upload"
                   >
                     <RotateCcw className="h-3 w-3" />

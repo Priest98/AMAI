@@ -266,7 +266,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
               <button
                 onClick={handleLogout}
-                className="flex items-center space-x-2 px-3 py-2 rounded-lg text-xs font-bold text-rose-400 bg-rose-500/10 border border-rose-500/20"
+                className="flex items-center space-x-2 px-3 py-2 rounded-lg text-xs font-bold text-red-400 bg-red-500/10 border border-red-500/20"
               >
                 <LogOut className="h-4 w-4" />
                 <span>Sign Out</span>
@@ -330,7 +330,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <div className="pt-3 border-t flex items-center justify-between" style={{ borderColor: 'var(--card-border)' }}>
                 <button
                   onClick={handleLogout}
-                  className="h-7 px-3 rounded-md text-xs font-bold flex items-center space-x-1.5 text-rose-400 hover:bg-rose-500/10 transition"
+                  className="h-7 px-3 rounded-md text-xs font-bold flex items-center space-x-1.5 text-red-400 hover:bg-red-500/10 transition"
                 >
                   <LogOut className="h-3.5 w-3.5" />
                   <span>Logout</span>

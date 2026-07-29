@@ -42,7 +42,7 @@ const STATUS_LABEL: Record<string, { label: string; className: string }> = {
   READY: { label: 'Ready for review', className: 'bg-sky-500/20 text-sky-400 border-sky-500/30' },
   SCHEDULED: { label: 'Scheduled', className: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
   PUBLISHED: { label: 'Published', className: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
-  FAILED: { label: 'Failed', className: 'bg-rose-500/20 text-rose-400 border-rose-500/30' },
+  FAILED: { label: 'Failed', className: 'bg-red-500/20 text-red-400 border-red-500/30' },
 };
 
 function MediaSourceSection() {
@@ -179,7 +179,7 @@ function MediaSourceSection() {
             className={`mb-3 p-3 rounded-xl text-xs font-semibold flex items-center justify-between border ${
               message.type === 'success'
                 ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
-                : 'bg-rose-500/10 text-rose-500 border-rose-500/20'
+                : 'bg-red-500/10 text-red-500 border-red-500/20'
             }`}
           >
             <span>{message.text}</span>
@@ -249,12 +249,12 @@ function MediaSourceSection() {
                         className="w-full text-left px-3 py-2 rounded-lg flex items-center space-x-2 touch-target"
                         style={{ color: 'var(--text-primary)' }}
                       >
-                        <FolderSync className="h-3.5 w-3.5 text-purple-500" />
+                        <FolderSync className="h-3.5 w-3.5 text-violet-500" />
                         <span>Change Folder</span>
                       </button>
                       <button
                         onClick={handleDisconnect}
-                        className="w-full text-left px-3 py-2 rounded-lg text-rose-500 flex items-center space-x-2 touch-target"
+                        className="w-full text-left px-3 py-2 rounded-lg text-red-500 flex items-center space-x-2 touch-target"
                       >
                         <LogOut className="h-3.5 w-3.5" />
                         <span>Disconnect</span>
@@ -421,7 +421,7 @@ export default function MediaLibraryPage() {
       </div>
 
       {error && (
-        <div className="p-3.5 rounded-xl border bg-rose-500/10 border-rose-500/20 text-rose-400 text-xs font-semibold flex items-center space-x-2">
+        <div className="p-3.5 rounded-xl border bg-red-500/10 border-red-500/20 text-red-400 text-xs font-semibold flex items-center space-x-2">
           <AlertCircle className="h-3.5 w-3.5 shrink-0" />
           <span>{error}</span>
         </div>
@@ -489,14 +489,14 @@ export default function MediaLibraryPage() {
 
                   {asset.status === 'FAILED' && asset.lastErrorMessage && (
                     <div className="absolute bottom-0 inset-x-0 bg-black/70 px-2 py-1">
-                      <p className="text-[9px] text-rose-300 truncate">{asset.lastErrorMessage}</p>
+                      <p className="text-[9px] text-red-300 truncate">{asset.lastErrorMessage}</p>
                     </div>
                   )}
 
                   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition duration-200 flex items-center justify-center">
                     <button
                       onClick={() => handleDeleteAsset(asset.id)}
-                      className="p-2 rounded-xl bg-rose-500 text-white shadow-lg hover:scale-105 transition touch-target"
+                      className="p-2 rounded-xl bg-red-500 text-white shadow-lg hover:scale-105 transition touch-target"
                       title="Delete File"
                     >
                       <Trash2 className="h-4 w-4" />

@@ -124,7 +124,7 @@ export default function DashboardPage() {
           helperText={pendingPosts.length === 0 ? 'All caught up' : 'Posts awaiting review'}
         />
         <StatCard
-          icon={<CalendarClock className="h-4 w-4 text-purple-400" />}
+          icon={<CalendarClock className="h-4 w-4 text-violet-400" />}
           label="Scheduled"
           value={String(scheduledCount)}
           helperText="Queued to publish"
@@ -177,7 +177,7 @@ export default function DashboardPage() {
                 {pendingPosts.slice(0, 3).map((post) => (
                   <div key={post.id} className="p-3.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
                     <div className="space-y-1 max-w-xl">
-                      <span className="px-2 py-0.5 rounded-md font-mono text-[10px] font-bold border border-rose-500/20 bg-rose-500/10 text-rose-400">
+                      <span className="px-2 py-0.5 rounded-md font-mono text-[10px] font-bold border border-violet-500/20 bg-violet-500/10 text-violet-400">
                         {post.targets?.[0]?.platform || 'INSTAGRAM'}
                       </span>
                       <p className="line-clamp-2 font-medium" style={{ color: 'var(--text-primary)' }}>{post.caption}</p>

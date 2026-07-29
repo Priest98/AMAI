@@ -4,7 +4,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-[#09090b] text-white flex flex-col items-center justify-center p-6 font-sans">
       <div className="max-w-2xl text-center space-y-6">
-        <div className="inline-flex items-center space-x-2 px-4 py-1.5 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-bold">
+        <div className="inline-flex items-center space-x-2 px-4 py-1.5 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-400 text-xs font-bold">
           <span>✨ Welcome to AMAI</span>
         </div>
 
@@ -19,7 +19,7 @@ export default function Home() {
         <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-4">
           <Link
             href="/dashboard"
-            className="w-full sm:w-auto px-8 py-3 bg-gradient-to-r from-rose-500 via-purple-600 to-indigo-600 text-white font-bold text-sm rounded-xl shadow-lg shadow-rose-500/25 hover:opacity-95 transition"
+            className="w-full sm:w-auto px-8 py-3 bg-gradient-to-r from-indigo-900 via-violet-700 to-violet-600 text-white font-bold text-sm rounded-xl shadow-lg shadow-violet-600/25 hover:opacity-95 transition"
           >
             Launch AMAI Dashboard
           </Link>

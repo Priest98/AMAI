@@ -61,9 +61,9 @@ export default function AnalyticsPage() {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard icon={<Clock className="h-4 w-4 text-amber-400" />} label="Awaiting Approval" value={String(counts.pending)} helperText="In the queue" />
-        <StatCard icon={<CalendarClock className="h-4 w-4 text-purple-400" />} label="Scheduled" value={String(counts.scheduled)} helperText="Queued to publish" />
+        <StatCard icon={<CalendarClock className="h-4 w-4 text-violet-400" />} label="Scheduled" value={String(counts.scheduled)} helperText="Queued to publish" />
         <StatCard icon={<CheckCircle2 className="h-4 w-4 text-emerald-400" />} label="Published" value={String(counts.published)} helperText="Live posts" />
-        <StatCard icon={<XCircle className="h-4 w-4 text-rose-400" />} label="Failed" value={String(counts.failed)} helperText="Needs attention" />
+        <StatCard icon={<XCircle className="h-4 w-4 text-red-400" />} label="Failed" value={String(counts.failed)} helperText="Needs attention" />
       </div>
 
       <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm overflow-hidden">

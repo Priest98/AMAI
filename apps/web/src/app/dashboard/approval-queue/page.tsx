@@ -195,7 +195,7 @@ export default function ApprovalQueuePage() {
                           <span>TikTok</span>
                         </span>
                       ) : (
-                        <span className="p-1.5 rounded-lg bg-rose-500/10 text-rose-500 border border-rose-500/20 text-xs font-bold flex items-center space-x-1">
+                        <span className="p-1.5 rounded-lg bg-red-500/10 text-red-500 border border-red-500/20 text-xs font-bold flex items-center space-x-1">
                           <Instagram className="h-3.5 w-3.5" />
                           <span>Instagram</span>
                         </span>
@@ -219,11 +219,11 @@ export default function ApprovalQueuePage() {
                       <button
                         onClick={() => handleReject(post.id)}
                         disabled={busyId === post.id}
-                        className="p-1.5 rounded-lg border text-xs font-semibold transition hover:border-rose-400 disabled:opacity-50"
+                        className="p-1.5 rounded-lg border text-xs font-semibold transition hover:border-red-400 disabled:opacity-50"
                         style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-secondary)' }}
                         title="Reject Post"
                       >
-                        <Trash2 className="h-3.5 w-3.5 text-rose-400" />
+                        <Trash2 className="h-3.5 w-3.5 text-red-400" />
                       </button>
                     </div>
                   </div>
@@ -271,7 +271,7 @@ export default function ApprovalQueuePage() {
                     <button
                       onClick={() => handleReject(post.id)}
                       disabled={busyId === post.id}
-                      className="px-4 py-2 rounded-xl text-xs font-bold border text-rose-400 border-rose-500/20 bg-rose-500/10 hover:bg-rose-500/20 transition flex items-center space-x-1.5 disabled:opacity-50"
+                      className="px-4 py-2 rounded-xl text-xs font-bold border text-red-400 border-red-500/20 bg-red-500/10 hover:bg-red-500/20 transition flex items-center space-x-1.5 disabled:opacity-50"
                     >
                       <XCircle className="h-3.5 w-3.5" />
                       <span>Reject</span>

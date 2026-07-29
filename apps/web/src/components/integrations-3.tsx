@@ -25,7 +25,7 @@ export function IntegrationsBlock() {
 
 					{/* 1. Instagram */}
 					<div className="flex flex-col items-center space-y-2 group">
-						<div className="h-16 w-16 rounded-xl bg-white dark:bg-zinc-900 border flex items-center justify-center p-3.5 shadow-lg group-hover:scale-105 transition-transform ring-2 ring-rose-500/20" style={{ borderColor: 'var(--card-border)' }}>
+						<div className="h-16 w-16 rounded-xl bg-white dark:bg-zinc-900 border flex items-center justify-center p-3.5 shadow-lg group-hover:scale-105 transition-transform ring-2 ring-violet-500/20" style={{ borderColor: 'var(--card-border)' }}>
 							<InstagramLogo className="h-10 w-10" />
 						</div>
 						<span className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>Instagram</span>

@@ -190,7 +190,7 @@ export default function ConnectedAccountsPage() {
             className={`p-4 rounded-2xl text-xs font-semibold flex items-center justify-between border ${
               message.type === 'success'
                 ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
-                : 'bg-rose-500/10 text-rose-500 border-rose-500/20'
+                : 'bg-red-500/10 text-red-500 border-red-500/20'
             }`}
           >
             <span>{message.text}</span>
@@ -254,7 +254,7 @@ export default function ConnectedAccountsPage() {
                           className="w-full text-left px-3 py-2 rounded-lg flex items-center space-x-2 touch-target"
                           style={{ color: 'var(--text-primary)' }}
                         >
-                          <RefreshCw className="h-3.5 w-3.5 text-rose-500" />
+                          <RefreshCw className="h-3.5 w-3.5 text-red-500" />
                           <span>Reconnect Profile</span>
                         </button>
 
@@ -278,7 +278,7 @@ export default function ConnectedAccountsPage() {
 
                         <button
                           onClick={() => handleDisconnectAccount('instagram', instagramAccounts[0]?.id)}
-                          className="w-full text-left px-3 py-2 rounded-lg text-rose-500 flex items-center space-x-2 touch-target"
+                          className="w-full text-left px-3 py-2 rounded-lg text-red-500 flex items-center space-x-2 touch-target"
                         >
                           <LogOut className="h-3.5 w-3.5" />
                           <span>Disconnect</span>
@@ -367,7 +367,7 @@ export default function ConnectedAccountsPage() {
                           className="w-full text-left px-3 py-2 rounded-lg flex items-center space-x-2 touch-target"
                           style={{ color: 'var(--text-primary)' }}
                         >
-                          <RefreshCw className="h-3.5 w-3.5 text-purple-500" />
+                          <RefreshCw className="h-3.5 w-3.5 text-violet-500" />
                           <span>Reconnect Profile</span>
                         </button>
 
@@ -391,7 +391,7 @@ export default function ConnectedAccountsPage() {
 
                         <button
                           onClick={() => handleDisconnectAccount('tiktok', tiktokAccounts[0]?.id)}
-                          className="w-full text-left px-3 py-2 rounded-lg text-rose-500 flex items-center space-x-2 touch-target"
+                          className="w-full text-left px-3 py-2 rounded-lg text-red-500 flex items-center space-x-2 touch-target"
                         >
                           <LogOut className="h-3.5 w-3.5" />
                           <span>Disconnect</span>
