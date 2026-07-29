@@ -37,16 +37,22 @@ export class PostsService {
   }
 
   async getPosts(brandId: string, status?: PostStatus) {
+    // Safety cap — same reasoning as MediaAsset.getAssets: this already has
+    // the right indexes (idx_post_brand_status) and select-scoped relations,
+    // but nothing stopped it from eventually returning thousands of rows
+    // with full media/target payloads on every Approval Queue / Scheduled /
+    // Published page load.
     return this.prisma.post.findMany({
       where: {
         brandId,
         ...(status ? { status } : {})
       },
       include: {
-        targets: { select: { platform: true, status: true } },
+        targets: { select: { platform: true, status: true, socialAccountId: true } },
         media: { include: { asset: { select: { blobUrl: true, mimeType: true, filename: true } } } },
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
+      take: 300,
     });
   }
 

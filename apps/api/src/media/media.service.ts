@@ -49,12 +49,29 @@ export class MediaService {
   }
 
   async getAssets(brandId: string, folderId?: string) {
+    // Projected + capped: the Media Library grid only ever renders these
+    // seven fields (not batchId/batchName/relativePath/userId/platform/
+    // providerPostId/publishedAt/updatedAt), and an unbounded findMany()
+    // would eventually pull the brand's entire upload history on every
+    // page load as the library grows. 300 is a generous ceiling for the
+    // grid view today; if libraries grow past that this should become
+    // real cursor pagination with a "load more" affordance in the UI.
     return this.prisma.mediaAsset.findMany({
       where: {
         brandId,
-        folderId: folderId || null
+        folderId: folderId || null,
       },
-      orderBy: { createdAt: 'desc' }
+      select: {
+        id: true,
+        filename: true,
+        mimeType: true,
+        blobUrl: true,
+        status: true,
+        lastErrorMessage: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 300,
     });
   }
 

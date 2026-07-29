@@ -12,6 +12,7 @@ import {
   ContentSource,
   EngineEventType,
   ConnectionStatus,
+  Platform,
 } from '@prisma/client';
 
 export interface MediaUploadedEvent {
@@ -222,19 +223,39 @@ export class EngineService {
   // APPROVAL QUEUE ACTIONS
   // ─────────────────────────────────────────────────────────────
 
-  async approvePost(brandId: string, postId: string, overrides?: { caption?: string; hashtags?: string[]; scheduledAt?: string }) {
+  async approvePost(
+    brandId: string,
+    postId: string,
+    overrides?: {
+      caption?: string;
+      hashtags?: string[];
+      ctaText?: string;
+      scheduledAt?: string;
+      targets?: { platform: Platform; socialAccountId: string }[];
+      publishNow?: boolean;
+    },
+  ) {
     const post = await this.getBrandPostOrThrow(brandId, postId);
     if (post.status !== PostStatus.NEEDS_APPROVAL) {
       throw new BadRequestException('Only posts awaiting approval can be approved.');
     }
 
-    const scheduledAt = overrides?.scheduledAt ? new Date(overrides.scheduledAt) : (post.scheduledAt || new Date());
+    if (overrides?.targets && overrides.targets.length > 0) {
+      await this.replaceTargets(brandId, postId, overrides.targets);
+    }
+
+    const scheduledAt = overrides?.publishNow
+      ? new Date()
+      : overrides?.scheduledAt
+        ? new Date(overrides.scheduledAt)
+        : (post.scheduledAt || new Date());
 
     const updated = await this.prisma.post.update({
       where: { id: postId },
       data: {
         caption: overrides?.caption ?? post.caption,
         hashtags: overrides?.hashtags ?? post.hashtags,
+        ctaText: overrides?.ctaText !== undefined ? overrides.ctaText : post.ctaText,
         scheduledAt,
         status: PostStatus.SCHEDULED,
         approvedAt: new Date(),
@@ -246,8 +267,21 @@ export class EngineService {
       data: { status: MediaStatus.SCHEDULED },
     });
 
-    await this.logEvent(brandId, EngineEventType.POST_APPROVED, { postId, message: 'Post approved and scheduled.' });
-    // Picked up by the next /api/cron/publish-due run once scheduledAt is due.
+    await this.logEvent(brandId, EngineEventType.POST_APPROVED, {
+      postId,
+      message: overrides?.publishNow ? 'Post approved and publishing now.' : 'Post approved and scheduled.',
+    });
+
+    if (overrides?.publishNow) {
+      // Fire-and-forget, same pattern as retryPost — don't block the HTTP
+      // response on external platform API latency. Failures are recorded
+      // per-target by publishOne itself.
+      const targets = await this.prisma.postTarget.findMany({ where: { postId, status: TargetStatus.PENDING } });
+      for (const target of targets) {
+        this.publishingService.publishOne(target.id).catch(() => {});
+      }
+    }
+    // Otherwise: picked up by the next /api/cron/publish-due run once scheduledAt is due.
 
     return updated;
   }
@@ -303,10 +337,24 @@ export class EngineService {
     return updated;
   }
 
-  async editPost(brandId: string, postId: string, dto: { caption?: string; hashtags?: string[]; scheduledAt?: string }) {
+  async editPost(
+    brandId: string,
+    postId: string,
+    dto: {
+      caption?: string;
+      hashtags?: string[];
+      ctaText?: string;
+      scheduledAt?: string;
+      targets?: { platform: Platform; socialAccountId: string }[];
+    },
+  ) {
     const post = await this.getBrandPostOrThrow(brandId, postId);
     if (post.status !== PostStatus.NEEDS_APPROVAL && post.status !== PostStatus.SCHEDULED) {
       throw new BadRequestException('Only queued or scheduled posts can be edited.');
+    }
+
+    if (dto.targets && dto.targets.length > 0) {
+      await this.replaceTargets(brandId, postId, dto.targets);
     }
 
     const updated = await this.prisma.post.update({
@@ -314,6 +362,7 @@ export class EngineService {
       data: {
         caption: dto.caption ?? post.caption,
         hashtags: dto.hashtags ?? post.hashtags,
+        ctaText: dto.ctaText !== undefined ? dto.ctaText : post.ctaText,
         scheduledAt: dto.scheduledAt ? new Date(dto.scheduledAt) : post.scheduledAt,
       },
     });
@@ -325,6 +374,43 @@ export class EngineService {
     // nothing to re-enqueue since there's no queue anymore.
 
     return updated;
+  }
+
+  /**
+   * Replaces a post's target platforms/accounts to match exactly what was
+   * selected in the Approval Queue's edit form. Validates every requested
+   * socialAccountId actually belongs to this brand and matches the claimed
+   * platform before touching anything, so a post can never be silently
+   * pointed at another brand's connected account.
+   */
+  private async replaceTargets(
+    brandId: string,
+    postId: string,
+    targets: { platform: Platform; socialAccountId: string }[],
+  ) {
+    const accounts = await this.prisma.socialAccount.findMany({
+      where: { id: { in: targets.map((t) => t.socialAccountId) }, brandId },
+    });
+    const validTargets = targets.filter((t) =>
+      accounts.some((a) => a.id === t.socialAccountId && a.platform === t.platform),
+    );
+    if (validTargets.length === 0) {
+      throw new BadRequestException('None of the selected platforms have a connected, matching account for this brand.');
+    }
+
+    const keepIds = validTargets.map((t) => t.socialAccountId);
+    await this.prisma.$transaction([
+      this.prisma.postTarget.deleteMany({
+        where: { postId, socialAccountId: { notIn: keepIds } },
+      }),
+      ...validTargets.map((t) =>
+        this.prisma.postTarget.upsert({
+          where: { postId_socialAccountId: { postId, socialAccountId: t.socialAccountId } },
+          update: { platform: t.platform },
+          create: { postId, socialAccountId: t.socialAccountId, platform: t.platform, status: TargetStatus.PENDING },
+        }),
+      ),
+    ]);
   }
 
   private async getBrandPostOrThrow(brandId: string, postId: string) {

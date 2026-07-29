@@ -44,7 +44,14 @@ export class PostsController {
   async approvePost(
     @Param('brandId') brandId: string,
     @Param('postId') postId: string,
-    @Body() dto: { caption?: string; hashtags?: string[]; scheduledAt?: string },
+    @Body() dto: {
+      caption?: string;
+      hashtags?: string[];
+      ctaText?: string;
+      scheduledAt?: string;
+      targets?: { platform: Platform; socialAccountId: string }[];
+      publishNow?: boolean;
+    },
   ) {
     return this.engineService.approvePost(brandId, postId, dto);
   }
@@ -63,7 +70,13 @@ export class PostsController {
   async editPost(
     @Param('brandId') brandId: string,
     @Param('postId') postId: string,
-    @Body() dto: { caption?: string; hashtags?: string[]; scheduledAt?: string },
+    @Body() dto: {
+      caption?: string;
+      hashtags?: string[];
+      ctaText?: string;
+      scheduledAt?: string;
+      targets?: { platform: Platform; socialAccountId: string }[];
+    },
   ) {
     return this.engineService.editPost(brandId, postId, dto);
   }

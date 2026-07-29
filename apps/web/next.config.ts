@@ -58,6 +58,19 @@ const nextConfig: NextConfig = {
   },
   outputFileTracingRoot: path.join(__dirname, "../../"),
   serverExternalPackages: nestAndPrismaPackages,
+  images: {
+    // Media Library thumbnails are served straight from Vercel Blob
+    // storage (see apps/api/src/storage/storage.service.ts). Allow-listing
+    // the host lets next/image resize/re-encode them on the fly instead of
+    // the browser downloading full-resolution originals for a small grid
+    // thumbnail.
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "*.public.blob.vercel-storage.com",
+      },
+    ],
+  },
 };
 
 export default nextConfig;

@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import PendingRepliesList from './PendingRepliesList';
 import SectionHeader from '@/components/ui/SectionHeader';
 import Badge from '@/components/ui/Badge';
-import { brandFetch } from '@/lib/api';
+import { apiFetch, brandFetch, getBrandId } from '@/lib/api';
 import { useEngineEvents } from '@/lib/useEngineEvents';
 import {
   CheckCircle2,
@@ -18,27 +18,68 @@ import {
   Send,
   Calendar,
   Loader2,
+  Zap,
+  Save,
 } from 'lucide-react';
 
 interface QueuePost {
   id: string;
   caption: string;
   hashtags: string[];
+  ctaText?: string | null;
   status: 'NEEDS_APPROVAL';
   createdAt: string;
   scheduledAt?: string | null;
-  targets?: { platform: string }[];
+  targets?: { platform: string; socialAccountId?: string }[];
   media?: { asset: { blobUrl: string | null; mimeType: string } }[];
+}
+
+interface ConnectedAccount {
+  id: string;
+  platform: string;
+  handle: string;
+  status: string;
+}
+
+const EDITABLE_PLATFORMS: { platform: string; label: string; icon: React.ElementType }[] = [
+  { platform: 'INSTAGRAM', label: 'Instagram', icon: Instagram },
+  { platform: 'TIKTOK', label: 'TikTok', icon: Video },
+];
+
+function pad(n: number) {
+  return String(n).padStart(2, '0');
+}
+
+/** Native date/time inputs work in local time — format from local getters, not toISOString (UTC), to avoid a timezone-shifted default. */
+function toDateInputValue(d: Date): string {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+function toTimeInputValue(d: Date): string {
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function combineDateTime(dateStr: string, timeStr: string): string | undefined {
+  if (!dateStr || !timeStr) return undefined;
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const [h, min] = timeStr.split(':').map(Number);
+  if (!y || !m || !d || Number.isNaN(h) || Number.isNaN(min)) return undefined;
+  return new Date(y, m - 1, d, h, min, 0, 0).toISOString();
 }
 
 export default function ApprovalQueuePage() {
   const [activeTab, setActiveTab] = useState<'posts' | 'replies'>('posts');
   const [posts, setPosts] = useState<QueuePost[]>([]);
+  const [accounts, setAccounts] = useState<ConnectedAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingPostId, setEditingPostId] = useState<string | null>(null);
-  const [editCaptionText, setEditCaptionText] = useState('');
+  const [editCaption, setEditCaption] = useState('');
+  const [editHashtags, setEditHashtags] = useState('');
+  const [editCta, setEditCta] = useState('');
+  const [editPlatforms, setEditPlatforms] = useState<Set<string>>(new Set());
+  const [editDate, setEditDate] = useState('');
+  const [editTime, setEditTime] = useState('');
   const [message, setMessage] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [busyAction, setBusyAction] = useState<string | null>(null);
 
   const loadPosts = useCallback(async () => {
     try {
@@ -51,7 +92,16 @@ export default function ApprovalQueuePage() {
     }
   }, []);
 
-  useEffect(() => { loadPosts(); }, [loadPosts]);
+  const loadAccounts = useCallback(async () => {
+    try {
+      const data = await apiFetch<{ socialAccounts: ConnectedAccount[] }>(`/oauth/accounts?brandId=${getBrandId()}`);
+      setAccounts((data.socialAccounts || []).filter((a) => a.status === 'CONNECTED'));
+    } catch {
+      // Non-fatal — platform toggles just show as unavailable.
+    }
+  }, []);
+
+  useEffect(() => { loadPosts(); loadAccounts(); }, [loadPosts, loadAccounts]);
 
   useEngineEvents((event) => {
     if (['APPROVAL_QUEUED', 'POST_APPROVED', 'POST_REJECTED', 'POST_EDITED'].includes(event.type)) {
@@ -59,50 +109,131 @@ export default function ApprovalQueuePage() {
     }
   });
 
-  const flash = (msg: string) => { setMessage(msg); setTimeout(() => setMessage(''), 3000); };
+  const flash = (msg: string) => { setMessage(msg); setTimeout(() => setMessage(''), 3500); };
 
-  const handleApprove = async (id: string) => {
-    setBusyId(id);
-    try {
-      await brandFetch(`/posts/${id}/approve`, { method: 'POST', body: JSON.stringify({}) });
-      setPosts((prev) => prev.filter((p) => p.id !== id));
-      flash('🎉 Post approved and scheduled for publishing!');
-    } catch (e: any) {
-      flash(e.message || 'Could not approve this post.');
-    } finally {
-      setBusyId(null);
-    }
+  const accountFor = (platform: string) => accounts.find((a) => a.platform === platform);
+
+  const buildTargetsPayload = () => {
+    return Array.from(editPlatforms)
+      .map((platform) => {
+        const acc = accountFor(platform);
+        return acc ? { platform, socialAccountId: acc.id } : null;
+      })
+      .filter((t): t is { platform: string; socialAccountId: string } => t !== null);
+  };
+
+  const parseHashtags = (raw: string): string[] => {
+    return Array.from(
+      new Set(
+        raw
+          .split(/\s+/)
+          .map((h) => h.trim())
+          .filter(Boolean)
+          .map((h) => (h.startsWith('#') ? h : `#${h}`)),
+      ),
+    );
   };
 
   const handleReject = async (id: string) => {
-    setBusyId(id);
+    setBusyId(id); setBusyAction('reject');
     try {
       await brandFetch(`/posts/${id}/reject`, { method: 'POST' });
       setPosts((prev) => prev.filter((p) => p.id !== id));
+      setEditingPostId(null);
       flash('Post rejected and removed from the queue.');
     } catch (e: any) {
       flash(e.message || 'Could not reject this post.');
     } finally {
-      setBusyId(null);
+      setBusyId(null); setBusyAction(null);
+    }
+  };
+
+  /** "Approve & Continue" — approves using whatever is currently stored (AI-selected time, or a previous edit), no form required. */
+  const handleApprove = async (id: string) => {
+    setBusyId(id); setBusyAction('approve');
+    try {
+      await brandFetch(`/posts/${id}/approve`, { method: 'POST', body: JSON.stringify({}) });
+      setPosts((prev) => prev.filter((p) => p.id !== id));
+      setEditingPostId(null);
+      flash('🎉 Post approved and scheduled for publishing!');
+    } catch (e: any) {
+      flash(e.message || 'Could not approve this post.');
+    } finally {
+      setBusyId(null); setBusyAction(null);
     }
   };
 
   const startEdit = (post: QueuePost) => {
     setEditingPostId(post.id);
-    setEditCaptionText(post.caption);
+    setEditCaption(post.caption);
+    setEditHashtags(post.hashtags?.join(' ') || '');
+    setEditCta(post.ctaText || '');
+    setEditPlatforms(new Set((post.targets || []).map((t) => t.platform)));
+    const base = post.scheduledAt ? new Date(post.scheduledAt) : new Date(Date.now() + 60 * 60 * 1000);
+    setEditDate(toDateInputValue(base));
+    setEditTime(toTimeInputValue(base));
   };
 
-  const saveEdit = async (id: string) => {
-    setBusyId(id);
+  const cancelEdit = () => setEditingPostId(null);
+
+  const togglePlatform = (platform: string) => {
+    setEditPlatforms((prev) => {
+      const next = new Set(prev);
+      if (next.has(platform)) next.delete(platform);
+      else next.add(platform);
+      return next;
+    });
+  };
+
+  const buildEditBody = () => ({
+    caption: editCaption,
+    hashtags: parseHashtags(editHashtags),
+    ctaText: editCta.trim() || null,
+    scheduledAt: combineDateTime(editDate, editTime),
+    targets: buildTargetsPayload(),
+  });
+
+  /** Saves the edited fields without approving — post stays in the queue. */
+  const handleSaveChanges = async (id: string) => {
+    setBusyId(id); setBusyAction('save');
     try {
-      const updated = await brandFetch<QueuePost>(`/posts/${id}`, { method: 'PATCH', body: JSON.stringify({ caption: editCaptionText }) });
-      setPosts((prev) => prev.map((p) => (p.id === id ? { ...p, caption: updated.caption } : p)));
-      setEditingPostId(null);
-      flash('✏️ Caption updated.');
+      const updated = await brandFetch<QueuePost>(`/posts/${id}`, { method: 'PATCH', body: JSON.stringify(buildEditBody()) });
+      setPosts((prev) => prev.map((p) => (p.id === id ? { ...p, ...updated } : p)));
+      flash('✏️ Changes saved.');
     } catch (e: any) {
-      flash(e.message || 'Could not save your edit.');
+      flash(e.message || 'Could not save your changes.');
     } finally {
-      setBusyId(null);
+      setBusyId(null); setBusyAction(null);
+    }
+  };
+
+  /** Saves the edited fields and schedules the post for the chosen date/time. */
+  const handleSchedule = async (id: string) => {
+    setBusyId(id); setBusyAction('schedule');
+    try {
+      await brandFetch(`/posts/${id}/approve`, { method: 'POST', body: JSON.stringify(buildEditBody()) });
+      setPosts((prev) => prev.filter((p) => p.id !== id));
+      setEditingPostId(null);
+      flash('📅 Post scheduled — check Scheduled Posts.');
+    } catch (e: any) {
+      flash(e.message || 'Could not schedule this post.');
+    } finally {
+      setBusyId(null); setBusyAction(null);
+    }
+  };
+
+  /** Saves the edited fields and publishes immediately instead of waiting for the scheduled time. */
+  const handlePublishNow = async (id: string) => {
+    setBusyId(id); setBusyAction('publish');
+    try {
+      await brandFetch(`/posts/${id}/approve`, { method: 'POST', body: JSON.stringify({ ...buildEditBody(), publishNow: true }) });
+      setPosts((prev) => prev.filter((p) => p.id !== id));
+      setEditingPostId(null);
+      flash('🚀 Publishing now.');
+    } catch (e: any) {
+      flash(e.message || 'Could not publish this post.');
+    } finally {
+      setBusyId(null); setBusyAction(null);
     }
   };
 
@@ -181,6 +312,9 @@ export default function ApprovalQueuePage() {
               const scheduledLabel = post.scheduledAt
                 ? new Date(post.scheduledAt).toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' })
                 : 'AI-selected best time';
+              const isEditing = editingPostId === post.id;
+              const isBusy = busyId === post.id;
+
               return (
                 <div
                   key={post.id}
@@ -208,48 +342,149 @@ export default function ApprovalQueuePage() {
                     </div>
 
                     <div className="flex items-center space-x-2">
-                      <button
-                        onClick={() => startEdit(post)}
-                        className="p-1.5 rounded-lg border text-xs font-semibold transition hover:border-amber-400"
-                        style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-secondary)' }}
-                        title="Edit Caption"
-                      >
-                        <Edit3 className="h-3.5 w-3.5 text-amber-400" />
-                      </button>
+                      {!isEditing && (
+                        <button
+                          onClick={() => startEdit(post)}
+                          className="p-1.5 rounded-lg border text-xs font-semibold transition hover:border-amber-400"
+                          style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-secondary)' }}
+                          title="Edit Post"
+                        >
+                          <Edit3 className="h-3.5 w-3.5 text-amber-400" />
+                        </button>
+                      )}
                       <button
                         onClick={() => handleReject(post.id)}
-                        disabled={busyId === post.id}
+                        disabled={isBusy}
                         className="p-1.5 rounded-lg border text-xs font-semibold transition hover:border-red-400 disabled:opacity-50"
                         style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-secondary)' }}
                         title="Reject Post"
                       >
-                        <Trash2 className="h-3.5 w-3.5 text-red-400" />
+                        {isBusy && busyAction === 'reject' ? <Loader2 className="h-3.5 w-3.5 animate-spin text-red-400" /> : <Trash2 className="h-3.5 w-3.5 text-red-400" />}
                       </button>
                     </div>
                   </div>
 
-                  {editingPostId === post.id ? (
-                    <div className="space-y-3 pt-2">
-                      <textarea
-                        rows={4}
-                        value={editCaptionText}
-                        onChange={(e) => setEditCaptionText(e.target.value)}
-                        className="w-full rounded-xl p-3 text-xs border outline-none"
-                        style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-primary)' }}
-                      />
-                      <div className="flex justify-end space-x-2">
+                  {isEditing ? (
+                    <div className="space-y-4 pt-2">
+                      <div className="space-y-1.5">
+                        <label className="block text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Caption</label>
+                        <textarea
+                          rows={4}
+                          value={editCaption}
+                          onChange={(e) => setEditCaption(e.target.value)}
+                          className="w-full rounded-xl p-3 text-xs border outline-none focus:border-violet-500/50 transition"
+                          style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-primary)' }}
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <label className="block text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Hashtags</label>
+                          <input
+                            type="text"
+                            value={editHashtags}
+                            onChange={(e) => setEditHashtags(e.target.value)}
+                            placeholder="#amai #contentcreator"
+                            className="w-full rounded-xl p-2.5 text-xs font-mono border outline-none focus:border-violet-500/50 transition"
+                            style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-primary)' }}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="block text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Call To Action</label>
+                          <input
+                            type="text"
+                            value={editCta}
+                            onChange={(e) => setEditCta(e.target.value)}
+                            placeholder="Link in bio!"
+                            className="w-full rounded-xl p-2.5 text-xs border outline-none focus:border-violet-500/50 transition"
+                            style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-primary)' }}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="block text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Target Platform(s)</label>
+                        <div className="flex items-center gap-2">
+                          {EDITABLE_PLATFORMS.map(({ platform: p, label, icon: Icon }) => {
+                            const connected = !!accountFor(p);
+                            const selected = editPlatforms.has(p);
+                            return (
+                              <button
+                                key={p}
+                                type="button"
+                                disabled={!connected}
+                                onClick={() => togglePlatform(p)}
+                                title={connected ? undefined : `Connect ${label} in Integrations first`}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-bold border flex items-center space-x-1.5 transition disabled:opacity-40 disabled:cursor-not-allowed ${
+                                  selected ? 'bg-violet-500/15 text-violet-400 border-violet-500/40' : ''
+                                }`}
+                                style={!selected ? { backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-secondary)' } : undefined}
+                              >
+                                <Icon className="h-3.5 w-3.5" />
+                                <span>{label}</span>
+                                {!connected && <span className="text-[9px] opacity-70">(not connected)</span>}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <label className="block text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Publish Date</label>
+                          <input
+                            type="date"
+                            value={editDate}
+                            onChange={(e) => setEditDate(e.target.value)}
+                            className="w-full rounded-xl p-2.5 text-xs border outline-none focus:border-violet-500/50 transition touch-target"
+                            style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-primary)' }}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="block text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Publish Time</label>
+                          <input
+                            type="time"
+                            value={editTime}
+                            onChange={(e) => setEditTime(e.target.value)}
+                            className="w-full rounded-xl p-2.5 text-xs border outline-none focus:border-violet-500/50 transition touch-target"
+                            style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-primary)' }}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap justify-end gap-2 pt-1">
                         <button
-                          onClick={() => setEditingPostId(null)}
-                          className="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-400 border border-slate-700"
+                          onClick={cancelEdit}
+                          disabled={isBusy}
+                          className="px-3 py-2 rounded-lg text-xs font-bold border disabled:opacity-50"
+                          style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-secondary)' }}
                         >
                           Cancel
                         </button>
                         <button
-                          onClick={() => saveEdit(post.id)}
-                          disabled={busyId === post.id}
-                          className="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500 text-black disabled:opacity-50"
+                          onClick={() => handleSaveChanges(post.id)}
+                          disabled={isBusy}
+                          className="px-3 py-2 rounded-lg text-xs font-bold border flex items-center space-x-1.5 disabled:opacity-50"
+                          style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-primary)' }}
                         >
-                          Save Changes
+                          {isBusy && busyAction === 'save' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                          <span>Save Changes</span>
+                        </button>
+                        <button
+                          onClick={() => handleSchedule(post.id)}
+                          disabled={isBusy}
+                          className="px-3 py-2 rounded-lg text-xs font-bold text-violet-600 dark:text-violet-400 border border-violet-500/30 bg-violet-500/10 hover:bg-violet-500/20 flex items-center space-x-1.5 transition disabled:opacity-50"
+                        >
+                          {isBusy && busyAction === 'schedule' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Calendar className="h-3.5 w-3.5" />}
+                          <span>Schedule</span>
+                        </button>
+                        <button
+                          onClick={() => handlePublishNow(post.id)}
+                          disabled={isBusy}
+                          className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition flex items-center space-x-1.5 shadow-md btn-emerald-cta disabled:opacity-50"
+                        >
+                          {isBusy && busyAction === 'publish' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
+                          <span>Publish Now</span>
                         </button>
                       </div>
                     </div>
@@ -258,6 +493,9 @@ export default function ApprovalQueuePage() {
                       <p className="text-xs leading-relaxed whitespace-pre-line" style={{ color: 'var(--text-primary)' }}>
                         {post.caption}
                       </p>
+                      {post.ctaText && (
+                        <p className="text-xs font-semibold text-violet-500">{post.ctaText}</p>
+                      )}
                       {post.hashtags?.length > 0 && (
                         <p className="text-xs font-mono" style={{ color: 'var(--text-secondary)' }}>
                           {post.hashtags.join(' ')}
@@ -267,25 +505,27 @@ export default function ApprovalQueuePage() {
                   )}
 
                   {/* Actions */}
-                  <div className="flex items-center justify-end space-x-3 pt-3 border-t border-slate-200 dark:border-white/5">
-                    <button
-                      onClick={() => handleReject(post.id)}
-                      disabled={busyId === post.id}
-                      className="px-4 py-2 rounded-xl text-xs font-bold border text-red-400 border-red-500/20 bg-red-500/10 hover:bg-red-500/20 transition flex items-center space-x-1.5 disabled:opacity-50"
-                    >
-                      <XCircle className="h-3.5 w-3.5" />
-                      <span>Reject</span>
-                    </button>
+                  {!isEditing && (
+                    <div className="flex items-center justify-end space-x-3 pt-3 border-t border-slate-200 dark:border-white/5">
+                      <button
+                        onClick={() => handleReject(post.id)}
+                        disabled={isBusy}
+                        className="px-4 py-2 rounded-xl text-xs font-bold border text-red-400 border-red-500/20 bg-red-500/10 hover:bg-red-500/20 transition flex items-center space-x-1.5 disabled:opacity-50"
+                      >
+                        <XCircle className="h-3.5 w-3.5" />
+                        <span>Reject</span>
+                      </button>
 
-                    <button
-                      onClick={() => handleApprove(post.id)}
-                      disabled={busyId === post.id}
-                      className="px-5 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition flex items-center space-x-1.5 shadow-md btn-emerald-cta disabled:opacity-50"
-                    >
-                      {busyId === post.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
-                      <span>Approve Post</span>
-                    </button>
-                  </div>
+                      <button
+                        onClick={() => handleApprove(post.id)}
+                        disabled={isBusy}
+                        className="px-5 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition flex items-center space-x-1.5 shadow-md btn-emerald-cta disabled:opacity-50"
+                      >
+                        {isBusy && busyAction === 'approve' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                        <span>Approve &amp; Continue</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               );
             })

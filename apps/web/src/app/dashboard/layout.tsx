@@ -20,9 +20,9 @@ import {
   CheckCircle2,
   BarChart3,
   Plus,
-  Upload,
 } from 'lucide-react';
 import { getCurrentUser, logout } from '@/lib/api';
+import { EngineEventsProvider } from '@/lib/EngineEventsContext';
 
 interface NavSubItem {
   label: string;
@@ -138,6 +138,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   return (
+    <EngineEventsProvider>
     <div
       className={`min-h-screen flex flex-col font-sans transition-colors duration-200 ${
         isDarkMode ? 'dark' : 'light'
@@ -190,14 +191,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {isDarkMode ? <Sun className="h-3.5 w-3.5 text-amber-400" /> : <Moon className="h-3.5 w-3.5 text-slate-700" />}
           </button>
 
-          {/* Upload Media Primary CTA */}
-          <Link
-            href="/dashboard/media"
-            className="hidden sm:flex items-center space-x-1 px-3.5 py-1.5 text-xs font-bold text-white rounded-lg transition shadow-xs touch-target btn-emerald-cta"
-          >
-            <Upload className="h-3.5 w-3.5" />
-            <span>Upload Media</span>
-          </Link>
         </div>
       </header>
 
@@ -381,5 +374,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         })}
       </nav>
     </div>
+    </EngineEventsProvider>
   );
 }

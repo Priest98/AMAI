@@ -162,6 +162,8 @@ model MediaAsset {
   @@index([userId])
   @@index([userId, batchId])
   @@index([status])
+  @@index([brandId, folderId, createdAt], map: "idx_media_brand_folder_created")
+  @@index([brandId, status], map: "idx_media_brand_status")
 }
 
 model Post {
@@ -169,6 +171,7 @@ model Post {
   brandId          String
   caption          String
   hashtags         String[]     @default([])
+  ctaText          String?
   source           ContentSource @default(MANUAL)
   status           PostStatus   @default(DRAFT)
   scheduledAt      DateTime?    @db.Timestamptz(6)

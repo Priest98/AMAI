@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import UploadDropzone from "@/components/media/UploadDropzone";
 import { apiFetch, brandFetch, getBrandId, API_BASE } from '@/lib/api';
@@ -470,7 +471,14 @@ export default function MediaLibraryPage() {
                         <span className="text-[10px] font-mono truncate w-full">{asset.filename}</span>
                       </div>
                     ) : (
-                      <img src={asset.blobUrl} alt={asset.filename || "Uploaded media"} loading="lazy" decoding="async" className="w-full h-full object-cover" />
+                      <Image
+                        src={asset.blobUrl}
+                        alt={asset.filename || "Uploaded media"}
+                        fill
+                        loading="lazy"
+                        sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw"
+                        className="object-cover"
+                      />
                     )
                   ) : (
                     <div className="w-full h-full flex flex-col items-center justify-center p-3 text-center bg-emerald-500/10">
