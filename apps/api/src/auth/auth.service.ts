@@ -394,4 +394,51 @@ export class AuthService {
       accessToken: this.jwtService.sign(payload, { expiresIn }),
     };
   }
+
+  /**
+   * Strips sensitive/internal fields before a user record is ever sent to
+   * the frontend (used by GET /auth/me).
+   */
+  toSafeUser(user: any) {
+    const {
+      passwordHash,
+      verificationToken,
+      verificationTokenExpiresAt,
+      passwordResetToken,
+      passwordResetExpiresAt,
+      ...safe
+    } = user;
+    return safe;
+  }
+
+  /**
+   * Drives the onboarding welcome modal + product tour state. Persisted on
+   * the User row (not the JWT, which is signed at login time and can be
+   * cached client-side for up to 30 days) so completion/skip is durable and
+   * survives across devices and sessions.
+   */
+  async updateOnboarding(userId: string, dto: { completed?: boolean; skipped?: boolean; restart?: boolean }) {
+    const data: any = {};
+
+    if (dto.restart) {
+      data.onboardingCompleted = false;
+      data.onboardingSkipped = false;
+      data.onboardingCompletedAt = null;
+    } else {
+      if (dto.completed) {
+        data.onboardingCompleted = true;
+        data.onboardingCompletedAt = new Date();
+      }
+      if (dto.skipped) {
+        data.onboardingSkipped = true;
+      }
+    }
+
+    const user = await this.prisma.user.update({ where: { id: userId }, data });
+    return {
+      hasCompletedOnboarding: user.onboardingCompleted,
+      hasSkippedOnboarding: user.onboardingSkipped,
+      onboardingCompletedAt: user.onboardingCompletedAt,
+    };
+  }
 }

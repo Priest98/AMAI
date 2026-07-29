@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { getCurrentUser, logout } from '@/lib/api';
 import { EngineEventsProvider } from '@/lib/EngineEventsContext';
+import { OnboardingProvider } from '@/components/onboarding/OnboardingContext';
 
 interface NavSubItem {
   label: string;
@@ -70,6 +71,13 @@ const navSections: NavSection[] = [
     ],
   },
 ];
+
+const NAV_TOUR_IDS: Record<string, string> = {
+  '/dashboard/integrations': 'nav-integrations',
+  '/dashboard/media': 'nav-media',
+  '/dashboard/approval-queue': 'nav-approval-queue',
+  '/dashboard/engine': 'nav-engine',
+};
 
 const mobileTabItems = [
   { label: 'Home', href: '/dashboard', icon: LayoutDashboard },
@@ -139,6 +147,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <EngineEventsProvider>
+    <OnboardingProvider>
     <div
       className={`min-h-screen flex flex-col font-sans transition-colors duration-200 ${
         isDarkMode ? 'dark' : 'light'
@@ -240,6 +249,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                           <Link
                             key={item.label}
                             href={item.href}
+                            data-tour={NAV_TOUR_IDS[item.href]}
                             onClick={() => setIsMobileOpen(false)}
                             className="flex items-center space-x-3 px-3 py-2 rounded-lg text-xs font-semibold transition"
                             style={{
@@ -304,6 +314,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         <Link
                           key={item.label}
                           href={item.href}
+                          data-tour={NAV_TOUR_IDS[item.href]}
                           className="flex items-center space-x-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all"
                           style={{
                             backgroundColor: isActive ? 'var(--bg-surface-raised)' : 'transparent',
@@ -374,6 +385,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         })}
       </nav>
     </div>
+    </OnboardingProvider>
     </EngineEventsProvider>
   );
 }

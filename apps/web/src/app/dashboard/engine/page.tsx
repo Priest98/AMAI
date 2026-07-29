@@ -171,7 +171,7 @@ export default function AmaiEnginePage() {
       </div>
 
       {/* ── Approval Mode ── */}
-      <div className="rounded-2xl border p-5 sm:p-6 space-y-4" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}>
+      <div data-tour="tour-engine-mode" className="rounded-2xl border p-5 sm:p-6 space-y-4" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}>
         <div>
           <h3 className="text-sm font-extrabold tracking-tight" style={{ color: 'var(--text-primary)' }}>Approval Mode</h3>
           <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
@@ -241,7 +241,7 @@ export default function AmaiEnginePage() {
       </div>
 
       {/* ── Live Activity ── */}
-      <div className="rounded-2xl border p-5 sm:p-6 space-y-3" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}>
+      <div data-tour="tour-engine-activity" className="rounded-2xl border p-5 sm:p-6 space-y-3" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}>
         <div className="flex items-center space-x-2">
           <Activity className="h-4 w-4 text-emerald-400" />
           <h3 className="text-sm font-extrabold tracking-tight" style={{ color: 'var(--text-primary)' }}>Live Activity</h3>

@@ -3,11 +3,14 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { brandFetch, getCurrentUser } from '@/lib/api';
+import { useOnboarding } from '@/components/onboarding/OnboardingContext';
 import {
   Building,
   User,
   Check,
   Zap,
+  LifeBuoy,
+  RotateCcw,
 } from 'lucide-react';
 
 type ApprovalMode = 'MANUAL' | 'AUTO';
@@ -22,7 +25,8 @@ const PERSONAS = [
 ];
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<'publishing' | 'profile'>('publishing');
+  const [activeTab, setActiveTab] = useState<'publishing' | 'profile' | 'help'>('publishing');
+  const onboarding = useOnboarding();
   const [approvalMode, setApprovalModeState] = useState<ApprovalMode>('MANUAL');
   const [globalPersona, setGlobalPersona] = useState<string>('Fashion Designer');
   const [userEmail, setUserEmail] = useState('');
@@ -94,6 +98,7 @@ export default function SettingsPage() {
         {[
           { id: 'publishing', label: 'Approval Mode & Persona', icon: Zap },
           { id: 'profile', label: 'Profile', icon: User },
+          { id: 'help', label: 'Help & Support', icon: LifeBuoy },
         ].map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -203,6 +208,23 @@ export default function SettingsPage() {
               />
             </div>
           </div>
+        </div>
+      )}
+
+      {activeTab === 'help' && (
+        <div className="rounded-2xl border p-6 space-y-5" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}>
+          <div className="space-y-1">
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight">Help & Support</h3>
+            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>New to AMAI, or just want a refresher? Replay the guided product tour any time.</p>
+          </div>
+          <button
+            onClick={() => onboarding?.restartTour()}
+            className="px-4 py-2.5 rounded-xl text-xs font-bold text-white flex items-center space-x-2 shadow-md transition touch-target"
+            style={{ background: 'var(--gradient-primary-cta)' }}
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+            <span>Replay Product Tour</span>
+          </button>
         </div>
       )}
     </div>

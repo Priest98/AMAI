@@ -29,6 +29,8 @@ model User {
   passwordResetExpiresAt     DateTime?            @db.Timestamptz(6)
   lastLogin                  DateTime?            @db.Timestamptz(6)
   onboardingCompleted        Boolean              @default(false)
+  onboardingSkipped          Boolean              @default(false)
+  onboardingCompletedAt      DateTime?            @db.Timestamptz(6)
   createdAt                  DateTime             @default(now()) @db.Timestamptz(6)
   updatedAt                  DateTime             @default(now()) @updatedAt @db.Timestamptz(6)
   memberships                OrganizationMember[]

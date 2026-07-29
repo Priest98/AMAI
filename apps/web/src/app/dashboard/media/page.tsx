@@ -434,7 +434,7 @@ export default function MediaLibraryPage() {
       </Suspense>
 
       {/* Upload Dropzone Component */}
-      <div className="rounded-2xl border p-5" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}>
+      <div data-tour="tour-upload-dropzone" className="rounded-2xl border p-5" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}>
         <h2 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white tracking-tight mb-3">Upload New Media</h2>
         <UploadDropzone onUploaded={handleUploaded} />
       </div>
