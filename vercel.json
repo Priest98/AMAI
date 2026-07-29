@@ -6,7 +6,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "/api"
+      "destination": "https://marketing-os-eight-virid.vercel.app/api/:path*"
     }
   ]
 }
