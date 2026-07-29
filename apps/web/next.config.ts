@@ -47,7 +47,6 @@ const nestAndPrismaPackages = [
   "passport-jwt",
   "passport-oauth2",
   "reflect-metadata",
-  "rxjs",
 ];
 
 const nextConfig: NextConfig = {
