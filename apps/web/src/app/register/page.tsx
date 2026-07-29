@@ -1,11 +1,11 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Logo } from '@/components/logo';
 import { User, AtSign, Lock, ArrowRight, Eye, EyeOff, AlertCircle } from 'lucide-react';
-import { API_BASE } from '@/lib/api';
+import { API_BASE, isAuthenticated } from '@/lib/api';
 
 
 export default function RegisterPage() {
@@ -18,6 +18,15 @@ export default function RegisterPage() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [checkingSession, setCheckingSession] = useState(true);
+
+  useEffect(() => {
+    if (isAuthenticated()) {
+      router.replace('/dashboard');
+      return;
+    }
+    setCheckingSession(false);
+  }, [router]);
 
   const isPasswordLong = password.length >= 8;
   const isPasswordStrong = isPasswordLong && /\d/.test(password);
@@ -52,18 +61,21 @@ export default function RegisterPage() {
       const data = await res.json();
 
       if (res.ok && data.success) {
-        const tokenQuery = data.verificationToken ? `&token=${encodeURIComponent(data.verificationToken)}` : '';
-        router.push(`/verify-email?email=${encodeURIComponent(email)}${tokenQuery}`);
+        router.push(`/verify-email?email=${encodeURIComponent(email)}`);
         return;
       }
 
       setError(data.message || 'Failed to create account. Please try again.');
     } catch (err) {
-      router.push(`/verify-email?email=${encodeURIComponent(email)}&token=auto_verified`);
+      setError('Unable to reach the server. Please check your connection and try again.');
     } finally {
       setLoading(false);
     }
   };
+
+  if (checkingSession) {
+    return <div className="min-h-screen w-full bg-[#F7F8FC] dark:bg-[#0B0D12]" />;
+  }
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center p-4 bg-[#F7F8FC] dark:bg-[#0B0D12] text-slate-900 dark:text-white font-sans ambient-bg transition-colors duration-300">

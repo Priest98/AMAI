@@ -30,9 +30,14 @@ export default function ForgotPasswordPage() {
         body: JSON.stringify({ email }),
       });
 
-      setSubmitted(true);
+      if (res.ok) {
+        setSubmitted(true);
+      } else {
+        const data = await res.json().catch(() => null);
+        setError(data?.message || 'Something went wrong. Please try again.');
+      }
     } catch (err) {
-      setSubmitted(true);
+      setError('Unable to reach the server. Please check your connection and try again.');
     } finally {
       setLoading(false);
     }

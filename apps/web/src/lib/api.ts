@@ -17,9 +17,35 @@ export const API_BASE = (
 
 export const TOKEN_KEY = 'marketing_os_token';
 
+function decodeJwtPayload(token: string): any | null {
+  try {
+    return JSON.parse(atob(token.split('.')[1]));
+  } catch {
+    return null;
+  }
+}
+
+/** True if the token is malformed, missing an exp claim, or past expiry. */
+export function isTokenExpired(token: string): boolean {
+  const payload = decodeJwtPayload(token);
+  if (!payload || typeof payload.exp !== 'number') return true;
+  return payload.exp * 1000 <= Date.now();
+}
+
 export function getToken(): string | null {
   if (typeof window === 'undefined') return null;
-  return localStorage.getItem(TOKEN_KEY);
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (!token) return null;
+  if (isTokenExpired(token)) {
+    localStorage.removeItem(TOKEN_KEY);
+    return null;
+  }
+  return token;
+}
+
+/** True if there's a currently-valid (present, well-formed, unexpired) session. */
+export function isAuthenticated(): boolean {
+  return getToken() !== null;
 }
 
 export interface CurrentUser {
@@ -32,22 +58,26 @@ export interface CurrentUser {
 export function getCurrentUser(): CurrentUser | null {
   const token = getToken();
   if (!token) return null;
-  try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    return {
-      id: payload.sub || payload.id || '',
-      email: payload.email || '',
-      name: payload.name || (payload.email ? payload.email.split('@')[0] : 'User'),
-      brandId: payload.brandId || 'primary_brand',
-    };
-  } catch {
-    return null;
-  }
+  const payload = decodeJwtPayload(token);
+  if (!payload) return null;
+  return {
+    id: payload.sub || payload.id || '',
+    email: payload.email || '',
+    name: payload.name || (payload.email ? payload.email.split('@')[0] : 'User'),
+    brandId: payload.brandId || 'primary_brand',
+  };
 }
 
 /** Convenience — most pages only need the brandId to scope their requests. */
 export function getBrandId(): string {
   return getCurrentUser()?.brandId || 'primary_brand';
+}
+
+/** Clears the session and sends the user back to Sign In. */
+export function logout(): void {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem(TOKEN_KEY);
+  window.location.href = '/login';
 }
 
 /** fetch() wrapper that adds the Authorization header and JSON handling. */
@@ -60,6 +90,14 @@ export async function apiFetch<T = any>(path: string, init: RequestInit = {}): P
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
   const res = await fetch(`${API_BASE}${path}`, { ...init, headers });
+
+  // A 401 means the session is no longer valid (expired, revoked, or the
+  // token never existed) — bounce back to Sign In instead of leaving the
+  // UI in a half-authenticated state showing failed requests.
+  if (res.status === 401) {
+    logout();
+    throw new Error('Your session has expired. Please sign in again.');
+  }
 
   let data: any = null;
   try {

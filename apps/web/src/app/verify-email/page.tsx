@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Logo } from '@/components/logo';
-import { Mail, CheckCircle2, AlertCircle, RefreshCw, ArrowRight, ExternalLink, Zap } from 'lucide-react';
+import { Mail, CheckCircle2, AlertCircle, RefreshCw, ArrowRight, ExternalLink } from 'lucide-react';
 import { API_BASE } from '@/lib/api';
 
 
@@ -43,23 +43,20 @@ function VerifyEmailContent() {
       if (res.ok && data.success) {
         setVerified(true);
       } else {
-        setVerified(true); // Fallback verification
+        setError(data.message || 'This verification link is invalid or has expired.');
       }
     } catch (e) {
-      setVerified(true); // Fallback verification
+      setError('Unable to reach the server. Please check your connection and try again.');
     } finally {
       setVerifying(false);
     }
-  };
-
-  const handleInstantVerify = () => {
-    setVerified(true);
   };
 
   const handleResend = async () => {
     if (!userEmail || userEmail === 'your email') return;
     setResending(true);
     setResendMessage('');
+    setError('');
     try {
       const res = await fetch(`${API_BASE}/auth/resend-verification`, {
         method: 'POST',
@@ -67,9 +64,13 @@ function VerifyEmailContent() {
         body: JSON.stringify({ email: userEmail }),
       });
       const data = await res.json();
-      setResendMessage(data.message || 'Verification email resent successfully.');
+      if (res.ok) {
+        setResendMessage(data.message || 'Verification email resent successfully.');
+      } else {
+        setError(data.message || 'Could not resend the verification email. Please try again.');
+      }
     } catch (e) {
-      setResendMessage('Verification link sent to your inbox.');
+      setError('Unable to reach the server. Please check your connection and try again.');
     } finally {
       setResending(false);
     }
@@ -124,7 +125,7 @@ function VerifyEmailContent() {
             <div className="space-y-2">
               <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white">Check Your Inbox 📩</h2>
               <p className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">
-                We've registered <span className="font-bold text-slate-900 dark:text-white">{userEmail}</span>. Tap below to verify and activate your account immediately.
+                We've sent a verification link to <span className="font-bold text-slate-900 dark:text-white">{userEmail}</span>. Click it to activate your account, then come back and sign in.
               </p>
             </div>
 
@@ -142,14 +143,6 @@ function VerifyEmailContent() {
             )}
 
             <div className="space-y-3 pt-2">
-              <button
-                onClick={handleInstantVerify}
-                className="w-full py-4 px-6 bg-gradient-to-r from-rose-500 via-purple-600 to-indigo-600 text-white font-bold text-sm rounded-2xl shadow-xl shadow-rose-500/20 transition flex items-center justify-center space-x-2 border border-white/20 touch-target"
-              >
-                <Zap className="h-4 w-4" />
-                <span>Verify Email & Activate Account Now</span>
-              </button>
-
               <a
                 href="https://mail.google.com"
                 target="_blank"

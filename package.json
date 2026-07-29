@@ -7,8 +7,6 @@
     "apps/*"
   ],
   "dependencies": {
-    "@prisma/client": "5.22.0",
-    "prisma": "5.22.0",
     "@google/genai": "^2.13.0",
     "@nestjs/bullmq": "^10.2.0",
     "@nestjs/common": "^10.0.0",
@@ -20,6 +18,7 @@
     "@nestjs/platform-express": "^10.0.0",
     "@nestjs/schedule": "^4.1.0",
     "@nestjs/throttler": "^6.5.0",
+    "@prisma/client": "5.22.0",
     "@vercel/blob": "^0.27.0",
     "bcryptjs": "^2.4.3",
     "bullmq": "^5.12.0",
@@ -27,17 +26,20 @@
     "class-validator": "^0.14.1",
     "express": "^4.19.2",
     "googleapis": "^140.0.0",
+    "nodemailer": "^6.9.16",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "passport-oauth2": "^1.8.0",
+    "prisma": "5.22.0",
     "reflect-metadata": "^0.2.0",
     "rxjs": "^7.8.1"
   },
   "devDependencies": {
-    "@vercel/node": "^5.1.10",
-    "next": "^15.1.0",
     "@types/express": "4.17.21",
-    "@types/node": "^20.3.1"
+    "@types/node": "^20.3.1",
+    "@types/nodemailer": "^6.4.17",
+    "@vercel/node": "^5.1.10",
+    "next": "^15.1.0"
   },
   "overrides": {
     "prisma": "5.22.0",
@@ -48,7 +50,7 @@
   "scripts": {
     "dev": "npm run dev --workspaces --if-present",
     "build": "npm run build --workspace=@marketing-os/shared-types --if-present && npm run build --workspaces --if-present",
-    "vercel-build": "npm run build --workspace=@marketing-os/shared-types && npm run build --workspace=web && npm run build --workspace=@marketing-os/api",
+    "vercel-build": "npm run build --workspace=@marketing-os/shared-types && npm run build --workspace=web && npm run build --workspace=@marketing-os/api && npx prisma db push --schema apps/api/prisma/schema.prisma --skip-generate",
     "lint": "npm run lint --workspaces --if-present",
     "test": "npm run test --workspaces --if-present"
   },

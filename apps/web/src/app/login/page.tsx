@@ -1,11 +1,11 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Logo } from '@/components/logo';
 import { AtSign, Lock, ArrowRight, Eye, EyeOff, CheckCircle2, AlertCircle } from 'lucide-react';
-import { API_BASE } from '@/lib/api';
+import { API_BASE, isAuthenticated, TOKEN_KEY } from '@/lib/api';
 
 
 export default function LoginPage() {
@@ -17,6 +17,17 @@ export default function LoginPage() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [checkingSession, setCheckingSession] = useState(true);
+
+  // Already have a valid session? Skip straight to the dashboard instead of
+  // making the user look at (or resubmit) a sign-in form.
+  useEffect(() => {
+    if (isAuthenticated()) {
+      router.replace('/dashboard');
+      return;
+    }
+    setCheckingSession(false);
+  }, [router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,7 +49,7 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (res.ok && data.accessToken) {
-        localStorage.setItem('marketing_os_token', data.accessToken);
+        localStorage.setItem(TOKEN_KEY, data.accessToken);
         router.push('/dashboard');
         return;
       }
@@ -50,14 +61,15 @@ export default function LoginPage() {
 
       setError(data.message || 'Invalid email address or password.');
     } catch (err) {
-      // Fallback dev token for local testing without database connection
-      const mockToken = btoa(JSON.stringify({ email, name: email.split('@')[0], brandId: 'primary_brand' }));
-      localStorage.setItem('marketing_os_token', `header.${mockToken}.signature`);
-      router.push('/dashboard');
+      setError('Unable to reach the server. Please check your connection and try again.');
     } finally {
       setLoading(false);
     }
   };
+
+  if (checkingSession) {
+    return <div className="min-h-screen w-full bg-[#F7F8FC] dark:bg-[#0B0D12]" />;
+  }
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center p-4 bg-[#F7F8FC] dark:bg-[#0B0D12] text-slate-900 dark:text-white font-sans ambient-bg transition-colors duration-300">

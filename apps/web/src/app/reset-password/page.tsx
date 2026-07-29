@@ -56,7 +56,7 @@ function ResetPasswordContent() {
         setError(data.message || 'Invalid or expired password reset link.');
       }
     } catch (err) {
-      setSuccess(true);
+      setError('Unable to reach the server. Please check your connection and try again.');
     } finally {
       setLoading(false);
     }

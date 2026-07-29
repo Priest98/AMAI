@@ -22,6 +22,7 @@ import {
   Plus,
   Upload,
 } from 'lucide-react';
+import { getCurrentUser, logout } from '@/lib/api';
 
 interface NavSubItem {
   label: string;
@@ -85,25 +86,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [userInitials, setUserInitials] = useState('U');
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
+  // Gates rendering of the actual dashboard shell until the auth check has
+  // resolved — without this, an unauthenticated visitor briefly sees the
+  // full protected layout flash on screen before the redirect kicks in.
+  const [isAuthChecked, setIsAuthChecked] = useState(false);
 
   useEffect(() => {
-    // Auth guard
-    const token = localStorage.getItem('marketing_os_token');
-    if (!token) {
+    // Auth guard — getCurrentUser() already treats a missing or expired
+    // token as "not logged in" and clears it, so a single check covers both.
+    const user = getCurrentUser();
+    if (!user) {
       router.replace('/login');
       return;
     }
 
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      const email: string = payload.email || '';
-      const name: string = payload.name || email.split('@')[0] || 'User';
-      setUserName(name);
-      setUserInitials(name.slice(0, 2).toUpperCase());
-    } catch {
-      localStorage.removeItem('marketing_os_token');
-      router.replace('/login');
-    }
+    setUserName(user.name);
+    setUserInitials(user.name.slice(0, 2).toUpperCase());
+    setIsAuthChecked(true);
 
     // Load saved theme preference
     const savedTheme = localStorage.getItem('marketing_os_theme');
@@ -126,11 +125,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('marketing_os_token');
-    router.replace('/login');
+    logout();
   };
 
   const currentDateStr = new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+
+  // Nothing to show yet — either the redirect to /login is about to fire,
+  // or we just haven't confirmed the session is valid. Render an empty
+  // shell instead of the dashboard so protected content never flashes.
+  if (!isAuthChecked) {
+    return <div className={`min-h-screen ${isDarkMode ? 'dark' : 'light'}`} style={{ backgroundColor: 'var(--bg-base)' }} />;
+  }
 
   return (
     <div
