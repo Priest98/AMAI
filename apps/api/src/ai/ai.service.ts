@@ -70,6 +70,27 @@ export class AiService {
   }
 
   /**
+   * Bounds any promise to a maximum wait time. Vercel hard-kills a
+   * serverless function the instant it hits its platform timeout (60s on
+   * this plan) — no catch block runs, no fallback executes, the request
+   * just vanishes mid-flight. That's what left media stuck in PROCESSING:
+   * an unbounded Gemini call (occasionally slow under rate limiting or
+   * bulk-upload load) could run right up against that wall with nothing
+   * to intervene first. Every external AI call in this service is wrapped
+   * in this so a slow/hung provider always loses to the app's own
+   * heuristic fallback well before Vercel's platform timeout can fire.
+   */
+  private withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+      promise.then(
+        (val) => { clearTimeout(timer); resolve(val); },
+        (err) => { clearTimeout(timer); reject(err); },
+      );
+    });
+  }
+
+  /**
    * Real media analysis: downloads the image and sends it to Gemini's
    * multimodal endpoint to get a short, concrete description of what's
    * actually in the frame — not a guess based on the filename. Returns
@@ -83,24 +104,28 @@ export class AiService {
     if (!this.isGeminiConfigured()) return null;
 
     try {
-      const imageRes = await fetch(imageUrl);
+      const imageRes = await this.withTimeout(fetch(imageUrl), 10_000, 'Image download');
       if (!imageRes.ok) return null;
       const mimeType = imageRes.headers.get('content-type') || 'image/jpeg';
       const arrayBuffer = await imageRes.arrayBuffer();
       const base64 = Buffer.from(arrayBuffer).toString('base64');
 
-      const response = await this.ai.models.generateContent({
-        model: 'gemini-flash-latest',
-        contents: [
-          {
-            role: 'user',
-            parts: [
-              { text: 'Describe the main subject of this image in 3-8 words, suitable as a social media post topic. Just the phrase, no punctuation, no preamble.' },
-              { inlineData: { mimeType, data: base64 } },
-            ],
-          },
-        ],
-      });
+      const response = await this.withTimeout(
+        this.ai.models.generateContent({
+          model: 'gemini-flash-latest',
+          contents: [
+            {
+              role: 'user',
+              parts: [
+                { text: 'Describe the main subject of this image in 3-8 words, suitable as a social media post topic. Just the phrase, no punctuation, no preamble.' },
+                { inlineData: { mimeType, data: base64 } },
+              ],
+            },
+          ],
+        }),
+        15_000,
+        'Gemini vision analysis',
+      );
 
       const text = response.text?.trim();
       return text && text.length > 0 ? text : null;
@@ -135,10 +160,11 @@ Keep the caption under character limits for ${platform}.`;
 
     try {
       if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'placeholder') {
-        const response = await this.ai.models.generateContent({
-          model: 'gemini-flash-latest',
-          contents: prompt,
-        });
+        const response = await this.withTimeout(
+          this.ai.models.generateContent({ model: 'gemini-flash-latest', contents: prompt }),
+          15_000,
+          'Gemini caption generation',
+        );
         text = response.text || `✨ Elevate your style and presence! Check out our latest ${topic || 'collection'} designed for your everyday lifestyle. What do you think of this look? Let us know below! ${defaultTags}`;
       } else {
         text = `✨ Elevate your style and presence! Check out our latest ${topic || 'feature'} crafted specially for our ${niche} community. What do you think? Drop your thoughts below! ${defaultTags}`;
@@ -181,10 +207,11 @@ Return strictly valid JSON, no markdown, no commentary, in this exact shape:
 {"highVolume": ["#tag", ...5], "mediumCompetition": ["#tag", ...5], "nicheHashtags": ["#tag", ...5], "brandedHashtags": ["#tag", ...2]}
 highVolume = broad, high-traffic tags. mediumCompetition = moderately specific tags. nicheHashtags = very specific to "${topic}". brandedHashtags = two short, on-brand tags for the ${niche} niche. All hashtags must start with # and contain no spaces.`;
 
-        const response = await this.ai.models.generateContent({
-          model: 'gemini-flash-latest',
-          contents: prompt,
-        });
+        const response = await this.withTimeout(
+          this.ai.models.generateContent({ model: 'gemini-flash-latest', contents: prompt }),
+          15_000,
+          'Gemini hashtag generation',
+        );
 
         const raw = (response.text || '').trim().replace(/^```json\s*|```$/g, '').trim();
         const parsed = JSON.parse(raw);
