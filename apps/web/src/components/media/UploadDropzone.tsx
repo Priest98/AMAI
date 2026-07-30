@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import { upload } from "@vercel/blob/client";
 import { UploadCloud, FolderUp, FileUp, CheckCircle, AlertCircle, Loader2, RotateCcw } from "lucide-react";
 import { API_BASE, getBrandId, getToken } from "@/lib/api";
 
@@ -14,7 +15,10 @@ interface UploadItem {
 }
 
 const ALLOWED_EXTENSIONS = [".mp4", ".mov", ".webm", ".mkv", ".jpg", ".jpeg", ".png", ".webp", ".gif"];
-const MAX_SIZE_BYTES = 50 * 1024 * 1024; // matches the API's multer limit
+// Vercel Blob client-direct-upload bypasses the ~4.5MB serverless body-size
+// ceiling entirely, so this is now a generous sanity limit rather than a
+// platform constraint.
+const MAX_SIZE_BYTES = 500 * 1024 * 1024;
 
 function isValidMediaFile(file: File): { ok: boolean; reason?: string } {
   const typeOk = file.type
@@ -26,30 +30,61 @@ function isValidMediaFile(file: File): { ok: boolean; reason?: string } {
   return { ok: true };
 }
 
-/** XHR (not fetch) so we get real upload-progress events for the progress bar. */
-function uploadWithProgress(file: File, onProgress: (pct: number) => void): Promise<{ ok: boolean; status: number; body: any }> {
-  return new Promise((resolve, reject) => {
-    const brandId = getBrandId();
-    const token = getToken();
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", `${API_BASE}/brands/${brandId}/media/upload`);
-    if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+function sanitizeFilename(name: string): string {
+  return name.replace(/[^a-zA-Z0-9._-]/g, "_");
+}
 
-    xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
-    };
+/**
+ * Uploads directly from the browser to Vercel Blob storage (bypassing the
+ * serverless function's ~4.5MB request-body cap that was rejecting videos
+ * with a platform-level 413), then registers the resulting blob as a
+ * MediaAsset via the lightweight JSON /media/register endpoint so the
+ * AMAI Engine picks it up exactly like it does for the legacy small-file path.
+ */
+async function uploadAndRegister(
+  file: File,
+  onProgress: (pct: number) => void
+): Promise<any> {
+  const brandId = getBrandId();
+  const token = getToken();
+  if (!token) throw new Error("You are not signed in. Please log in and try again.");
 
-    xhr.onload = () => {
-      let body: any = null;
-      try { body = JSON.parse(xhr.responseText); } catch {}
-      resolve({ ok: xhr.status >= 200 && xhr.status < 300, status: xhr.status, body });
-    };
-    xhr.onerror = () => reject(new Error("Network error — check your connection and try again."));
+  const pathname = `${brandId}/${Date.now()}-${sanitizeFilename(file.name)}`;
 
-    const formData = new FormData();
-    formData.append("file", file);
-    xhr.send(formData);
+  const blob = await upload(pathname, file, {
+    access: "public",
+    handleUploadUrl: "/api/media-upload-token",
+    headers: { Authorization: `Bearer ${token}` },
+    onUploadProgress: (progressEvent) => {
+      onProgress(Math.round(progressEvent.percentage));
+    },
   });
+
+  const res = await fetch(`${API_BASE}/brands/${brandId}/media/register`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      url: blob.url,
+      size: file.size,
+      mimeType: file.type || "application/octet-stream",
+      filename: file.name,
+    }),
+  });
+
+  let body: any = null;
+  try { body = await res.json(); } catch {}
+
+  if (!res.ok) {
+    const message = body?.message
+      ? (Array.isArray(body.message) ? body.message.join(", ") : body.message)
+      : "Upload succeeded but registering the file failed.";
+    throw new Error(message);
+  }
+
+  return body;
 }
 
 export default function UploadDropzone({ onUploaded }: { onUploaded?: (asset: any) => void }) {
@@ -62,16 +97,9 @@ export default function UploadDropzone({ onUploaded }: { onUploaded?: (asset: an
     setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, status: "uploading", progress: 0, error: undefined } : i)));
 
     try {
-      const { ok, body } = await uploadWithProgress(item.file, (pct) => {
+      const body = await uploadAndRegister(item.file, (pct) => {
         setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, progress: pct } : i)));
       });
-
-      if (!ok) {
-        const message = body?.message
-          ? (Array.isArray(body.message) ? body.message.join(', ') : body.message)
-          : `Upload failed (server returned an unexpected error).`;
-        throw new Error(message);
-      }
 
       setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, status: "done", progress: 100 } : i)));
       onUploaded?.(body);
@@ -151,7 +179,7 @@ export default function UploadDropzone({ onUploaded }: { onUploaded?: (asset: an
           Drag and drop videos or photos here
         </p>
         <p className="text-[11px] sm:text-xs text-slate-400 dark:text-zinc-500 mb-4">
-          Supports MP4, MOV, WebM, JPEG, PNG, WebP (up to 50MB per file)
+          Supports MP4, MOV, WebM, JPEG, PNG, WebP (up to 500MB per file)
         </p>
 
         <div className="flex flex-wrap justify-center items-center gap-3">

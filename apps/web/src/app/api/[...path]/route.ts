@@ -1,5 +1,6 @@
 import 'reflect-metadata';
 import type { NextRequest } from 'next/server';
+import { getBackendPort } from '@/lib/backendPort';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -18,49 +19,10 @@ export const maxDuration = 60;
 // Running the NestJS app from *inside* a Next.js catch-all Route Handler
 // sidesteps the conflict entirely: Next owns /api/* natively, and this
 // handler is just what runs when it does.
-let backendPortPromise: Promise<number> | null = null;
-
-async function getBackendPort(): Promise<number> {
-  if (backendPortPromise) return backendPortPromise;
-
-  backendPortPromise = (async () => {
-    const { NestFactory } = await import('@nestjs/core');
-    const { ValidationPipe } = await import('@nestjs/common');
-    const { ExpressAdapter } = await import('@nestjs/platform-express');
-    const expressModule = await import('express');
-    const express = expressModule.default;
-    const { AppModule } = await import('../../../../../api/src/app.module');
-
-    const server = express();
-    const nestApp = await NestFactory.create(AppModule, new ExpressAdapter(server));
-
-    nestApp.setGlobalPrefix('api');
-    nestApp.enableCors({ origin: '*', credentials: true });
-    nestApp.useGlobalPipes(
-      new ValidationPipe({
-        whitelist: true,
-        forbidNonWhitelisted: true,
-        transform: true,
-      }),
-    );
-
-    await nestApp.init();
-    const httpServer = await nestApp.listen(0, '127.0.0.1');
-    const address = httpServer.address();
-    if (!address || typeof address === 'string') {
-      throw new Error('Failed to determine backend port');
-    }
-    return address.port;
-  })();
-
-  try {
-    return await backendPortPromise;
-  } catch (err) {
-    // Don't cache a failed boot — let the next request retry.
-    backendPortPromise = null;
-    throw err;
-  }
-}
+//
+// getBackendPort() lives in src/lib/backendPort.ts so it can be reused by
+// other Next.js routes (e.g. the Vercel Blob client-upload token route)
+// that need to authenticate against this same in-process NestJS app.
 
 const HOP_BY_HOP_HEADERS = new Set([
   'host',

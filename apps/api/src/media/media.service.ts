@@ -17,14 +17,45 @@ export class MediaService {
 
     const uploadedData = await this.storage.uploadFile(file, brandId);
 
+    return this.createAssetRecord(brandId, {
+      filename: file.originalname || 'uploaded_media',
+      url: uploadedData.url,
+      size: uploadedData.size || file.size || 0,
+      mimeType: uploadedData.mimeType || file.mimetype,
+      folderId,
+    });
+  }
+
+  /**
+   * Registers a file that the browser already uploaded directly to Vercel
+   * Blob storage (via the client-direct-upload flow), bypassing the
+   * serverless function's ~4.5MB request-body cap that blocked large video
+   * uploads through the legacy multipart `uploadAsset` path above.
+   */
+  async registerUploadedAsset(
+    brandId: string,
+    dto: { url: string; size: number; mimeType: string; filename: string; folderId?: string },
+  ) {
+    if (!dto?.url) throw new BadRequestException('No file URL provided');
+    if (!/^https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\//.test(dto.url)) {
+      throw new BadRequestException('Invalid upload URL.');
+    }
+
+    return this.createAssetRecord(brandId, dto);
+  }
+
+  private async createAssetRecord(
+    brandId: string,
+    dto: { url: string; size?: number; mimeType: string; filename?: string; folderId?: string },
+  ) {
     const asset = await this.prisma.mediaAsset.create({
       data: {
         brandId,
-        folderId: folderId || null,
-        filename: file.originalname || 'uploaded_media',
-        blobUrl: uploadedData.url,
-        sizeBytes: uploadedData.size || file.size || 0,
-        mimeType: uploadedData.mimeType || file.mimetype,
+        folderId: dto.folderId || null,
+        filename: dto.filename || 'uploaded_media',
+        blobUrl: dto.url,
+        sizeBytes: dto.size || 0,
+        mimeType: dto.mimeType,
         source: ContentSource.DIRECT_UPLOAD,
         status: MediaStatus.PENDING,
       }
