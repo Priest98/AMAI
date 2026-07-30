@@ -69,31 +69,34 @@ export class AiService {
     return !!(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'placeholder');
   }
 
-  private isOpenAiConfigured(): boolean {
-    return !!(process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== 'placeholder');
+  private isOpenRouterConfigured(): boolean {
+    return !!(process.env.OPENROUTER_API_KEY && process.env.OPENROUTER_API_KEY !== 'placeholder');
   }
 
   /**
    * Fallback AI provider. Used only when Gemini is unconfigured, out of
    * quota, or errors — never called if Gemini already returned a usable
-   * result. Talks to OpenAI's Chat Completions API directly over fetch
-   * (no SDK dependency) so it shares the same withTimeout bounding as
+   * result. Talks to OpenRouter's Chat Completions API (OpenAI-compatible
+   * shape, routed to whatever underlying model is specified) directly over
+   * fetch, no SDK dependency, so it shares the same withTimeout bounding as
    * every other external call in this service. Returns null on any
    * failure so callers can drop through to their existing static
    * fallback rather than throwing.
    */
-  private async callOpenAi(messages: unknown[], maxTokens: number, label: string): Promise<string | null> {
-    if (!this.isOpenAiConfigured()) return null;
+  private async callOpenRouter(messages: unknown[], maxTokens: number, label: string): Promise<string | null> {
+    if (!this.isOpenRouterConfigured()) return null;
 
     try {
       const response = await this.withTimeout(
-        fetch('https://api.openai.com/v1/chat/completions', {
+        fetch('https://openrouter.ai/api/v1/chat/completions', {
           method: 'POST',
           headers: {
-            Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+            Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
             'Content-Type': 'application/json',
+            'HTTP-Referer': 'https://marketing-os-eight-virid.vercel.app',
+            'X-Title': 'AMAI',
           },
-          body: JSON.stringify({ model: 'gpt-4o-mini', messages, max_tokens: maxTokens }),
+          body: JSON.stringify({ model: 'openai/gpt-4o-mini', messages, max_tokens: maxTokens }),
         }),
         10_000,
         label,
@@ -177,14 +180,15 @@ export class AiService {
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown Gemini vision error';
-        this.logger.warn(`Gemini image analysis failed, trying OpenAI fallback: ${message}`);
+        this.logger.warn(`Gemini image analysis failed, trying OpenRouter fallback: ${message}`);
       }
     }
 
-    // Gemini unconfigured, out of quota, or failed — try OpenAI vision
-    // before dropping to the filename heuristic. OpenAI can fetch the
-    // image URL itself, so no download/base64 step is needed here.
-    return this.callOpenAi(
+    // Gemini unconfigured, out of quota, or failed — try the OpenRouter
+    // fallback before dropping to the filename heuristic. The underlying
+    // model can fetch the image URL itself, so no download/base64 step is
+    // needed here.
+    return this.callOpenRouter(
       [
         {
           role: 'user',
@@ -195,7 +199,7 @@ export class AiService {
         },
       ],
       30,
-      'OpenAI vision analysis',
+      'OpenRouter vision analysis',
     );
   }
 
@@ -231,12 +235,12 @@ Keep the caption under character limits for ${platform}.`;
         text = response.text?.trim() || null;
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown Gemini error';
-        this.logger.warn(`Gemini caption generation failed, trying OpenAI fallback: ${message}`);
+        this.logger.warn(`Gemini caption generation failed, trying OpenRouter fallback: ${message}`);
       }
     }
 
     if (!text) {
-      text = await this.callOpenAi([{ role: 'user', content: prompt }], 300, 'OpenAI caption generation');
+      text = await this.callOpenRouter([{ role: 'user', content: prompt }], 300, 'OpenRouter caption generation');
     }
 
     if (!text) {
@@ -304,13 +308,13 @@ highVolume = broad, high-traffic tags. mediumCompetition = moderately specific t
         if (result) return result;
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown Gemini error';
-        this.logger.warn(`Gemini hashtag generation failed, trying OpenAI fallback: ${message}`);
+        this.logger.warn(`Gemini hashtag generation failed, trying OpenRouter fallback: ${message}`);
       }
     }
 
-    const openAiRaw = await this.callOpenAi([{ role: 'user', content: hashtagPrompt }], 300, 'OpenAI hashtag generation');
-    const openAiResult = parseHashtagJson(openAiRaw);
-    if (openAiResult) return openAiResult;
+    const openRouterRaw = await this.callOpenRouter([{ role: 'user', content: hashtagPrompt }], 300, 'OpenRouter hashtag generation');
+    const openRouterResult = parseHashtagJson(openRouterRaw);
+    if (openRouterResult) return openRouterResult;
 
     // Fallback: static niche defaults (used when neither provider is configured or both fail).
     const nicheKey = Object.keys(NICHE_HASHTAG_MAP).find(k => k.toLowerCase() === niche.toLowerCase()) || 'Content Creator';
