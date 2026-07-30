@@ -73,15 +73,65 @@ export class AiService {
     return !!(process.env.OPENROUTER_API_KEY && process.env.OPENROUTER_API_KEY !== 'placeholder');
   }
 
+  private isGroqConfigured(): boolean {
+    return !!(process.env.GROQ_API_KEY && process.env.GROQ_API_KEY !== 'placeholder');
+  }
+
   /**
-   * Fallback AI provider. Used only when Gemini is unconfigured, out of
-   * quota, or errors — never called if Gemini already returned a usable
-   * result. Talks to OpenRouter's Chat Completions API (OpenAI-compatible
-   * shape, routed to whatever underlying model is specified) directly over
-   * fetch, no SDK dependency, so it shares the same withTimeout bounding as
-   * every other external call in this service. Returns null on any
-   * failure so callers can drop through to their existing static
-   * fallback rather than throwing.
+   * Primary AI provider. Groq's free tier (14,400 requests/day, no card
+   * required) dwarfs Gemini's free tier (20 requests/day/model) at this
+   * app's actual upload volumes, so it's tried first for every AI call —
+   * Gemini and OpenRouter only get reached if Groq is unconfigured, out of
+   * quota, or errors. qwen/qwen3.6-27b is used for every call (not just a
+   * text model) because it's multimodal, so the same model/endpoint
+   * handles both the vision call (analyzeImage) and the pure-text calls
+   * (caption/hashtags) without needing two different model IDs. Talks to
+   * Groq's Chat Completions API (OpenAI-compatible shape) directly over
+   * fetch, no SDK dependency. Returns null on any failure so callers can
+   * fall through to the next provider rather than throwing.
+   */
+  private async callGroq(messages: unknown[], maxTokens: number, label: string): Promise<string | null> {
+    if (!this.isGroqConfigured()) return null;
+
+    try {
+      const response = await this.withTimeout(
+        fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ model: 'qwen/qwen3.6-27b', messages, max_tokens: maxTokens }),
+        }),
+        10_000,
+        label,
+      );
+
+      if (!response.ok) {
+        const errText = await response.text().catch(() => '');
+        this.logger.warn(`${label} failed: ${response.status} ${errText}`);
+        return null;
+      }
+
+      const data: any = await response.json();
+      const text = data?.choices?.[0]?.message?.content?.trim();
+      return text && text.length > 0 ? text : null;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : `Unknown ${label} error`;
+      this.logger.warn(`${label} failed: ${message}`);
+      return null;
+    }
+  }
+
+  /**
+   * Last-resort fallback AI provider. Used only when both Groq and Gemini
+   * are unconfigured, out of quota, or error — never called if either
+   * already returned a usable result. Talks to OpenRouter's Chat
+   * Completions API (OpenAI-compatible shape, routed to whatever
+   * underlying model is specified) directly over fetch, no SDK dependency,
+   * so it shares the same withTimeout bounding as every other external
+   * call in this service. Returns null on any failure so callers can drop
+   * through to their existing static fallback rather than throwing.
    */
   private async callOpenRouter(messages: unknown[], maxTokens: number, label: string): Promise<string | null> {
     if (!this.isOpenRouterConfigured()) return null;
@@ -150,6 +200,23 @@ export class AiService {
    * few MB) — video assets always use the filename fallback for now.
    */
   async analyzeImage(imageUrl: string): Promise<string | null> {
+    const visionPrompt = 'Describe the main subject of this image in 3-8 words, suitable as a social media post topic. Just the phrase, no punctuation, no preamble.';
+    const visionMessages = [
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: visionPrompt },
+          { type: 'image_url', image_url: { url: imageUrl } },
+        ],
+      },
+    ];
+
+    // 1) Groq first — 14,400 free requests/day makes it the only provider
+    // here that comfortably survives a large bulk-upload burst.
+    const groqResult = await this.callGroq(visionMessages, 30, 'Groq vision analysis');
+    if (groqResult) return groqResult;
+
+    // 2) Gemini next.
     if (this.isGeminiConfigured()) {
       try {
         const imageRes = await this.withTimeout(fetch(imageUrl), 8_000, 'Image download');
@@ -165,7 +232,7 @@ export class AiService {
                 {
                   role: 'user',
                   parts: [
-                    { text: 'Describe the main subject of this image in 3-8 words, suitable as a social media post topic. Just the phrase, no punctuation, no preamble.' },
+                    { text: visionPrompt },
                     { inlineData: { mimeType, data: base64 } },
                   ],
                 },
@@ -184,23 +251,10 @@ export class AiService {
       }
     }
 
-    // Gemini unconfigured, out of quota, or failed — try the OpenRouter
-    // fallback before dropping to the filename heuristic. The underlying
-    // model can fetch the image URL itself, so no download/base64 step is
-    // needed here.
-    return this.callOpenRouter(
-      [
-        {
-          role: 'user',
-          content: [
-            { type: 'text', text: 'Describe the main subject of this image in 3-8 words, suitable as a social media post topic. Just the phrase, no punctuation, no preamble.' },
-            { type: 'image_url', image_url: { url: imageUrl } },
-          ],
-        },
-      ],
-      30,
-      'OpenRouter vision analysis',
-    );
+    // 3) OpenRouter (GPT-4o-mini) as the last resort before dropping to
+    // the filename heuristic. The underlying model can fetch the image
+    // URL itself, so no download/base64 step is needed here.
+    return this.callOpenRouter(visionMessages, 30, 'OpenRouter vision analysis');
   }
 
   /**
@@ -223,9 +277,11 @@ Requirements:
 5. ${isAiTopic ? '' : 'CRITICAL REQUIREMENT: Do NOT include generic AI hashtags like #AI, #ArtificialIntelligence, or #MachineLearning unless the content is explicitly about AI technology.'}
 Keep the caption under character limits for ${platform}.`;
 
-    let text: string | null = null;
+    // 1) Groq first — same free-tier headroom argument as analyzeImage.
+    let text: string | null = await this.callGroq([{ role: 'user', content: prompt }], 300, 'Groq caption generation');
 
-    if (this.isGeminiConfigured()) {
+    // 2) Gemini next.
+    if (!text && this.isGeminiConfigured()) {
       try {
         const response = await this.withTimeout(
           this.ai.models.generateContent({ model: 'gemini-flash-latest', contents: prompt }),
@@ -239,6 +295,7 @@ Keep the caption under character limits for ${platform}.`;
       }
     }
 
+    // 3) OpenRouter (GPT-4o-mini) as the last resort.
     if (!text) {
       text = await this.callOpenRouter([{ role: 'user', content: prompt }], 300, 'OpenRouter caption generation');
     }
@@ -297,6 +354,12 @@ highVolume = broad, high-traffic tags. mediumCompetition = moderately specific t
       }
     };
 
+    // 1) Groq first.
+    const groqRaw = await this.callGroq([{ role: 'user', content: hashtagPrompt }], 300, 'Groq hashtag generation');
+    const groqResult = parseHashtagJson(groqRaw);
+    if (groqResult) return groqResult;
+
+    // 2) Gemini next.
     if (this.isGeminiConfigured()) {
       try {
         const response = await this.withTimeout(
@@ -312,6 +375,7 @@ highVolume = broad, high-traffic tags. mediumCompetition = moderately specific t
       }
     }
 
+    // 3) OpenRouter (GPT-4o-mini) as the last resort.
     const openRouterRaw = await this.callOpenRouter([{ role: 'user', content: hashtagPrompt }], 300, 'OpenRouter hashtag generation');
     const openRouterResult = parseHashtagJson(openRouterRaw);
     if (openRouterResult) return openRouterResult;
