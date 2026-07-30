@@ -1,9 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
 import { EncryptionService } from '../encryption/encryption.service';
 import { StorageService } from '../storage/storage.service';
 import { GoogleDriveService } from './google-drive.service';
+import { EngineService } from './engine.service';
 import { ContentSource, MediaStatus, TargetStatus } from '@prisma/client';
 
 /**
@@ -26,7 +26,7 @@ export class EngineJobsService {
     private encryption: EncryptionService,
     private storage: StorageService,
     private driveService: GoogleDriveService,
-    private events: EventEmitter2,
+    private engineService: EngineService,
   ) {}
 
   async syncAllGoogleDrive() {
@@ -101,7 +101,12 @@ export class EngineJobsService {
             data: { configId: config.id, googleFileId: file.id, status: TargetStatus.PUBLISHED, postId: null },
           });
 
-          this.events.emit('media.uploaded', { mediaAssetId: asset.id });
+          // Awaited directly (not events.emit fire-and-forget) so the AI
+          // pipeline actually completes before this cron request ends —
+          // same fix as the Direct Upload path in media.service.ts. This
+          // loop already awaits several async steps per file sequentially,
+          // so this is consistent with the existing shape, not a new cost.
+          await this.engineService.handleMediaUploaded({ mediaAssetId: asset.id });
           ingested++;
         } catch (fileErr: any) {
           this.logger.warn(`Drive sync: failed to ingest file ${file.id} for brand ${config.brandId}: ${fileErr?.message || fileErr}`);

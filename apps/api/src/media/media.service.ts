@@ -1,15 +1,17 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
-import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
+import { EngineService } from '../engine/engine.service';
 import { MediaStatus, ContentSource } from '@prisma/client';
+
+const STALE_PROCESSING_MINUTES = 5;
 
 @Injectable()
 export class MediaService {
   constructor(
     private prisma: PrismaService,
     private storage: StorageService,
-    private events: EventEmitter2,
+    private engineService: EngineService,
   ) {}
 
   async uploadAsset(brandId: string, file: Express.Multer.File, folderId?: string) {
@@ -63,9 +65,40 @@ export class MediaService {
 
     // Upload is always the trigger — the AMAI Engine picks this up
     // regardless of Active/Paused state (Paused only blocks publishing).
-    this.events.emit('media.uploaded', { mediaAssetId: asset.id });
+    //
+    // This used to be a fire-and-forget events.emit('media.uploaded', ...)
+    // that returned the HTTP response immediately, without waiting for the
+    // AI pipeline to run. Vercel serverless functions can freeze the
+    // instance the moment the response is flushed, so the asset regularly
+    // got stuck in PROCESSING forever (same class of bug as the earlier
+    // "Publish Now" fix — see PublishingService). Awaiting it here
+    // synchronously guarantees the pipeline actually completes (or fails
+    // cleanly to MediaStatus.FAILED) before this request ends.
+    await this.engineService.handleMediaUploaded({ mediaAssetId: asset.id });
 
-    return asset;
+    // Re-fetch so the caller sees the real post-pipeline status (READY/
+    // SCHEDULED/FAILED) instead of the stale PENDING snapshot from creation.
+    return this.prisma.mediaAsset.findUnique({ where: { id: asset.id } });
+  }
+
+  /**
+   * Self-heals any MediaAsset left stuck in PROCESSING — the only way that
+   * can happen now is a hard function kill mid-pipeline (rare, but Vercel
+   * gives no completion guarantee), same rationale as
+   * PublishingService.publishDuePosts' stale-PUBLISHING sweep. Runs
+   * opportunistically whenever the Media Library is loaded, since that's
+   * naturally how soon a user notices something looks stuck.
+   */
+  private async sweepStaleProcessing(brandId: string): Promise<void> {
+    const staleCutoff = new Date(Date.now() - STALE_PROCESSING_MINUTES * 60 * 1000);
+    const stuck = await this.prisma.mediaAsset.findMany({
+      where: { brandId, status: MediaStatus.PROCESSING, updatedAt: { lte: staleCutoff } },
+      select: { id: true },
+      take: 10,
+    });
+    for (const asset of stuck) {
+      await this.engineService.handleMediaUploaded({ mediaAssetId: asset.id });
+    }
   }
 
   async deleteAsset(brandId: string, assetId: string) {
@@ -80,6 +113,8 @@ export class MediaService {
   }
 
   async getAssets(brandId: string, folderId?: string) {
+    await this.sweepStaleProcessing(brandId).catch(() => {});
+
     // Projected + capped: the Media Library grid only ever renders these
     // seven fields (not batchId/batchName/relativePath/userId/platform/
     // providerPostId/publishedAt/updatedAt), and an unbounded findMany()

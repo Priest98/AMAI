@@ -141,26 +141,22 @@ export class EngineService {
       ? connectedAccounts.map((a) => a.platform).join(', ')
       : 'Instagram & TikTok';
 
-    // 2. Generate caption
-    const { caption } = await this.aiService.generateCaption(
-      brandId,
-      'amai_engine',
-      topic,
-      platformLabel,
-      config.defaultTone || 'friendly',
-    );
-    await this.logEvent(brandId, EngineEventType.CAPTION_GENERATED, { mediaAssetId: asset.id, message: 'Caption generated.' });
-
-    // 3. Generate hashtags
-    const hashtagResult = await this.aiService.generateHashtags(topic, platformLabel, config.defaultTone || 'Content Creator');
+    // 2-4. Generate caption, hashtags, and best posting time. None of these
+    // three depend on each other's output (all three only need `topic` /
+    // `platformLabel` / `brandId`, not each other's results), but they used
+    // to run one after another — three sequential Gemini round-trips adding
+    // straight to the total time a user watches an upload sit at
+    // "Processing". Running them concurrently cuts wall-clock time to
+    // roughly the slowest single call instead of the sum of all three.
+    const [{ caption }, hashtagResult, bestTime] = await Promise.all([
+      this.aiService.generateCaption(brandId, 'amai_engine', topic, platformLabel, config.defaultTone || 'friendly'),
+      this.aiService.generateHashtags(topic, platformLabel, config.defaultTone || 'Content Creator'),
+      this.aiService.predictBestPostingTime(connectedAccounts[0]?.platform || 'Instagram', brandId),
+    ]);
     const hashtags = Array.from(new Set(hashtagResult.allHashtags)).slice(0, 8);
-    await this.logEvent(brandId, EngineEventType.HASHTAGS_GENERATED, { mediaAssetId: asset.id, message: `${hashtags.length} hashtags generated.` });
 
-    // 4. Determine best posting time
-    const bestTime = await this.aiService.predictBestPostingTime(
-      connectedAccounts[0]?.platform || 'Instagram',
-      brandId,
-    );
+    await this.logEvent(brandId, EngineEventType.CAPTION_GENERATED, { mediaAssetId: asset.id, message: 'Caption generated.' });
+    await this.logEvent(brandId, EngineEventType.HASHTAGS_GENERATED, { mediaAssetId: asset.id, message: `${hashtags.length} hashtags generated.` });
     await this.logEvent(brandId, EngineEventType.BEST_TIME_DETERMINED, {
       mediaAssetId: asset.id,
       message: `Best time: ${bestTime.formattedTime}.`,
