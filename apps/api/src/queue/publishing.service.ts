@@ -356,7 +356,19 @@ export class PublishingService {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
       body: JSON.stringify({
-        post_info: { title: caption, privacy_level: 'SELF_ONLY', disable_duet: false, disable_comment: false, disable_stitch: false },
+        post_info: {
+          title: caption,
+          privacy_level: 'SELF_ONLY',
+          disable_duet: false,
+          disable_comment: false,
+          disable_stitch: false,
+          // Required by TikTok's Direct Post API (undisclosed-ad compliance) —
+          // omitting these causes a generic "request post info is empty or
+          // incorrect" validation failure. AMAI-generated posts are never
+          // paid/branded content, so both are always false.
+          brand_content_toggle: false,
+          brand_organic_toggle: false,
+        },
         source_info: {
           source: 'FILE_UPLOAD',
           video_size: videoBuffer.byteLength,
@@ -395,13 +407,26 @@ export class PublishingService {
    * "url_ownership_unverified" error surfaced to the caller.
    */
   private async publishTikTokPhoto(accessToken: string, caption: string, imageUrl: string): Promise<string> {
+    // TikTok caps photo-post titles at 90 UTF-16 runes (vs. 2200 for video
+    // captions) -- sending the full AI-generated caption as `title` was
+    // guaranteed to fail validation. The full caption goes in `description`
+    // instead, which has the same 4000-rune ceiling video captions get.
+    const title = caption.length > 90 ? `${caption.slice(0, 87)}...` : caption;
+
     const res = await fetch('https://open.tiktokapis.com/v2/post/publish/content/init/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
       body: JSON.stringify({
         media_type: 'PHOTO',
         post_mode: 'DIRECT_POST',
-        post_info: { title: caption, privacy_level: 'SELF_ONLY', disable_comment: false },
+        post_info: {
+          title,
+          description: caption,
+          privacy_level: 'SELF_ONLY',
+          disable_comment: false,
+          brand_content_toggle: false,
+          brand_organic_toggle: false,
+        },
         source_info: { source: 'PULL_FROM_URL', photo_images: [imageUrl], photo_cover_index: 0 },
       }),
     });
