@@ -94,6 +94,15 @@ export class AiService {
     if (!this.isGroqConfigured()) return null;
 
     try {
+      // qwen3.6-27b is a "thinking" model — it spends tokens on a visible
+      // <think>...</think> chain-of-thought block before its actual answer.
+      // A tight budget (e.g. 30 tokens for a short vision caption) can get
+      // entirely consumed by that reasoning, leaving nothing for the real
+      // answer, so Groq calls always get a higher floor than the caller
+      // asked for. The <think> block itself is still stripped below
+      // regardless of budget, since it must never leak into a real caption.
+      const groqMaxTokens = Math.max(maxTokens, 600);
+
       const response = await this.withTimeout(
         fetch('https://api.groq.com/openai/v1/chat/completions', {
           method: 'POST',
@@ -101,7 +110,7 @@ export class AiService {
             Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ model: 'qwen/qwen3.6-27b', messages, max_tokens: maxTokens }),
+          body: JSON.stringify({ model: 'qwen/qwen3.6-27b', messages, max_tokens: groqMaxTokens }),
         }),
         10_000,
         label,
@@ -114,8 +123,19 @@ export class AiService {
       }
 
       const data: any = await response.json();
-      const text = data?.choices?.[0]?.message?.content?.trim();
-      return text && text.length > 0 ? text : null;
+      const rawText = data?.choices?.[0]?.message?.content?.trim();
+      if (!rawText) return null;
+
+      const cleaned = rawText.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+      // An unclosed <think> tag means the response got cut off mid-reasoning
+      // (budget exhausted before the real answer) -- unusable, so treat it
+      // as a failure and let the caller fall through to the next provider
+      // rather than shipping raw chain-of-thought text as a caption.
+      if (cleaned.includes('<think>')) {
+        this.logger.warn(`${label} returned truncated reasoning with no final answer, treating as failure`);
+        return null;
+      }
+      return cleaned.length > 0 ? cleaned : null;
     } catch (error) {
       const message = error instanceof Error ? error.message : `Unknown ${label} error`;
       this.logger.warn(`${label} failed: ${message}`);
