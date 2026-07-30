@@ -32,7 +32,7 @@ Do not use hashtags. Try to sound human.`;
 
     try {
       const response = await this.ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-flash-latest',
         contents: prompt,
       });
       return response.text ? response.text.trim() : '';
@@ -60,7 +60,7 @@ Provide only the rewritten caption.`;
 
     try {
       const response = await this.ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-flash-latest',
         contents: prompt,
       });
       return response.text ? response.text.trim() : rawCaption;

@@ -90,7 +90,7 @@ export class AiService {
       const base64 = Buffer.from(arrayBuffer).toString('base64');
 
       const response = await this.ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-flash-latest',
         contents: [
           {
             role: 'user',
@@ -136,7 +136,7 @@ Keep the caption under character limits for ${platform}.`;
     try {
       if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'placeholder') {
         const response = await this.ai.models.generateContent({
-          model: 'gemini-2.5-flash',
+          model: 'gemini-flash-latest',
           contents: prompt,
         });
         text = response.text || `✨ Elevate your style and presence! Check out our latest ${topic || 'collection'} designed for your everyday lifestyle. What do you think of this look? Let us know below! ${defaultTags}`;
@@ -182,7 +182,7 @@ Return strictly valid JSON, no markdown, no commentary, in this exact shape:
 highVolume = broad, high-traffic tags. mediumCompetition = moderately specific tags. nicheHashtags = very specific to "${topic}". brandedHashtags = two short, on-brand tags for the ${niche} niche. All hashtags must start with # and contain no spaces.`;
 
         const response = await this.ai.models.generateContent({
-          model: 'gemini-2.5-flash',
+          model: 'gemini-flash-latest',
           contents: prompt,
         });
 
