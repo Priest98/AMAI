@@ -33,7 +33,15 @@ export interface MediaUploadedEvent {
 // pooler). Bounding the pipeline as a whole guarantees this always
 // resolves -- success or a clean, retryable MediaStatus.FAILED -- well
 // inside Vercel's own cap, observed live via a GET /media/assets 504.
-const PIPELINE_TIMEOUT_MS = 40_000;
+// 40s left some legitimate runs racing the clock under cold-Lambda/pooler
+// conditions (observed live: a handful of retries failing with "Processing
+// took too long" at almost exactly 40s). The AI portion is now reliably
+// fast either way -- it succeeds within AiService's own per-call bounds or
+// fails over via a quick 429/error -- so the remaining budget is mostly
+// DB round-trip overhead. 50s keeps a real 10s margin below Vercel's 60s
+// platform cap while giving genuinely-slow-but-not-stuck runs more room
+// to finish instead of being cut off right at the edge.
+const PIPELINE_TIMEOUT_MS = 50_000;
 
 @Injectable()
 export class EngineService {
