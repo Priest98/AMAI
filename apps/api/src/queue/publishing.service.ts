@@ -261,7 +261,7 @@ export class PublishingService {
     });
     const containerData = await containerRes.json();
     if (!containerRes.ok || !containerData.id) {
-      throw new Error(containerData?.error?.message || 'Instagram rejected the media container.');
+      throw new Error(this.formatMetaError(containerData, 'Instagram rejected the media container.'));
     }
 
     // Video/Reels containers process asynchronously on Instagram's side —
@@ -280,10 +280,29 @@ export class PublishingService {
     });
     const publishData = await publishRes.json();
     if (!publishRes.ok || !publishData.id) {
-      throw new Error(publishData?.error?.message || 'Instagram publish step failed.');
+      throw new Error(this.formatMetaError(publishData, 'Instagram publish step failed.'));
     }
 
     return publishData.id;
+  }
+
+  /**
+   * Meta's Graph API error payloads carry far more than `.message` — code,
+   * error_subcode, and type together pin down the actual failure far more
+   * precisely than the human-readable message alone (which is sometimes
+   * generic or slightly misleading). Surfacing all of it in the thrown
+   * error means it lands in PublishingLog.errorMessage, visible without
+   * needing raw request logs.
+   */
+  private formatMetaError(data: any, fallback: string): string {
+    const err = data?.error;
+    if (!err) return fallback;
+    const parts = [err.message || fallback];
+    if (err.error_user_msg) parts.push(`user_msg: ${err.error_user_msg}`);
+    if (err.code !== undefined) parts.push(`code: ${err.code}`);
+    if (err.error_subcode !== undefined) parts.push(`subcode: ${err.error_subcode}`);
+    if (err.type) parts.push(`type: ${err.type}`);
+    return parts.join(' | ');
   }
 
   /**
@@ -379,7 +398,7 @@ export class PublishingService {
     });
     const initData = await initRes.json();
     if (!initRes.ok || initData.error?.code !== 'ok' || !initData.data?.publish_id || !initData.data?.upload_url) {
-      throw new Error(initData?.error?.message || 'TikTok video publish initiation failed.');
+      throw new Error(this.formatTikTokError(initData, 'TikTok video publish initiation failed.'));
     }
 
     const uploadRes = await fetch(initData.data.upload_url, {
@@ -432,9 +451,26 @@ export class PublishingService {
     });
     const data = await res.json();
     if (!res.ok || data.error?.code !== 'ok' || !data.data?.publish_id) {
-      throw new Error(data?.error?.message || 'TikTok photo publish initiation failed.');
+      throw new Error(this.formatTikTokError(data, 'TikTok photo publish initiation failed.'));
     }
 
     return data.data.publish_id;
+  }
+
+  /**
+   * TikTok's error payload's `.message` is sometimes just a generic link to
+   * a guidelines page rather than the specific reason -- `.code` (a named
+   * enum like `url_ownership_unverified` or `spam_risk_too_many_posts`) and
+   * `.log_id` (TikTok's own reference for support/debugging) are far more
+   * actionable. Surfacing all three in the thrown error means they land in
+   * PublishingLog.errorMessage.
+   */
+  private formatTikTokError(data: any, fallback: string): string {
+    const err = data?.error;
+    if (!err) return fallback;
+    const parts = [err.message || fallback];
+    if (err.code) parts.push(`code: ${err.code}`);
+    if (err.log_id) parts.push(`log_id: ${err.log_id}`);
+    return parts.join(' | ');
   }
 }
