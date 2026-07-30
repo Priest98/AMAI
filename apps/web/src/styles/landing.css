@@ -1,0 +1,189 @@
+/**
+ * AMAI Landing Page — scoped design tokens & keyframes.
+ *
+ * Intentionally isolated from the dashboard's design system (globals.css /
+ * theme-fixes.css, indigo/violet tokens). The marketing site has its own
+ * darker, cyan/purple "AI operating system" identity per the landing page
+ * spec — scoping everything under `.amai-landing` means none of this can
+ * ever leak into (or be overridden by) the authenticated dashboard.
+ */
+
+.amai-landing {
+  --lp-bg: #070B14;
+  --lp-bg-soft: #0B1120;
+  --lp-surface: #111827;
+  --lp-surface-raised: #161E2E;
+  --lp-border: rgba(148, 163, 184, 0.12);
+  --lp-border-strong: rgba(148, 163, 184, 0.22);
+
+  --lp-cyan: #39E7FF;
+  --lp-cyan-soft: rgba(57, 231, 255, 0.14);
+  --lp-purple: #7C5CFF;
+  --lp-purple-soft: rgba(124, 92, 255, 0.16);
+  --lp-success: #10B981;
+  --lp-danger: #EF4444;
+
+  --lp-text-primary: #F8FAFC;
+  --lp-text-secondary: #A5B0C4;
+  --lp-text-muted: #64748B;
+
+  --lp-gradient-brand: linear-gradient(135deg, #39E7FF 0%, #7C5CFF 100%);
+  --lp-gradient-glow: radial-gradient(circle, rgba(57, 231, 255, 0.35) 0%, rgba(124, 92, 255, 0.15) 45%, transparent 70%);
+
+  background: var(--lp-bg);
+  color: var(--lp-text-primary);
+  font-family: var(--lp-font-body, 'Inter', -apple-system, BlinkMacSystemFont, sans-serif);
+}
+
+.amai-landing.light {
+  --lp-bg: #F8FAFC;
+  --lp-bg-soft: #FFFFFF;
+  --lp-surface: #FFFFFF;
+  --lp-surface-raised: #FFFFFF;
+  --lp-border: rgba(15, 23, 42, 0.08);
+  --lp-border-strong: rgba(15, 23, 42, 0.14);
+  --lp-text-primary: #0B1120;
+  --lp-text-secondary: #475569;
+  --lp-text-muted: #94A3B8;
+}
+
+.amai-landing .lp-heading {
+  font-family: var(--lp-font-heading, 'Space Grotesk', sans-serif);
+  letter-spacing: -0.02em;
+}
+
+.amai-landing .lp-mono {
+  font-family: var(--font-mono, monospace);
+}
+
+/* Glass surfaces ---------------------------------------------------- */
+.lp-glass {
+  background: rgba(17, 24, 39, 0.55);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--lp-border);
+}
+
+.amai-landing.light .lp-glass {
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.lp-card {
+  background: var(--lp-surface);
+  border: 1px solid var(--lp-border);
+  border-radius: 20px;
+  transition: border-color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.lp-card:hover {
+  border-color: var(--lp-border-strong);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px -12px rgba(57, 231, 255, 0.15);
+}
+
+.lp-gradient-text {
+  background: var(--lp-gradient-brand);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.lp-btn-primary {
+  background: var(--lp-gradient-brand);
+  color: #04070D;
+  font-weight: 700;
+  box-shadow: 0 8px 30px -8px rgba(57, 231, 255, 0.5);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.lp-btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 36px -8px rgba(57, 231, 255, 0.65);
+}
+.lp-btn-primary:active {
+  transform: translateY(0);
+}
+
+.lp-btn-ghost {
+  background: transparent;
+  border: 1px solid var(--lp-border-strong);
+  color: var(--lp-text-primary);
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+.lp-btn-ghost:hover {
+  border-color: var(--lp-cyan);
+  background: var(--lp-cyan-soft);
+}
+
+/* Animated background glow / grid ------------------------------------ */
+.lp-noise-grid {
+  background-image:
+    linear-gradient(to right, rgba(148, 163, 184, 0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(148, 163, 184, 0.06) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 40%, transparent 100%);
+}
+
+@keyframes lp-pulse-core {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.06); opacity: 0.9; }
+}
+@keyframes lp-orbit {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes lp-orbit-reverse {
+  from { transform: rotate(360deg); }
+  to { transform: rotate(0deg); }
+}
+@keyframes lp-counter-orbit {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(-360deg); }
+}
+@keyframes lp-float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+@keyframes lp-particle {
+  0% { transform: translate(0, 0) scale(0.6); opacity: 0; }
+  20% { opacity: 1; }
+  100% { transform: translate(var(--lp-px, 40px), var(--lp-py, -40px)) scale(1); opacity: 0; }
+}
+@keyframes lp-glow-pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+@keyframes lp-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+@keyframes lp-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.lp-animate-pulse-core { animation: lp-pulse-core 3.2s ease-in-out infinite; }
+.lp-animate-orbit { animation: lp-orbit 18s linear infinite; }
+.lp-animate-orbit-slow { animation: lp-orbit 28s linear infinite; }
+.lp-animate-orbit-reverse { animation: lp-orbit-reverse 22s linear infinite; }
+.lp-animate-counter-orbit { animation: lp-counter-orbit 18s linear infinite; }
+.lp-animate-float { animation: lp-float 5s ease-in-out infinite; }
+.lp-animate-glow { animation: lp-glow-pulse 2.4s ease-in-out infinite; }
+.lp-animate-marquee { animation: lp-marquee 32s linear infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .amai-landing * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+.lp-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }
+.lp-scrollbar::-webkit-scrollbar-thumb { background: var(--lp-border-strong); border-radius: 999px; }
+
+.lp-focus-ring:focus-visible {
+  outline: 2px solid var(--lp-cyan);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
