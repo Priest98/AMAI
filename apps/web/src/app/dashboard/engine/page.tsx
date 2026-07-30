@@ -13,10 +13,14 @@ import {
   Sparkles,
   AlertTriangle,
   Activity,
+  CalendarClock,
+  Globe2,
 } from 'lucide-react';
 
 type EngineState = 'ACTIVE' | 'PAUSED';
 type ApprovalMode = 'MANUAL' | 'AUTO';
+type ScheduleStartOption = 'TODAY' | 'TOMORROW' | 'CUSTOM';
+type SchedulingPlatform = 'INSTAGRAM' | 'TIKTOK' | 'BOTH';
 
 interface EngineConfig {
   id: string;
@@ -24,6 +28,28 @@ interface EngineConfig {
   state: EngineState;
   approvalMode: ApprovalMode;
   defaultTone: string;
+  postsPerDay: number;
+  scheduleStartFrom: ScheduleStartOption;
+  customStartDate: string | null;
+  timeZone: string;
+  schedulingPlatform: SchedulingPlatform;
+}
+
+const COMMON_TIME_ZONES = [
+  'UTC', 'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles',
+  'America/Sao_Paulo', 'Europe/London', 'Europe/Paris', 'Europe/Berlin', 'Europe/Moscow',
+  'Africa/Lagos', 'Africa/Cairo', 'Africa/Johannesburg', 'Asia/Dubai', 'Asia/Kolkata',
+  'Asia/Bangkok', 'Asia/Singapore', 'Asia/Shanghai', 'Asia/Tokyo', 'Australia/Sydney',
+];
+
+function timeZoneOptions(): string[] {
+  try {
+    // @ts-ignore -- supportedValuesOf isn't in older TS lib targets
+    const all: string[] = typeof Intl.supportedValuesOf === 'function' ? Intl.supportedValuesOf('timeZone') : [];
+    return all.length > 0 ? all : COMMON_TIME_ZONES;
+  } catch {
+    return COMMON_TIME_ZONES;
+  }
 }
 
 const PERSONAS = [
@@ -110,6 +136,35 @@ export default function AmaiEnginePage() {
       await brandFetch('/engine/config', { method: 'PATCH', body: JSON.stringify({ defaultTone: tone }) });
     } catch (e: any) {
       showToast(e.message || 'Could not update persona.');
+    }
+  };
+
+  // One-time nudge: if the saved time zone is still the default (meaning
+  // it's never been explicitly set), suggest the browser's detected zone.
+  // Doesn't fire again once the config actually has a real value saved.
+  useEffect(() => {
+    if (!config || config.timeZone !== 'UTC') return;
+    try {
+      const detected = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if (detected && detected !== 'UTC') {
+        savePostingSchedule({ timeZone: detected });
+      }
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config?.id]);
+
+  const savePostingSchedule = async (patch: Partial<Pick<EngineConfig, 'postsPerDay' | 'scheduleStartFrom' | 'customStartDate' | 'timeZone' | 'schedulingPlatform'>>) => {
+    if (!config) return;
+    const next = { ...config, ...patch };
+    setConfig(next);
+    setSaving(true);
+    try {
+      await brandFetch('/engine/posting-schedule', { method: 'PATCH', body: JSON.stringify(patch) });
+    } catch (e: any) {
+      showToast(e.message || 'Could not update the Posting Schedule.');
+      setConfig(config); // revert on failure
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -237,6 +292,109 @@ export default function AmaiEnginePage() {
               </button>
             );
           })}
+        </div>
+      </div>
+
+      {/* ── Posting Schedule (AI publishing calendar) ── */}
+      <div className="rounded-2xl border p-5 sm:p-6 space-y-5" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}>
+        <div className="flex items-center space-x-2">
+          <CalendarClock className="h-4 w-4 text-indigo-400" />
+          <div>
+            <h3 className="text-sm font-extrabold tracking-tight" style={{ color: 'var(--text-primary)' }}>Posting Schedule</h3>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+              How many posts to publish per day and when — AMAI builds the full calendar automatically as you upload media.
+            </p>
+          </div>
+        </div>
+
+        {/* Posts per day */}
+        <div>
+          <label className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Posts per day</label>
+          <div className="grid grid-cols-5 gap-2 mt-2">
+            {[1, 2, 3, 4, 5].map((n) => {
+              const active = config?.postsPerDay === n;
+              return (
+                <button
+                  key={n}
+                  onClick={() => savePostingSchedule({ postsPerDay: n })}
+                  className={`py-2.5 rounded-xl border text-sm font-extrabold transition touch-target ${active ? 'border-indigo-500/60 bg-indigo-500/10 text-indigo-400' : ''}`}
+                  style={{ backgroundColor: active ? undefined : 'var(--bg-surface-raised)', borderColor: active ? undefined : 'var(--card-border)', color: active ? undefined : 'var(--text-primary)' }}
+                >
+                  {n}
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-[10px] mt-1.5" style={{ color: 'var(--text-muted)' }}>Maximum 5 posts per day.</p>
+        </div>
+
+        {/* Start scheduling from */}
+        <div>
+          <label className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Start scheduling from</label>
+          <div className="grid grid-cols-3 gap-2 mt-2">
+            {(['TODAY', 'TOMORROW', 'CUSTOM'] as ScheduleStartOption[]).map((opt) => {
+              const active = config?.scheduleStartFrom === opt;
+              return (
+                <button
+                  key={opt}
+                  onClick={() => savePostingSchedule({ scheduleStartFrom: opt })}
+                  className={`py-2.5 px-2 rounded-xl border text-xs font-extrabold transition touch-target ${active ? 'border-indigo-500/60 bg-indigo-500/10 text-indigo-400' : ''}`}
+                  style={{ backgroundColor: active ? undefined : 'var(--bg-surface-raised)', borderColor: active ? undefined : 'var(--card-border)', color: active ? undefined : 'var(--text-primary)' }}
+                >
+                  {opt === 'TODAY' ? 'Today' : opt === 'TOMORROW' ? 'Tomorrow' : 'Custom Date'}
+                </button>
+              );
+            })}
+          </div>
+          {config?.scheduleStartFrom === 'CUSTOM' && (
+            <input
+              type="date"
+              value={config?.customStartDate ? config.customStartDate.slice(0, 10) : ''}
+              onChange={(e) => savePostingSchedule({ customStartDate: e.target.value ? new Date(`${e.target.value}T00:00:00`).toISOString() : null })}
+              className="mt-2 w-full px-3 py-2 rounded-xl border text-xs font-semibold"
+              style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-primary)' }}
+            />
+          )}
+        </div>
+
+        {/* Time zone */}
+        <div>
+          <label className="text-[11px] font-bold uppercase tracking-wide flex items-center gap-1.5" style={{ color: 'var(--text-muted)' }}>
+            <Globe2 className="h-3 w-3" /> Time zone
+          </label>
+          <select
+            value={config?.timeZone || 'UTC'}
+            onChange={(e) => savePostingSchedule({ timeZone: e.target.value })}
+            className="mt-2 w-full px-3 py-2 rounded-xl border text-xs font-semibold"
+            style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-primary)' }}
+          >
+            {timeZoneOptions().map((tz) => (
+              <option key={tz} value={tz}>{tz.replace(/_/g, ' ')}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Platforms */}
+        <div>
+          <label className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Platforms</label>
+          <div className="grid grid-cols-3 gap-2 mt-2">
+            {(['INSTAGRAM', 'TIKTOK', 'BOTH'] as SchedulingPlatform[]).map((p) => {
+              const active = config?.schedulingPlatform === p;
+              return (
+                <button
+                  key={p}
+                  onClick={() => savePostingSchedule({ schedulingPlatform: p })}
+                  className={`py-2.5 px-2 rounded-xl border text-xs font-extrabold transition touch-target ${active ? 'border-indigo-500/60 bg-indigo-500/10 text-indigo-400' : ''}`}
+                  style={{ backgroundColor: active ? undefined : 'var(--bg-surface-raised)', borderColor: active ? undefined : 'var(--card-border)', color: active ? undefined : 'var(--text-primary)' }}
+                >
+                  {p === 'INSTAGRAM' ? 'Instagram' : p === 'TIKTOK' ? 'TikTok' : 'Both'}
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-[10px] mt-1.5 leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+            "Both" alternates between Instagram's and TikTok's best-time tables across your calendar.
+          </p>
         </div>
       </div>
 

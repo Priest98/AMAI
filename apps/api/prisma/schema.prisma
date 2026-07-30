@@ -179,6 +179,11 @@ model Post {
   scheduledAt      DateTime?    @db.Timestamptz(6)
   optimalScore     Int?
   peakTimeDetected Boolean      @default(false)
+  // Lightweight content-type tag (e.g. "video:promotional") set by the AI
+  // publishing calendar so the scheduler can avoid placing similar content
+  // back-to-back. Nullable: posts created outside that pipeline (manual,
+  // legacy) simply don't have one.
+  contentCategory  String?
   approvedAt       DateTime?    @db.Timestamptz(6)
   rejectedAt       DateTime?    @db.Timestamptz(6)
   publishedAt      DateTime?    @db.Timestamptz(6)
@@ -240,18 +245,44 @@ model PublishingLog {
 /// which Approval Mode governs publishing, and (optionally) the connected
 /// Google Drive sync folder. This replaces the old AutoPilotConfig model.
 model AmaiEngineConfig {
-  id                 String         @id @default(dbgenerated("(gen_random_uuid())::text"))
-  brandId            String         @unique
-  state              EngineState    @default(ACTIVE)
-  approvalMode       ApprovalMode   @default(MANUAL)
-  defaultTone        String         @default("friendly")
+  id                 String              @id @default(dbgenerated("(gen_random_uuid())::text"))
+  brandId            String              @unique
+  state              EngineState         @default(ACTIVE)
+  approvalMode       ApprovalMode        @default(MANUAL)
+  defaultTone        String              @default("friendly")
   googleRefreshToken String?
   driveFolderId      String?
-  webhookToken       String?        @unique
-  createdAt          DateTime       @default(now()) @db.Timestamptz(6)
-  updatedAt          DateTime       @default(now()) @updatedAt @db.Timestamptz(6)
-  brand              Brand          @relation(fields: [brandId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  webhookToken       String?             @unique
+  // Posting Schedule (AI publishing calendar) settings.
+  postsPerDay        Int                 @default(1)
+  scheduleStartFrom  ScheduleStartOption @default(TODAY)
+  customStartDate    DateTime?           @db.Timestamptz(6)
+  timeZone           String              @default("UTC")
+  schedulingPlatform SchedulingPlatform  @default(BOTH)
+  createdAt          DateTime            @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime            @default(now()) @updatedAt @db.Timestamptz(6)
+  brand              Brand               @relation(fields: [brandId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   syncLogs           DriveSyncLog[]
+}
+
+/// Centralized, DB-driven platform posting-time configuration for the AI
+/// publishing calendar — never hardcoded in application code, so posting
+/// windows can be updated or extended to new platforms without a deploy.
+/// Seeded with Instagram/TikTok's documented best-time tables; priority 1
+/// is the primary recommended time for that day, 2+ are secondary/tertiary
+/// fallbacks used once an earlier priority slot is already taken.
+model PlatformPostingSlot {
+  id        String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  platform  Platform
+  dayOfWeek Int // 0=Sunday .. 6=Saturday (JS Date#getDay convention)
+  priority  Int // 1=primary, 2=secondary, 3=tertiary...
+  hour      Int // 0-23, local to the brand's configured time zone
+  minute    Int // 0-59
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+
+  @@unique([platform, dayOfWeek, priority])
+  @@index([platform, dayOfWeek])
 }
 
 model DriveSyncLog {
@@ -369,6 +400,23 @@ enum ContentSource {
   MANUAL
 }
 
+/// When the AI publishing calendar's 7-day schedule window begins.
+enum ScheduleStartOption {
+  TODAY
+  TOMORROW
+  CUSTOM
+}
+
+/// Which platform(s) the AI publishing calendar optimizes posting times
+/// for. BOTH alternates between the Instagram and TikTok best-time tables
+/// post-by-post, since a single Post fans out to every connected platform
+/// at one shared scheduledAt and can't perfectly match both tables at once.
+enum SchedulingPlatform {
+  INSTAGRAM
+  TIKTOK
+  BOTH
+}
+
 enum EngineEventType {
   MEDIA_UPLOADED
   ANALYSIS_STARTED
@@ -388,4 +436,5 @@ enum EngineEventType {
   ACCOUNT_DISCONNECTED
   ENGINE_STATE_CHANGED
   APPROVAL_MODE_CHANGED
+  POSTING_SCHEDULE_UPDATED
 }

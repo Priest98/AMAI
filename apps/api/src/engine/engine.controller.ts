@@ -5,7 +5,7 @@ import { Observable, fromEvent, map, filter, merge, of, timer, takeUntil } from 
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { EngineService } from './engine.service';
 import { EngineJobsService } from './engine-jobs.service';
-import { EngineState, ApprovalMode } from '@prisma/client';
+import { EngineState, ApprovalMode, ScheduleStartOption, SchedulingPlatform } from '@prisma/client';
 
 @UseGuards(JwtAuthGuard, BrandAccessGuard)
 @Controller('brands/:brandId/engine')
@@ -34,6 +34,21 @@ export class EngineController {
   @Patch('config')
   async updateConfig(@Param('brandId') brandId: string, @Body() dto: { defaultTone?: string }) {
     return this.engineService.updateConfig(brandId, dto);
+  }
+
+  /** The AI publishing calendar's "Posting Schedule" settings. */
+  @Patch('posting-schedule')
+  async updatePostingSchedule(
+    @Param('brandId') brandId: string,
+    @Body() dto: {
+      postsPerDay?: number;
+      scheduleStartFrom?: ScheduleStartOption;
+      customStartDate?: string | null;
+      timeZone?: string;
+      schedulingPlatform?: SchedulingPlatform;
+    },
+  ) {
+    return this.engineService.updatePostingSchedule(brandId, dto);
   }
 
   @Get('activity')

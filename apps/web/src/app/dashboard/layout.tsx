@@ -16,6 +16,7 @@ import {
   Sun,
   Moon,
   Calendar as CalendarIcon,
+  CalendarClock,
   CheckSquare,
   CheckCircle2,
   BarChart3,
@@ -46,6 +47,7 @@ const navSections: NavSection[] = [
     title: 'Automation & Queue',
     items: [
       { label: 'Approval Queue', href: '/dashboard/approval-queue', icon: CheckSquare },
+      { label: 'Publishing Calendar', href: '/dashboard/calendar', icon: CalendarClock },
       { label: 'Scheduled Posts', href: '/dashboard/scheduled', icon: CalendarIcon },
       { label: 'Published Posts', href: '/dashboard/published', icon: CheckCircle2 },
       { label: 'AMAI Engine', href: '/dashboard/engine', icon: Zap },

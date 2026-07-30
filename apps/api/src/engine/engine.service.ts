@@ -3,6 +3,7 @@ import { OnEvent, EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
 import { AiService } from '../ai/ai.service';
 import { PublishingService } from '../queue/publishing.service';
+import { SchedulingService } from './scheduling.service';
 import {
   EngineState,
   ApprovalMode,
@@ -13,6 +14,8 @@ import {
   EngineEventType,
   ConnectionStatus,
   Platform,
+  SchedulingPlatform,
+  ScheduleStartOption,
 } from '@prisma/client';
 
 export interface MediaUploadedEvent {
@@ -28,6 +31,7 @@ export class EngineService {
     private aiService: AiService,
     private events: EventEmitter2,
     private publishingService: PublishingService,
+    private schedulingService: SchedulingService,
   ) {}
 
   // ─────────────────────────────────────────────────────────────
@@ -63,6 +67,57 @@ export class EngineService {
       where: { id: config.id },
       data: { defaultTone: dto.defaultTone },
     });
+  }
+
+  /**
+   * Posting Schedule settings for the AI publishing calendar. A separate
+   * method (and route) from updateConfig/defaultTone above so persona and
+   * scheduling preferences can evolve independently.
+   */
+  async updatePostingSchedule(
+    brandId: string,
+    dto: {
+      postsPerDay?: number;
+      scheduleStartFrom?: ScheduleStartOption;
+      customStartDate?: string | null;
+      timeZone?: string;
+      schedulingPlatform?: SchedulingPlatform;
+    },
+  ) {
+    const config = await this.getOrCreateConfig(brandId);
+
+    if (dto.postsPerDay !== undefined && (dto.postsPerDay < 1 || dto.postsPerDay > 5)) {
+      throw new BadRequestException('Posts per day must be between 1 and 5.');
+    }
+    if (dto.timeZone) {
+      try {
+        Intl.DateTimeFormat(undefined, { timeZone: dto.timeZone });
+      } catch {
+        throw new BadRequestException(`"${dto.timeZone}" isn't a recognized time zone.`);
+      }
+    }
+    if (dto.scheduleStartFrom === ScheduleStartOption.CUSTOM && dto.customStartDate === undefined && !config.customStartDate) {
+      throw new BadRequestException('A custom start date is required when "Custom Date" is selected.');
+    }
+
+    const updated = await this.prisma.amaiEngineConfig.update({
+      where: { id: config.id },
+      data: {
+        postsPerDay: dto.postsPerDay ?? config.postsPerDay,
+        scheduleStartFrom: dto.scheduleStartFrom ?? config.scheduleStartFrom,
+        customStartDate: dto.customStartDate !== undefined
+          ? (dto.customStartDate ? new Date(dto.customStartDate) : null)
+          : config.customStartDate,
+        timeZone: dto.timeZone ?? config.timeZone,
+        schedulingPlatform: dto.schedulingPlatform ?? config.schedulingPlatform,
+      },
+    });
+
+    await this.logEvent(brandId, EngineEventType.POSTING_SCHEDULE_UPDATED, {
+      message: `Posting Schedule updated — ${updated.postsPerDay} post${updated.postsPerDay === 1 ? '' : 's'}/day, ${updated.schedulingPlatform.toLowerCase()}, starting ${updated.scheduleStartFrom.toLowerCase()}.`,
+    });
+
+    return updated;
   }
 
   async setApprovalMode(brandId: string, approvalMode: ApprovalMode) {
@@ -134,32 +189,60 @@ export class EngineService {
       topic = this.deriveTopicFromFilename(asset.filename, asset.batchName);
     }
 
-    const connectedAccounts = await this.prisma.socialAccount.findMany({
+    const allConnectedAccounts = await this.prisma.socialAccount.findMany({
       where: { brandId, status: ConnectionStatus.CONNECTED },
     });
+    // The Posting Schedule setting's "Platforms" choice restricts which
+    // connected accounts this post targets (INSTAGRAM/TIKTOK only, or BOTH).
+    // Falls back to every connected account if that filter would leave
+    // zero targets (e.g. platform set to Instagram but only TikTok is
+    // connected) — an empty-targets post would otherwise sit unpublished
+    // forever with no way for the user to notice why, the same class of
+    // silent-failure bug already fixed once this session.
+    const platformFiltered = allConnectedAccounts.filter((a) => {
+      if (config.schedulingPlatform === SchedulingPlatform.INSTAGRAM) return a.platform === Platform.INSTAGRAM;
+      if (config.schedulingPlatform === SchedulingPlatform.TIKTOK) return a.platform === Platform.TIKTOK;
+      return true;
+    });
+    const connectedAccounts = platformFiltered.length > 0 ? platformFiltered : allConnectedAccounts;
     const platformLabel = connectedAccounts.length > 0
       ? connectedAccounts.map((a) => a.platform).join(', ')
       : 'Instagram & TikTok';
 
-    // 2-4. Generate caption, hashtags, and best posting time. None of these
-    // three depend on each other's output (all three only need `topic` /
-    // `platformLabel` / `brandId`, not each other's results), but they used
-    // to run one after another — three sequential Gemini round-trips adding
-    // straight to the total time a user watches an upload sit at
-    // "Processing". Running them concurrently cuts wall-clock time to
-    // roughly the slowest single call instead of the sum of all three.
-    const [{ caption }, hashtagResult, bestTime] = await Promise.all([
+    // 2-3. Generate caption and hashtags — independent of each other, run
+    // concurrently rather than one after another to cut real wall-clock
+    // time roughly in half.
+    const [{ caption }, hashtagResult] = await Promise.all([
       this.aiService.generateCaption(brandId, 'amai_engine', topic, platformLabel, config.defaultTone || 'friendly'),
       this.aiService.generateHashtags(topic, platformLabel, config.defaultTone || 'Content Creator'),
-      this.aiService.predictBestPostingTime(connectedAccounts[0]?.platform || 'Instagram', brandId),
     ]);
     const hashtags = Array.from(new Set(hashtagResult.allHashtags)).slice(0, 8);
-
     await this.logEvent(brandId, EngineEventType.CAPTION_GENERATED, { mediaAssetId: asset.id, message: 'Caption generated.' });
     await this.logEvent(brandId, EngineEventType.HASHTAGS_GENERATED, { mediaAssetId: asset.id, message: `${hashtags.length} hashtags generated.` });
+
+    // 4. AI publishing calendar: find this asset's place on the brand's
+    // 7-day-and-beyond schedule (posts-per-day cap, start date, time zone,
+    // and platform-specific best-time tables — see SchedulingService),
+    // rather than the old single ad-hoc "next best time" heuristic.
+    const mediaKind: 'video' | 'image' = isVideo ? 'video' : 'image';
+    const contentCategory = this.schedulingService.classifyContentCategory(topic, caption);
+    const { scheduledAt, priorityUsed } = await this.schedulingService.assignNextSlot(
+      brandId,
+      {
+        postsPerDay: config.postsPerDay,
+        scheduleStartFrom: config.scheduleStartFrom,
+        customStartDate: config.customStartDate,
+        timeZone: config.timeZone,
+        schedulingPlatform: config.schedulingPlatform,
+      },
+      { mediaKind, contentCategory },
+    );
+    // 1=primary table slot -> 95, 2/3=secondary/tertiary -> a bit lower,
+    // 99=generated fallback time (table exhausted for the day) -> lower still.
+    const optimalScore = priorityUsed === 1 ? 95 : priorityUsed === 99 ? 70 : Math.max(80, 95 - priorityUsed * 5);
     await this.logEvent(brandId, EngineEventType.BEST_TIME_DETERMINED, {
       mediaAssetId: asset.id,
-      message: `Best time: ${bestTime.formattedTime}.`,
+      message: `Scheduled for ${scheduledAt.toLocaleString('en-US', { timeZone: config.timeZone || 'UTC', dateStyle: 'medium', timeStyle: 'short' })} (${config.timeZone || 'UTC'}).`,
     });
 
     // 5. Check Approval Mode (Paused always forces the approval queue, even
@@ -174,8 +257,9 @@ export class EngineService {
         hashtags,
         source: asset.source,
         status: postStatus,
-        scheduledAt: new Date(bestTime.recommendedTime),
-        optimalScore: bestTime.confidence,
+        scheduledAt,
+        optimalScore,
+        contentCategory,
         peakTimeDetected: true,
         media: { create: [{ assetId: asset.id }] },
         targets: {
@@ -196,10 +280,11 @@ export class EngineService {
     });
 
     if (willAutoPublish) {
+      const formatted = scheduledAt.toLocaleString('en-US', { timeZone: config.timeZone || 'UTC', dateStyle: 'medium', timeStyle: 'short' });
       await this.logEvent(brandId, EngineEventType.AUTO_SCHEDULED, {
         postId: post.id,
         mediaAssetId: asset.id,
-        message: `Post auto-scheduled for ${bestTime.formattedTime}.`,
+        message: `Post auto-scheduled for ${formatted}.`,
       });
       // No queue to push to — the post is now SCHEDULED in the DB, and the
       // /api/cron/publish-due endpoint (Vercel Cron) picks up anything due
@@ -293,10 +378,17 @@ export class EngineService {
     return updated;
   }
 
+  /**
+   * Rejects/cancels a post. Covers both the Approval Queue's "Reject"
+   * action (NEEDS_APPROVAL) and the publishing calendar's "Delete" action
+   * on a post that's already SCHEDULED but hasn't published yet — there
+   * was previously no way to cancel a scheduled post at all short of
+   * waiting for it to fail.
+   */
   async rejectPost(brandId: string, postId: string) {
     const post = await this.getBrandPostOrThrow(brandId, postId);
-    if (post.status !== PostStatus.NEEDS_APPROVAL) {
-      throw new BadRequestException('Only posts awaiting approval can be rejected.');
+    if (post.status !== PostStatus.NEEDS_APPROVAL && post.status !== PostStatus.SCHEDULED) {
+      throw new BadRequestException('Only posts awaiting approval or scheduled posts can be rejected.');
     }
 
     const updated = await this.prisma.post.update({
@@ -306,10 +398,10 @@ export class EngineService {
 
     await this.prisma.mediaAsset.updateMany({
       where: { linkedPostId: postId },
-      data: { status: MediaStatus.FAILED, lastErrorMessage: 'Rejected in Approval Queue.' },
+      data: { status: MediaStatus.FAILED, lastErrorMessage: 'Rejected/cancelled.' },
     });
 
-    await this.logEvent(brandId, EngineEventType.POST_REJECTED, { postId, message: 'Post rejected.' });
+    await this.logEvent(brandId, EngineEventType.POST_REJECTED, { postId, message: 'Post rejected/cancelled.' });
     return updated;
   }
 
