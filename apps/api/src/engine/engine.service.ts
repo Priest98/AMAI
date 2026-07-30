@@ -190,6 +190,7 @@ export class EngineService {
     }
 
     const brandId = asset.brandId;
+    this.logger.log(`[${asset.id}] AMAI Engine pipeline started (brand=${brandId}, file="${asset.filename}")`);
     const config = await this.getOrCreateConfig(brandId);
 
     await this.prisma.mediaAsset.update({
@@ -220,6 +221,7 @@ export class EngineService {
     } else {
       topic = this.deriveTopicFromFilename(asset.filename, asset.batchName);
     }
+    this.logger.log(`[${asset.id}] Media analyzed: topic="${topic}"`);
 
     const allConnectedAccounts = await this.prisma.socialAccount.findMany({
       where: { brandId, status: ConnectionStatus.CONNECTED },
@@ -249,6 +251,7 @@ export class EngineService {
       this.aiService.generateHashtags(topic, platformLabel, config.defaultTone || 'Content Creator'),
     ]);
     const hashtags = Array.from(new Set(hashtagResult.allHashtags)).slice(0, 8);
+    this.logger.log(`[${asset.id}] Caption generated (${caption.length} chars), ${hashtags.length} hashtags generated`);
     this.logEvent(brandId, EngineEventType.CAPTION_GENERATED, { mediaAssetId: asset.id, message: 'Caption generated.' }).catch(() => {});
     this.logEvent(brandId, EngineEventType.HASHTAGS_GENERATED, { mediaAssetId: asset.id, message: `${hashtags.length} hashtags generated.` }).catch(() => {});
 
@@ -272,6 +275,7 @@ export class EngineService {
     // 1=primary table slot -> 95, 2/3=secondary/tertiary -> a bit lower,
     // 99=generated fallback time (table exhausted for the day) -> lower still.
     const optimalScore = priorityUsed === 1 ? 95 : priorityUsed === 99 ? 70 : Math.max(80, 95 - priorityUsed * 5);
+    this.logger.log(`[${asset.id}] Content scheduled: scheduledAt=${scheduledAt.toISOString()} priority=${priorityUsed} score=${optimalScore}`);
     this.logEvent(brandId, EngineEventType.BEST_TIME_DETERMINED, {
       mediaAssetId: asset.id,
       message: `Scheduled for ${scheduledAt.toLocaleString('en-US', { timeZone: config.timeZone || 'UTC', dateStyle: 'medium', timeStyle: 'short' })} (${config.timeZone || 'UTC'}).`,
@@ -329,6 +333,7 @@ export class EngineService {
       }).catch(() => {});
     }
 
+    this.logger.log(`[${asset.id}] Workflow complete: post=${post.id} status=${postStatus}`);
     return post;
   }
 

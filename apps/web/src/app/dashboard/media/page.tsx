@@ -388,17 +388,24 @@ export default function MediaLibraryPage() {
 
   // Live updates: as soon as the AMAI Engine finishes analysing/preparing an
   // uploaded file (whether it came from a direct upload or a Drive sync),
-  // this refetches so the status badge updates without a page refresh.
+  // this refetches so the status badge updates without a page refresh. A
+  // full refetch (rather than patching just the one asset) is deliberate —
+  // it also catches Google Drive imports and any other brand activity that
+  // didn't originate from this tab's own upload flow.
   useEngineEvents((event) => {
     if (event.mediaAssetId || event.type === 'MEDIA_UPLOADED') {
       fetchMediaAssets();
     }
   });
 
-  const handleUploaded = () => {
-    // Optimistic refetch right away; the SSE listener above will also catch
-    // the AMAI Engine's follow-up status changes as they happen.
-    fetchMediaAssets();
+  const handleUploaded = (asset: MediaAsset) => {
+    // Optimistic insert — the asset appears in the grid the instant
+    // register() resolves, instead of waiting on a round-trip refetch.
+    // register() now returns immediately after the DB write (it no longer
+    // blocks on the AI pipeline), so this reflects the true PENDING state;
+    // the SSE listener above reconciles it to PROCESSING/READY/SCHEDULED/
+    // FAILED as the AMAI Engine actually works through it.
+    setAssets((prev) => (prev.some((a) => a.id === asset.id) ? prev : [asset, ...prev]));
   };
 
   const handleDeleteAsset = async (id: string) => {
@@ -466,9 +473,21 @@ export default function MediaLibraryPage() {
                 >
                   {asset.blobUrl ? (
                     asset.mimeType?.startsWith('video') ? (
-                      <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900 text-white p-2 text-center">
-                        <Film className="h-6 w-6 text-amber-400 mb-1" />
-                        <span className="text-[10px] font-mono truncate w-full">{asset.filename}</span>
+                      <div className="relative w-full h-full bg-zinc-900">
+                        {/* preload="metadata" pulls just enough of the file to
+                            render the first frame as a real thumbnail, without
+                            downloading the whole video. */}
+                        <video
+                          src={asset.blobUrl}
+                          preload="metadata"
+                          muted
+                          playsInline
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute bottom-1 left-1 right-1 flex items-center space-x-1 bg-black/60 rounded px-1.5 py-0.5">
+                          <Film className="h-3 w-3 text-amber-400 shrink-0" />
+                          <span className="text-[9px] font-mono truncate text-white">{asset.filename}</span>
+                        </div>
                       </div>
                     ) : (
                       <Image

@@ -1,8 +1,34 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { EngineService } from '../engine/engine.service';
 import { MediaStatus, ContentSource } from '@prisma/client';
+
+// Kept in sync with apps/web/src/app/api/media-upload-token/route.ts's
+// ALLOWED_CONTENT_TYPES (that route gates what the browser is even allowed
+// to upload to Blob storage) and MediaController's legacy multer filter.
+// This is the last checkpoint before a DB record is created, so it's
+// enforced here too rather than trusting the client — nothing stopped a
+// caller with a valid JWT from POSTing an arbitrary blobUrl/mimeType to
+// /register before this existed.
+const ALLOWED_MIME_TYPES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'video/mp4',
+  'video/quicktime', // .mov
+  'video/webm',
+  'video/x-matroska', // .mkv
+]);
+
+function assertAllowedMimeType(mimeType: string | undefined | null): void {
+  if (!mimeType || !ALLOWED_MIME_TYPES.has(mimeType.toLowerCase())) {
+    throw new BadRequestException(
+      `Unsupported file type${mimeType ? ` (${mimeType})` : ''}. Allowed: JPG, PNG, GIF, WEBP images and MP4, MOV, WebM, MKV videos.`,
+    );
+  }
+}
 
 // Every external AI call in the pipeline (AiService.analyzeImage /
 // generateCaption / generateHashtags) is now individually time-bounded,
@@ -22,16 +48,21 @@ const SWEEP_MAX_ITEMS = 1;
 
 @Injectable()
 export class MediaService {
+  private readonly logger = new Logger(MediaService.name);
+
   constructor(
     private prisma: PrismaService,
     private storage: StorageService,
     private engineService: EngineService,
   ) {}
 
-  async uploadAsset(brandId: string, file: Express.Multer.File, folderId?: string) {
+  async uploadAsset(brandId: string, file: Express.Multer.File, folderId?: string, userId?: string) {
     if (!file) throw new BadRequestException('No file provided');
+    assertAllowedMimeType(file.mimetype);
+    this.logger.log(`Upload started: brand=${brandId} file="${file.originalname}" size=${file.size} type=${file.mimetype}`);
 
     const uploadedData = await this.storage.uploadFile(file, brandId);
+    this.logger.log(`Storage upload completed: brand=${brandId} url=${uploadedData.url}`);
 
     return this.createAssetRecord(brandId, {
       filename: file.originalname || 'uploaded_media',
@@ -39,7 +70,7 @@ export class MediaService {
       size: uploadedData.size || file.size || 0,
       mimeType: uploadedData.mimeType || file.mimetype,
       folderId,
-    });
+    }, userId);
   }
 
   /**
@@ -47,26 +78,35 @@ export class MediaService {
    * Blob storage (via the client-direct-upload flow), bypassing the
    * serverless function's ~4.5MB request-body cap that blocked large video
    * uploads through the legacy multipart `uploadAsset` path above.
+   *
+   * This is the very last checkpoint before a DB record exists, so file
+   * type is validated here even though the upload-token route already
+   * restricted what Blob would accept — never trust the client alone.
    */
   async registerUploadedAsset(
     brandId: string,
     dto: { url: string; size: number; mimeType: string; filename: string; folderId?: string },
+    userId?: string,
   ) {
-    if (!dto?.url) throw new BadRequestException('No file URL provided');
+    if (!dto?.url) throw new BadRequestException('No file URL provided.');
     if (!/^https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\//.test(dto.url)) {
       throw new BadRequestException('Invalid upload URL.');
     }
+    assertAllowedMimeType(dto.mimeType);
 
-    return this.createAssetRecord(brandId, dto);
+    this.logger.log(`Upload registered: brand=${brandId} file="${dto.filename}" size=${dto.size} type=${dto.mimeType}`);
+    return this.createAssetRecord(brandId, dto, userId);
   }
 
   private async createAssetRecord(
     brandId: string,
     dto: { url: string; size?: number; mimeType: string; filename?: string; folderId?: string },
+    userId?: string,
   ) {
     const asset = await this.prisma.mediaAsset.create({
       data: {
         brandId,
+        userId: userId || null,
         folderId: dto.folderId || null,
         filename: dto.filename || 'uploaded_media',
         blobUrl: dto.url,
@@ -76,37 +116,63 @@ export class MediaService {
         status: MediaStatus.PENDING,
       }
     });
+    this.logger.log(`DB record created: asset=${asset.id} brand=${brandId}`);
 
-    // Upload is always the trigger — the AMAI Engine picks this up
-    // regardless of Active/Paused state (Paused only blocks publishing).
-    //
-    // This used to be a fire-and-forget events.emit('media.uploaded', ...)
-    // that returned the HTTP response immediately, without waiting for the
-    // AI pipeline to run. Vercel serverless functions can freeze the
-    // instance the moment the response is flushed, so the asset regularly
-    // got stuck in PROCESSING forever (same class of bug as the earlier
-    // "Publish Now" fix — see PublishingService). Awaiting it here
-    // synchronously guarantees the pipeline actually completes (or fails
-    // cleanly to MediaStatus.FAILED) before this request ends.
-    await this.engineService.handleMediaUploaded({ mediaAssetId: asset.id });
-
-    // Re-fetch so the caller sees the real post-pipeline status (READY/
-    // SCHEDULED/FAILED) instead of the stale PENDING snapshot from creation.
-    return this.prisma.mediaAsset.findUnique({ where: { id: asset.id } });
+    // Deliberately NOT awaited here. Blocking the upload response on the
+    // full AI pipeline (vision + captions + hashtags + scheduling) capped
+    // upload throughput at one file's worth of AI latency at a time and
+    // defeated real concurrency. The caller (UploadDropzone) fires
+    // POST .../assets/:assetId/process as its own separate request right
+    // after this returns -- see MediaController.processAsset / triggerProcessing
+    // below, which is what actually runs handleMediaUploaded. That request
+    // has its own execution budget and EngineService's internal pipeline
+    // timeout guarantees it resolves cleanly either way. The record starts
+    // life as PENDING; sweepStaleProcessing (see below) is the backstop if
+    // the browser never gets to fire that follow-up call at all (e.g. the
+    // tab closes mid-upload).
+    return asset;
   }
 
   /**
-   * Self-heals any MediaAsset left stuck in PROCESSING — the only way that
-   * can happen now is a hard function kill mid-pipeline (rare, but Vercel
-   * gives no completion guarantee), same rationale as
-   * PublishingService.publishDuePosts' stale-PUBLISHING sweep. Runs
-   * opportunistically whenever the Media Library is loaded, since that's
-   * naturally how soon a user notices something looks stuck.
+   * Runs the AMAI Engine pipeline for an already-registered asset. Called
+   * by the frontend as its own request immediately after register/upload
+   * resolves (not awaited by the upload call itself) — see createAssetRecord
+   * above for why that split exists.
+   */
+  async triggerProcessing(brandId: string, assetId: string) {
+    const asset = await this.prisma.mediaAsset.findFirst({ where: { id: assetId, brandId } });
+    if (!asset) throw new NotFoundException('Media asset not found.');
+
+    this.logger.log(`AMAI Engine triggered: asset=${assetId} brand=${brandId}`);
+    await this.engineService.handleMediaUploaded({ mediaAssetId: assetId });
+
+    const updated = await this.prisma.mediaAsset.findUnique({ where: { id: assetId } });
+    this.logger.log(`Workflow complete: asset=${assetId} status=${updated?.status}`);
+    return updated;
+  }
+
+  /**
+   * Self-heals two kinds of stuck asset, both covered by the same sweep
+   * since both just need handleMediaUploaded to (re-)run:
+   *  - PROCESSING: a hard function kill mid-pipeline (Vercel gives no
+   *    completion guarantee for a request that's still running).
+   *  - PENDING past the same staleness window: register()/uploadAsset()
+   *    now return before the AI pipeline runs at all, relying on the
+   *    browser to fire a separate POST .../process request right after —
+   *    if that never happens (tab closed mid-upload, network drop between
+   *    the two calls), the asset would otherwise sit at PENDING forever
+   *    with nothing to notice.
+   * Runs opportunistically whenever the Media Library is loaded, since
+   * that's naturally how soon a user notices something looks stuck.
    */
   private async sweepStaleProcessing(brandId: string): Promise<void> {
     const staleCutoff = new Date(Date.now() - STALE_PROCESSING_MINUTES * 60 * 1000);
     const stuck = await this.prisma.mediaAsset.findMany({
-      where: { brandId, status: MediaStatus.PROCESSING, updatedAt: { lte: staleCutoff } },
+      where: {
+        brandId,
+        status: { in: [MediaStatus.PROCESSING, MediaStatus.PENDING] },
+        updatedAt: { lte: staleCutoff },
+      },
       select: { id: true },
       take: SWEEP_MAX_ITEMS,
     });

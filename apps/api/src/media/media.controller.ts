@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Delete, Body, Param, UploadedFile, UseInterceptors, BadRequestException, Query, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Delete, Body, Param, Req, UploadedFile, UseInterceptors, BadRequestException, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { BrandAccessGuard } from '../auth/brand-access.guard';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -33,23 +33,49 @@ export class MediaController {
   }))
   async uploadAsset(
     @Param('brandId') brandId: string,
+    @Req() req: any,
     @UploadedFile() file: Express.Multer.File,
     @Body('folderId') folderId?: string
   ) {
-    return this.mediaService.uploadAsset(brandId, file, folderId);
+    return this.mediaService.uploadAsset(brandId, file, folderId, req.user?.id);
   }
 
   /**
    * Registers a file the browser already uploaded directly to Vercel Blob
    * storage (client-direct-upload flow). This is the path large videos take
    * since they can't fit through the serverless function's body-size cap.
+   *
+   * Deliberately fast: only validates and writes the DB record, then
+   * returns immediately (status PENDING) instead of blocking the response
+   * on the AI pipeline. The caller (UploadDropzone) fires POST
+   * .../assets/:assetId/process right after this resolves, without
+   * awaiting it, so uploads aren't serialized behind AMAI Engine
+   * processing and can run with real concurrency.
    */
   @Post('register')
   async registerAsset(
     @Param('brandId') brandId: string,
+    @Req() req: any,
     @Body() dto: { url: string; size: number; mimeType: string; filename: string; folderId?: string },
   ) {
-    return this.mediaService.registerUploadedAsset(brandId, dto);
+    return this.mediaService.registerUploadedAsset(brandId, dto, req.user?.id);
+  }
+
+  /**
+   * Kicks off the AMAI Engine pipeline (vision analysis, caption/hashtag
+   * generation, scheduling) for an already-registered asset. Split out from
+   * register/upload so the upload response stays fast — this is its own
+   * request/response cycle with its own execution budget, bounded by
+   * EngineService's internal pipeline timeout so it always resolves
+   * (success or a clean, retryable MediaStatus.FAILED) well inside
+   * Vercel's platform timeout.
+   */
+  @Post('assets/:assetId/process')
+  async processAsset(
+    @Param('brandId') brandId: string,
+    @Param('assetId') assetId: string,
+  ) {
+    return this.mediaService.triggerProcessing(brandId, assetId);
   }
 
   @Get('assets')
