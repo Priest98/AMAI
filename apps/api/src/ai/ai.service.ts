@@ -104,7 +104,7 @@ export class AiService {
     if (!this.isGeminiConfigured()) return null;
 
     try {
-      const imageRes = await this.withTimeout(fetch(imageUrl), 10_000, 'Image download');
+      const imageRes = await this.withTimeout(fetch(imageUrl), 8_000, 'Image download');
       if (!imageRes.ok) return null;
       const mimeType = imageRes.headers.get('content-type') || 'image/jpeg';
       const arrayBuffer = await imageRes.arrayBuffer();
@@ -123,7 +123,7 @@ export class AiService {
             },
           ],
         }),
-        15_000,
+        10_000,
         'Gemini vision analysis',
       );
 
@@ -162,7 +162,7 @@ Keep the caption under character limits for ${platform}.`;
       if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'placeholder') {
         const response = await this.withTimeout(
           this.ai.models.generateContent({ model: 'gemini-flash-latest', contents: prompt }),
-          15_000,
+          10_000,
           'Gemini caption generation',
         );
         text = response.text || `✨ Elevate your style and presence! Check out our latest ${topic || 'collection'} designed for your everyday lifestyle. What do you think of this look? Let us know below! ${defaultTags}`;
@@ -209,7 +209,7 @@ highVolume = broad, high-traffic tags. mediumCompetition = moderately specific t
 
         const response = await this.withTimeout(
           this.ai.models.generateContent({ model: 'gemini-flash-latest', contents: prompt }),
-          15_000,
+          10_000,
           'Gemini hashtag generation',
         );
 

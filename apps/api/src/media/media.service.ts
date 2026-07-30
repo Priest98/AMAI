@@ -5,18 +5,20 @@ import { EngineService } from '../engine/engine.service';
 import { MediaStatus, ContentSource } from '@prisma/client';
 
 // Every external AI call in the pipeline (AiService.analyzeImage /
-// generateCaption / generateHashtags) is now individually time-bounded
-// (10-15s each), so a single asset's full pipeline run has a real worst
-// case (~40s) instead of being open-ended. 2 minutes is comfortably past
-// that, so this sweep won't collide with an asset that's still
-// legitimately mid-flight.
+// generateCaption / generateHashtags) is now individually time-bounded,
+// so a single asset's full pipeline run has a real worst case instead of
+// being open-ended. 2 minutes is comfortably past that, so this sweep
+// won't collide with an asset that's still legitimately mid-flight.
 const STALE_PROCESSING_MINUTES = 2;
-// Caps how long a single sweep is allowed to spend re-processing stale
-// items, so a big backlog can't itself push a GET /assets request past
-// Vercel's 60s function timeout. Any leftovers get picked up on the next
-// poll — the Media Library re-fetches on every SSE engine event and on
-// mount, so a backlog clears within a few page interactions either way.
-const SWEEP_TIME_BUDGET_MS = 20_000;
+// Re-processing a stale asset happens inline inside a GET /assets
+// request, on top of whatever a cold Lambda start already costs (Nest
+// boot + first DB connection can itself take several seconds) — observed
+// in production hitting the 60s platform cap when a cold start landed on
+// top of even a single bounded pipeline run. Sweeping only one stale item
+// per call keeps the worst case predictable and leaves real headroom.
+// Any remaining backlog clears over the next few polls — the Media
+// Library re-fetches on every SSE engine event and on mount.
+const SWEEP_MAX_ITEMS = 1;
 
 @Injectable()
 export class MediaService {
@@ -106,11 +108,9 @@ export class MediaService {
     const stuck = await this.prisma.mediaAsset.findMany({
       where: { brandId, status: MediaStatus.PROCESSING, updatedAt: { lte: staleCutoff } },
       select: { id: true },
-      take: 10,
+      take: SWEEP_MAX_ITEMS,
     });
-    const sweepStartedAt = Date.now();
     for (const asset of stuck) {
-      if (Date.now() - sweepStartedAt > SWEEP_TIME_BUDGET_MS) break; // rest picked up on the next poll
       await this.engineService.handleMediaUploaded({ mediaAssetId: asset.id });
     }
   }
