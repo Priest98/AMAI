@@ -133,6 +133,7 @@ export class PublishingService {
         target.post.caption + (target.post.hashtags?.length ? `\n\n${target.post.hashtags.join(' ')}` : ''),
         mediaAsset.blobUrl,
         mediaAsset.mimeType,
+        target.post.brandId,
       );
 
       await this.prisma.$transaction([
@@ -234,10 +235,11 @@ export class PublishingService {
     caption: string,
     mediaUrl: string,
     mimeType: string,
+    brandId: string,
   ): Promise<string> {
     switch (platform) {
       case 'INSTAGRAM':
-        return this.publishToInstagram(platformAccountId, accessToken, caption, mediaUrl, mimeType);
+        return this.publishToInstagram(platformAccountId, accessToken, caption, mediaUrl, mimeType, brandId);
       case 'TIKTOK':
         return this.publishToTikTok(accessToken, caption, mediaUrl, mimeType);
       default:
@@ -246,12 +248,20 @@ export class PublishingService {
   }
 
   /** Instagram Graph API: create a media container, then publish it. */
-  private async publishToInstagram(igUserId: string, accessToken: string, caption: string, mediaUrl: string, mimeType: string): Promise<string> {
+  private async publishToInstagram(igUserId: string, accessToken: string, caption: string, mediaUrl: string, mimeType: string, brandId: string): Promise<string> {
     const isVideo = mimeType?.startsWith('video/');
+    // Feed photos must land within Meta's accepted aspect-ratio range (4:5 to
+    // 1.91:1) or the container/publish call fails with a generic "aspect
+    // ratio is not supported" error (code 36003 / subcode 2207009) -- three
+    // consecutive real test images all hit this because normal phone-camera
+    // portrait shots (9:16, ratio 0.56) fall well outside the feed-photo
+    // range even though nothing is wrong with them. Auto-crop instead of
+    // failing outright; videos (Reels) aren't subject to this constraint.
+    const finalMediaUrl = isVideo ? mediaUrl : await this.ensureInstagramAspectRatio(mediaUrl, brandId);
     const containerParams = new URLSearchParams({
       caption,
       access_token: accessToken,
-      ...(isVideo ? { media_type: 'REELS', video_url: mediaUrl } : { image_url: mediaUrl }),
+      ...(isVideo ? { media_type: 'REELS', video_url: mediaUrl } : { image_url: finalMediaUrl }),
     });
 
     const containerRes = await fetch(`https://graph.instagram.com/v19.0/${igUserId}/media`, {
@@ -303,6 +313,64 @@ export class PublishingService {
     if (err.error_subcode !== undefined) parts.push(`subcode: ${err.error_subcode}`);
     if (err.type) parts.push(`type: ${err.type}`);
     return parts.join(' | ');
+  }
+
+  /**
+   * Instagram feed photos must have an aspect ratio between 4:5 (0.8,
+   * portrait) and 1.91:1 (landscape) -- Meta rejects anything outside that
+   * range at publish time with a generic error and no upfront validation
+   * endpoint to check first. Confirmed via three real production test
+   * failures (identical code 36003 / subcode 2207009 across three different
+   * images) that this is a genuine content constraint, not a code bug --
+   * ordinary phone-camera portrait photos (9:16, ratio 0.56) are common and
+   * land well outside the feed-photo range.
+   *
+   * Rather than reject those images, center-crop to the nearest edge of the
+   * accepted range (keeping as much of the original frame as possible) and
+   * re-upload the cropped copy to Blob storage so Instagram gets a URL it
+   * will actually accept. Images already in range pass through untouched.
+   * Any failure in this path (can't fetch, can't read as an image, etc.)
+   * falls back to the original URL so Meta's own error can still surface.
+   */
+  private async ensureInstagramAspectRatio(imageUrl: string, brandId: string): Promise<string> {
+    const MIN_RATIO = 4 / 5; // 0.8 -- tallest allowed portrait
+    const MAX_RATIO = 1.91; // widest allowed landscape
+
+    try {
+      const res = await fetch(imageUrl);
+      if (!res.ok) return imageUrl;
+      const buffer = Buffer.from(await res.arrayBuffer());
+
+      const sharp = (await import('sharp')).default;
+      const image = sharp(buffer);
+      const meta = await image.metadata();
+      if (!meta.width || !meta.height) return imageUrl;
+
+      const ratio = meta.width / meta.height;
+      if (ratio >= MIN_RATIO && ratio <= MAX_RATIO) return imageUrl; // already valid
+
+      let targetWidth = meta.width;
+      let targetHeight = meta.height;
+      if (ratio < MIN_RATIO) {
+        targetHeight = Math.round(meta.width / MIN_RATIO); // crop excess height
+      } else {
+        targetWidth = Math.round(meta.height * MAX_RATIO); // crop excess width
+      }
+
+      const cropped = await image
+        .resize({ width: targetWidth, height: targetHeight, fit: 'cover', position: 'centre' })
+        .jpeg({ quality: 90 })
+        .toBuffer();
+
+      const uploaded = await this.storage.uploadBuffer(cropped, 'ig-cropped.jpg', 'image/jpeg', brandId);
+      this.logger.log(
+        `Cropped image for Instagram's aspect-ratio range: ${meta.width}x${meta.height} (ratio ${ratio.toFixed(2)}) -> ${targetWidth}x${targetHeight}.`,
+      );
+      return uploaded.url;
+    } catch (error: any) {
+      this.logger.warn(`Could not verify/crop image for Instagram's aspect ratio, sending original: ${error?.message || error}`);
+      return imageUrl;
+    }
   }
 
   /**
