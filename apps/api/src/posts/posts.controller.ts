@@ -35,6 +35,14 @@ export class PostsController {
     return this.postsService.getPosts(brandId, status);
   }
 
+  // Dashboard summary — counts only, not full post payloads. Declared before
+  // no path params collide since this is a static 'stats' segment, not a
+  // dynamic :postId, so it can never be shadowed by the routes below.
+  @Get('stats')
+  async getStats(@Param('brandId') brandId: string) {
+    return this.postsService.getStats(brandId);
+  }
+
   // ─────────────────────────────────────────────────────────────
   // Approval Queue actions — every post the AMAI Engine prepares lands
   // here first (Manual Approval), or is auto-scheduled (Auto Approval).

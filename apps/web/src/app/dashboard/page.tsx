@@ -37,33 +37,45 @@ interface DashPost {
   targets?: { platform: string }[];
 }
 
+interface DashStats {
+  needsApprovalCount: number;
+  scheduledCount: number;
+  publishedCount: number;
+  mediaCount: number;
+  pendingPreview: DashPost[];
+}
+
 export default function DashboardPage() {
   const [engineState, setEngineState] = useState<'ACTIVE' | 'PAUSED'>('ACTIVE');
   const [approvalMode, setApprovalMode] = useState<'MANUAL' | 'AUTO'>('MANUAL');
   const [pendingPosts, setPendingPosts] = useState<DashPost[]>([]);
+  const [pendingCount, setPendingCount] = useState(0);
   const [scheduledCount, setScheduledCount] = useState(0);
   const [publishedCount, setPublishedCount] = useState(0);
   const [connectedAccountList, setConnectedAccountList] = useState<string[]>([]);
   const [mediaCount, setMediaCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
+  // Previously this fired 6 separate requests on every mount and every SSE
+  // engine event (3 of them full `/posts?status=X` payloads just to read
+  // `.length`). Now it's 3 requests total, and the post list is a
+  // counts-only `/posts/stats` call instead of transferring full
+  // caption/hashtag/target/media rows the dashboard never renders.
   const fetchLiveData = useCallback(async () => {
     try {
-      const [config, needsApproval, scheduled, published, accounts, media] = await Promise.all([
+      const [config, stats, accounts] = await Promise.all([
         brandFetch<{ state: 'ACTIVE' | 'PAUSED'; approvalMode: 'MANUAL' | 'AUTO' }>('/engine/state'),
-        brandFetch<DashPost[]>('/posts?status=NEEDS_APPROVAL'),
-        brandFetch<DashPost[]>('/posts?status=SCHEDULED'),
-        brandFetch<DashPost[]>('/posts?status=PUBLISHED'),
+        brandFetch<DashStats>('/posts/stats'),
         apiFetch<any>(`/oauth/accounts?brandId=${encodeURIComponent(getBrandId())}`).catch(() => null),
-        brandFetch<any[]>('/media/assets').catch(() => []),
       ]);
 
       setEngineState(config.state);
       setApprovalMode(config.approvalMode);
-      setPendingPosts(needsApproval);
-      setScheduledCount(scheduled.length);
-      setPublishedCount(published.length);
-      setMediaCount(Array.isArray(media) ? media.length : 0);
+      setPendingPosts(stats.pendingPreview);
+      setPendingCount(stats.needsApprovalCount);
+      setScheduledCount(stats.scheduledCount);
+      setPublishedCount(stats.publishedCount);
+      setMediaCount(stats.mediaCount);
 
       const labels: string[] = [];
       if (accounts?.socialAccounts) {
@@ -120,8 +132,8 @@ export default function DashboardPage() {
         <StatCard
           icon={<Clock className="h-4 w-4 text-amber-400" />}
           label="Approval Queue"
-          value={String(pendingPosts.length)}
-          helperText={pendingPosts.length === 0 ? 'All caught up' : 'Posts awaiting review'}
+          value={String(pendingCount)}
+          helperText={pendingCount === 0 ? 'All caught up' : 'Posts awaiting review'}
         />
         <StatCard
           icon={<CalendarClock className="h-4 w-4 text-violet-400" />}
@@ -150,7 +162,7 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-sm font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
-                  Approval Queue ({pendingPosts.length})
+                  Approval Queue ({pendingCount})
                 </h2>
                 <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
                   AI-prepared posts waiting for your review.
@@ -162,7 +174,7 @@ export default function DashboardPage() {
               </Link>
             </div>
 
-            {pendingPosts.length === 0 ? (
+            {pendingCount === 0 ? (
               <div className="p-8 text-center rounded-xl border border-dashed text-xs space-y-2" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
                 <CheckCircle2 className="h-8 w-8 text-emerald-400 mx-auto" />
                 <p className="font-bold" style={{ color: 'var(--text-primary)' }}>All caught up!</p>

@@ -57,6 +57,30 @@ export class PostsService {
   }
 
   /**
+   * Lightweight dashboard summary — counts only (Prisma `count()`, not
+   * `findMany()`), plus a 3-row preview of the approval queue. Replaces the
+   * Dashboard page's old pattern of fetching three full `/posts?status=X`
+   * lists (each with full caption/hashtag/target/media payloads) just to
+   * read `.length` off them. One round trip, no wasted payload.
+   */
+  async getStats(brandId: string) {
+    const [needsApprovalCount, scheduledCount, publishedCount, mediaCount, pendingPreview] = await Promise.all([
+      this.prisma.post.count({ where: { brandId, status: PostStatus.NEEDS_APPROVAL } }),
+      this.prisma.post.count({ where: { brandId, status: PostStatus.SCHEDULED } }),
+      this.prisma.post.count({ where: { brandId, status: PostStatus.PUBLISHED } }),
+      this.prisma.mediaAsset.count({ where: { brandId } }),
+      this.prisma.post.findMany({
+        where: { brandId, status: PostStatus.NEEDS_APPROVAL },
+        select: { id: true, caption: true, targets: { select: { platform: true }, take: 1 } },
+        orderBy: { createdAt: 'desc' },
+        take: 3,
+      }),
+    ]);
+
+    return { needsApprovalCount, scheduledCount, publishedCount, mediaCount, pendingPreview };
+  }
+
+  /**
    * Called after confirmed successful publish response from platform API.
    * Deletes actual media file from storage and keeps lightweight DB history record.
    */
