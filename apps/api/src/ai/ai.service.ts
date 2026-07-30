@@ -69,6 +69,52 @@ export class AiService {
     return !!(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'placeholder');
   }
 
+  private isOpenAiConfigured(): boolean {
+    return !!(process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== 'placeholder');
+  }
+
+  /**
+   * Fallback AI provider. Used only when Gemini is unconfigured, out of
+   * quota, or errors — never called if Gemini already returned a usable
+   * result. Talks to OpenAI's Chat Completions API directly over fetch
+   * (no SDK dependency) so it shares the same withTimeout bounding as
+   * every other external call in this service. Returns null on any
+   * failure so callers can drop through to their existing static
+   * fallback rather than throwing.
+   */
+  private async callOpenAi(messages: unknown[], maxTokens: number, label: string): Promise<string | null> {
+    if (!this.isOpenAiConfigured()) return null;
+
+    try {
+      const response = await this.withTimeout(
+        fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ model: 'gpt-4o-mini', messages, max_tokens: maxTokens }),
+        }),
+        10_000,
+        label,
+      );
+
+      if (!response.ok) {
+        const errText = await response.text().catch(() => '');
+        this.logger.warn(`${label} failed: ${response.status} ${errText}`);
+        return null;
+      }
+
+      const data: any = await response.json();
+      const text = data?.choices?.[0]?.message?.content?.trim();
+      return text && text.length > 0 ? text : null;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : `Unknown ${label} error`;
+      this.logger.warn(`${label} failed: ${message}`);
+      return null;
+    }
+  }
+
   /**
    * Bounds any promise to a maximum wait time. Vercel hard-kills a
    * serverless function the instant it hits its platform timeout (60s on
@@ -101,39 +147,56 @@ export class AiService {
    * few MB) — video assets always use the filename fallback for now.
    */
   async analyzeImage(imageUrl: string): Promise<string | null> {
-    if (!this.isGeminiConfigured()) return null;
+    if (this.isGeminiConfigured()) {
+      try {
+        const imageRes = await this.withTimeout(fetch(imageUrl), 8_000, 'Image download');
+        if (imageRes.ok) {
+          const mimeType = imageRes.headers.get('content-type') || 'image/jpeg';
+          const arrayBuffer = await imageRes.arrayBuffer();
+          const base64 = Buffer.from(arrayBuffer).toString('base64');
 
-    try {
-      const imageRes = await this.withTimeout(fetch(imageUrl), 8_000, 'Image download');
-      if (!imageRes.ok) return null;
-      const mimeType = imageRes.headers.get('content-type') || 'image/jpeg';
-      const arrayBuffer = await imageRes.arrayBuffer();
-      const base64 = Buffer.from(arrayBuffer).toString('base64');
-
-      const response = await this.withTimeout(
-        this.ai.models.generateContent({
-          model: 'gemini-flash-latest',
-          contents: [
-            {
-              role: 'user',
-              parts: [
-                { text: 'Describe the main subject of this image in 3-8 words, suitable as a social media post topic. Just the phrase, no punctuation, no preamble.' },
-                { inlineData: { mimeType, data: base64 } },
+          const response = await this.withTimeout(
+            this.ai.models.generateContent({
+              model: 'gemini-flash-latest',
+              contents: [
+                {
+                  role: 'user',
+                  parts: [
+                    { text: 'Describe the main subject of this image in 3-8 words, suitable as a social media post topic. Just the phrase, no punctuation, no preamble.' },
+                    { inlineData: { mimeType, data: base64 } },
+                  ],
+                },
               ],
-            },
-          ],
-        }),
-        10_000,
-        'Gemini vision analysis',
-      );
+            }),
+            10_000,
+            'Gemini vision analysis',
+          );
 
-      const text = response.text?.trim();
-      return text && text.length > 0 ? text : null;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown Gemini vision error';
-      this.logger.warn(`Image analysis failed, falling back to filename heuristic: ${message}`);
-      return null;
+          const text = response.text?.trim();
+          if (text && text.length > 0) return text;
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown Gemini vision error';
+        this.logger.warn(`Gemini image analysis failed, trying OpenAI fallback: ${message}`);
+      }
     }
+
+    // Gemini unconfigured, out of quota, or failed — try OpenAI vision
+    // before dropping to the filename heuristic. OpenAI can fetch the
+    // image URL itself, so no download/base64 step is needed here.
+    return this.callOpenAi(
+      [
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: 'Describe the main subject of this image in 3-8 words, suitable as a social media post topic. Just the phrase, no punctuation, no preamble.' },
+            { type: 'image_url', image_url: { url: imageUrl } },
+          ],
+        },
+      ],
+      30,
+      'OpenAI vision analysis',
+    );
   }
 
   /**
@@ -156,40 +219,43 @@ Requirements:
 5. ${isAiTopic ? '' : 'CRITICAL REQUIREMENT: Do NOT include generic AI hashtags like #AI, #ArtificialIntelligence, or #MachineLearning unless the content is explicitly about AI technology.'}
 Keep the caption under character limits for ${platform}.`;
 
-    let text: string;
+    let text: string | null = null;
 
-    try {
-      if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'placeholder') {
+    if (this.isGeminiConfigured()) {
+      try {
         const response = await this.withTimeout(
           this.ai.models.generateContent({ model: 'gemini-flash-latest', contents: prompt }),
           10_000,
           'Gemini caption generation',
         );
-        text = response.text || `✨ Elevate your style and presence! Check out our latest ${topic || 'collection'} designed for your everyday lifestyle. What do you think of this look? Let us know below! ${defaultTags}`;
-      } else {
-        text = `✨ Elevate your style and presence! Check out our latest ${topic || 'feature'} crafted specially for our ${niche} community. What do you think? Drop your thoughts below! ${defaultTags}`;
+        text = response.text?.trim() || null;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown Gemini error';
+        this.logger.warn(`Gemini caption generation failed, trying OpenAI fallback: ${message}`);
       }
-
-      try {
-        await this.prisma.aiUsageLog.create({
-          data: {
-            brandId: brandId || 'primary_brand',
-            userId: userId || 'usr_primary',
-            prompt,
-            completion: text,
-            tokensUsed: 120,
-          },
-        });
-      } catch {}
-
-      return { caption: text };
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown Gemini error';
-      this.logger.error(`Gemini API Error: ${message}`);
-      return {
-        caption: `✨ Elevate your style and presence! Check out our latest ${topic || 'feature'} crafted specially for our ${niche} community. What do you think? Drop your thoughts below! ${defaultTags}`,
-      };
     }
+
+    if (!text) {
+      text = await this.callOpenAi([{ role: 'user', content: prompt }], 300, 'OpenAI caption generation');
+    }
+
+    if (!text) {
+      text = `✨ Elevate your style and presence! Check out our latest ${topic || 'feature'} crafted specially for our ${niche} community. What do you think? Drop your thoughts below! ${defaultTags}`;
+    }
+
+    try {
+      await this.prisma.aiUsageLog.create({
+        data: {
+          brandId: brandId || 'primary_brand',
+          userId: userId || 'usr_primary',
+          prompt,
+          completion: text,
+          tokensUsed: 120,
+        },
+      });
+    } catch {}
+
+    return { caption: text };
   }
 
   /**
@@ -200,42 +266,53 @@ Keep the caption under character limits for ${platform}.`;
    * hashtag generation at all.
    */
   async generateHashtags(topic: string = 'General', platform: string = 'Instagram', niche: string = 'Content Creator'): Promise<HashtagsResult> {
-    if (this.isGeminiConfigured()) {
-      try {
-        const prompt = `Generate hashtags for a ${platform} post about "${topic}" in the ${niche} niche.
+    const hashtagPrompt = `Generate hashtags for a ${platform} post about "${topic}" in the ${niche} niche.
 Return strictly valid JSON, no markdown, no commentary, in this exact shape:
 {"highVolume": ["#tag", ...5], "mediumCompetition": ["#tag", ...5], "nicheHashtags": ["#tag", ...5], "brandedHashtags": ["#tag", ...2]}
 highVolume = broad, high-traffic tags. mediumCompetition = moderately specific tags. nicheHashtags = very specific to "${topic}". brandedHashtags = two short, on-brand tags for the ${niche} niche. All hashtags must start with # and contain no spaces.`;
 
-        const response = await this.withTimeout(
-          this.ai.models.generateContent({ model: 'gemini-flash-latest', contents: prompt }),
-          10_000,
-          'Gemini hashtag generation',
-        );
-
-        const raw = (response.text || '').trim().replace(/^```json\s*|```$/g, '').trim();
-        const parsed = JSON.parse(raw);
+    const parseHashtagJson = (raw: string | null): HashtagsResult | null => {
+      if (!raw) return null;
+      try {
+        const cleaned = raw.trim().replace(/^```json\s*|```$/g, '').trim();
+        const parsed = JSON.parse(cleaned);
         const highVolume: string[] = parsed.highVolume || [];
         const mediumCompetition: string[] = parsed.mediumCompetition || [];
         const nicheHashtags: string[] = parsed.nicheHashtags || [];
         const brandedHashtags: string[] = parsed.brandedHashtags || [];
+        if (!highVolume.length && !mediumCompetition.length && !nicheHashtags.length) return null;
+        return {
+          highVolume,
+          mediumCompetition,
+          nicheHashtags,
+          brandedHashtags,
+          allHashtags: [...highVolume, ...mediumCompetition, ...nicheHashtags, ...brandedHashtags],
+        };
+      } catch {
+        return null;
+      }
+    };
 
-        if (highVolume.length || mediumCompetition.length || nicheHashtags.length) {
-          return {
-            highVolume,
-            mediumCompetition,
-            nicheHashtags,
-            brandedHashtags,
-            allHashtags: [...highVolume, ...mediumCompetition, ...nicheHashtags, ...brandedHashtags],
-          };
-        }
+    if (this.isGeminiConfigured()) {
+      try {
+        const response = await this.withTimeout(
+          this.ai.models.generateContent({ model: 'gemini-flash-latest', contents: hashtagPrompt }),
+          10_000,
+          'Gemini hashtag generation',
+        );
+        const result = parseHashtagJson(response.text || null);
+        if (result) return result;
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown Gemini error';
-        this.logger.warn(`Gemini hashtag generation failed, falling back to niche defaults: ${message}`);
+        this.logger.warn(`Gemini hashtag generation failed, trying OpenAI fallback: ${message}`);
       }
     }
 
-    // Fallback: static niche defaults (used when Gemini isn't configured or fails).
+    const openAiRaw = await this.callOpenAi([{ role: 'user', content: hashtagPrompt }], 300, 'OpenAI hashtag generation');
+    const openAiResult = parseHashtagJson(openAiRaw);
+    if (openAiResult) return openAiResult;
+
+    // Fallback: static niche defaults (used when neither provider is configured or both fail).
     const nicheKey = Object.keys(NICHE_HASHTAG_MAP).find(k => k.toLowerCase() === niche.toLowerCase()) || 'Content Creator';
     const nicheData = NICHE_HASHTAG_MAP[nicheKey] || NICHE_HASHTAG_MAP['Content Creator'];
 
