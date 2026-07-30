@@ -277,11 +277,14 @@ export class PublishingService {
     // Video/Reels containers process asynchronously on Instagram's side —
     // calling media_publish before the container reaches FINISHED returns
     // a "media not ready" error. Poll status_code with a short backoff
-    // before attempting to publish. Images are already synchronous and
-    // report FINISHED immediately, so this is a fast no-op for photo posts.
-    if (isVideo) {
-      await this.waitForInstagramContainerReady(containerData.id, accessToken);
-    }
+    // before attempting to publish. A real production test also hit this
+    // once on a *photo* post ("Media ID is not available" / code 9007 /
+    // subcode 2207027) even though photo containers are usually ready
+    // instantly -- so always poll rather than skipping for images. Since
+    // the loop's first check returns immediately once FINISHED, this adds
+    // no meaningful latency for the common case and only waits when
+    // Instagram genuinely isn't ready yet.
+    await this.waitForInstagramContainerReady(containerData.id, accessToken);
 
     const publishRes = await fetch(`https://graph.instagram.com/v19.0/${igUserId}/media_publish`, {
       method: 'POST',
@@ -375,9 +378,13 @@ export class PublishingService {
 
   /**
    * Polls an Instagram media container until it reports FINISHED (ready to
-   * publish) or ERROR. Reels/videos are fetched and transcoded by
-   * Instagram asynchronously after container creation, so media_publish
-   * has to wait for that to actually finish first.
+   * publish) or ERROR. Reels/videos are fetched and transcoded by Instagram
+   * asynchronously after container creation, so media_publish has to wait
+   * for that to actually finish first. Photo containers are normally
+   * FINISHED instantly (this resolves on the first check with no added
+   * latency), but a real production test hit a transient "not ready yet"
+   * error on a photo container too, so this is called unconditionally for
+   * both media types rather than skipped for images.
    */
   private async waitForInstagramContainerReady(containerId: string, accessToken: string): Promise<void> {
     // Kept short and bounded on purpose: this runs synchronously inside the
@@ -395,14 +402,14 @@ export class PublishingService {
 
       if (statusCode === 'FINISHED') return;
       if (statusCode === 'ERROR') {
-        throw new Error('Instagram failed to process the uploaded video.');
+        throw new Error('Instagram failed to process the uploaded media.');
       }
       // IN_PROGRESS or EXPIRED (rare) — keep waiting up to maxAttempts.
       if (attempt < maxAttempts) {
         await new Promise((resolve) => setTimeout(resolve, 6000));
       }
     }
-    throw new Error('Instagram is still processing this video — it will be retried automatically on the next publish pass.');
+    throw new Error('Instagram is still processing this media — it will be retried automatically on the next publish pass.');
   }
 
   /**
