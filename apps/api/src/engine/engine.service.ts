@@ -22,6 +22,19 @@ export interface MediaUploadedEvent {
   mediaAssetId: string;
 }
 
+// Hard ceiling on the whole media-processing pipeline (vision/caption/
+// hashtag generation + scheduling + DB writes). Vercel kills the entire
+// serverless invocation at its own 60s platform cap with no chance for
+// any catch block to run -- an asset caught mid-pipeline at that point is
+// abandoned in PROCESSING forever. Individual external calls are already
+// time-bounded (see AiService.withTimeout), but a request can still add
+// up to more than 60s from many small, individually-fast DB round trips
+// under adverse conditions (e.g. a cold Lambda's first connection to the
+// pooler). Bounding the pipeline as a whole guarantees this always
+// resolves -- success or a clean, retryable MediaStatus.FAILED -- well
+// inside Vercel's own cap, observed live via a GET /media/assets 504.
+const PIPELINE_TIMEOUT_MS = 40_000;
+
 @Injectable()
 export class EngineService {
   private readonly logger = new Logger(EngineService.name);
@@ -147,7 +160,7 @@ export class EngineService {
   @OnEvent('media.uploaded')
   async handleMediaUploaded(payload: MediaUploadedEvent) {
     try {
-      await this.processMediaAsset(payload.mediaAssetId);
+      await this.withPipelineTimeout(this.processMediaAsset(payload.mediaAssetId), payload.mediaAssetId);
     } catch (err: any) {
       this.logger.error(`AMAI Engine failed to process media asset ${payload.mediaAssetId}: ${err?.message || err}`);
       await this.prisma.mediaAsset.update({
@@ -155,6 +168,19 @@ export class EngineService {
         data: { status: MediaStatus.FAILED, lastErrorMessage: err?.message || 'AMAI Engine processing failed.' },
       }).catch(() => {});
     }
+  }
+
+  private withPipelineTimeout<T>(promise: Promise<T>, mediaAssetId: string): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.logger.error(`AMAI Engine pipeline exceeded ${PIPELINE_TIMEOUT_MS}ms for media asset ${mediaAssetId}; failing cleanly instead of leaving it stuck in PROCESSING.`);
+        reject(new Error('Processing took too long. Please try again.'));
+      }, PIPELINE_TIMEOUT_MS);
+      promise.then(
+        (val) => { clearTimeout(timer); resolve(val); },
+        (err) => { clearTimeout(timer); reject(err); },
+      );
+    });
   }
 
   async processMediaAsset(mediaAssetId: string) {
@@ -170,10 +196,16 @@ export class EngineService {
       where: { id: asset.id },
       data: { status: MediaStatus.PROCESSING },
     });
-    await this.logEvent(brandId, EngineEventType.ANALYSIS_STARTED, {
+    // Activity-feed log entries are informational, not load-bearing for the
+    // pipeline's actual outcome -- awaiting each one serially added several
+    // DB round trips to the critical path (a contributor to a live GET
+    // /media/assets timing out at 60s). Not awaiting them means an
+    // occasional lost log entry under a hard kill, which is a much better
+    // trade than blocking the whole pipeline on activity-feed writes.
+    this.logEvent(brandId, EngineEventType.ANALYSIS_STARTED, {
       mediaAssetId: asset.id,
       message: `Analysing "${asset.filename}"...`,
-    });
+    }).catch(() => {});
 
     // 1. Analyse — real Gemini vision analysis of the actual image content
     // when possible. Falls back to a filename-based heuristic if Gemini
@@ -217,8 +249,8 @@ export class EngineService {
       this.aiService.generateHashtags(topic, platformLabel, config.defaultTone || 'Content Creator'),
     ]);
     const hashtags = Array.from(new Set(hashtagResult.allHashtags)).slice(0, 8);
-    await this.logEvent(brandId, EngineEventType.CAPTION_GENERATED, { mediaAssetId: asset.id, message: 'Caption generated.' });
-    await this.logEvent(brandId, EngineEventType.HASHTAGS_GENERATED, { mediaAssetId: asset.id, message: `${hashtags.length} hashtags generated.` });
+    this.logEvent(brandId, EngineEventType.CAPTION_GENERATED, { mediaAssetId: asset.id, message: 'Caption generated.' }).catch(() => {});
+    this.logEvent(brandId, EngineEventType.HASHTAGS_GENERATED, { mediaAssetId: asset.id, message: `${hashtags.length} hashtags generated.` }).catch(() => {});
 
     // 4. AI publishing calendar: find this asset's place on the brand's
     // 7-day-and-beyond schedule (posts-per-day cap, start date, time zone,
@@ -240,10 +272,10 @@ export class EngineService {
     // 1=primary table slot -> 95, 2/3=secondary/tertiary -> a bit lower,
     // 99=generated fallback time (table exhausted for the day) -> lower still.
     const optimalScore = priorityUsed === 1 ? 95 : priorityUsed === 99 ? 70 : Math.max(80, 95 - priorityUsed * 5);
-    await this.logEvent(brandId, EngineEventType.BEST_TIME_DETERMINED, {
+    this.logEvent(brandId, EngineEventType.BEST_TIME_DETERMINED, {
       mediaAssetId: asset.id,
       message: `Scheduled for ${scheduledAt.toLocaleString('en-US', { timeZone: config.timeZone || 'UTC', dateStyle: 'medium', timeStyle: 'short' })} (${config.timeZone || 'UTC'}).`,
-    });
+    }).catch(() => {});
 
     // 5. Check Approval Mode (Paused always forces the approval queue, even
     // if Auto Approval is selected — publishing is what Pause blocks).
@@ -281,20 +313,20 @@ export class EngineService {
 
     if (willAutoPublish) {
       const formatted = scheduledAt.toLocaleString('en-US', { timeZone: config.timeZone || 'UTC', dateStyle: 'medium', timeStyle: 'short' });
-      await this.logEvent(brandId, EngineEventType.AUTO_SCHEDULED, {
+      this.logEvent(brandId, EngineEventType.AUTO_SCHEDULED, {
         postId: post.id,
         mediaAssetId: asset.id,
         message: `Post auto-scheduled for ${formatted}.`,
-      });
+      }).catch(() => {});
       // No queue to push to — the post is now SCHEDULED in the DB, and the
       // /api/cron/publish-due endpoint (Vercel Cron) picks up anything due
       // on its next run. See PublishingService.publishDuePosts().
     } else {
-      await this.logEvent(brandId, EngineEventType.APPROVAL_QUEUED, {
+      this.logEvent(brandId, EngineEventType.APPROVAL_QUEUED, {
         postId: post.id,
         mediaAssetId: asset.id,
         message: 'Post is ready for your review in the Approval Queue.',
-      });
+      }).catch(() => {});
     }
 
     return post;
