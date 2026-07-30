@@ -239,7 +239,7 @@ export class PublishingService {
       case 'INSTAGRAM':
         return this.publishToInstagram(platformAccountId, accessToken, caption, mediaUrl, mimeType);
       case 'TIKTOK':
-        return this.publishToTikTok(accessToken, caption, mediaUrl);
+        return this.publishToTikTok(accessToken, caption, mediaUrl, mimeType);
       default:
         throw new Error(`Publishing to ${platform} isn't supported yet.`);
     }
@@ -318,19 +318,96 @@ export class PublishingService {
     throw new Error('Instagram is still processing this video — it will be retried automatically on the next publish pass.');
   }
 
-  /** TikTok Content Posting API (PULL_FROM_URL init flow). */
-  private async publishToTikTok(accessToken: string, caption: string, videoUrl: string): Promise<string> {
-    const res = await fetch('https://open.tiktokapis.com/v2/post/publish/video/init/', {
+  /**
+   * TikTok Content Posting API. Routes to the correct endpoint for the
+   * media type — TikTok has entirely separate init endpoints for video vs.
+   * photo, so always hitting the video endpoint (the old behavior) would
+   * reject any image with a content-type mismatch even with a verified
+   * domain.
+   */
+  private async publishToTikTok(accessToken: string, caption: string, mediaUrl: string, mimeType: string): Promise<string> {
+    const isVideo = mimeType?.startsWith('video/');
+    return isVideo
+      ? this.publishTikTokVideo(accessToken, caption, mediaUrl)
+      : this.publishTikTokPhoto(accessToken, caption, mediaUrl);
+  }
+
+  /**
+   * Video path: uses FILE_UPLOAD instead of PULL_FROM_URL. PULL_FROM_URL
+   * requires verifying ownership of the media URL's domain in the TikTok
+   * Developer Portal before TikTok's servers will fetch from it — a manual,
+   * external setup step. FILE_UPLOAD sidesteps that entirely: we fetch the
+   * video bytes ourselves (already public in Blob storage) and PUSH them
+   * straight to the upload_url TikTok hands back at init, so there's never
+   * a URL for TikTok to "trust" in the first place. Sent as a single chunk
+   * (TikTok's media transfer guide allows this for files that fit in one
+   * PUT); very large files would need real multi-chunk splitting, which
+   * isn't implemented here.
+   */
+  private async publishTikTokVideo(accessToken: string, caption: string, videoUrl: string): Promise<string> {
+    const videoRes = await fetch(videoUrl);
+    if (!videoRes.ok) {
+      throw new Error('Could not read the video file to send to TikTok.');
+    }
+    const videoBuffer = Buffer.from(await videoRes.arrayBuffer());
+    const contentType = videoRes.headers.get('content-type') || 'video/mp4';
+
+    const initRes = await fetch('https://open.tiktokapis.com/v2/post/publish/video/init/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
       body: JSON.stringify({
         post_info: { title: caption, privacy_level: 'SELF_ONLY', disable_duet: false, disable_comment: false, disable_stitch: false },
-        source_info: { source: 'PULL_FROM_URL', video_url: videoUrl },
+        source_info: {
+          source: 'FILE_UPLOAD',
+          video_size: videoBuffer.byteLength,
+          chunk_size: videoBuffer.byteLength,
+          total_chunk_count: 1,
+        },
+      }),
+    });
+    const initData = await initRes.json();
+    if (!initRes.ok || initData.error?.code !== 'ok' || !initData.data?.publish_id || !initData.data?.upload_url) {
+      throw new Error(initData?.error?.message || 'TikTok video publish initiation failed.');
+    }
+
+    const uploadRes = await fetch(initData.data.upload_url, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': contentType,
+        'Content-Length': String(videoBuffer.byteLength),
+        'Content-Range': `bytes 0-${videoBuffer.byteLength - 1}/${videoBuffer.byteLength}`,
+      },
+      body: videoBuffer,
+    });
+    if (!uploadRes.ok) {
+      throw new Error('TikTok rejected the uploaded video file.');
+    }
+
+    return initData.data.publish_id;
+  }
+
+  /**
+   * Photo path: TikTok's photo-post endpoint only supports PULL_FROM_URL —
+   * there is no FILE_UPLOAD equivalent for photos as of TikTok's current
+   * Content Posting API. Verifying the media URL's domain in the TikTok
+   * Developer Portal is therefore unavoidable for photo posts; if that
+   * hasn't been done yet, this will fail with a clear
+   * "url_ownership_unverified" error surfaced to the caller.
+   */
+  private async publishTikTokPhoto(accessToken: string, caption: string, imageUrl: string): Promise<string> {
+    const res = await fetch('https://open.tiktokapis.com/v2/post/publish/content/init/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify({
+        media_type: 'PHOTO',
+        post_mode: 'DIRECT_POST',
+        post_info: { title: caption, privacy_level: 'SELF_ONLY', disable_comment: false },
+        source_info: { source: 'PULL_FROM_URL', photo_images: [imageUrl], photo_cover_index: 0 },
       }),
     });
     const data = await res.json();
     if (!res.ok || data.error?.code !== 'ok' || !data.data?.publish_id) {
-      throw new Error(data?.error?.message || 'TikTok publish initiation failed.');
+      throw new Error(data?.error?.message || 'TikTok photo publish initiation failed.');
     }
 
     return data.data.publish_id;
