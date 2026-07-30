@@ -69,10 +69,6 @@ export class AiService {
     return !!(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'placeholder');
   }
 
-  private isOpenRouterConfigured(): boolean {
-    return !!(process.env.OPENROUTER_API_KEY && process.env.OPENROUTER_API_KEY !== 'placeholder');
-  }
-
   private isGroqConfigured(): boolean {
     return !!(process.env.GROQ_API_KEY && process.env.GROQ_API_KEY !== 'placeholder');
   }
@@ -81,10 +77,10 @@ export class AiService {
    * Primary AI provider. Groq's free tier (14,400 requests/day, no card
    * required) dwarfs Gemini's free tier (20 requests/day/model) at this
    * app's actual upload volumes, so it's tried first for every AI call —
-   * Gemini and OpenRouter only get reached if Groq is unconfigured, out of
-   * quota, or errors. qwen/qwen3.6-27b is used for every call (not just a
-   * text model) because it's multimodal, so the same model/endpoint
-   * handles both the vision call (analyzeImage) and the pure-text calls
+   * Gemini only gets reached if Groq is unconfigured, out of quota, or
+   * errors. qwen/qwen3.6-27b is used for every call (not just a text
+   * model) because it's multimodal, so the same model/endpoint handles
+   * both the vision call (analyzeImage) and the pure-text calls
    * (caption/hashtags) without needing two different model IDs. Talks to
    * Groq's Chat Completions API (OpenAI-compatible shape) directly over
    * fetch, no SDK dependency. Returns null on any failure so callers can
@@ -144,51 +140,6 @@ export class AiService {
   }
 
   /**
-   * Last-resort fallback AI provider. Used only when both Groq and Gemini
-   * are unconfigured, out of quota, or error — never called if either
-   * already returned a usable result. Talks to OpenRouter's Chat
-   * Completions API (OpenAI-compatible shape, routed to whatever
-   * underlying model is specified) directly over fetch, no SDK dependency,
-   * so it shares the same withTimeout bounding as every other external
-   * call in this service. Returns null on any failure so callers can drop
-   * through to their existing static fallback rather than throwing.
-   */
-  private async callOpenRouter(messages: unknown[], maxTokens: number, label: string): Promise<string | null> {
-    if (!this.isOpenRouterConfigured()) return null;
-
-    try {
-      const response = await this.withTimeout(
-        fetch('https://openrouter.ai/api/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-            'Content-Type': 'application/json',
-            'HTTP-Referer': 'https://marketing-os-eight-virid.vercel.app',
-            'X-Title': 'AMAI',
-          },
-          body: JSON.stringify({ model: 'openai/gpt-4o-mini', messages, max_tokens: maxTokens }),
-        }),
-        10_000,
-        label,
-      );
-
-      if (!response.ok) {
-        const errText = await response.text().catch(() => '');
-        this.logger.warn(`${label} failed: ${response.status} ${errText}`);
-        return null;
-      }
-
-      const data: any = await response.json();
-      const text = data?.choices?.[0]?.message?.content?.trim();
-      return text && text.length > 0 ? text : null;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : `Unknown ${label} error`;
-      this.logger.warn(`${label} failed: ${message}`);
-      return null;
-    }
-  }
-
-  /**
    * Bounds any promise to a maximum wait time. Vercel hard-kills a
    * serverless function the instant it hits its platform timeout (60s on
    * this plan) — no catch block runs, no fallback executes, the request
@@ -236,7 +187,8 @@ export class AiService {
     const groqResult = await this.callGroq(visionMessages, 30, 'Groq vision analysis');
     if (groqResult) return groqResult;
 
-    // 2) Gemini next.
+    // 2) Gemini as the last resort before dropping to the filename
+    // heuristic.
     if (this.isGeminiConfigured()) {
       try {
         const imageRes = await this.withTimeout(fetch(imageUrl), 8_000, 'Image download');
@@ -267,14 +219,11 @@ export class AiService {
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown Gemini vision error';
-        this.logger.warn(`Gemini image analysis failed, trying OpenRouter fallback: ${message}`);
+        this.logger.warn(`Gemini image analysis failed, falling back to filename heuristic: ${message}`);
       }
     }
 
-    // 3) OpenRouter (GPT-4o-mini) as the last resort before dropping to
-    // the filename heuristic. The underlying model can fetch the image
-    // URL itself, so no download/base64 step is needed here.
-    return this.callOpenRouter(visionMessages, 30, 'OpenRouter vision analysis');
+    return null;
   }
 
   /**
@@ -300,7 +249,7 @@ Keep the caption under character limits for ${platform}.`;
     // 1) Groq first — same free-tier headroom argument as analyzeImage.
     let text: string | null = await this.callGroq([{ role: 'user', content: prompt }], 300, 'Groq caption generation');
 
-    // 2) Gemini next.
+    // 2) Gemini as the last resort before the static template.
     if (!text && this.isGeminiConfigured()) {
       try {
         const response = await this.withTimeout(
@@ -311,13 +260,8 @@ Keep the caption under character limits for ${platform}.`;
         text = response.text?.trim() || null;
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown Gemini error';
-        this.logger.warn(`Gemini caption generation failed, trying OpenRouter fallback: ${message}`);
+        this.logger.warn(`Gemini caption generation failed, falling back to static template: ${message}`);
       }
-    }
-
-    // 3) OpenRouter (GPT-4o-mini) as the last resort.
-    if (!text) {
-      text = await this.callOpenRouter([{ role: 'user', content: prompt }], 300, 'OpenRouter caption generation');
     }
 
     if (!text) {
@@ -379,7 +323,7 @@ highVolume = broad, high-traffic tags. mediumCompetition = moderately specific t
     const groqResult = parseHashtagJson(groqRaw);
     if (groqResult) return groqResult;
 
-    // 2) Gemini next.
+    // 2) Gemini as the last resort before the static niche defaults.
     if (this.isGeminiConfigured()) {
       try {
         const response = await this.withTimeout(
@@ -391,14 +335,9 @@ highVolume = broad, high-traffic tags. mediumCompetition = moderately specific t
         if (result) return result;
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown Gemini error';
-        this.logger.warn(`Gemini hashtag generation failed, trying OpenRouter fallback: ${message}`);
+        this.logger.warn(`Gemini hashtag generation failed, falling back to static niche defaults: ${message}`);
       }
     }
-
-    // 3) OpenRouter (GPT-4o-mini) as the last resort.
-    const openRouterRaw = await this.callOpenRouter([{ role: 'user', content: hashtagPrompt }], 300, 'OpenRouter hashtag generation');
-    const openRouterResult = parseHashtagJson(openRouterRaw);
-    if (openRouterResult) return openRouterResult;
 
     // Fallback: static niche defaults (used when neither provider is configured or both fail).
     const nicheKey = Object.keys(NICHE_HASHTAG_MAP).find(k => k.toLowerCase() === niche.toLowerCase()) || 'Content Creator';
