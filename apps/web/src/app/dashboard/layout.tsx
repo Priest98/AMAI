@@ -119,6 +119,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     setIsDarkMode(savedTheme !== 'light');
   }, [router]);
 
+  // Every dashboard <Link> in the mobile nav drawer closes the drawer on
+  // click, but this layout never remounts between routes, so any
+  // navigation that bypasses that click handler (browser back/forward, a
+  // programmatic router.push from elsewhere like the onboarding tour) can
+  // leave isMobileOpen stuck true. That strands the drawer's full-viewport
+  // `fixed inset-0` backdrop (below) mounted on top of the new page,
+  // silently swallowing all touch/scroll input on it -- reported as "can't
+  // scroll up" on the Integrations page, but really any page reached that
+  // way. Force-closing on every route change guarantees it can never
+  // outlive the page it was opened on.
+  useEffect(() => {
+    setIsMobileOpen(false);
+  }, [pathname]);
+
   // Keep <html> in sync too — Tailwind's `dark:` utilities key off an
   // ancestor with the "dark" class, so this must live on <html>, not just
   // this layout's own wrapper div (see apps/web/src/app/layout.tsx).
