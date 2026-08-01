@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { PublishingService } from './publishing.service';
+import { MediaOptimizationModule } from '../media-optimization/media-optimization.module';
 
 // Previously wired up BullMQ (BullModule.forRoot/registerQueue) here. That
 // required a real Redis connection and a persistent worker process to pull
@@ -7,6 +8,7 @@ import { PublishingService } from './publishing.service';
 // is now a plain synchronous service called by a Vercel Cron endpoint —
 // see PublishingService and CronController.
 @Module({
+  imports: [MediaOptimizationModule],
   providers: [PublishingService],
   exports: [PublishingService],
 })

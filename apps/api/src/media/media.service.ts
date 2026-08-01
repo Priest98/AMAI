@@ -2,7 +2,8 @@ import { Injectable, BadRequestException, NotFoundException, Logger } from '@nes
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { EngineService } from '../engine/engine.service';
-import { MediaStatus, ContentSource } from '@prisma/client';
+import { MediaOptimizationService } from '../media-optimization/media-optimization.service';
+import { MediaStatus, ContentSource, ConnectionStatus } from '@prisma/client';
 
 // Kept in sync with apps/web/src/app/api/media-upload-token/route.ts's
 // ALLOWED_CONTENT_TYPES (that route gates what the browser is even allowed
@@ -54,6 +55,7 @@ export class MediaService {
     private prisma: PrismaService,
     private storage: StorageService,
     private engineService: EngineService,
+    private mediaOptimizationService: MediaOptimizationService,
   ) {}
 
   async uploadAsset(brandId: string, file: Express.Multer.File, folderId?: string, userId?: string) {
@@ -144,11 +146,55 @@ export class MediaService {
     if (!asset) throw new NotFoundException('Media asset not found.');
 
     this.logger.log(`AMAI Engine triggered: asset=${assetId} brand=${brandId}`);
-    await this.engineService.handleMediaUploaded({ mediaAssetId: assetId });
+
+    // The AMAI Engine's AI pipeline (vision/caption/hashtags/scheduling)
+    // and the Media Optimization Engine are independent -- optimized
+    // versions don't need a caption to exist yet, and captioning doesn't
+    // need optimized media. Running them concurrently rather than one
+    // after the other is what keeps the combined wall time inside
+    // Vercel's platform cap even though video optimization can itself
+    // take real, non-trivial time (see MediaOptimizationService). Both
+    // are awaited here (not fire-and-forget) because a Vercel function can
+    // be frozen the instant its HTTP response flushes -- exactly the bug
+    // already fixed once for "Publish Now" -- so anything that must
+    // actually finish has to finish before this request returns.
+    const [pipelineResult, optimizationResult] = await Promise.allSettled([
+      this.engineService.handleMediaUploaded({ mediaAssetId: assetId }),
+      this.triggerOptimization(brandId, assetId),
+    ]);
+
+    if (pipelineResult.status === 'rejected') {
+      this.logger.error(`AMAI Engine pipeline threw for asset ${assetId}: ${pipelineResult.reason?.message || pipelineResult.reason}`);
+    }
+    if (optimizationResult.status === 'rejected') {
+      this.logger.warn(`Media Optimization Engine threw for asset ${assetId}: ${optimizationResult.reason?.message || optimizationResult.reason}`);
+    }
 
     const updated = await this.prisma.mediaAsset.findUnique({ where: { id: assetId } });
     this.logger.log(`Workflow complete: asset=${assetId} status=${updated?.status}`);
     return updated;
+  }
+
+  /**
+   * Generates a platform-optimized version of this asset for every
+   * platform the brand currently has connected. Never throws -- a media
+   * optimization failure must never break or block the AI pipeline
+   * running alongside it; PublishingService falls back to the raw
+   * original if no optimized version exists for a platform at publish
+   * time (see OptimizedMediaAsset / getOptimizedUrl).
+   */
+  private async triggerOptimization(brandId: string, assetId: string): Promise<void> {
+    try {
+      const connectedAccounts = await this.prisma.socialAccount.findMany({
+        where: { brandId, status: ConnectionStatus.CONNECTED },
+        select: { platform: true },
+      });
+      const platforms = Array.from(new Set(connectedAccounts.map((a) => a.platform)));
+      if (platforms.length === 0) return;
+      await this.mediaOptimizationService.optimizeForPlatforms(assetId, brandId, platforms);
+    } catch (error: any) {
+      this.logger.warn(`Media Optimization Engine failed for asset ${assetId}: ${error?.message || error}`);
+    }
   }
 
   /**

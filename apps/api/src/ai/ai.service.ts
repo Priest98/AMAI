@@ -1,6 +1,6 @@
-import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
-import { GoogleGenAI } from '@google/genai';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AiGatewayService } from '../ai-layer/ai-gateway.service';
 
 export interface BestTimeResult {
   recommendedTime: string;
@@ -56,174 +56,51 @@ const NICHE_HASHTAG_MAP: Record<string, { highVolume: string[]; medium: string[]
   },
 };
 
+/**
+ * AMAI-Engine-facing façade over the AI Layer. This class owns *what* to
+ * ask for (prompts, niche defaults, output cleanup, static fallback
+ * templates) and always resolves to a usable string even if every
+ * provider fails -- it deliberately knows nothing about Groq, Gemini, API
+ * keys, retries, or timeouts anymore. All of that now lives in
+ * AiGatewayService / ApiKeyManagerService / the provider adapters (see
+ * ../ai-layer). This split is what makes "swap providers without touching
+ * the rest of the app" real: EngineService and AiController only ever call
+ * the methods below, and have never depended on how the answer was
+ * produced.
+ */
 @Injectable()
 export class AiService {
   private readonly logger = new Logger(AiService.name);
-  private ai: GoogleGenAI;
 
-  constructor(private prisma: PrismaService) {
-    this.ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || 'placeholder' });
-  }
-
-  private isGeminiConfigured(): boolean {
-    return !!(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'placeholder');
-  }
-
-  private isGroqConfigured(): boolean {
-    return !!(process.env.GROQ_API_KEY && process.env.GROQ_API_KEY !== 'placeholder');
-  }
+  constructor(
+    private prisma: PrismaService,
+    private aiGateway: AiGatewayService,
+  ) {}
 
   /**
-   * Primary AI provider. Groq's free tier (14,400 requests/day, no card
-   * required) dwarfs Gemini's free tier (20 requests/day/model) at this
-   * app's actual upload volumes, so it's tried first for every AI call —
-   * Gemini only gets reached if Groq is unconfigured, out of quota, or
-   * errors. qwen/qwen3.6-27b is used for every call (not just a text
-   * model) because it's multimodal, so the same model/endpoint handles
-   * both the vision call (analyzeImage) and the pure-text calls
-   * (caption/hashtags) without needing two different model IDs. Talks to
-   * Groq's Chat Completions API (OpenAI-compatible shape) directly over
-   * fetch, no SDK dependency. Returns null on any failure so callers can
-   * fall through to the next provider rather than throwing.
-   */
-  private async callGroq(messages: unknown[], maxTokens: number, label: string): Promise<string | null> {
-    if (!this.isGroqConfigured()) return null;
-
-    try {
-      // qwen3.6-27b is a "thinking" model — it spends tokens on a visible
-      // <think>...</think> chain-of-thought block before its actual answer.
-      // A tight budget (e.g. 30 tokens for a short vision caption) can get
-      // entirely consumed by that reasoning, leaving nothing for the real
-      // answer, so Groq calls always get a higher floor than the caller
-      // asked for. The <think> block itself is still stripped below
-      // regardless of budget, since it must never leak into a real caption.
-      const groqMaxTokens = Math.max(maxTokens, 600);
-
-      const response = await this.withTimeout(
-        fetch('https://api.groq.com/openai/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ model: 'qwen/qwen3.6-27b', messages, max_tokens: groqMaxTokens }),
-        }),
-        10_000,
-        label,
-      );
-
-      if (!response.ok) {
-        const errText = await response.text().catch(() => '');
-        this.logger.warn(`${label} failed: ${response.status} ${errText}`);
-        return null;
-      }
-
-      const data: any = await response.json();
-      const rawText = data?.choices?.[0]?.message?.content?.trim();
-      if (!rawText) return null;
-
-      const cleaned = rawText.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
-      // An unclosed <think> tag means the response got cut off mid-reasoning
-      // (budget exhausted before the real answer) -- unusable, so treat it
-      // as a failure and let the caller fall through to the next provider
-      // rather than shipping raw chain-of-thought text as a caption.
-      if (cleaned.includes('<think>')) {
-        this.logger.warn(`${label} returned truncated reasoning with no final answer, treating as failure`);
-        return null;
-      }
-      return cleaned.length > 0 ? cleaned : null;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : `Unknown ${label} error`;
-      this.logger.warn(`${label} failed: ${message}`);
-      return null;
-    }
-  }
-
-  /**
-   * Bounds any promise to a maximum wait time. Vercel hard-kills a
-   * serverless function the instant it hits its platform timeout (60s on
-   * this plan) — no catch block runs, no fallback executes, the request
-   * just vanishes mid-flight. That's what left media stuck in PROCESSING:
-   * an unbounded Gemini call (occasionally slow under rate limiting or
-   * bulk-upload load) could run right up against that wall with nothing
-   * to intervene first. Every external AI call in this service is wrapped
-   * in this so a slow/hung provider always loses to the app's own
-   * heuristic fallback well before Vercel's platform timeout can fire.
-   */
-  private withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
-    return new Promise<T>((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
-      promise.then(
-        (val) => { clearTimeout(timer); resolve(val); },
-        (err) => { clearTimeout(timer); reject(err); },
-      );
-    });
-  }
-
-  /**
-   * Real media analysis: downloads the image and sends it to Gemini's
-   * multimodal endpoint to get a short, concrete description of what's
-   * actually in the frame — not a guess based on the filename. Returns
-   * null (rather than throwing) if Gemini isn't configured or the call
-   * fails for any reason, so callers can fall back to the filename
-   * heuristic without the whole pipeline breaking. Video analysis isn't
-   * implemented here yet (would need the Files API for anything beyond a
-   * few MB) — video assets always use the filename fallback for now.
+   * Real media analysis: sends the image to the AI Layer for a short,
+   * concrete description of what's actually in the frame — not a guess
+   * based on the filename. Returns null if no provider is configured or
+   * every provider fails, so callers fall back to the filename heuristic
+   * without the whole pipeline breaking. Video analysis isn't implemented
+   * here yet — video assets always use the filename fallback for now.
    */
   async analyzeImage(imageUrl: string): Promise<string | null> {
     const visionPrompt = 'Describe the main subject of this image in 3-8 words, suitable as a social media post topic. Just the phrase, no punctuation, no preamble.';
-    const visionMessages = [
-      {
-        role: 'user',
-        content: [
-          { type: 'text', text: visionPrompt },
-          { type: 'image_url', image_url: { url: imageUrl } },
-        ],
-      },
-    ];
-
-    // 1) Groq first — 14,400 free requests/day makes it the only provider
-    // here that comfortably survives a large bulk-upload burst.
-    const groqResult = await this.callGroq(visionMessages, 30, 'Groq vision analysis');
-    if (groqResult) return groqResult;
-
-    // 2) Gemini as the last resort before dropping to the filename
-    // heuristic.
-    if (this.isGeminiConfigured()) {
-      try {
-        const imageRes = await this.withTimeout(fetch(imageUrl), 8_000, 'Image download');
-        if (imageRes.ok) {
-          const mimeType = imageRes.headers.get('content-type') || 'image/jpeg';
-          const arrayBuffer = await imageRes.arrayBuffer();
-          const base64 = Buffer.from(arrayBuffer).toString('base64');
-
-          const response = await this.withTimeout(
-            this.ai.models.generateContent({
-              model: 'gemini-flash-latest',
-              contents: [
-                {
-                  role: 'user',
-                  parts: [
-                    { text: visionPrompt },
-                    { inlineData: { mimeType, data: base64 } },
-                  ],
-                },
-              ],
-            }),
-            10_000,
-            'Gemini vision analysis',
-          );
-
-          const text = response.text?.trim();
-          if (text && text.length > 0) return text;
-        }
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'Unknown Gemini vision error';
-        this.logger.warn(`Gemini image analysis failed, falling back to filename heuristic: ${message}`);
-      }
-    }
-
-    return null;
+    const result = await this.aiGateway.generate({
+      label: 'vision analysis',
+      maxTokens: 30,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: visionPrompt },
+            { type: 'image_url', image_url: { url: imageUrl } },
+          ],
+        },
+      ],
+    });
+    return result?.text ?? null;
   }
 
   /**
@@ -247,23 +124,8 @@ Requirements:
 Keep the caption under character limits for ${platform}.
 CRITICAL OUTPUT FORMAT: Reply with ONLY the finished caption text, exactly as it should be posted. Do not include a title or label like "Caption:" or "Caption for Instagram:". Do not use markdown formatting (no **, no #, no bullet points, no headers). Do not add any commentary, explanation, or visual/production suggestions before or after the caption. The very first character of your reply must be the first character of the caption itself.`;
 
-    // 1) Groq first — same free-tier headroom argument as analyzeImage.
-    let text: string | null = await this.callGroq([{ role: 'user', content: prompt }], 300, 'Groq caption generation');
-
-    // 2) Gemini as the last resort before the static template.
-    if (!text && this.isGeminiConfigured()) {
-      try {
-        const response = await this.withTimeout(
-          this.ai.models.generateContent({ model: 'gemini-flash-latest', contents: prompt }),
-          10_000,
-          'Gemini caption generation',
-        );
-        text = response.text?.trim() || null;
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'Unknown Gemini error';
-        this.logger.warn(`Gemini caption generation failed, falling back to static template: ${message}`);
-      }
-    }
+    const result = await this.aiGateway.generate({ label: 'caption generation', maxTokens: 300, messages: [{ role: 'user', content: prompt }] });
+    let text = result?.text ?? null;
 
     // Defensive cleanup regardless of which provider answered: models
     // routinely ignore the "no markdown / no header" instruction above and
@@ -303,10 +165,8 @@ CRITICAL OUTPUT FORMAT: Reply with ONLY the finished caption text, exactly as it
 
   /**
    * AI-generated hashtags specific to the actual topic and niche. Falls
-   * back to the static niche map only when Gemini isn't configured or the
-   * call fails — previously this always returned the same fixed list per
-   * niche regardless of what was actually posted, which wasn't real
-   * hashtag generation at all.
+   * back to the static niche map only when no provider is configured or
+   * every provider fails.
    */
   async generateHashtags(topic: string = 'General', platform: string = 'Instagram', niche: string = 'Content Creator'): Promise<HashtagsResult> {
     const hashtagPrompt = `Generate hashtags for a ${platform} post about "${topic}" in the ${niche} niche.
@@ -336,28 +196,11 @@ highVolume = broad, high-traffic tags. mediumCompetition = moderately specific t
       }
     };
 
-    // 1) Groq first.
-    const groqRaw = await this.callGroq([{ role: 'user', content: hashtagPrompt }], 300, 'Groq hashtag generation');
-    const groqResult = parseHashtagJson(groqRaw);
-    if (groqResult) return groqResult;
+    const result = await this.aiGateway.generate({ label: 'hashtag generation', maxTokens: 300, messages: [{ role: 'user', content: hashtagPrompt }] });
+    const parsed = parseHashtagJson(result?.text ?? null);
+    if (parsed) return parsed;
 
-    // 2) Gemini as the last resort before the static niche defaults.
-    if (this.isGeminiConfigured()) {
-      try {
-        const response = await this.withTimeout(
-          this.ai.models.generateContent({ model: 'gemini-flash-latest', contents: hashtagPrompt }),
-          10_000,
-          'Gemini hashtag generation',
-        );
-        const result = parseHashtagJson(response.text || null);
-        if (result) return result;
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'Unknown Gemini error';
-        this.logger.warn(`Gemini hashtag generation failed, falling back to static niche defaults: ${message}`);
-      }
-    }
-
-    // Fallback: static niche defaults (used when neither provider is configured or both fail).
+    // Fallback: static niche defaults (used when no provider is configured or all fail).
     const nicheKey = Object.keys(NICHE_HASHTAG_MAP).find(k => k.toLowerCase() === niche.toLowerCase()) || 'Content Creator';
     const nicheData = NICHE_HASHTAG_MAP[nicheKey] || NICHE_HASHTAG_MAP['Content Creator'];
 

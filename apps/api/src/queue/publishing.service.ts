@@ -3,6 +3,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
 import { EncryptionService } from '../encryption/encryption.service';
 import { StorageService } from '../storage/storage.service';
+import { MediaOptimizationService } from '../media-optimization/media-optimization.service';
 import { Platform, TargetStatus, PostStatus, MediaStatus, EngineEventType } from '@prisma/client';
 
 const MAX_PUBLISH_ATTEMPTS = 3;
@@ -28,6 +29,7 @@ export class PublishingService {
     private encryption: EncryptionService,
     private storage: StorageService,
     private events: EventEmitter2,
+    private mediaOptimization: MediaOptimizationService,
   ) {}
 
   /** Finds every post that's due and publishes each of its pending targets. */
@@ -126,14 +128,27 @@ export class PublishingService {
         this.events.emit('engine.activity', uploadingEvent);
       }
 
+      // Prefer the Media Optimization Engine's platform-specific version
+      // (correct aspect ratio, size, and format for `target.platform`,
+      // built at upload time -- see MediaOptimizationService) over the raw
+      // original. Falls back to the original if none exists yet (e.g. the
+      // platform was connected after this asset was already uploaded and
+      // optimized, or optimization failed for this asset) -- publishing
+      // must never be blocked by an optimized-media miss.
+      const optimizedUrl = await this.mediaOptimization
+        .getOptimizedUrl(mediaAsset.id, target.platform)
+        .catch(() => null);
+      const mediaUrl = optimizedUrl || mediaAsset.blobUrl;
+
       const providerPostId = await this.publishToPlatform(
         target.platform,
         target.socialAccount.platformAccountId,
         accessToken,
         target.post.caption + (target.post.hashtags?.length ? `\n\n${target.post.hashtags.join(' ')}` : ''),
-        mediaAsset.blobUrl,
+        mediaUrl,
         mediaAsset.mimeType,
         target.post.brandId,
+        !!optimizedUrl,
       );
 
       await this.prisma.$transaction([
@@ -256,10 +271,11 @@ export class PublishingService {
     mediaUrl: string,
     mimeType: string,
     brandId: string,
+    alreadyOptimized: boolean = false,
   ): Promise<string> {
     switch (platform) {
       case 'INSTAGRAM':
-        return this.publishToInstagram(platformAccountId, accessToken, caption, mediaUrl, mimeType, brandId);
+        return this.publishToInstagram(platformAccountId, accessToken, caption, mediaUrl, mimeType, brandId, alreadyOptimized);
       case 'TIKTOK':
         return this.publishToTikTok(accessToken, caption, mediaUrl, mimeType);
       default:
@@ -268,16 +284,20 @@ export class PublishingService {
   }
 
   /** Instagram Graph API: create a media container, then publish it. */
-  private async publishToInstagram(igUserId: string, accessToken: string, caption: string, mediaUrl: string, mimeType: string, brandId: string): Promise<string> {
+  private async publishToInstagram(igUserId: string, accessToken: string, caption: string, mediaUrl: string, mimeType: string, brandId: string, alreadyOptimized: boolean = false): Promise<string> {
     const isVideo = mimeType?.startsWith('video/');
     // Feed photos must land within Meta's accepted aspect-ratio range (4:5 to
     // 1.91:1) or the container/publish call fails with a generic "aspect
     // ratio is not supported" error (code 36003 / subcode 2207009) -- three
     // consecutive real test images all hit this because normal phone-camera
     // portrait shots (9:16, ratio 0.56) fall well outside the feed-photo
-    // range even though nothing is wrong with them. Auto-crop instead of
-    // failing outright; videos (Reels) aren't subject to this constraint.
-    const finalMediaUrl = isVideo ? mediaUrl : await this.ensureInstagramAspectRatio(mediaUrl, brandId);
+    // range even though nothing is wrong with them. When `mediaUrl` already
+    // came from the Media Optimization Engine (alreadyOptimized), it was
+    // already built to Instagram's exact rules at upload time and this
+    // on-the-fly check is redundant -- it only runs as a safety net for
+    // assets that don't have an optimized version yet. Videos (Reels)
+    // aren't subject to this constraint either way.
+    const finalMediaUrl = isVideo || alreadyOptimized ? mediaUrl : await this.ensureInstagramAspectRatio(mediaUrl, brandId);
     const containerParams = new URLSearchParams({
       caption,
       access_token: accessToken,
