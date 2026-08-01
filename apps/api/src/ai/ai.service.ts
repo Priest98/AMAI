@@ -244,7 +244,8 @@ Requirements:
 3. End with a strong Call-To-Action (CTA).
 4. Include 4-6 highly relevant hashtags specifically for ${niche}.
 5. ${isAiTopic ? '' : 'CRITICAL REQUIREMENT: Do NOT include generic AI hashtags like #AI, #ArtificialIntelligence, or #MachineLearning unless the content is explicitly about AI technology.'}
-Keep the caption under character limits for ${platform}.`;
+Keep the caption under character limits for ${platform}.
+CRITICAL OUTPUT FORMAT: Reply with ONLY the finished caption text, exactly as it should be posted. Do not include a title or label like "Caption:" or "Caption for Instagram:". Do not use markdown formatting (no **, no #, no bullet points, no headers). Do not add any commentary, explanation, or visual/production suggestions before or after the caption. The very first character of your reply must be the first character of the caption itself.`;
 
     // 1) Groq first — same free-tier headroom argument as analyzeImage.
     let text: string | null = await this.callGroq([{ role: 'user', content: prompt }], 300, 'Groq caption generation');
@@ -262,6 +263,23 @@ Keep the caption under character limits for ${platform}.`;
         const message = error instanceof Error ? error.message : 'Unknown Gemini error';
         this.logger.warn(`Gemini caption generation failed, falling back to static template: ${message}`);
       }
+    }
+
+    // Defensive cleanup regardless of which provider answered: models
+    // routinely ignore the "no markdown / no header" instruction above and
+    // prepend a literal "**Caption:**"/"Caption for Instagram & TikTok:"
+    // label, or wrap the text in markdown bold/italic markers that would
+    // otherwise show up as literal asterisks once posted. Confirmed in
+    // production AiUsageLog rows from multiple providers (Groq and
+    // Gemini), not just one model.
+    if (text) {
+      text = text
+        .replace(/^\s*\*{0,2}caption[^:]*:\*{0,2}\s*/i, '') // leading "Caption:" / "**Caption for X:**" label
+        .replace(/\*\*(.+?)\*\*/g, '$1') // markdown bold
+        .replace(/(?<!\w)\*(?!\s)(.+?)(?<!\s)\*(?!\w)/g, '$1') // markdown italic
+        .replace(/^#{1,6}\s+/gm, '') // markdown headers
+        .trim();
+      if (text.length === 0) text = null;
     }
 
     if (!text) {

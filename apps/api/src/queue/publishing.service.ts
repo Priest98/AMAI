@@ -184,14 +184,25 @@ export class PublishingService {
         await this.finalizeIfComplete(target.postId, target.platform, null, mediaAsset?.id);
       } else {
         this.logger.warn(`Target ${target.id} left PENDING for retry (attempt ${priorFailures + 1}/${MAX_PUBLISH_ATTEMPTS}).`);
-        // This target will be retried later (by the next cron pass or a
-        // manual Retry), so the post must not stay stuck in PUBLISHING —
-        // publishDuePosts only looks for status: SCHEDULED. Revert it so
-        // the retry path can actually find this post again.
-        await this.prisma.post.updateMany({
-          where: { id: target.postId, status: PostStatus.PUBLISHING },
-          data: { status: PostStatus.SCHEDULED },
+        // Only bounce the post back to SCHEDULED if nothing has actually
+        // published for it yet. If a sibling target already succeeded
+        // (e.g. Instagram went out fine but TikTok is retrying because its
+        // connection expired), reverting to SCHEDULED would hide that real
+        // success and make the whole post look stuck/undone even though
+        // it's genuinely live on one platform. publishDuePosts already
+        // re-picks up any post left at PUBLISHING for more than 5 minutes
+        // (the stale-PUBLISHING sweep at the top of this file), so leaving
+        // it at PUBLISHING here still guarantees the retry happens on the
+        // next cron pass without erasing the visible success.
+        const anyPublished = await this.prisma.postTarget.count({
+          where: { postId: target.postId, status: TargetStatus.PUBLISHED },
         });
+        if (anyPublished === 0) {
+          await this.prisma.post.updateMany({
+            where: { id: target.postId, status: PostStatus.PUBLISHING },
+            data: { status: PostStatus.SCHEDULED },
+          });
+        }
       }
 
       throw error;
@@ -203,8 +214,17 @@ export class PublishingService {
     const remaining = await this.prisma.postTarget.count({ where: { postId, status: 'PENDING' } });
     if (remaining > 0) return;
 
-    const failed = await this.prisma.postTarget.count({ where: { postId, status: TargetStatus.FAILED } });
-    const status = failed > 0 ? PostStatus.FAILED : PostStatus.PUBLISHED;
+    // A post that published successfully to at least one platform is a
+    // real, live post — mark it PUBLISHED even if a sibling target (e.g. a
+    // TikTok leg whose connection expired) exhausted its retries and
+    // terminally failed. The previous "any failed target -> whole post
+    // FAILED" logic was actively wrong in exactly the scenario a user hit
+    // in production: Instagram published fine, TikTok's stale token kept
+    // failing, and the post showed as "Failed" in the UI despite being
+    // genuinely live on Instagram. Only mark FAILED when nothing published
+    // anywhere.
+    const publishedCount = await this.prisma.postTarget.count({ where: { postId, status: TargetStatus.PUBLISHED } });
+    const status = publishedCount > 0 ? PostStatus.PUBLISHED : PostStatus.FAILED;
 
     await this.prisma.post.update({
       where: { id: postId },
