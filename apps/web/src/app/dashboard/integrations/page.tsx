@@ -12,7 +12,7 @@ import {
   Info,
   X,
 } from 'lucide-react';
-import { API_BASE } from '@/lib/api';
+import { API_BASE, apiFetch } from '@/lib/api';
 
 interface ConnectedAccount {
   id: string;
@@ -139,9 +139,16 @@ export default function ConnectedAccountsPage() {
   };
 
   const handleDisconnectAccount = async (platformKey: 'instagram' | 'tiktok', accountId?: string) => {
+    setActiveMenu(null);
     try {
+      // apiFetch attaches the auth token and throws on any non-2xx response
+      // (401, 404, etc.) instead of silently swallowing it. The previous
+      // raw fetch() sent no Authorization header at all, so the backend's
+      // JwtAuthGuard rejected every disconnect with a 401 that was never
+      // even read -- the DB row was never deleted, and the account
+      // reappeared as "connected" the moment fetchAccounts() ran below.
       if (accountId) {
-        await fetch(`${API_BASE}/oauth/accounts/${accountId}`, { method: 'DELETE' }).catch(() => null);
+        await apiFetch(`/oauth/accounts/${accountId}`, { method: 'DELETE' });
       }
 
       if (platformKey === 'instagram') {
@@ -153,10 +160,10 @@ export default function ConnectedAccountsPage() {
       }
 
       setMessage({ text: 'Account disconnected successfully.', type: 'success' });
-      setActiveMenu(null);
-      fetchAccounts();
-    } catch {
-      setMessage({ text: 'Failed to disconnect account.', type: 'error' });
+      await fetchAccounts();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to disconnect account.';
+      setMessage({ text: message, type: 'error' });
     }
   };
 
