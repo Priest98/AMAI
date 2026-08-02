@@ -8,6 +8,16 @@ import { Platform, TargetStatus, PostStatus, MediaStatus, EngineEventType, Conne
 
 const MAX_PUBLISH_ATTEMPTS = 3;
 
+// TikTok access tokens are short-lived (~24h) but come with a refresh_token
+// that's valid far longer (per TikTok's docs, ~365 days, refreshed forward
+// on use). Previously `refreshTikTokToken()` existed but was only wired to
+// a manual `POST /oauth/tiktok/refresh` endpoint the user had to hit
+// themselves -- meaning every ~24h TikTok publishing would silently start
+// failing until someone noticed and reconnected. Refresh proactively here,
+// inside the publish path itself, so it's fully automatic and the user
+// never has to reconnect TikTok just because time passed.
+const TIKTOK_TOKEN_REFRESH_BUFFER_MS = 10 * 60 * 1000; // refresh if expiring within 10min
+
 /**
  * Publishes posts to the real platform APIs (Instagram Graph API, TikTok
  * Content Posting API) using the brand's connected SocialAccount token.
@@ -131,6 +141,99 @@ export class PublishingService {
   }
 
   /**
+   * Returns a usable access token for this account, transparently
+   * refreshing TikTok's token first if it's at/near expiry (or `force` is
+   * set, used by the reactive retry in `publishOne`). Instagram's
+   * long-lived token doesn't need this treatment here -- it lasts ~60 days
+   * and its refresh (`refreshInstagramToken` in OAuthService) re-exchanges
+   * the existing token rather than needing a stored refresh_token, so it's
+   * lower urgency and left on the existing manual path for now. Any
+   * failure here (missing config, network error, revoked refresh_token)
+   * falls back to the existing access token as-is so a refresh hiccup can
+   * never block a publish attempt that might otherwise still succeed --
+   * the real platform API call is always the final source of truth.
+   */
+  private async ensureFreshAccessToken(
+    account: { id: string; platform: Platform; accessToken: string; refreshToken: string | null; tokenExpiresAt: Date | null },
+    force: boolean = false,
+  ): Promise<string> {
+    const nearingExpiry =
+      account.tokenExpiresAt != null &&
+      account.tokenExpiresAt.getTime() - Date.now() < TIKTOK_TOKEN_REFRESH_BUFFER_MS;
+
+    const shouldRefresh = account.platform === Platform.TIKTOK && !!account.refreshToken && (force || nearingExpiry);
+    if (!shouldRefresh) {
+      return this.encryption.decrypt(account.accessToken);
+    }
+
+    const clientKey = process.env.TIKTOK_CLIENT_KEY;
+    const clientSecret = process.env.TIKTOK_CLIENT_SECRET;
+    if (!clientKey || !clientSecret) {
+      return this.encryption.decrypt(account.accessToken);
+    }
+
+    try {
+      const decryptedRefresh = this.encryption.decrypt(account.refreshToken!);
+      const tokenRes = await fetch('https://open.tiktokapis.com/v2/oauth/token/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          client_key: clientKey,
+          client_secret: clientSecret,
+          grant_type: 'refresh_token',
+          refresh_token: decryptedRefresh,
+        }),
+      });
+
+      if (!tokenRes.ok) {
+        this.logger.warn(`TikTok auto-refresh failed for account ${account.id} (HTTP ${tokenRes.status}) -- using existing token; publish may fail and self-heal on a later pass once the account is manually reconnected.`);
+        return this.encryption.decrypt(account.accessToken);
+      }
+
+      const data = await tokenRes.json();
+      const accessToken: string | undefined = data.access_token;
+      if (!accessToken) {
+        this.logger.warn(`TikTok auto-refresh response for account ${account.id} had no access_token -- using existing token.`);
+        return this.encryption.decrypt(account.accessToken);
+      }
+
+      await this.prisma.socialAccount.update({
+        where: { id: account.id },
+        data: {
+          accessToken: this.encryption.encrypt(accessToken),
+          refreshToken: data.refresh_token ? this.encryption.encrypt(data.refresh_token) : account.refreshToken,
+          tokenExpiresAt: data.expires_in ? new Date(Date.now() + data.expires_in * 1000) : null,
+          status: ConnectionStatus.CONNECTED,
+        },
+      });
+
+      this.logger.log(`TikTok access token auto-refreshed for account ${account.id} -- publishing continues with no manual reconnect needed.`);
+      return accessToken;
+    } catch (error: any) {
+      this.logger.warn(`TikTok auto-refresh threw for account ${account.id}: ${error?.message || error} -- using existing token.`);
+      return this.encryption.decrypt(account.accessToken);
+    }
+  }
+
+  /**
+   * Heuristic check on TikTok's error payload/message for an auth-shaped
+   * failure (expired/invalid token) vs. any other publish failure (bad
+   * media, rate limit, content policy, etc.) -- only auth-shaped failures
+   * are worth an immediate refresh-and-retry.
+   */
+  private isTikTokAuthError(error: any): boolean {
+    const message = String(error?.message || '').toLowerCase();
+    return (
+      message.includes('access_token_invalid') ||
+      message.includes('token_expired') ||
+      message.includes('invalid_access_token') ||
+      message.includes('access token') ||
+      message.includes('unauthorized') ||
+      message.includes('401')
+    );
+  }
+
+  /**
    * Publishes one PostTarget (one post -> one connected platform account).
    * On failure, retries up to MAX_PUBLISH_ATTEMPTS times across future cron
    * runs (left PENDING so the next pass picks it up again) before being
@@ -177,7 +280,7 @@ export class PublishingService {
         throw new Error('No media file is attached to this post.');
       }
 
-      const accessToken = this.encryption.decrypt(target.socialAccount.accessToken);
+      const accessToken = await this.ensureFreshAccessToken(target.socialAccount);
 
       {
         const uploadingEvent = await this.prisma.engineEvent.create({
@@ -197,17 +300,45 @@ export class PublishingService {
         .getOptimizedUrl(mediaAsset.id, target.platform)
         .catch(() => null);
       const mediaUrl = optimizedUrl || mediaAsset.blobUrl;
+      const caption = target.post.caption + (target.post.hashtags?.length ? `\n\n${target.post.hashtags.join(' ')}` : '');
 
-      const providerPostId = await this.publishToPlatform(
-        target.platform,
-        target.socialAccount.platformAccountId,
-        accessToken,
-        target.post.caption + (target.post.hashtags?.length ? `\n\n${target.post.hashtags.join(' ')}` : ''),
-        mediaUrl,
-        mediaAsset.mimeType,
-        target.post.brandId,
-        !!optimizedUrl,
-      );
+      let providerPostId: string;
+      try {
+        providerPostId = await this.publishToPlatform(
+          target.platform,
+          target.socialAccount.platformAccountId,
+          accessToken,
+          caption,
+          mediaUrl,
+          mediaAsset.mimeType,
+          target.post.brandId,
+          !!optimizedUrl,
+        );
+      } catch (publishError: any) {
+        // Reactive fallback for the case a proactive refresh didn't catch:
+        // TikTok's own clock may consider the token dead a little earlier
+        // than our stored `tokenExpiresAt` implies, or the token could have
+        // been invalidated out-of-band. If this looks like an auth failure
+        // and we have a refresh_token, force a refresh and retry exactly
+        // once before giving up -- still counts as one attempt for
+        // MAX_PUBLISH_ATTEMPTS purposes either way.
+        if (target.platform === Platform.TIKTOK && target.socialAccount.refreshToken && this.isTikTokAuthError(publishError)) {
+          this.logger.warn(`TikTok publish failed with an auth-looking error for account ${target.socialAccount.id}; forcing token refresh and retrying once.`);
+          const refreshedToken = await this.ensureFreshAccessToken(target.socialAccount, true);
+          providerPostId = await this.publishToPlatform(
+            target.platform,
+            target.socialAccount.platformAccountId,
+            refreshedToken,
+            caption,
+            mediaUrl,
+            mediaAsset.mimeType,
+            target.post.brandId,
+            !!optimizedUrl,
+          );
+        } else {
+          throw publishError;
+        }
+      }
 
       await this.prisma.$transaction([
         this.prisma.postTarget.update({ where: { id: target.id }, data: { status: TargetStatus.PUBLISHED } }),
