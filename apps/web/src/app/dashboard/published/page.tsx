@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import SectionHeader from '@/components/ui/SectionHeader';
 import Badge from '@/components/ui/Badge';
+import { Reveal } from '@/components/ui/Reveal';
 import { brandFetch } from '@/lib/api';
 import { useEngineEvents } from '@/lib/useEngineEvents';
 import { CheckCircle2, Instagram, Video, Loader2 } from 'lucide-react';
@@ -72,10 +73,16 @@ export default function PublishedPostsPage() {
           {posts
             .slice()
             .sort((a, b) => new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime())
-            .map((post) => {
+            .map((post, i) => {
               const platform = post.targets?.[0]?.platform || 'INSTAGRAM';
               return (
-                <div key={post.id} className="rounded-xl border p-4 flex items-start gap-4" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}>
+                <Reveal
+                  key={post.id}
+                  y={16}
+                  delay={Math.min(i, 5) * 0.04}
+                  className="rounded-xl border p-4 flex items-start gap-4"
+                  style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}
+                >
                   <div className="h-9 w-9 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0">
                     {platform === 'TIKTOK' ? <Video className="h-4 w-4" /> : <Instagram className="h-4 w-4" />}
                   </div>
@@ -88,7 +95,7 @@ export default function PublishedPostsPage() {
                     </div>
                     <p className="text-xs mt-1 line-clamp-2" style={{ color: 'var(--text-secondary)' }}>{post.caption}</p>
                   </div>
-                </div>
+                </Reveal>
               );
             })}
         </div>

@@ -1,36 +1,13 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from 'react';
-import { motion, useInView, useReducedMotion } from 'framer-motion';
+import { useInView, useReducedMotion } from 'framer-motion';
 
-/** Fades + slides a section's children in once as it scrolls into view. */
-export function Reveal({
-  children,
-  delay = 0,
-  y = 24,
-  className = '',
-}: {
-  children: React.ReactNode;
-  delay?: number;
-  y?: number;
-  className?: string;
-}) {
-  const ref = useRef(null);
-  const inView = useInView(ref, { once: true, margin: '-80px 0px' });
-  const reduceMotion = useReducedMotion();
-
-  return (
-    <motion.div
-      ref={ref}
-      initial={reduceMotion ? undefined : { opacity: 0, y }}
-      animate={inView ? { opacity: 1, y: 0 } : undefined}
-      transition={{ duration: 0.6, delay, ease: [0.16, 1, 0.3, 1] }}
-      className={className}
-    >
-      {children}
-    </motion.div>
-  );
-}
+// Reveal now lives in components/ui/Reveal.tsx so dashboard pages can use
+// it too without importing from the landing-specific folder. Re-exported
+// here so every existing `import { Reveal } from './shared'` across the
+// landing components keeps working unchanged.
+export { Reveal } from '../ui/Reveal';
 
 /** Animated number that counts up from 0 once it scrolls into view. */
 export function CountUp({

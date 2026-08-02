@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import SectionHeader from '@/components/ui/SectionHeader';
 import Badge from '@/components/ui/Badge';
+import { Reveal } from '@/components/ui/Reveal';
 import { brandFetch } from '@/lib/api';
 import { useEngineEvents } from '@/lib/useEngineEvents';
 import {
@@ -274,7 +275,7 @@ export default function CalendarPage() {
           <Loader2 className="h-4 w-4 animate-spin mr-2" /> Loading…
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-3">
+        <Reveal className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-3">
           {days.map((day) => {
             const key = civilKey(day, timeZone);
             const dayPosts = postsByDay[key] || [];
@@ -364,7 +365,7 @@ export default function CalendarPage() {
               </div>
             );
           })}
-        </div>
+        </Reveal>
       )}
 
       {/* ── Edit modal ── */}

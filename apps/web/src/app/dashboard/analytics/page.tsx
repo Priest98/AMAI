@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { brandFetch } from '@/lib/api';
 import { useEngineEvents, EngineEvent } from '@/lib/useEngineEvents';
 import StatCard from '@/components/ui/StatCard';
+import { Reveal } from '@/components/ui/Reveal';
 import { CheckCircle2, XCircle, CalendarClock, Clock, Loader2, Activity } from 'lucide-react';
 
 interface CountedPost { id: string; status: string; }
@@ -59,14 +60,14 @@ export default function AnalyticsPage() {
         <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">How your content is moving through the AMAI Engine.</p>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <Reveal className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard icon={<Clock className="h-4 w-4 text-amber-400" />} label="Awaiting Approval" value={String(counts.pending)} helperText="In the queue" />
         <StatCard icon={<CalendarClock className="h-4 w-4 text-violet-400" />} label="Scheduled" value={String(counts.scheduled)} helperText="Queued to publish" />
         <StatCard icon={<CheckCircle2 className="h-4 w-4 text-emerald-400" />} label="Published" value={String(counts.published)} helperText="Live posts" />
         <StatCard icon={<XCircle className="h-4 w-4 text-red-400" />} label="Failed" value={String(counts.failed)} helperText="Needs attention" />
-      </div>
+      </Reveal>
 
-      <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm overflow-hidden">
+      <Reveal delay={0.1} className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm overflow-hidden">
         <div className="p-5 border-b border-zinc-200 dark:border-zinc-700 flex items-center space-x-2">
           <Activity className="h-4 w-4 text-emerald-400" />
           <h2 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">AMAI Engine Activity Log</h2>
@@ -103,7 +104,7 @@ export default function AnalyticsPage() {
             </table>
           </div>
         )}
-      </div>
+      </Reveal>
     </div>
   );
 }

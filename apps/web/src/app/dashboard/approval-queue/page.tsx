@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import PendingRepliesList from './PendingRepliesList';
 import SectionHeader from '@/components/ui/SectionHeader';
 import Badge from '@/components/ui/Badge';
+import { Reveal } from '@/components/ui/Reveal';
 import { apiFetch, brandFetch, getBrandId } from '@/lib/api';
 import { useEngineEvents } from '@/lib/useEngineEvents';
 import {
@@ -355,8 +356,9 @@ export default function ApprovalQueuePage() {
               const isBusy = busyId === post.id;
 
               return (
-                <div
+                <Reveal
                   key={post.id}
+                  y={16}
                   className="rounded-xl border p-5 transition space-y-4"
                   style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}
                 >
@@ -578,7 +580,7 @@ export default function ApprovalQueuePage() {
                       </button>
                     </div>
                   )}
-                </div>
+                </Reveal>
               );
             })
           )}
