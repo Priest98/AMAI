@@ -1,6 +1,20 @@
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { PublishingService } from '../queue/publishing.service';
 import { PostStatus, Platform, MediaStatus } from '@prisma/client';
+
+// Vercel Cron on this plan only fires /api/cron/publish-due once a day
+// (see vercel.json), which left genuinely-due posts sitting in SCHEDULED
+// for up to ~24h with no other trigger to pick them up -- reported by the
+// user as "posts not going when the time they schedule for reach." Rather
+// than requiring a paid plan upgrade for a more frequent cron, getPosts()
+// opportunistically runs the same publish pass the cron does, the same
+// way MediaService.getAssets() self-heals stuck media on every load. This
+// still isn't instant (only fires when someone loads a posts list), but
+// closes the gap from "up to a day late" to "as soon as anyone next opens
+// the app" without needing new infrastructure. Bounded so a slow/failing
+// platform API call can never make the posts list itself hang.
+const OPPORTUNISTIC_PUBLISH_TIMEOUT_MS = 20_000;
 
 interface CreatePostDto {
   caption: string;
@@ -14,7 +28,10 @@ interface CreatePostDto {
 export class PostsService {
   private readonly logger = new Logger(PostsService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private publishingService: PublishingService,
+  ) {}
 
   async createPost(brandId: string, dto: CreatePostDto) {
     const post = await this.prisma.post.create({
@@ -37,6 +54,8 @@ export class PostsService {
   }
 
   async getPosts(brandId: string, status?: PostStatus) {
+    await this.opportunisticPublish().catch(() => {});
+
     // Safety cap — same reasoning as MediaAsset.getAssets: this already has
     // the right indexes (idx_post_brand_status) and select-scoped relations,
     // but nothing stopped it from eventually returning thousands of rows
@@ -56,6 +75,24 @@ export class PostsService {
     });
   }
 
+  /** See OPPORTUNISTIC_PUBLISH_TIMEOUT_MS doc comment above. */
+  private opportunisticPublish(): Promise<void> {
+    return new Promise<void>((resolve) => {
+      const timer = setTimeout(() => {
+        this.logger.warn(`Opportunistic publish pass exceeded ${OPPORTUNISTIC_PUBLISH_TIMEOUT_MS}ms; remaining due posts will be picked up by the next cron run or page load.`);
+        resolve();
+      }, OPPORTUNISTIC_PUBLISH_TIMEOUT_MS);
+      this.publishingService.publishDuePosts().then(
+        () => { clearTimeout(timer); resolve(); },
+        (error: any) => {
+          clearTimeout(timer);
+          this.logger.warn(`Opportunistic publish pass failed: ${error?.message || error}`);
+          resolve();
+        },
+      );
+    });
+  }
+
   /**
    * Lightweight dashboard summary — counts only (Prisma `count()`, not
    * `findMany()`), plus a 3-row preview of the approval queue. Replaces the
@@ -64,6 +101,8 @@ export class PostsService {
    * read `.length` off them. One round trip, no wasted payload.
    */
   async getStats(brandId: string) {
+    await this.opportunisticPublish().catch(() => {});
+
     const [needsApprovalCount, scheduledCount, publishedCount, mediaCount, pendingPreview] = await Promise.all([
       this.prisma.post.count({ where: { brandId, status: PostStatus.NEEDS_APPROVAL } }),
       this.prisma.post.count({ where: { brandId, status: PostStatus.SCHEDULED } }),

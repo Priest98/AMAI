@@ -59,6 +59,26 @@ export class VideoOptimizationEngine {
   }
 
   async optimize(sourceBuffer: Buffer, rules: VideoPlatformRules): Promise<OptimizedVideoResult> {
+    // Kill switch, default OFF. ffmpeg-static bundles a real precompiled
+    // ffmpeg binary and spawns it as a child process -- unlike sharp
+    // (pure native addon, no subprocess), this depends on Vercel's build
+    // actually including that binary in the deployed function bundle with
+    // exec permission intact, which is a known trouble spot for this
+    // package on serverless platforms. Reported symptom in production
+    // (videos hanging at "generating hashtags", i.e. the upload pipeline
+    // never completing) is consistent with a spawned ffmpeg process that
+    // never resolves/rejects the way a pure-JS timeout expects, which can
+    // stall or OOM-kill the whole function -- taking the otherwise-fine AI
+    // pipeline down with it, since MediaService.triggerProcessing awaits
+    // both concurrently. Until ffmpeg-static is confirmed to actually run
+    // cleanly in this environment (verified via a real production test),
+    // every video is treated as passthrough: original file reused as-is,
+    // no thumbnail. Flip MEDIA_OPTIMIZATION_VIDEO_TRANSCODE=1 once that's
+    // confirmed safe to re-enable real transcoding/thumbnailing below.
+    if (process.env.MEDIA_OPTIMIZATION_VIDEO_TRANSCODE !== '1') {
+      return { buffer: null, passthrough: true, width: null, height: null, durationSeconds: null, canvasApplied: false, thumbnailBuffer: null };
+    }
+
     const ffmpeg = await this.ffmpeg();
     const workDir = os.tmpdir();
     const id = randomUUID();
