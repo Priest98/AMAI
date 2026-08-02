@@ -4,7 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { EncryptionService } from '../encryption/encryption.service';
 import { StorageService } from '../storage/storage.service';
 import { MediaOptimizationService } from '../media-optimization/media-optimization.service';
-import { Platform, TargetStatus, PostStatus, MediaStatus, EngineEventType } from '@prisma/client';
+import { Platform, TargetStatus, PostStatus, MediaStatus, EngineEventType, ConnectionStatus } from '@prisma/client';
 
 const MAX_PUBLISH_ATTEMPTS = 3;
 
@@ -49,14 +49,32 @@ export class PublishingService {
           { status: PostStatus.PUBLISHING, updatedAt: { lte: staleCutoff } },
         ],
       },
-      include: { targets: { where: { status: TargetStatus.PENDING } } },
+      // Unfiltered here (not `where: { status: PENDING }`) because a post
+      // with literally zero PostTarget rows needs different handling below
+      // than one whose targets are just all already resolved -- filtering
+      // at the query level would make those two cases indistinguishable.
+      include: { targets: true },
       take: 50,
     });
 
     let published = 0;
     let failed = 0;
     for (const post of due) {
-      for (const target of post.targets) {
+      // A SCHEDULED post with zero targets ever created means it was
+      // auto-scheduled by the AMAI Engine at a moment when no platform was
+      // connected (engine.service.ts still creates the Post in that case,
+      // just with an empty `targets.create` array) -- confirmed live via a
+      // batch of posts that were "checked" on every publishDuePosts pass
+      // but never published or failed, because there was nothing in their
+      // `targets` array to iterate at all. Self-heal: if a platform is
+      // connected *now*, attach it and try; if still nothing is connected,
+      // fail it with a real reason instead of leaving it silently
+      // "Scheduled" forever with no way for the user to tell why.
+      const pendingTargets = post.targets.length === 0
+        ? await this.attachTargetsForConnectedAccounts(post.id, post.brandId)
+        : post.targets.filter((t) => t.status === TargetStatus.PENDING);
+
+      for (const target of pendingTargets) {
         try {
           await this.publishOne(target.id);
           published++;
@@ -70,6 +88,46 @@ export class PublishingService {
       this.logger.log(`publishDuePosts: checked ${due.length} due post(s), ${published} published, ${failed} failed this pass.`);
     }
     return { checked: due.length, published, failed };
+  }
+
+  /**
+   * Attaches a PostTarget for every currently-connected account on this
+   * brand to a post that was scheduled with none at all, so it can
+   * actually be published on this pass instead of just being "checked"
+   * and skipped forever. If nothing is connected even now, marks the post
+   * FAILED with a clear, actionable reason -- surfacing the real problem
+   * (no connected platform) instead of a post that looks scheduled but
+   * can never resolve either way.
+   */
+  private async attachTargetsForConnectedAccounts(postId: string, brandId: string) {
+    const connected = await this.prisma.socialAccount.findMany({
+      where: { brandId, status: ConnectionStatus.CONNECTED },
+    });
+
+    if (connected.length === 0) {
+      await this.prisma.post.update({ where: { id: postId }, data: { status: PostStatus.FAILED } });
+      const event = await this.prisma.engineEvent.create({
+        data: {
+          brandId,
+          type: EngineEventType.PUBLISH_FAILED,
+          postId,
+          message: 'No connected Instagram or TikTok account to publish to. Connect an account, then retry this post.',
+        },
+      });
+      this.events.emit('engine.activity', event);
+      this.logger.warn(`Post ${postId} has no targets and no connected accounts -- marked FAILED with a clear reason instead of staying silently Scheduled.`);
+      return [];
+    }
+
+    const created = await Promise.all(
+      connected.map((acc) =>
+        this.prisma.postTarget.create({
+          data: { postId, socialAccountId: acc.id, platform: acc.platform, status: TargetStatus.PENDING },
+        }),
+      ),
+    );
+    this.logger.log(`Post ${postId} had no targets -- attached ${created.length} target(s) for now-connected account(s): ${created.map((c) => c.platform).join(', ')}.`);
+    return created;
   }
 
   /**
