@@ -28,6 +28,26 @@ export interface SlotAssignment {
 }
 
 const MAX_DAYS_TO_SEARCH = 120;
+// Every other pipeline stage (each AI Gateway call, the pipeline as a
+// whole via EngineService.PIPELINE_TIMEOUT_MS) has its own hard wall-clock
+// bound; this search loop didn't. Found live: it does at least one
+// sequential, awaited DB round trip per day it has to skip (day already at
+// the postsPerDay cap) plus up to two more per candidate time it evaluates
+// (isSlotTaken + getPredecessor for the content-diversity check), all
+// awaited one after another with no batching -- worst case (many days
+// full, or the diversity check rejecting most candidates) that's
+// potentially hundreds of sequential queries. Because this runs *after*
+// caption/hashtag generation and *before* the BEST_TIME_DETERMINED event
+// the frontend needs to advance its stage checklist, a slow search here
+// is invisible on the backend (nothing else logs while it runs) and shows
+// up to the user as the UI looking permanently stuck on "Generating
+// hashtags..." even though hashtags actually finished -- confirmed via
+// production logs showing a ~34s gap with no log output between hashtag
+// completion and the whole pipeline hitting its 50s ceiling and failing.
+// Bounding the search itself means a slow calendar degrades to the
+// existing "now+1h" fallback (priorityUsed 99) instead of silently eating
+// the rest of the pipeline's time budget.
+const SEARCH_DEADLINE_MS = 15_000;
 const FALLBACK_STEP_MINUTES = 90;
 const FALLBACK_WINDOW_START_HOUR = 7;
 const FALLBACK_WINDOW_END_HOUR = 23;
@@ -73,8 +93,10 @@ export class SchedulingService {
     const slotsByDay = await this.getSlotsByDayOfWeek(tablePlatform);
     const startCivil = await this.resolveStartCivilDate(config, timeZone);
     const now = new Date();
+    const searchStart = Date.now();
 
     for (let dayOffset = 0; dayOffset < MAX_DAYS_TO_SEARCH; dayOffset++) {
+      if (Date.now() - searchStart > SEARCH_DEADLINE_MS) break; // see SEARCH_DEADLINE_MS doc comment
       const civil = this.addCivilDays(startCivil, dayOffset);
       const dayOfWeek = this.civilDayOfWeek(civil);
 
@@ -84,6 +106,7 @@ export class SchedulingService {
       const candidates = this.buildCandidateTimesForDay(slotsByDay[dayOfWeek] || [], postsPerDay);
 
       for (const candidate of candidates) {
+        if (Date.now() - searchStart > SEARCH_DEADLINE_MS) break; // see SEARCH_DEADLINE_MS doc comment
         const candidateUtc = this.zonedTimeToUtc(civil.year, civil.month, civil.day, candidate.hour, candidate.minute, timeZone);
         if (candidateUtc.getTime() <= now.getTime()) continue; // already passed, skip
         if (await this.isSlotTaken(brandId, candidateUtc)) continue; // exact-instant collision
