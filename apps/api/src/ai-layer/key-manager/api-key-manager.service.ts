@@ -25,6 +25,18 @@ const TRANSIENT_COOLDOWN_MS = 5 * 60 * 1000;
 // spent for a while -- no point retrying it again in the next few
 // minutes, so bench it until the next UTC day instead.
 const QUOTA_COOLDOWN_MS = 12 * 60 * 60 * 1000;
+// Groq's per-key rate limit is tokens-PER-MINUTE (a rolling ~60s window),
+// not a daily quota -- confirmed via production error bodies like
+// "...on tokens per minute (TPM): Limit 8000... Please try again in
+// 9.72s." Bug found live: this used to match the same isQuotaLike regex
+// as a genuine daily-quota exhaustion and get the full 12h QUOTA_COOLDOWN_MS,
+// which took every configured Groq key offline for the rest of the day
+// after just a handful of concurrent uploads burned through each key's
+// per-minute budget within seconds -- exactly what a user hit ("still
+// taking time" on hashtag generation, when the real cause was every key
+// already benched until the next day). A fresh minute is comfortably more
+// than the observed retry hints (all under ~25s in production).
+const TPM_RATE_LIMIT_COOLDOWN_MS = 60 * 1000;
 
 /**
  * Multi-key round robin + failover for providers that support it (Groq
@@ -121,8 +133,7 @@ export class ApiKeyManagerService {
 
     let disabledUntil: number | null = prev.disabledUntil;
     if (consecutiveFailures >= FAILURE_THRESHOLD) {
-      const isQuotaLike = /rate.?limit|quota|429|too many requests/i.test(errorMessage);
-      disabledUntil = Date.now() + (isQuotaLike ? QUOTA_COOLDOWN_MS : TRANSIENT_COOLDOWN_MS);
+      disabledUntil = Date.now() + this.cooldownForError(errorMessage);
       this.logger.warn(
         `Key ${label} (${provider}) disabled until ${new Date(disabledUntil).toISOString()} after ${consecutiveFailures} consecutive failures: ${errorMessage}`,
       );
@@ -130,6 +141,29 @@ export class ApiKeyManagerService {
 
     this.health.set(key, { consecutiveFailures, disabledUntil });
     this.persist(provider, label, { success: false, errorMessage, disabledUntil }).catch(() => {});
+  }
+
+  /**
+   * How long to bench a key, based on what kind of failure this actually
+   * is. Order matters: check for genuine day-scale exhaustion first (e.g.
+   * Gemini's free-tier daily cap, whose error body includes
+   * "GenerateRequestsPerDayPerProjectPerModel"), then Groq's specifically
+   * per-minute token limit (self-clears in well under a minute), then fall
+   * back to the previous blanket rate-limit/quota heuristic for anything
+   * else 429-shaped, and finally the short transient cooldown for
+   * everything else (network blips, malformed responses, etc.).
+   */
+  private cooldownForError(errorMessage: string): number {
+    if (/per.?day|daily/i.test(errorMessage)) {
+      return QUOTA_COOLDOWN_MS;
+    }
+    if (/tokens per minute|\btpm\b/i.test(errorMessage)) {
+      return TPM_RATE_LIMIT_COOLDOWN_MS;
+    }
+    if (/rate.?limit|quota|429|too many requests/i.test(errorMessage)) {
+      return QUOTA_COOLDOWN_MS;
+    }
+    return TRANSIENT_COOLDOWN_MS;
   }
 
   /** Loads persisted health state once per provider per warm instance. */
