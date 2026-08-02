@@ -142,29 +142,42 @@ export default function ApprovalQueuePage() {
     );
   };
 
+  /**
+   * Optimistic UI: the post leaves the visible queue the instant the button
+   * is clicked, not after the network round-trip resolves. Safe to do
+   * unconditionally here because a genuine request-level failure (network
+   * error, 500 before the DB write commits) is the only case where the post
+   * is still actually NEEDS_APPROVAL server-side — that's exactly the case
+   * the catch block restores the snapshot for. A successful response never
+   * needs undoing since the post really did leave the queue.
+   */
   const handleReject = async (id: string) => {
+    const snapshot = posts;
+    setPosts((prev) => prev.filter((p) => p.id !== id));
+    setEditingPostId((cur) => (cur === id ? null : cur));
     setBusyId(id); setBusyAction('reject');
     try {
       await brandFetch(`/posts/${id}/reject`, { method: 'POST' });
-      setPosts((prev) => prev.filter((p) => p.id !== id));
-      setEditingPostId(null);
       flash('Post rejected and removed from the queue.');
     } catch (e: any) {
+      setPosts(snapshot);
       flash(e.message || 'Could not reject this post.');
     } finally {
       setBusyId(null); setBusyAction(null);
     }
   };
 
-  /** "Approve & Continue" — approves using whatever is currently stored (AI-selected time, or a previous edit), no form required. */
+  /** "Approve & Continue" — approves using whatever is currently stored (AI-selected time, or a previous edit), no form required. Optimistic, see handleReject's note. */
   const handleApprove = async (id: string) => {
+    const snapshot = posts;
+    setPosts((prev) => prev.filter((p) => p.id !== id));
+    setEditingPostId((cur) => (cur === id ? null : cur));
     setBusyId(id); setBusyAction('approve');
     try {
       await brandFetch(`/posts/${id}/approve`, { method: 'POST', body: JSON.stringify({}) });
-      setPosts((prev) => prev.filter((p) => p.id !== id));
-      setEditingPostId(null);
       flash('🎉 Post approved and scheduled for publishing!');
     } catch (e: any) {
+      setPosts(snapshot);
       flash(e.message || 'Could not approve this post.');
     } finally {
       setBusyId(null); setBusyAction(null);
@@ -215,15 +228,17 @@ export default function ApprovalQueuePage() {
     }
   };
 
-  /** Saves the edited fields and schedules the post for the chosen date/time. */
+  /** Saves the edited fields and schedules the post for the chosen date/time. Optimistic, see handleReject's note. */
   const handleSchedule = async (id: string) => {
+    const snapshot = posts;
+    setPosts((prev) => prev.filter((p) => p.id !== id));
+    setEditingPostId((cur) => (cur === id ? null : cur));
     setBusyId(id); setBusyAction('schedule');
     try {
       await brandFetch(`/posts/${id}/approve`, { method: 'POST', body: JSON.stringify(buildEditBody()) });
-      setPosts((prev) => prev.filter((p) => p.id !== id));
-      setEditingPostId(null);
       flash('📅 Post scheduled — check Scheduled Posts.');
     } catch (e: any) {
+      setPosts(snapshot);
       flash(e.message || 'Could not schedule this post.');
     } finally {
       setBusyId(null); setBusyAction(null);
@@ -232,15 +247,25 @@ export default function ApprovalQueuePage() {
 
   /**
    * Saves the edited fields and publishes immediately instead of waiting
-   * for the scheduled time. This now actually awaits the real Instagram/
-   * TikTok API calls on the backend (fixed a bug where the request
-   * returned before publishing had genuinely completed, so the UI could
-   * claim success on a post that was never actually posted) — the request
-   * can legitimately take up to ~30-40s for video, during which the
-   * "AMAI Engine running…" status below updates live from real backend
-   * events as they happen.
+   * for the scheduled time. The post leaves the visible queue the instant
+   * this is clicked (optimistic — see handleReject's note; still valid here
+   * since /approve moves the post out of NEEDS_APPROVAL server-side before
+   * the platform API call even starts, win or lose). The request itself
+   * still genuinely awaits the real Instagram/TikTok API calls on the
+   * backend (fixed a prior bug where the request returned before publishing
+   * had genuinely completed, so the UI could claim success on a post that
+   * was never actually posted) — that can legitimately take up to ~30-40s
+   * for video, but the queue and the rest of the dashboard no longer wait
+   * on it: the "AMAI Engine running…" status below updates live from real
+   * backend events as they happen, and every other page (Scheduled,
+   * Published, Analytics) now hears about the outcome over the same
+   * Supabase Realtime-backed SSE stream in real time regardless of how long
+   * this one request takes.
    */
   const handlePublishNow = async (id: string) => {
+    const snapshot = posts;
+    setPosts((prev) => prev.filter((p) => p.id !== id));
+    setEditingPostId((cur) => (cur === id ? null : cur));
     setBusyId(id); setBusyAction('publish');
     setLiveProgress('Starting the AMAI Engine…');
     try {
@@ -248,12 +273,6 @@ export default function ApprovalQueuePage() {
         `/posts/${id}/approve`,
         { method: 'POST', body: JSON.stringify({ ...buildEditBody(), publishNow: true }) },
       );
-
-      // The post already left NEEDS_APPROVAL the moment /approve ran
-      // (before publishing was even attempted), so it's out of this queue
-      // either way — the branches below only decide what to tell the user.
-      setPosts((prev) => prev.filter((p) => p.id !== id));
-      setEditingPostId(null);
 
       const reasons = (result.publishErrors || []).map((e) => `${e.platform}: ${e.error}`).join(' · ');
       if (result.status === 'PUBLISHED') {
@@ -271,6 +290,11 @@ export default function ApprovalQueuePage() {
         flash('Publishing — check Scheduled Posts for status.');
       }
     } catch (e: any) {
+      // A genuine request-level failure (network error, 500 before the
+      // approve transaction committed) means the post likely never actually
+      // left NEEDS_APPROVAL server-side -- restore it rather than leaving
+      // the queue showing one fewer post than actually still needs review.
+      setPosts(snapshot);
       flash(e.message || 'Could not publish this post.');
     } finally {
       setBusyId(null); setBusyAction(null); setLiveProgress(null);

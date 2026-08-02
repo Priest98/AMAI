@@ -138,8 +138,29 @@ export default function ConnectedAccountsPage() {
     window.location.href = `${API_BASE}/oauth/${platform}/connect?brandId=${brandId}`;
   };
 
+  /**
+   * Optimistic: the card flips to "not connected" the instant this is
+   * clicked, not after the DELETE round-trip resolves. Snapshot both the
+   * account list and the local-storage fallback state so a genuine failure
+   * (network error, or the 401-swallowing bug this used to have -- see the
+   * apiFetch note below) can restore exactly what was showing before,
+   * instead of leaving the UI claiming "disconnected" for an account still
+   * very much connected server-side.
+   */
   const handleDisconnectAccount = async (platformKey: 'instagram' | 'tiktok', accountId?: string) => {
     setActiveMenu(null);
+    const accountsSnapshot = accounts;
+    const localSnapshot = platformKey === 'instagram' ? localInstagram : localTikTok;
+
+    setAccounts((prev) => prev.filter((a) => a.id !== accountId));
+    if (platformKey === 'instagram') {
+      localStorage.removeItem('amai_connected_instagram');
+      setLocalInstagram(null);
+    } else {
+      localStorage.removeItem('amai_connected_tiktok');
+      setLocalTikTok(null);
+    }
+
     try {
       // apiFetch attaches the auth token and throws on any non-2xx response
       // (401, 404, etc.) instead of silently swallowing it. The previous
@@ -150,18 +171,17 @@ export default function ConnectedAccountsPage() {
       if (accountId) {
         await apiFetch(`/oauth/accounts/${accountId}`, { method: 'DELETE' });
       }
-
-      if (platformKey === 'instagram') {
-        localStorage.removeItem('amai_connected_instagram');
-        setLocalInstagram(null);
-      } else if (platformKey === 'tiktok') {
-        localStorage.removeItem('amai_connected_tiktok');
-        setLocalTikTok(null);
-      }
-
       setMessage({ text: 'Account disconnected successfully.', type: 'success' });
       await fetchAccounts();
     } catch (err) {
+      setAccounts(accountsSnapshot);
+      if (platformKey === 'instagram') {
+        if (localSnapshot) { localStorage.setItem('amai_connected_instagram', JSON.stringify(localSnapshot)); }
+        setLocalInstagram(localSnapshot);
+      } else {
+        if (localSnapshot) { localStorage.setItem('amai_connected_tiktok', JSON.stringify(localSnapshot)); }
+        setLocalTikTok(localSnapshot);
+      }
       const message = err instanceof Error ? err.message : 'Failed to disconnect account.';
       setMessage({ text: message, type: 'error' });
     }
