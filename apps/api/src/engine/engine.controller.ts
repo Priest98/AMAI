@@ -1,10 +1,10 @@
 import { Controller, Get, Post, Patch, Body, Param, Sse, MessageEvent, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { BrandAccessGuard } from '../auth/brand-access.guard';
-import { Observable, fromEvent, map, filter, merge, of, timer, takeUntil } from 'rxjs';
-import { EventEmitter2 } from '@nestjs/event-emitter';
+import { Observable, map, merge, of, timer, takeUntil } from 'rxjs';
 import { EngineService } from './engine.service';
 import { EngineJobsService } from './engine-jobs.service';
+import { SupabaseRealtimeService } from './supabase-realtime.service';
 import { EngineState, ApprovalMode, ScheduleStartOption, SchedulingPlatform } from '@prisma/client';
 
 @UseGuards(JwtAuthGuard, BrandAccessGuard)
@@ -13,7 +13,7 @@ export class EngineController {
   constructor(
     private readonly engineService: EngineService,
     private readonly engineJobsService: EngineJobsService,
-    private readonly eventEmitter: EventEmitter2,
+    private readonly supabaseRealtime: SupabaseRealtimeService,
   ) {}
 
   @Get('state')
@@ -71,6 +71,14 @@ export class EngineController {
    * brand, so the dashboard, Media Library, Approval Queue, Scheduled Posts
    * and Published Posts pages can all update live without a page refresh.
    *
+   * Backed by Supabase Realtime (Postgres logical replication) via
+   * SupabaseRealtimeService, not an in-process EventEmitter -- see that
+   * file for why: the old EventEmitter2-based version silently dropped
+   * events whenever the SSE-holding Lambda instance differed from the one
+   * that handled the write, which is routine on Vercel. This version's
+   * subscription talks directly to Postgres, so it works identically
+   * regardless of which instance serves this request.
+   *
    * Vercel serverless functions have a hard execution cap (maxDuration =
    * 60s on this plan), but SSE is meant to stay open indefinitely -- left
    * alone, Vercel force-kills the function every ~60s, which shows up as a
@@ -81,7 +89,9 @@ export class EngineController {
    * browser sees a normal close (not an error) and immediately opens a
    * fresh connection. Same effective behaviour, no more logged errors, and
    * the handoff is faster since the client doesn't have to wait out a
-   * connection timeout to notice something's wrong.
+   * connection timeout to notice something's wrong. Each reconnect tears
+   * down and re-opens its own Realtime channel (see
+   * SupabaseRealtimeService.watchEngineEvents teardown).
    */
   @Sse('events')
   streamEvents(@Param('brandId') brandId: string): Observable<MessageEvent> {
@@ -91,9 +101,8 @@ export class EngineController {
     // live updates rather than several.
     const connected$ = of({ data: { type: 'CONNECTED' }, retry: 1000 } as MessageEvent);
 
-    const activity$ = fromEvent(this.eventEmitter, 'engine.activity').pipe(
-      filter((event: any) => event.brandId === brandId),
-      map((event: any) => ({ data: event }) as MessageEvent),
+    const activity$ = this.supabaseRealtime.watchEngineEvents(brandId).pipe(
+      map((event) => ({ data: event }) as MessageEvent),
     );
 
     return merge(connected$, activity$).pipe(takeUntil(timer(50_000)));
