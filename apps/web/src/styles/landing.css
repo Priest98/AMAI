@@ -188,3 +188,74 @@
   outline-offset: 2px;
   border-radius: 8px;
 }
+
+/* ==================================================================
+ * Unified ambient background system
+ * ------------------------------------------------------------------
+ * One continuous layered backdrop -- soft ink-like glow blooms, fine
+ * grain, and a grounding vignette -- spanning the full document height
+ * behind Nav / Hero / every section / Footer. Sections themselves stay
+ * transparent so this single asset reads as one flowing surface rather
+ * than a series of separate section backgrounds. Inspired by the
+ * reference moodboard's diffusing-ink-in-water quality, reinterpreted
+ * in the site's navy/steel-blue palette instead of copying its cyan.
+ * ================================================================ */
+.lp-ambient-bg {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.lp-ambient-blooms {
+  position: absolute;
+  inset: -8% -10%;
+  background-repeat: no-repeat;
+  background-image:
+    radial-gradient(ellipse 900px 560px at 18% 3%, rgba(127, 176, 219, 0.22), transparent 60%),
+    radial-gradient(ellipse 720px 720px at 90% 16%, rgba(26, 61, 99, 0.40), transparent 64%),
+    radial-gradient(ellipse 820px 660px at 6% 38%, rgba(74, 127, 167, 0.17), transparent 62%),
+    radial-gradient(ellipse 920px 640px at 94% 55%, rgba(26, 61, 99, 0.34), transparent 60%),
+    radial-gradient(ellipse 780px 660px at 12% 74%, rgba(127, 176, 219, 0.15), transparent 60%),
+    radial-gradient(ellipse 1000px 720px at 82% 92%, rgba(127, 176, 219, 0.24), transparent 62%);
+  animation: lp-drift 46s ease-in-out infinite;
+  will-change: transform;
+}
+
+.amai-landing.light .lp-ambient-blooms {
+  background-image:
+    radial-gradient(ellipse 900px 560px at 18% 3%, rgba(74, 127, 167, 0.12), transparent 60%),
+    radial-gradient(ellipse 720px 720px at 90% 16%, rgba(74, 127, 167, 0.16), transparent 64%),
+    radial-gradient(ellipse 820px 660px at 6% 38%, rgba(74, 127, 167, 0.09), transparent 62%),
+    radial-gradient(ellipse 920px 640px at 94% 55%, rgba(74, 127, 167, 0.14), transparent 60%),
+    radial-gradient(ellipse 780px 660px at 12% 74%, rgba(74, 127, 167, 0.09), transparent 60%),
+    radial-gradient(ellipse 1000px 720px at 82% 92%, rgba(74, 127, 167, 0.13), transparent 62%);
+}
+
+.lp-ambient-grain {
+  position: absolute;
+  inset: 0;
+  opacity: 0.05;
+  mix-blend-mode: overlay;
+  background-repeat: repeat;
+  background-size: 160px 160px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.lp-ambient-vignette {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 75% 42% at 50% 0%, transparent 30%, rgba(4, 7, 13, 0.5) 100%),
+    linear-gradient(to bottom, rgba(4, 7, 13, 0.45) 0%, transparent 10%, transparent 90%, rgba(4, 7, 13, 0.6) 100%);
+}
+
+.amai-landing.light .lp-ambient-vignette {
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.35) 0%, transparent 10%, transparent 90%, rgba(255, 255, 255, 0.5) 100%);
+}
+
+@keyframes lp-drift {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(-1.5%, 1%, 0) scale(1.035); }
+}

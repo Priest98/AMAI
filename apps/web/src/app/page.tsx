@@ -79,7 +79,7 @@ export default function Home() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <div
-        className="amai-landing dark min-h-screen"
+        className="amai-landing dark relative min-h-screen"
         style={
           {
             // Design System v2: Space Grotesk + Inter are now loaded once at
@@ -93,6 +93,16 @@ export default function Home() {
           } as CSSProperties
         }
       >
+        {/* Single continuous background asset (glow blooms + grain +
+            vignette) spanning the full page height behind every section,
+            so the backdrop flows seamlessly from hero to footer instead of
+            resetting section to section. See landing.css for the layers. */}
+        <div className="lp-ambient-bg" aria-hidden="true">
+          <div className="lp-ambient-blooms" />
+          <div className="lp-ambient-grain" />
+          <div className="lp-ambient-vignette" />
+        </div>
+
         <a
           href="#main-content"
           className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:rounded-lg lp-btn-primary"
