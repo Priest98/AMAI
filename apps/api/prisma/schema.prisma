@@ -59,6 +59,7 @@ model OrganizationMember {
 
   @@unique([userId, organizationId])
   @@index([userId], map: "idx_org_member_user")
+  @@index([organizationId], map: "idx_org_member_org")
 }
 
 model Brand {
@@ -81,6 +82,8 @@ model Brand {
   posts               Post[]
   socialAccounts      SocialAccount[]
   engineEvents        EngineEvent[]
+
+  @@index([organizationId], map: "idx_brand_org")
 }
 
 model GrowthSettings {
@@ -124,6 +127,9 @@ model MediaFolder {
   brand     Brand         @relation(fields: [brandId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   parent    MediaFolder?  @relation("FolderHierarchy", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   children  MediaFolder[] @relation("FolderHierarchy")
+
+  @@index([brandId], map: "idx_media_folder_brand")
+  @@index([parentId], map: "idx_media_folder_parent")
 }
 
 enum MediaStatus {
@@ -258,6 +264,7 @@ model PostTarget {
   publishingLogs           PublishingLog[]
 
   @@unique([postId, socialAccountId])
+  @@index([socialAccountId], map: "idx_post_target_social_account")
 }
 
 model PostMedia {
@@ -267,6 +274,7 @@ model PostMedia {
   post    Post       @relation(fields: [postId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@id([postId, assetId])
+  @@index([assetId], map: "idx_post_media_asset")
 }
 
 model AiUsageLog {
@@ -278,6 +286,8 @@ model AiUsageLog {
   tokensUsed Int
   createdAt  DateTime @default(now()) @db.Timestamptz(6)
   brand      Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([brandId], map: "idx_ai_usage_log_brand")
 }
 
 model PublishingLog {
@@ -288,6 +298,8 @@ model PublishingLog {
   apiResponse  String?
   createdAt    DateTime     @default(now()) @db.Timestamptz(6)
   postTarget   PostTarget   @relation(fields: [postTargetId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([postTargetId], map: "idx_publishing_log_post_target")
 }
 
 /// The AMAI Engine's per-brand configuration: whether it is Active/Paused,
