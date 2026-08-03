@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Logo } from '@/components/logo';
+import Input from '@/components/ui/Input';
+import Button from '@/components/ui/Button';
 import { User, AtSign, Lock, ArrowRight, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { API_BASE, isAuthenticated } from '@/lib/api';
 import { capture } from '@/lib/posthog';
@@ -76,17 +78,17 @@ export default function RegisterPage() {
   };
 
   if (checkingSession) {
-    return <div className="min-h-screen w-full bg-[#F7F8FC] dark:bg-[#0B0D12]" />;
+    return <div className="min-h-screen w-full" style={{ backgroundColor: 'var(--bg-base)' }} />;
   }
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center p-4 bg-[#F7F8FC] dark:bg-[#0B0D12] text-slate-900 dark:text-white font-sans ambient-bg transition-colors duration-300">
-      
+    <div className="min-h-screen w-full flex items-center justify-center p-4" style={{ color: 'var(--text-primary)' }}>
+
       <motion.div
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-        className="w-full max-w-md bg-white dark:bg-[#12151D] border border-slate-200/80 dark:border-white/10 rounded-[28px] p-8 sm:p-10 shadow-2xl space-y-8 relative overflow-hidden"
+        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+        className="glass-panel w-full max-w-md rounded-[var(--radius-xl)] p-8 sm:p-10 space-y-8 relative overflow-hidden"
       >
         {/* Brand Header */}
         <div className="space-y-3 text-center sm:text-left">
@@ -94,10 +96,10 @@ export default function RegisterPage() {
             <Logo className="h-9" />
           </Link>
           <div>
-            <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+            <h1 className="text-h1" style={{ color: 'var(--text-primary)' }}>
               Create your AMAI Account
             </h1>
-            <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">
+            <p className="text-body-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
               Start automating your content pipeline with AI intelligence.
             </p>
           </div>
@@ -105,7 +107,7 @@ export default function RegisterPage() {
 
         {/* Error Feedback */}
         {error && (
-          <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-xs font-semibold flex items-center space-x-2">
+          <div className="p-4 rounded-[var(--radius-lg)] border text-xs font-semibold flex items-center space-x-2" style={{ backgroundColor: 'var(--accent-error-subtle)', borderColor: 'var(--accent-error)', color: 'var(--accent-error)' }}>
             <AlertCircle className="h-4 w-4 flex-shrink-0" />
             <span>{error}</span>
           </div>
@@ -113,112 +115,91 @@ export default function RegisterPage() {
 
         {/* Registration Form */}
         <form onSubmit={handleRegister} className="space-y-4">
-          
-          <div className="space-y-1.5">
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">
-              Full Name
-            </label>
-            <div className="relative flex items-center">
-              <User className="absolute left-4 h-4 w-4 text-slate-400 dark:text-zinc-500 pointer-events-none" />
-              <input
-                type="text"
-                required
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                placeholder="Alex Morgan"
-                className="w-full pl-11 pr-4 py-3.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-zinc-950/60 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-violet-500/50 transition"
-              />
-            </div>
-          </div>
+
+          <Input
+            label="Full Name"
+            type="text"
+            required
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            placeholder="Alex Morgan"
+            leadingIcon={<User className="h-4 w-4" />}
+          />
+
+          <Input
+            label="Email Address"
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="alex@company.com"
+            leadingIcon={<AtSign className="h-4 w-4" />}
+          />
 
           <div className="space-y-1.5">
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">
-              Email Address
-            </label>
+            <label className="text-overline block">Password</label>
             <div className="relative flex items-center">
-              <AtSign className="absolute left-4 h-4 w-4 text-slate-400 dark:text-zinc-500 pointer-events-none" />
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="alex@company.com"
-                className="w-full pl-11 pr-4 py-3.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-zinc-950/60 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-violet-500/50 transition"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">
-              Password
-            </label>
-            <div className="relative flex items-center">
-              <Lock className="absolute left-4 h-4 w-4 text-slate-400 dark:text-zinc-500 pointer-events-none" />
+              <span className="absolute left-3.5 flex items-center pointer-events-none" style={{ color: 'var(--text-muted)' }}>
+                <Lock className="h-4 w-4" />
+              </span>
               <input
                 type={showPassword ? 'text' : 'password'}
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Minimum 8 characters"
-                className="w-full pl-11 pr-11 py-3.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-zinc-950/60 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-violet-500/50 transition"
+                className="input-field w-full text-body py-3 pl-10 pr-11"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-4 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200"
+                className="absolute right-3.5"
+                style={{ color: 'var(--text-muted)' }}
               >
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
             </div>
           </div>
 
-          <div className="space-y-1.5">
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">
-              Confirm Password
-            </label>
-            <div className="relative flex items-center">
-              <Lock className="absolute left-4 h-4 w-4 text-slate-400 dark:text-zinc-500 pointer-events-none" />
-              <input
-                type={showPassword ? 'text' : 'password'}
-                required
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Repeat password"
-                className="w-full pl-11 pr-4 py-3.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-zinc-950/60 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-violet-500/50 transition"
-              />
-            </div>
-          </div>
+          <Input
+            label="Confirm Password"
+            type={showPassword ? 'text' : 'password'}
+            required
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            placeholder="Repeat password"
+            leadingIcon={<Lock className="h-4 w-4" />}
+          />
 
           {/* Password Strength Indicators */}
           {password && (
-            <div className="space-y-1 pt-1">
-              <div className="h-1.5 w-full bg-slate-200 dark:bg-zinc-800 rounded-full overflow-hidden">
+            <div className="space-y-1.5 pt-1">
+              <div className="h-1.5 w-full rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bg-surface-sunken)' }}>
                 <div
-                  className={`h-full transition-all duration-300 ${
-                    isPasswordStrong ? 'w-full bg-emerald-500' : isPasswordLong ? 'w-2/3 bg-amber-500' : 'w-1/3 bg-red-500'
-                  }`}
+                  className="h-full transition-all duration-300"
+                  style={{
+                    width: isPasswordStrong ? '100%' : isPasswordLong ? '66%' : '33%',
+                    backgroundColor: isPasswordStrong ? 'var(--accent-success)' : isPasswordLong ? 'var(--accent-warning)' : 'var(--accent-error)',
+                  }}
                 />
               </div>
-              <p className="text-[11px] text-slate-400 dark:text-zinc-500">
+              <p className="text-caption" style={{ color: 'var(--text-muted)' }}>
                 {isPasswordStrong ? '✅ Strong password' : isPasswordLong ? '⚠️ Add a number for a stronger password' : '❌ Minimum 8 characters required'}
               </p>
             </div>
           )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-4 px-6 bg-gradient-to-r from-indigo-900 via-violet-700 to-violet-600 hover:opacity-95 text-white font-bold text-sm rounded-2xl shadow-xl shadow-violet-600/20 transition flex items-center justify-center space-x-2 border border-white/20 touch-target disabled:opacity-50 mt-2"
-          >
-            <span>{loading ? 'Creating Account...' : 'Create AMAI Account'}</span>
-            <ArrowRight className="h-4 w-4" />
-          </button>
+          <div className="pt-2">
+            <Button type="submit" variant="primary" fullWidth loading={loading} icon={<ArrowRight className="h-4 w-4" />}>
+              Create AMAI Account
+            </Button>
+          </div>
         </form>
 
         {/* Footer Link */}
-        <p className="text-center text-xs text-slate-500 dark:text-zinc-400 pt-2">
+        <p className="text-center text-body-sm pt-2" style={{ color: 'var(--text-secondary)' }}>
           Already have an account?{' '}
-          <Link href="/login" className="font-bold text-violet-600 dark:text-violet-400 hover:underline">
+          <Link href="/login" className="font-bold hover:underline" style={{ color: 'var(--accent-secondary)' }}>
             Sign in
           </Link>
         </p>

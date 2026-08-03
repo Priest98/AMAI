@@ -4,6 +4,8 @@ import { useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import UploadDropzone from "@/components/media/UploadDropzone";
+import EmptyState from "@/components/ui/EmptyState";
+import { SkeletonCardGrid } from "@/components/ui/Skeleton";
 import { apiFetch, brandFetch, getBrandId, API_BASE } from '@/lib/api';
 import { useEngineEvents } from '@/lib/useEngineEvents';
 import { GoogleDriveLogo } from '@/components/icons/platform-logos';
@@ -168,8 +170,8 @@ function MediaSourceSection() {
   };
 
   return (
-    <div className="rounded-2xl border p-5" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}>
-      <h2 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white tracking-tight mb-3">Media Source</h2>
+    <div className="exec-card p-5 sm:p-6">
+      <h2 className="text-h3 mb-4" style={{ color: 'var(--text-primary)' }}>Media Source</h2>
 
       <AnimatePresence>
         {message && (
@@ -193,20 +195,20 @@ function MediaSourceSection() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {/* Upload Directly */}
-        <div className="rounded-xl border p-4 space-y-3" style={{ borderColor: 'var(--card-border)' }}>
-          <div className="flex items-center space-x-2">
-            <div className="h-9 w-9 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'var(--bg-surface-raised)' }}>
+        <div className="surface-tile p-4 space-y-3">
+          <div className="flex items-center space-x-2.5">
+            <div className="h-9 w-9 rounded-[var(--radius-md)] flex items-center justify-center" style={{ backgroundColor: 'var(--bg-surface-sunken)' }}>
               <Upload className="h-4 w-4" style={{ color: 'var(--text-secondary)' }} />
             </div>
             <div>
-              <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Upload directly</p>
-              <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Drop photos or videos in below</p>
+              <p className="text-body-sm font-bold" style={{ color: 'var(--text-primary)' }}>Upload directly</p>
+              <p className="text-caption" style={{ color: 'var(--text-secondary)' }}>Drop photos or videos in below</p>
             </div>
           </div>
         </div>
 
         {/* Google Drive */}
-        <div className="rounded-xl border p-4 space-y-3 relative" style={{ borderColor: 'var(--card-border)' }}>
+        <div className="surface-tile p-4 space-y-3 relative">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <div className="h-9 w-9 rounded-lg flex items-center justify-center p-1.5" style={{ backgroundColor: 'var(--bg-surface-raised)' }}>
@@ -422,14 +424,14 @@ export default function MediaLibraryPage() {
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-24 sm:pb-12">
       <div>
-        <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Media Library</h1>
-        <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">
+        <h1 className="text-h1" style={{ color: 'var(--text-primary)' }}>Media Library</h1>
+        <p className="text-body-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
           Upload photos and videos — the AMAI Engine takes it from here.
         </p>
       </div>
 
       {error && (
-        <div className="p-3.5 rounded-xl border bg-red-500/10 border-red-500/20 text-red-400 text-xs font-semibold flex items-center space-x-2">
+        <div className="p-3.5 rounded-[var(--radius-lg)] border text-xs font-semibold flex items-center space-x-2" style={{ backgroundColor: 'var(--accent-error-subtle)', borderColor: 'var(--accent-error)', color: 'var(--accent-error)' }}>
           <AlertCircle className="h-3.5 w-3.5 shrink-0" />
           <span>{error}</span>
         </div>
@@ -441,27 +443,26 @@ export default function MediaLibraryPage() {
       </Suspense>
 
       {/* Upload Dropzone Component */}
-      <div data-tour="tour-upload-dropzone" className="rounded-2xl border p-5" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}>
-        <h2 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white tracking-tight mb-3">Upload New Media</h2>
+      <div data-tour="tour-upload-dropzone" className="exec-card p-5 sm:p-6">
+        <h2 className="text-h3 mb-4" style={{ color: 'var(--text-primary)' }}>Upload New Media</h2>
         <UploadDropzone onUploaded={handleUploaded} />
       </div>
 
       {/* Media Gallery */}
-      <div className="rounded-2xl border p-5 sm:p-6 space-y-4" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}>
+      <div className="exec-card p-5 sm:p-6 space-y-5">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white tracking-tight">Uploaded Assets</h2>
-          <span className="text-xs font-bold text-slate-400 dark:text-zinc-500">{assets.length} Assets</span>
+          <h2 className="text-h3" style={{ color: 'var(--text-primary)' }}>Uploaded Assets</h2>
+          <span className="text-caption" style={{ color: 'var(--text-muted)' }}>{assets.length} assets</span>
         </div>
 
         {loading ? (
-          <div className="py-12 flex items-center justify-center text-xs" style={{ color: 'var(--text-secondary)' }}>
-            <Loader2 className="h-4 w-4 animate-spin mr-2" /> Loading…
-          </div>
+          <SkeletonCardGrid count={10} />
         ) : assets.length === 0 ? (
-          <div className="text-center py-12 border-2 border-dashed border-slate-200 dark:border-white/10 rounded-xl">
-            <p className="text-xs font-bold text-slate-500 dark:text-zinc-400">No media assets uploaded yet.</p>
-            <p className="text-[11px] text-slate-400 dark:text-zinc-500 mt-1">Drag and drop files above to see them appear here instantly.</p>
-          </div>
+          <EmptyState
+            icon={<Upload className="h-6 w-6" />}
+            title="No media yet"
+            description="Drag and drop files above to see them appear here instantly."
+          />
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
             {assets.map((asset) => {
@@ -469,7 +470,8 @@ export default function MediaLibraryPage() {
               return (
                 <div
                   key={asset.id}
-                  className="group relative aspect-square rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-zinc-950/60 overflow-hidden"
+                  className="group relative aspect-square rounded-[var(--radius-lg)] border overflow-hidden transition-all duration-200"
+                  style={{ borderColor: 'var(--card-border)', backgroundColor: 'var(--bg-surface-sunken)' }}
                 >
                   {asset.blobUrl ? (
                     asset.mimeType?.startsWith('video') ? (

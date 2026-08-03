@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import GlassmorphicToggle from '@/components/ui/GlassmorphicToggle';
+import EngineWorkflowVisualization from '@/components/engine/EngineWorkflowVisualization';
 import { brandFetch } from '@/lib/api';
 import { useEngineEvents, EngineEvent } from '@/lib/useEngineEvents';
 import {
@@ -177,8 +178,8 @@ export default function AmaiEnginePage() {
   return (
     <div className="space-y-6 max-w-4xl mx-auto pb-24 sm:pb-12">
       <div>
-        <h1 className="text-xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>AMAI Engine</h1>
-        <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
+        <h1 className="text-h1" style={{ color: 'var(--text-primary)' }}>AMAI Engine</h1>
+        <p className="text-body-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
           The brain of your workspace — it watches for new content and runs your publishing workflow automatically.
         </p>
       </div>
@@ -194,11 +195,13 @@ export default function AmaiEnginePage() {
         )}
       </AnimatePresence>
 
+      {/* ── AMAI Engine live workflow — the product's visual centerpiece ── */}
+      <div data-tour="tour-engine-activity">
+        <EngineWorkflowVisualization />
+      </div>
+
       {/* ── Main Engine State Card ── */}
-      <div
-        className="rounded-2xl border p-6 sm:p-8 flex flex-col sm:flex-row items-center sm:items-start justify-between gap-6"
-        style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}
-      >
+      <div className="exec-card p-6 sm:p-8 flex flex-col sm:flex-row items-center sm:items-start justify-between gap-6">
         <div className="flex items-start space-x-4">
           <div
             className="h-11 w-11 rounded-2xl flex items-center justify-center shrink-0"
@@ -226,7 +229,7 @@ export default function AmaiEnginePage() {
       </div>
 
       {/* ── Approval Mode ── */}
-      <div data-tour="tour-engine-mode" className="rounded-2xl border p-5 sm:p-6 space-y-4" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}>
+      <div data-tour="tour-engine-mode" className="exec-card p-5 sm:p-6 space-y-4">
         <div>
           <h3 className="text-sm font-extrabold tracking-tight" style={{ color: 'var(--text-primary)' }}>Approval Mode</h3>
           <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
@@ -270,7 +273,7 @@ export default function AmaiEnginePage() {
       </div>
 
       {/* ── Persona / Tone ── */}
-      <div className="rounded-2xl border p-5 sm:p-6 space-y-4" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}>
+      <div className="exec-card p-5 sm:p-6 space-y-4">
         <div>
           <h3 className="text-sm font-extrabold tracking-tight" style={{ color: 'var(--text-primary)' }}>Brand Persona</h3>
           <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
@@ -296,7 +299,7 @@ export default function AmaiEnginePage() {
       </div>
 
       {/* ── Posting Schedule (AI publishing calendar) ── */}
-      <div className="rounded-2xl border p-5 sm:p-6 space-y-5" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}>
+      <div className="exec-card p-5 sm:p-6 space-y-5">
         <div className="flex items-center space-x-2">
           <CalendarClock className="h-4 w-4 text-indigo-400" />
           <div>
@@ -398,22 +401,26 @@ export default function AmaiEnginePage() {
         </div>
       </div>
 
-      {/* ── Live Activity ── */}
-      <div data-tour="tour-engine-activity" className="rounded-2xl border p-5 sm:p-6 space-y-3" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}>
+      {/* ── Activity history ── */}
+      <div className="exec-card p-5 sm:p-6 space-y-3">
         <div className="flex items-center space-x-2">
-          <Activity className="h-4 w-4 text-emerald-400" />
-          <h3 className="text-sm font-extrabold tracking-tight" style={{ color: 'var(--text-primary)' }}>Live Activity</h3>
+          <Activity className="h-4 w-4" style={{ color: 'var(--accent-success)' }} />
+          <h3 className="text-h3" style={{ color: 'var(--text-primary)' }}>Activity history</h3>
         </div>
         {activity.length === 0 ? (
-          <p className="text-xs py-4 text-center" style={{ color: 'var(--text-secondary)' }}>
+          <p className="text-body-sm py-4 text-center" style={{ color: 'var(--text-secondary)' }}>
             Nothing yet — upload media and the AMAI Engine will start working.
           </p>
         ) : (
-          <ul className="space-y-2 max-h-80 overflow-y-auto">
+          <ul className="space-y-1 max-h-80 overflow-y-auto">
             {activity.map((e) => (
-              <li key={e.id} className="text-xs flex items-start justify-between gap-3 py-1.5 border-b" style={{ borderColor: 'var(--card-border)' }}>
+              <li
+                key={e.id}
+                className="text-body-sm flex items-start justify-between gap-3 py-2 border-b last:border-b-0"
+                style={{ borderColor: 'var(--card-border)' }}
+              >
                 <span style={{ color: 'var(--text-primary)' }}>{e.message || e.type}</span>
-                <span className="shrink-0 text-[10px] font-mono" style={{ color: 'var(--text-secondary)' }}>
+                <span className="shrink-0 text-caption font-mono" style={{ color: 'var(--text-muted)' }}>
                   {new Date(e.createdAt).toLocaleTimeString()}
                 </span>
               </li>
@@ -427,31 +434,32 @@ export default function AmaiEnginePage() {
         {showAutoConfirm && (
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            className="fixed inset-0 z-[200] flex items-center justify-center p-4"
+            style={{ backgroundColor: 'rgba(10, 11, 20, 0.55)', backdropFilter: 'blur(4px)' }}
             onClick={() => setShowAutoConfirm(false)}
           >
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+              initial={{ scale: 0.96, opacity: 0, y: 8 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.97, opacity: 0, y: 4 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-sm rounded-2xl border p-6 space-y-4"
-              style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}
+              className="glass-panel w-full max-w-sm rounded-[var(--radius-xl)] p-6 space-y-4"
             >
-              <div className="h-10 w-10 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center">
+              <div className="h-10 w-10 rounded-[var(--radius-lg)] flex items-center justify-center" style={{ backgroundColor: 'var(--accent-warning-subtle)', color: 'var(--accent-warning)' }}>
                 <AlertTriangle className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="text-sm font-extrabold" style={{ color: 'var(--text-primary)' }}>Enable Auto Approval?</h3>
-                <p className="text-xs mt-1.5 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                <h3 className="text-h3" style={{ color: 'var(--text-primary)' }}>Enable Auto Approval?</h3>
+                <p className="text-body-sm mt-1.5 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
                   New posts will publish automatically at the AI-selected best time — no review step. You can switch back to Manual Approval anytime.
                 </p>
               </div>
               <div className="flex items-center justify-end space-x-2 pt-1">
-                <button onClick={() => setShowAutoConfirm(false)} className="px-4 py-2 rounded-xl text-xs font-bold" style={{ color: 'var(--text-secondary)' }}>
+                <button onClick={() => setShowAutoConfirm(false)} className="px-4 py-2 rounded-[var(--radius-md)] text-xs font-bold" style={{ color: 'var(--text-secondary)' }}>
                   Cancel
                 </button>
                 <button
                   onClick={() => applyApprovalMode('AUTO')}
-                  className="px-4 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-600 text-black shadow-md"
+                  className="px-4 py-2 rounded-[var(--radius-md)] text-xs font-bold shadow-md"
+                  style={{ backgroundColor: 'var(--accent-warning)', color: '#1A1300' }}
                 >
                   Enable Auto Approval
                 </button>

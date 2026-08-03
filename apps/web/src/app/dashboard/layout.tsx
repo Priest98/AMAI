@@ -25,6 +25,7 @@ import {
 import { getCurrentUser, logout } from '@/lib/api';
 import { EngineEventsProvider } from '@/lib/EngineEventsContext';
 import { OnboardingProvider } from '@/components/onboarding/OnboardingContext';
+import NotificationsBell from '@/components/dashboard/NotificationsBell';
 
 interface NavSubItem {
   label: string;
@@ -173,13 +174,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* ── 1. Unified 100% Full-Width Top Navigation Bar ── */}
       <header
         className="w-full h-14 border-b flex items-center justify-between px-4 sm:px-6 sticky top-0 z-40 backdrop-blur-md"
-        style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}
+        style={{ backgroundColor: 'var(--glass-bg)', borderColor: 'var(--card-border)' }}
       >
         {/* Left: Logo & Mobile Toggle */}
         <div className="flex items-center space-x-3 sm:space-x-4">
           <button
             onClick={() => setIsMobileOpen(true)}
-            className="md:hidden h-8 w-8 rounded-lg flex items-center justify-center touch-target"
+            className="md:hidden h-8 w-8 rounded-[var(--radius-md)] flex items-center justify-center touch-target"
             style={{ color: 'var(--text-secondary)' }}
             aria-label="Open Navigation Drawer"
           >
@@ -190,10 +191,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <Logo variant="full" className="h-7" />
           </Link>
 
-          <div className="hidden sm:block h-4 w-px bg-slate-200/40 dark:bg-white/10" />
+          <div className="hidden sm:block h-4 w-px" style={{ backgroundColor: 'var(--card-border)' }} />
 
           {/* Compact User Greeting */}
-          <span className="hidden sm:inline-block text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
+          <span className="hidden sm:inline-block text-body-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
             Hello, <span className="font-bold">{userName}</span>
           </span>
         </div>
@@ -201,19 +202,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* Right Utility Actions */}
         <div className="flex items-center space-x-2">
           {/* Live Date Picker */}
-          <div className="hidden md:flex items-center space-x-1.5 px-3 py-1 rounded-lg text-xs font-medium border" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-secondary)' }}>
+          <div className="hidden md:flex items-center space-x-1.5 px-3 py-1 rounded-[var(--radius-md)] text-xs font-medium border" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-secondary)' }}>
             <CalendarIcon className="h-3.5 w-3.5" style={{ color: 'var(--text-secondary)' }} />
             <span className="text-[11px] font-mono">{currentDateStr}</span>
           </div>
 
+          {/* Notifications */}
+          <NotificationsBell />
+
           {/* Theme Toggle Button */}
           <button
             onClick={toggleTheme}
-            className="h-8 w-8 rounded-lg transition border flex items-center justify-center touch-target"
+            className="h-8 w-8 rounded-[var(--radius-md)] transition-all duration-200 border flex items-center justify-center touch-target"
             style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-primary)' }}
             title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
           >
-            {isDarkMode ? <Sun className="h-3.5 w-3.5 text-amber-400" /> : <Moon className="h-3.5 w-3.5 text-slate-700" />}
+            {isDarkMode ? <Sun className="h-3.5 w-3.5" style={{ color: 'var(--accent-warning)' }} /> : <Moon className="h-3.5 w-3.5" style={{ color: 'var(--accent-secondary)' }} />}
           </button>
 
         </div>
@@ -228,13 +232,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsMobileOpen(false)}
-              className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40 md:hidden"
+              className="fixed inset-0 z-40 md:hidden"
+              style={{ backgroundColor: 'rgba(10, 11, 20, 0.6)', backdropFilter: 'blur(4px)' }}
             />
             <motion.div
               initial={{ x: '-100%' }}
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              transition={{ type: 'spring', damping: 26, stiffness: 320 }}
               className="fixed top-0 left-0 bottom-0 w-72 z-50 p-5 flex flex-col justify-between border-r md:hidden"
               style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}
             >
@@ -243,7 +248,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   <Logo variant="full" className="h-7" />
                   <button
                     onClick={() => setIsMobileOpen(false)}
-                    className="h-8 w-8 rounded-lg flex items-center justify-center touch-target"
+                    className="h-8 w-8 rounded-[var(--radius-md)] flex items-center justify-center touch-target"
                     style={{ color: 'var(--text-secondary)' }}
                   >
                     <X className="h-5 w-5" />
@@ -252,9 +257,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
                 <nav className="space-y-4">
                   {navSections.map((section, sIdx) => (
-                    <div key={sIdx} className="space-y-1">
+                    <div key={sIdx} className="space-y-0.5">
                       {section.title && (
-                        <p className="text-[10px] font-bold uppercase tracking-wider px-3 py-1" style={{ color: 'var(--text-secondary)' }}>
+                        <p className="text-overline px-3 py-1">
                           {section.title}
                         </p>
                       )}
@@ -267,13 +272,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                             href={item.href}
                             data-tour={NAV_TOUR_IDS[item.href]}
                             onClick={() => setIsMobileOpen(false)}
-                            className="flex items-center space-x-3 px-3 py-2 rounded-lg text-xs font-semibold transition"
+                            className="flex items-center space-x-3 px-3 py-2 rounded-[var(--radius-md)] text-body-sm font-semibold transition-all duration-200"
                             style={{
-                              backgroundColor: isActive ? 'var(--bg-surface-raised)' : 'transparent',
-                              color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+                              backgroundColor: isActive ? 'var(--accent-secondary-subtle)' : 'transparent',
+                              color: isActive ? 'var(--accent-secondary)' : 'var(--text-secondary)',
                             }}
                           >
-                            <Icon className="h-4 w-4" />
+                            <Icon className="h-4 w-4" style={{ color: isActive ? 'var(--accent-secondary)' : 'var(--text-muted)' }} />
                             <span>{item.label}</span>
                           </Link>
                         );
@@ -285,7 +290,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
               <button
                 onClick={handleLogout}
-                className="flex items-center space-x-2 px-3 py-2 rounded-lg text-xs font-bold text-red-400 bg-red-500/10 border border-red-500/20"
+                className="flex items-center space-x-2 px-3 py-2 rounded-[var(--radius-md)] text-xs font-bold border"
+                style={{ color: 'var(--accent-error)', backgroundColor: 'var(--accent-error-subtle)', borderColor: 'var(--accent-error)' }}
               >
                 <LogOut className="h-4 w-4" />
                 <span>Sign Out</span>
@@ -301,25 +307,25 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
           {/* Column 1: Left Sidebar Navigation */}
           <aside className="hidden lg:block lg:col-span-3">
-            <div className="sticky top-20 rounded-xl border p-4 space-y-6" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}>
-              
+            <div className="exec-card sticky top-20 p-4 space-y-6">
+
               {/* Profile Card */}
-              <div className="p-3 rounded-lg border flex items-center space-x-3" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
-                <div className="h-8 w-8 rounded-lg bg-gradient-to-tr from-amber-600 to-emerald-800 flex items-center justify-center font-bold text-white text-xs">
+              <div className="surface-tile p-3 flex items-center space-x-3">
+                <div className="h-8 w-8 rounded-[var(--radius-md)] flex items-center justify-center font-bold text-xs" style={{ background: 'var(--gradient-primary-cta)', color: 'var(--text-on-accent)' }}>
                   {userInitials}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs font-bold truncate" style={{ color: 'var(--text-primary)' }}>{userName}</p>
-                  <p className="text-[10px] truncate" style={{ color: 'var(--text-secondary)' }}>pro_workspace</p>
+                  <p className="text-body-sm font-bold truncate" style={{ color: 'var(--text-primary)' }}>{userName}</p>
+                  <p className="text-caption truncate" style={{ color: 'var(--text-muted)' }}>pro_workspace</p>
                 </div>
               </div>
 
               {/* Navigation Links */}
               <nav className="space-y-4">
                 {navSections.map((section, sIdx) => (
-                  <div key={sIdx} className="space-y-1">
+                  <div key={sIdx} className="space-y-0.5">
                     {section.title && (
-                      <p className="text-[10px] font-bold uppercase tracking-wider px-3 py-1" style={{ color: 'var(--text-secondary)' }}>
+                      <p className="text-overline px-3 py-1">
                         {section.title}
                       </p>
                     )}
@@ -331,14 +337,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                           key={item.label}
                           href={item.href}
                           data-tour={NAV_TOUR_IDS[item.href]}
-                          className="flex items-center space-x-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all"
+                          className="flex items-center space-x-2.5 px-3 py-2 rounded-[var(--radius-md)] text-body-sm font-semibold transition-all duration-200"
                           style={{
-                            backgroundColor: isActive ? 'var(--bg-surface-raised)' : 'transparent',
-                            color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
-                            border: isActive ? '1px solid var(--card-border)' : '1px solid transparent',
+                            backgroundColor: isActive ? 'var(--accent-secondary-subtle)' : 'transparent',
+                            color: isActive ? 'var(--accent-secondary)' : 'var(--text-secondary)',
                           }}
+                          onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = 'var(--hover-surface)'; }}
+                          onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = 'transparent'; }}
                         >
-                          <Icon className="h-4 w-4 flex-shrink-0" style={{ color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)' }} />
+                          <Icon className="h-4 w-4 flex-shrink-0" style={{ color: isActive ? 'var(--accent-secondary)' : 'var(--text-muted)' }} />
                           <span className="truncate tracking-tight">{item.label}</span>
                         </Link>
                       );
@@ -350,7 +357,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <div className="pt-3 border-t flex items-center justify-between" style={{ borderColor: 'var(--card-border)' }}>
                 <button
                   onClick={handleLogout}
-                  className="h-7 px-3 rounded-md text-xs font-bold flex items-center space-x-1.5 text-red-400 hover:bg-red-500/10 transition"
+                  className="h-7 px-3 rounded-[var(--radius-sm)] text-xs font-bold flex items-center space-x-1.5 transition"
+                  style={{ color: 'var(--accent-error)' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--accent-error-subtle)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
                 >
                   <LogOut className="h-3.5 w-3.5" />
                   <span>Logout</span>
@@ -368,7 +378,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </div>
 
       {/* Mobile Bottom Bar — Streamlined Navigation with Center Upload Button */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 backdrop-blur-md border-t px-4 flex items-center justify-around z-30 shadow-lg" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}>
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 border-t px-4 flex items-center justify-around z-30" style={{ backgroundColor: 'var(--glass-bg)', backdropFilter: 'blur(20px) saturate(160%)', borderColor: 'var(--card-border)', boxShadow: 'var(--elevation-4)' }}>
         {mobileTabItems.map((tab) => {
           const isActive = pathname === tab.href;
           const Icon = tab.icon;
@@ -379,7 +389,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <Link
                 key={tab.label}
                 href={tab.href}
-                className="flex items-center justify-center h-11 w-11 rounded-full text-white bg-gradient-to-r from-emerald-600 to-teal-500 shadow-xl -translate-y-2 border-2 border-slate-900 transition transform active:scale-95 touch-target"
+                className="flex items-center justify-center h-11 w-11 rounded-full -translate-y-2 transition-transform active:scale-95 touch-target"
+                style={{ background: 'var(--gradient-primary-cta)', color: 'var(--text-on-accent)', boxShadow: 'var(--elevation-3)' }}
                 title="Upload New Media"
               >
                 <Plus className="h-6 w-6" />
@@ -391,10 +402,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <Link
               key={tab.label}
               href={tab.href}
-              className="flex flex-col items-center justify-center w-12 h-10 rounded-md transition touch-target"
-              style={{ color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)' }}
+              className="flex flex-col items-center justify-center w-12 h-10 rounded-[var(--radius-sm)] transition-all duration-200 touch-target"
+              style={{ color: isActive ? 'var(--accent-secondary)' : 'var(--text-muted)' }}
             >
-              <Icon className={`h-4 w-4 ${isActive ? 'scale-110 font-bold' : ''}`} />
+              <Icon className={`h-4 w-4 ${isActive ? 'scale-110' : ''}`} />
               <span className="text-[9px] mt-0.5 tracking-tight font-semibold">{tab.label}</span>
             </Link>
           );

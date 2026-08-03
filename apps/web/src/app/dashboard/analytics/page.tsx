@@ -3,6 +3,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { brandFetch } from '@/lib/api';
 import { useEngineEvents, EngineEvent } from '@/lib/useEngineEvents';
 import StatCard from '@/components/ui/StatCard';
+import EmptyState from '@/components/ui/EmptyState';
+import { SkeletonListRows } from '@/components/ui/Skeleton';
 import { Reveal } from '@/components/ui/Reveal';
 import { CheckCircle2, XCircle, CalendarClock, Clock, Loader2, Activity } from 'lucide-react';
 
@@ -56,48 +58,47 @@ export default function AnalyticsPage() {
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-24 sm:pb-12">
       <div>
-        <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Analytics</h1>
-        <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">How your content is moving through the AMAI Engine.</p>
+        <h1 className="text-h1" style={{ color: 'var(--text-primary)' }}>Analytics</h1>
+        <p className="text-body-sm mt-1" style={{ color: 'var(--text-secondary)' }}>How your content is moving through the AMAI Engine.</p>
       </div>
 
       <Reveal className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard icon={<Clock className="h-4 w-4 text-amber-400" />} label="Awaiting Approval" value={String(counts.pending)} helperText="In the queue" />
-        <StatCard icon={<CalendarClock className="h-4 w-4 text-violet-400" />} label="Scheduled" value={String(counts.scheduled)} helperText="Queued to publish" />
-        <StatCard icon={<CheckCircle2 className="h-4 w-4 text-emerald-400" />} label="Published" value={String(counts.published)} helperText="Live posts" />
-        <StatCard icon={<XCircle className="h-4 w-4 text-red-400" />} label="Failed" value={String(counts.failed)} helperText="Needs attention" />
+        <StatCard icon={<Clock className="h-4 w-4" style={{ color: 'var(--accent-warning)' }} />} label="Awaiting Approval" value={String(counts.pending)} helperText="In the queue" />
+        <StatCard icon={<CalendarClock className="h-4 w-4" style={{ color: 'var(--accent-secondary)' }} />} label="Scheduled" value={String(counts.scheduled)} helperText="Queued to publish" />
+        <StatCard icon={<CheckCircle2 className="h-4 w-4" style={{ color: 'var(--accent-success)' }} />} label="Published" value={String(counts.published)} helperText="Live posts" />
+        <StatCard icon={<XCircle className="h-4 w-4" style={{ color: 'var(--accent-error)' }} />} label="Failed" value={String(counts.failed)} helperText="Needs attention" />
       </Reveal>
 
-      <Reveal delay={0.1} className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm overflow-hidden">
-        <div className="p-5 border-b border-zinc-200 dark:border-zinc-700 flex items-center space-x-2">
-          <Activity className="h-4 w-4 text-emerald-400" />
-          <h2 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">AMAI Engine Activity Log</h2>
+      <Reveal delay={0.1} className="exec-card overflow-hidden">
+        <div className="p-5 border-b flex items-center space-x-2" style={{ borderColor: 'var(--card-border)' }}>
+          <Activity className="h-4 w-4" style={{ color: 'var(--accent-success)' }} />
+          <h2 className="text-h3" style={{ color: 'var(--text-primary)' }}>AMAI Engine Activity Log</h2>
         </div>
 
         {loading ? (
-          <div className="py-12 flex items-center justify-center text-xs text-zinc-500"><Loader2 className="h-4 w-4 animate-spin mr-2" /> Loading…</div>
+          <div className="p-5"><SkeletonListRows count={4} /></div>
         ) : logs.length === 0 ? (
-          <div className="text-center py-12">
-            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-1">No activity yet</h3>
-            <p className="text-xs text-zinc-500 max-w-sm mx-auto">
-              Upload media in the Media Library and every step the AMAI Engine takes will show up here.
-            </p>
-          </div>
+          <EmptyState
+            icon={<Activity className="h-6 w-6" />}
+            title="No activity yet"
+            description="Upload media in the Media Library and every step the AMAI Engine takes will show up here."
+          />
         ) : (
           <div className="overflow-x-auto max-h-[32rem]">
             <table className="w-full text-sm text-left">
-              <thead className="text-xs text-zinc-500 bg-zinc-50 dark:bg-zinc-900/50 border-b border-zinc-200 dark:border-zinc-700 uppercase sticky top-0">
+              <thead className="text-overline sticky top-0" style={{ backgroundColor: 'var(--bg-surface-sunken)', color: 'var(--text-muted)' }}>
                 <tr>
                   <th scope="col" className="px-6 py-3 font-medium">Time</th>
                   <th scope="col" className="px-6 py-3 font-medium">Event</th>
                   <th scope="col" className="px-6 py-3 font-medium">Details</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-200 dark:divide-zinc-700">
+              <tbody>
                 {logs.map((log) => (
-                  <tr key={log.id}>
-                    <td className="px-6 py-3 text-xs text-zinc-500 whitespace-nowrap">{new Date(log.createdAt).toLocaleString()}</td>
-                    <td className="px-6 py-3 text-xs font-semibold text-zinc-900 dark:text-zinc-100 whitespace-nowrap">{EVENT_LABEL[log.type] || log.type}</td>
-                    <td className="px-6 py-3 text-xs text-zinc-500">{log.message}</td>
+                  <tr key={log.id} className="border-t" style={{ borderColor: 'var(--card-border)' }}>
+                    <td className="px-6 py-3 text-caption font-mono whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>{new Date(log.createdAt).toLocaleString()}</td>
+                    <td className="px-6 py-3 text-body-sm font-semibold whitespace-nowrap" style={{ color: 'var(--text-primary)' }}>{EVENT_LABEL[log.type] || log.type}</td>
+                    <td className="px-6 py-3 text-body-sm" style={{ color: 'var(--text-secondary)' }}>{log.message}</td>
                   </tr>
                 ))}
               </tbody>

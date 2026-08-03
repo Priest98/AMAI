@@ -3,6 +3,8 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Logo } from '@/components/logo';
+import Input from '@/components/ui/Input';
+import Button from '@/components/ui/Button';
 import { AtSign, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
 import { API_BASE } from '@/lib/api';
 
@@ -44,23 +46,23 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center p-4 bg-[#F7F8FC] dark:bg-[#0B0D12] text-slate-900 dark:text-white font-sans ambient-bg transition-colors duration-300">
-      
+    <div className="min-h-screen w-full flex items-center justify-center p-4" style={{ color: 'var(--text-primary)' }}>
+
       <motion.div
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-        className="w-full max-w-md bg-white dark:bg-[#12151D] border border-slate-200/80 dark:border-white/10 rounded-[28px] p-8 sm:p-10 shadow-2xl space-y-8 relative overflow-hidden"
+        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+        className="glass-panel w-full max-w-md rounded-[var(--radius-xl)] p-8 sm:p-10 space-y-8 relative overflow-hidden"
       >
         <div className="space-y-3 text-center sm:text-left">
           <Link href="/" className="inline-block">
             <Logo className="h-9" />
           </Link>
           <div>
-            <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+            <h1 className="text-h1" style={{ color: 'var(--text-primary)' }}>
               Forgot Your Password?
             </h1>
-            <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">
+            <p className="text-body-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
               Enter your email address and we'll send you a link to reset your password.
             </p>
           </div>
@@ -68,60 +70,45 @@ export default function ForgotPasswordPage() {
 
         {submitted ? (
           <div className="space-y-6 text-center">
-            <div className="h-16 w-16 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center mx-auto border border-emerald-500/20">
+            <div className="h-16 w-16 rounded-full flex items-center justify-center mx-auto border" style={{ backgroundColor: 'var(--accent-success-subtle)', color: 'var(--accent-success)', borderColor: 'var(--accent-success)' }}>
               <CheckCircle2 className="h-8 w-8" />
             </div>
             <div className="space-y-2">
-              <h2 className="text-xl font-extrabold text-slate-900 dark:text-white">Password Reset Email Sent</h2>
-              <p className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">
-                If an account exists for <span className="font-bold text-slate-900 dark:text-white">{email}</span>, you will receive a password reset link shortly.
+              <h2 className="text-h2" style={{ color: 'var(--text-primary)' }}>Password Reset Email Sent</h2>
+              <p className="text-body-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                If an account exists for <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{email}</span>, you will receive a password reset link shortly.
               </p>
             </div>
-            <Link
-              href="/login"
-              className="w-full py-3.5 px-6 bg-slate-900 dark:bg-white text-white dark:text-slate-950 font-bold text-xs rounded-2xl transition flex items-center justify-center space-x-2 touch-target"
-            >
-              Back to Sign In
+            <Link href="/login">
+              <Button variant="secondary" fullWidth>Back to Sign In</Button>
             </Link>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-5">
             {error && (
-              <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-xs font-semibold flex items-center space-x-2">
+              <div className="p-4 rounded-[var(--radius-lg)] border text-xs font-semibold flex items-center space-x-2" style={{ backgroundColor: 'var(--accent-error-subtle)', borderColor: 'var(--accent-error)', color: 'var(--accent-error)' }}>
                 <AlertCircle className="h-4 w-4 flex-shrink-0" />
                 <span>{error}</span>
               </div>
             )}
 
-            <div className="space-y-1.5">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">
-                Registered Email Address
-              </label>
-              <div className="relative flex items-center">
-                <AtSign className="absolute left-4 h-4 w-4 text-slate-400 dark:text-zinc-500 pointer-events-none" />
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@company.com"
-                  className="w-full pl-11 pr-4 py-3.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-zinc-950/60 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-violet-500/50 transition"
-                />
-              </div>
-            </div>
+            <Input
+              label="Registered Email Address"
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="name@company.com"
+              leadingIcon={<AtSign className="h-4 w-4" />}
+            />
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-4 px-6 bg-gradient-to-r from-indigo-900 via-violet-700 to-violet-600 hover:opacity-95 text-white font-bold text-sm rounded-2xl shadow-xl shadow-violet-600/20 transition flex items-center justify-center space-x-2 border border-white/20 touch-target disabled:opacity-50"
-            >
-              <span>{loading ? 'Sending Link...' : 'Send Reset Link'}</span>
-              <ArrowRight className="h-4 w-4" />
-            </button>
+            <Button type="submit" variant="primary" fullWidth loading={loading} icon={<ArrowRight className="h-4 w-4" />}>
+              Send Reset Link
+            </Button>
 
-            <p className="text-center text-xs text-slate-500 dark:text-zinc-400 pt-2">
+            <p className="text-center text-body-sm pt-2" style={{ color: 'var(--text-secondary)' }}>
               Remembered your password?{' '}
-              <Link href="/login" className="font-bold text-violet-600 dark:text-violet-400 hover:underline">
+              <Link href="/login" className="font-bold hover:underline" style={{ color: 'var(--accent-secondary)' }}>
                 Sign in
               </Link>
             </p>

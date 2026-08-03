@@ -214,11 +214,10 @@ export default function ConnectedAccountsPage() {
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className={`p-4 rounded-2xl text-xs font-semibold flex items-center justify-between border ${
-              message.type === 'success'
-                ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
-                : 'bg-red-500/10 text-red-500 border-red-500/20'
-            }`}
+            className="p-4 rounded-[var(--radius-lg)] text-xs font-semibold flex items-center justify-between border"
+            style={message.type === 'success'
+              ? { backgroundColor: 'var(--accent-success-subtle)', color: 'var(--accent-success)', borderColor: 'var(--accent-success)' }
+              : { backgroundColor: 'var(--accent-error-subtle)', color: 'var(--accent-error)', borderColor: 'var(--accent-error)' }}
           >
             <span>{message.text}</span>
             <button onClick={() => setMessage(null)} className="touch-target" style={{ color: 'var(--text-secondary)' }}>
@@ -326,7 +325,7 @@ export default function ConnectedAccountsPage() {
             </div>
 
             {isInstagramConnected ? (
-              <div className="p-3.5 rounded-xl border space-y-1.5 text-xs" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
+              <div className="surface-tile p-3.5 space-y-1.5 text-xs">
                 <div className="flex items-center justify-between">
                   <span className="flex items-center space-x-1.5 font-bold text-emerald-500">
                     <CheckCircle2 className="h-4 w-4" />
@@ -439,7 +438,7 @@ export default function ConnectedAccountsPage() {
             </div>
 
             {isTikTokConnected ? (
-              <div className="p-3.5 rounded-xl border space-y-1.5 text-xs" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
+              <div className="surface-tile p-3.5 space-y-1.5 text-xs">
                 <div className="flex items-center justify-between">
                   <span className="flex items-center space-x-1.5 font-bold text-emerald-500">
                     <CheckCircle2 className="h-4 w-4" />
@@ -467,33 +466,32 @@ export default function ConnectedAccountsPage() {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="rounded-xl border max-w-md w-full p-6 space-y-6 shadow-2xl"
-              style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}
+              className="glass-panel rounded-[var(--radius-xl)] max-w-md w-full p-6 space-y-6"
             >
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>{detailsModal.title}</h3>
+                <h3 className="text-h3" style={{ color: 'var(--text-primary)' }}>{detailsModal.title}</h3>
                 <button onClick={() => setDetailsModal(null)} className="touch-target" style={{ color: 'var(--text-secondary)' }}>
                   <X className="h-5 w-5" />
                 </button>
               </div>
 
               <div className="space-y-3 text-xs">
-                <div className="p-3.5 rounded-xl border flex justify-between" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
+                <div className="surface-tile p-3.5 flex justify-between">
                   <span className="font-semibold" style={{ color: 'var(--text-secondary)' }}>Account / Handle</span>
                   <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{detailsModal.handle}</span>
                 </div>
 
-                <div className="p-3.5 rounded-xl border flex justify-between" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
+                <div className="surface-tile p-3.5 flex justify-between">
                   <span className="font-semibold" style={{ color: 'var(--text-secondary)' }}>Account Type</span>
                   <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{detailsModal.type}</span>
                 </div>
 
-                <div className="p-3.5 rounded-xl border flex justify-between" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
+                <div className="surface-tile p-3.5 flex justify-between">
                   <span className="font-semibold" style={{ color: 'var(--text-secondary)' }}>OAuth Status</span>
                   <span className="font-bold text-emerald-500">{detailsModal.status} ✓</span>
                 </div>
 
-                <div className="p-3.5 rounded-xl border flex justify-between" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
+                <div className="surface-tile p-3.5 flex justify-between">
                   <span className="font-semibold" style={{ color: 'var(--text-secondary)' }}>Last Synchronization</span>
                   <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{detailsModal.lastSynced}</span>
                 </div>

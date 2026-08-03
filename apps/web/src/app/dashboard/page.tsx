@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import StatCard from "@/components/ui/StatCard";
 import Badge from "@/components/ui/Badge";
+import EmptyState from "@/components/ui/EmptyState";
+import EngineWorkflowVisualization from "@/components/engine/EngineWorkflowVisualization";
 import { apiFetch, brandFetch, getBrandId } from '@/lib/api';
 import { useEngineEvents } from '@/lib/useEngineEvents';
 import {
@@ -99,33 +101,38 @@ export default function DashboardPage() {
       variants={containerVariants}
       initial="hidden"
       animate="show"
-      className="space-y-6 max-w-7xl mx-auto pb-24 sm:pb-12"
+      className="space-y-8 max-w-7xl mx-auto pb-24 sm:pb-12"
     >
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
-            AMAI Workspace Dashboard
+          <h1 className="text-h1" style={{ color: 'var(--text-primary)' }}>
+            Workspace overview
           </h1>
-          <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+          <p className="text-body-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
             Your AI social media manager, working in the background.
           </p>
         </div>
 
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center gap-2">
           <Badge variant={engineState === 'ACTIVE' ? 'success' : 'neutral'}>
-            <span className="flex items-center space-x-1">
+            <span className="flex items-center space-x-1.5">
               {engineState === 'ACTIVE' ? <Zap className="h-3 w-3" /> : <Pause className="h-3 w-3" />}
               <span>{engineState === 'ACTIVE' ? 'AMAI Active' : 'AMAI Paused'}</span>
             </span>
           </Badge>
           <Badge variant={approvalMode === 'AUTO' ? 'warning' : 'purple'}>
-            <span className="flex items-center space-x-1">
+            <span className="flex items-center space-x-1.5">
               <ShieldCheck className="h-3 w-3" />
               <span>{approvalMode === 'AUTO' ? 'Auto Approval' : 'Manual Approval'}</span>
             </span>
           </Badge>
         </div>
       </div>
+
+      {/* ── AMAI Engine — live and center-stage on the flagship page ── */}
+      <motion.div variants={itemVariants}>
+        <EngineWorkflowVisualization />
+      </motion.div>
 
       {/* KPI Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -158,43 +165,39 @@ export default function DashboardPage() {
       {/* ── 3-Column Middle Dashboard Layout ── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         <div className="lg:col-span-8 space-y-6">
-          <motion.div variants={itemVariants} className="rounded-xl border p-4 sm:p-5 space-y-4" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}>
+          <motion.div variants={itemVariants} className="exec-card p-5 sm:p-6 space-y-5">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-sm font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
+                <h2 className="text-h3" style={{ color: 'var(--text-primary)' }}>
                   Approval Queue ({pendingCount})
                 </h2>
-                <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                <p className="text-body-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
                   AI-prepared posts waiting for your review.
                 </p>
               </div>
-              <Link href="/dashboard/approval-queue" className="link-neutral text-xs font-semibold flex items-center space-x-1 hover:underline">
+              <Link href="/dashboard/approval-queue" className="link-neutral text-body-sm font-semibold flex items-center gap-1 hover:underline shrink-0">
                 <span>View Queue</span>
                 <ArrowUpRight className="h-3.5 w-3.5" />
               </Link>
             </div>
 
             {pendingCount === 0 ? (
-              <div className="p-8 text-center rounded-xl border border-dashed text-xs space-y-2" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
-                <CheckCircle2 className="h-8 w-8 text-emerald-400 mx-auto" />
-                <p className="font-bold" style={{ color: 'var(--text-primary)' }}>All caught up!</p>
-                <p style={{ color: 'var(--text-secondary)' }}>Upload new media and the AMAI Engine will generate posts here.</p>
-                <Link href="/dashboard/media" className="inline-flex items-center space-x-1 text-xs font-bold text-amber-400 hover:underline pt-1">
-                  <Upload className="h-3.5 w-3.5" />
-                  <span>Upload Media Now</span>
-                </Link>
-              </div>
+              <EmptyState
+                icon={<CheckCircle2 className="h-6 w-6" />}
+                title="All caught up"
+                description="Upload new media and the AMAI Engine will generate posts here automatically."
+                actionLabel="Upload media"
+                onAction={() => { window.location.href = '/dashboard/media'; }}
+              />
             ) : (
               <div className="space-y-2.5">
                 {pendingPosts.slice(0, 3).map((post) => (
-                  <div key={post.id} className="p-3.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
-                    <div className="space-y-1 max-w-xl">
-                      <span className="px-2 py-0.5 rounded-md font-mono text-[10px] font-bold border border-violet-500/20 bg-violet-500/10 text-violet-400">
-                        {post.targets?.[0]?.platform || 'INSTAGRAM'}
-                      </span>
-                      <p className="line-clamp-2 font-medium" style={{ color: 'var(--text-primary)' }}>{post.caption}</p>
+                  <div key={post.id} className="surface-tile p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="space-y-1.5 max-w-xl">
+                      <Badge variant="purple">{post.targets?.[0]?.platform || 'INSTAGRAM'}</Badge>
+                      <p className="text-body-sm line-clamp-2 font-medium" style={{ color: 'var(--text-primary)' }}>{post.caption}</p>
                     </div>
-                    <Link href="/dashboard/approval-queue" className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 transition shadow-xs touch-target btn-emerald-cta shrink-0">
+                    <Link href="/dashboard/approval-queue" className="btn-emerald-cta px-4 py-2 rounded-[var(--radius-md)] text-xs font-bold touch-target shrink-0 text-center">
                       Review Post
                     </Link>
                   </div>
@@ -205,11 +208,11 @@ export default function DashboardPage() {
         </div>
 
         <motion.aside variants={itemVariants} className="lg:col-span-4 space-y-4">
-          <div className="rounded-xl border p-4 sm:p-5 space-y-5" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}>
+          <div className="exec-card p-5 sm:p-6 space-y-5">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-sm font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>Connected Accounts</h3>
-                <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>Where AMAI publishes for you</p>
+                <h3 className="text-h3" style={{ color: 'var(--text-primary)' }}>Connected Accounts</h3>
+                <p className="text-body-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Where AMAI publishes for you</p>
               </div>
               <Badge variant={connectedAccountList.length > 0 ? 'success' : 'neutral'}>
                 {connectedAccountList.length > 0 ? 'Connected' : 'None yet'}
@@ -217,23 +220,23 @@ export default function DashboardPage() {
             </div>
 
             {connectedAccountList.length === 0 ? (
-              <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+              <p className="text-body-sm" style={{ color: 'var(--text-secondary)' }}>
                 Connect Instagram or TikTok to let AMAI publish automatically.
               </p>
             ) : (
-              <ul className="space-y-1.5">
+              <ul className="space-y-2">
                 {connectedAccountList.map((label) => (
-                  <li key={label} className="text-xs flex items-center space-x-2" style={{ color: 'var(--text-primary)' }}>
-                    <Radio className="h-3.5 w-3.5 text-emerald-400" />
+                  <li key={label} className="text-body-sm flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                    <Radio className="h-3.5 w-3.5" style={{ color: 'var(--accent-success)' }} />
                     <span>{label}</span>
                   </li>
                 ))}
               </ul>
             )}
 
-            <div className="pt-3 border-t flex items-center justify-between text-xs" style={{ borderColor: 'var(--card-border)' }}>
+            <div className="pt-4 border-t flex items-center justify-between text-body-sm" style={{ borderColor: 'var(--card-border)' }}>
               <span style={{ color: 'var(--text-secondary)' }}>{mediaCount} media assets</span>
-              <Link href="/dashboard/integrations" className="link-neutral text-xs font-semibold hover:underline">
+              <Link href="/dashboard/integrations" className="link-neutral text-body-sm font-semibold hover:underline">
                 Manage →
               </Link>
             </div>

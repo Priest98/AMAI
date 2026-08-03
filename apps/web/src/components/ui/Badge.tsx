@@ -7,9 +7,9 @@ interface BadgeProps {
 
 const VARIANT_CLASSES: Record<NonNullable<BadgeProps["variant"]>, string> = {
   purple: "badge-purple",
-  success: "bg-[var(--accent-success)]/15 text-[var(--accent-success)] border border-[var(--accent-success)]/30",
-  warning: "bg-[var(--accent-warning)]/15 text-[var(--accent-warning)] border border-[var(--accent-warning)]/30",
-  neutral: "bg-[var(--bg-surface-raised)] text-[var(--text-secondary)] border border-white/10",
+  success: "bg-[var(--accent-success-subtle)] text-[var(--accent-success)] border border-[var(--accent-success)]/25",
+  warning: "bg-[var(--accent-warning-subtle)] text-[var(--accent-warning)] border border-[var(--accent-warning)]/25",
+  neutral: "bg-[var(--bg-surface-raised)] text-[var(--text-secondary)] border border-[var(--card-border)]",
 };
 
 export default function Badge({ children, variant = "neutral" }: BadgeProps) {

@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import PendingRepliesList from './PendingRepliesList';
 import SectionHeader from '@/components/ui/SectionHeader';
 import Badge from '@/components/ui/Badge';
+import EmptyState from '@/components/ui/EmptyState';
 import { Reveal } from '@/components/ui/Reveal';
 import { apiFetch, brandFetch, getBrandId } from '@/lib/api';
 import { useEngineEvents } from '@/lib/useEngineEvents';
@@ -319,21 +320,20 @@ export default function ApprovalQueuePage() {
       />
 
       {message && (
-        <div className="p-3.5 rounded-xl border bg-emerald-500/10 border-emerald-500/20 text-emerald-400 text-xs font-semibold flex justify-between items-center">
+        <div className="p-3.5 rounded-[var(--radius-lg)] border text-xs font-semibold flex justify-between items-center" style={{ backgroundColor: 'var(--accent-success-subtle)', borderColor: 'var(--accent-success)', color: 'var(--accent-success)' }}>
           <span>{message}</span>
-          <button onClick={() => setMessage('')} className="text-emerald-400 hover:text-white">✕</button>
+          <button onClick={() => setMessage('')} className="hover:opacity-70">✕</button>
         </div>
       )}
 
       {/* Tabs Bar */}
-      <div className="flex items-center space-x-3 border-b border-slate-200 dark:border-white/10 pb-3">
+      <div className="flex items-center space-x-2 border-b pb-3" style={{ borderColor: 'var(--card-border)' }}>
         <button
           onClick={() => setActiveTab('posts')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center space-x-2 touch-target ${
-            activeTab === 'posts'
-              ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
-              : 'text-slate-400 hover:text-white'
-          }`}
+          className="px-4 py-2 rounded-[var(--radius-md)] text-xs font-bold transition-all duration-200 flex items-center space-x-2 touch-target"
+          style={activeTab === 'posts'
+            ? { backgroundColor: 'var(--accent-warning-subtle)', color: 'var(--accent-warning)', border: '1px solid var(--accent-warning)' }
+            : { color: 'var(--text-muted)', border: '1px solid transparent' }}
         >
           <Send className="h-3.5 w-3.5" />
           <span>Pending Posts ({posts.length})</span>
@@ -341,11 +341,10 @@ export default function ApprovalQueuePage() {
 
         <button
           onClick={() => setActiveTab('replies')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center space-x-2 touch-target ${
-            activeTab === 'replies'
-              ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
-              : 'text-slate-400 hover:text-white'
-          }`}
+          className="px-4 py-2 rounded-[var(--radius-md)] text-xs font-bold transition-all duration-200 flex items-center space-x-2 touch-target"
+          style={activeTab === 'replies'
+            ? { backgroundColor: 'var(--accent-warning-subtle)', color: 'var(--accent-warning)', border: '1px solid var(--accent-warning)' }
+            : { color: 'var(--text-muted)', border: '1px solid transparent' }}
         >
           <Sparkles className="h-3.5 w-3.5" />
           <span>AI Comment Replies</span>
@@ -361,14 +360,12 @@ export default function ApprovalQueuePage() {
       ) : (
         <div className="space-y-4">
           {posts.length === 0 ? (
-            <div className="rounded-xl border p-12 text-center space-y-3" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}>
-              <div className="h-12 w-12 rounded-2xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center mx-auto">
-                <CheckCircle2 className="h-6 w-6" />
-              </div>
-              <h3 className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Approval Queue Empty</h3>
-              <p className="text-xs max-w-md mx-auto" style={{ color: 'var(--text-secondary)' }}>
-                Upload media in the Media Library and the AMAI Engine will prepare new posts here for your review.
-              </p>
+            <div className="exec-card p-12">
+              <EmptyState
+                icon={<CheckCircle2 className="h-6 w-6" />}
+                title="Approval Queue Empty"
+                description="Upload media in the Media Library and the AMAI Engine will prepare new posts here for your review."
+              />
             </div>
           ) : (
             posts.map((post) => {
@@ -383,8 +380,7 @@ export default function ApprovalQueuePage() {
                 <Reveal
                   key={post.id}
                   y={16}
-                  className="rounded-xl border p-5 transition space-y-4"
-                  style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}
+                  className="exec-card exec-card-interactive p-5 space-y-4"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2.5">
@@ -584,11 +580,12 @@ export default function ApprovalQueuePage() {
 
                   {/* Actions */}
                   {!isEditing && (
-                    <div className="flex items-center justify-end space-x-3 pt-3 border-t border-slate-200 dark:border-white/5">
+                    <div className="flex items-center justify-end space-x-3 pt-4 border-t" style={{ borderColor: 'var(--card-border)' }}>
                       <button
                         onClick={() => handleReject(post.id)}
                         disabled={isBusy}
-                        className="px-4 py-2 rounded-xl text-xs font-bold border text-red-400 border-red-500/20 bg-red-500/10 hover:bg-red-500/20 transition flex items-center space-x-1.5 disabled:opacity-50"
+                        className="px-4 py-2 rounded-[var(--radius-md)] text-xs font-bold border transition flex items-center space-x-1.5 disabled:opacity-50"
+                        style={{ color: 'var(--accent-error)', borderColor: 'var(--accent-error)', backgroundColor: 'var(--accent-error-subtle)' }}
                       >
                         <XCircle className="h-3.5 w-3.5" />
                         <span>Reject</span>
@@ -597,7 +594,7 @@ export default function ApprovalQueuePage() {
                       <button
                         onClick={() => handleApprove(post.id)}
                         disabled={isBusy}
-                        className="px-5 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition flex items-center space-x-1.5 shadow-md btn-emerald-cta disabled:opacity-50"
+                        className="px-5 py-2 rounded-[var(--radius-md)] text-xs font-bold text-white transition flex items-center space-x-1.5 shadow-md btn-emerald-cta disabled:opacity-50"
                       >
                         {isBusy && busyAction === 'approve' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
                         <span>Approve &amp; Continue</span>

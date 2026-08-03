@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Check, X, MessageSquare, Share2, ExternalLink, RefreshCw, AlertCircle } from 'lucide-react';
 import { apiFetch, getBrandId } from '@/lib/api';
+import EmptyState from '@/components/ui/EmptyState';
 
 export interface PendingCommentReplyResponse {
   id: string;
@@ -71,10 +72,10 @@ export default function PendingRepliesList() {
     return (
       <div className="space-y-4">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-6 animate-pulse">
-            <div className="h-4 bg-zinc-200 dark:bg-zinc-700 rounded w-1/4 mb-4" />
-            <div className="h-3 bg-zinc-200 dark:bg-zinc-700 rounded w-3/4 mb-2" />
-            <div className="h-3 bg-zinc-200 dark:bg-zinc-700 rounded w-1/2" />
+          <div key={i} className="exec-card p-6">
+            <div className="skeleton h-4 w-1/4 mb-4" />
+            <div className="skeleton h-3 w-3/4 mb-2" />
+            <div className="skeleton h-3 w-1/2" />
           </div>
         ))}
       </div>
@@ -83,13 +84,13 @@ export default function PendingRepliesList() {
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-zinc-800 rounded-lg border border-red-200 dark:border-red-800">
-        <AlertCircle className="w-12 h-12 text-red-400 mb-4" />
-        <h3 className="text-lg font-medium text-zinc-900 dark:text-zinc-100">Something went wrong</h3>
-        <p className="text-zinc-500 dark:text-zinc-400 mt-1 text-center text-sm">{error}</p>
+      <div className="exec-card flex flex-col items-center justify-center py-20" style={{ borderColor: 'var(--accent-error)' }}>
+        <AlertCircle className="w-10 h-10 mb-4" style={{ color: 'var(--accent-error)' }} />
+        <h3 className="text-h3" style={{ color: 'var(--text-primary)' }}>Something went wrong</h3>
+        <p className="text-body-sm mt-1 text-center" style={{ color: 'var(--text-secondary)' }}>{error}</p>
         <button
           onClick={fetchReplies}
-          className="mt-4 flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 border border-blue-300 rounded-md hover:bg-blue-50 transition-colors"
+          className="btn-secondary mt-4 flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] touch-target"
         >
           <RefreshCw className="w-4 h-4" /> Retry
         </button>
@@ -99,18 +100,14 @@ export default function PendingRepliesList() {
 
   if (replies.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700">
-        <MessageSquare className="w-12 h-12 text-zinc-300 dark:text-zinc-600 mb-4" />
-        <h3 className="text-lg font-medium text-zinc-900 dark:text-zinc-100">All caught up!</h3>
-        <p className="text-zinc-500 dark:text-zinc-400 mt-1 text-center">
-          There are no pending AI replies waiting for your approval.
-        </p>
-        <button
-          onClick={fetchReplies}
-          className="mt-4 flex items-center gap-2 px-4 py-2 text-sm font-medium text-zinc-600 border border-zinc-300 dark:border-zinc-600 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors"
-        >
-          <RefreshCw className="w-4 h-4" /> Refresh
-        </button>
+      <div className="exec-card">
+        <EmptyState
+          icon={<MessageSquare className="w-6 h-6" />}
+          title="All caught up!"
+          description="There are no pending AI replies waiting for your approval."
+          actionLabel="Refresh"
+          onAction={fetchReplies}
+        />
       </div>
     );
   }
@@ -120,47 +117,47 @@ export default function PendingRepliesList() {
       <div className="flex justify-end">
         <button
           onClick={fetchReplies}
-          className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors"
+          className="btn-secondary flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-[var(--radius-md)] touch-target"
         >
           <RefreshCw className="w-3.5 h-3.5" /> Refresh
         </button>
       </div>
 
       {replies.map((reply) => (
-        <div key={reply.id} className="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-6 shadow-sm flex flex-col md:flex-row gap-6">
+        <div key={reply.id} className="exec-card p-6 flex flex-col md:flex-row gap-6">
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-3">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-300">
+              <span className="badge-purple inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium">
                 <Share2 className="w-3.5 h-3.5" />
                 {reply.platform}
               </span>
-              <span className="text-xs text-zinc-500 flex items-center gap-1">
+              <span className="text-caption flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
                 Post ID: {reply.originalPostId} <ExternalLink className="w-3 h-3" />
               </span>
             </div>
-            
+
             <div className="mb-4">
-              <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">User Comment</p>
-              <p className="text-zinc-900 dark:text-zinc-100 italic border-l-4 border-zinc-200 dark:border-zinc-700 pl-3 py-1">
+              <p className="text-overline mb-1">User Comment</p>
+              <p className="text-body-sm italic border-l-2 pl-3 py-1" style={{ color: 'var(--text-primary)', borderColor: 'var(--card-border)' }}>
                 &ldquo;{reply.originalCommentText}&rdquo;
               </p>
             </div>
 
             <div>
-              <p className="text-sm font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wider mb-1 flex items-center gap-2">
+              <p className="text-overline mb-1 flex items-center gap-2" style={{ color: 'var(--accent-secondary)' }}>
                 ✨ AI Generated Reply
               </p>
-              <div className="bg-blue-50 dark:bg-blue-900/20 text-blue-900 dark:text-blue-100 p-3 rounded-md text-sm border border-blue-100 dark:border-blue-800/50">
+              <div className="surface-tile p-3 text-body-sm" style={{ backgroundColor: 'var(--accent-secondary-subtle)', borderColor: 'var(--accent-secondary)', color: 'var(--text-primary)' }}>
                 {reply.aiGeneratedReply}
               </div>
             </div>
           </div>
-          
-          <div className="flex md:flex-col items-center justify-center gap-3 border-t md:border-t-0 md:border-l border-zinc-100 dark:border-zinc-700/50 pt-4 md:pt-0 md:pl-6">
+
+          <div className="flex md:flex-col items-center justify-center gap-3 border-t md:border-t-0 md:border-l pt-4 md:pt-0 md:pl-6" style={{ borderColor: 'var(--card-border)' }}>
             <button
               onClick={() => handleApprove(reply.id)}
               disabled={actionLoading === reply.id}
-              className="flex-1 md:flex-none w-full flex items-center justify-center gap-2 px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-md transition-colors disabled:opacity-50"
+              className="btn-emerald-cta flex-1 md:flex-none w-full flex items-center justify-center gap-2 px-6 py-2.5 text-sm font-semibold rounded-[var(--radius-md)] transition disabled:opacity-50 touch-target"
             >
               <Check className="w-4 h-4" />
               {actionLoading === reply.id ? 'Saving...' : 'Approve'}
@@ -168,7 +165,7 @@ export default function PendingRepliesList() {
             <button
               onClick={() => handleReject(reply.id)}
               disabled={actionLoading === reply.id}
-              className="flex-1 md:flex-none w-full flex items-center justify-center gap-2 px-6 py-2.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-700 dark:hover:bg-zinc-600 text-zinc-900 dark:text-zinc-100 text-sm font-semibold rounded-md transition-colors disabled:opacity-50"
+              className="btn-secondary flex-1 md:flex-none w-full flex items-center justify-center gap-2 px-6 py-2.5 text-sm font-semibold rounded-[var(--radius-md)] transition disabled:opacity-50 touch-target"
             >
               <X className="w-4 h-4" />
               {actionLoading === reply.id ? 'Saving...' : 'Reject'}

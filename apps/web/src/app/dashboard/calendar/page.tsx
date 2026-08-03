@@ -244,27 +244,27 @@ export default function CalendarPage() {
       />
 
       {message && (
-        <div className="p-3.5 rounded-xl border bg-emerald-500/10 border-emerald-500/20 text-emerald-400 text-xs font-semibold flex justify-between items-center">
+        <div className="p-3.5 rounded-[var(--radius-lg)] border text-xs font-semibold flex justify-between items-center" style={{ backgroundColor: 'var(--accent-success-subtle)', borderColor: 'var(--accent-success)', color: 'var(--accent-success)' }}>
           <span>{message}</span>
-          <button onClick={() => setMessage('')} className="text-emerald-400 hover:text-white">✕</button>
+          <button onClick={() => setMessage('')} className="hover:opacity-70">✕</button>
         </div>
       )}
 
       <div className="flex items-center justify-between">
         <button
           onClick={() => setWeekStart((d) => addDays(d, -DAYS_VISIBLE))}
-          className="px-3 py-2 rounded-xl border text-xs font-bold flex items-center gap-1.5 touch-target"
-          style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-primary)' }}
+          className="surface-tile px-3 py-2 text-xs font-bold flex items-center gap-1.5 touch-target"
+          style={{ color: 'var(--text-primary)' }}
         >
           <ChevronLeft className="h-3.5 w-3.5" /> Previous
         </button>
-        <span className="text-xs font-bold" style={{ color: 'var(--text-secondary)' }}>
+        <span className="text-caption" style={{ color: 'var(--text-secondary)' }}>
           {days[0].toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} – {days[DAYS_VISIBLE - 1].toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} ({timeZone})
         </span>
         <button
           onClick={() => setWeekStart((d) => addDays(d, DAYS_VISIBLE))}
-          className="px-3 py-2 rounded-xl border text-xs font-bold flex items-center gap-1.5 touch-target"
-          style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-primary)' }}
+          className="surface-tile px-3 py-2 text-xs font-bold flex items-center gap-1.5 touch-target"
+          style={{ color: 'var(--text-primary)' }}
         >
           Next <ChevronRight className="h-3.5 w-3.5" />
         </button>
@@ -294,17 +294,17 @@ export default function CalendarPage() {
                   const post = posts.find((p) => p.id === postId);
                   if (post) rescheduleToDay(post, key);
                 }}
-                className="rounded-xl border p-2.5 min-h-[180px] space-y-2 transition"
+                className="rounded-[var(--radius-lg)] border p-2.5 min-h-[180px] space-y-2 transition-all duration-200"
                 style={{
-                  backgroundColor: isDragOver ? 'rgba(99,102,241,0.08)' : 'var(--bg-surface)',
-                  borderColor: isDragOver ? 'rgba(99,102,241,0.5)' : 'var(--card-border)',
+                  backgroundColor: isDragOver ? 'var(--accent-secondary-subtle)' : 'var(--bg-surface)',
+                  borderColor: isDragOver ? 'var(--accent-secondary)' : 'var(--card-border)',
                 }}
               >
                 <div className="flex items-center justify-between px-0.5">
-                  <span className={`text-[10px] font-bold uppercase tracking-wide ${isToday ? 'text-indigo-400' : ''}`} style={!isToday ? { color: 'var(--text-muted)' } : undefined}>
+                  <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color: isToday ? 'var(--accent-secondary)' : 'var(--text-muted)' }}>
                     {day.toLocaleDateString(undefined, { weekday: 'short' })}
                   </span>
-                  <span className={`text-xs font-extrabold ${isToday ? 'text-indigo-400' : ''}`} style={!isToday ? { color: 'var(--text-primary)' } : undefined}>
+                  <span className="text-xs font-extrabold" style={{ color: isToday ? 'var(--accent-secondary)' : 'var(--text-primary)' }}>
                     {day.getDate()}
                   </span>
                 </div>
@@ -326,8 +326,10 @@ export default function CalendarPage() {
                         draggable={draggable}
                         onDragStart={(e) => { e.dataTransfer.setData('text/post-id', post.id); }}
                         onClick={() => openEdit(post)}
-                        className="w-full text-left rounded-lg border p-2 space-y-1.5 transition hover:border-indigo-500/40"
-                        style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}
+                        className="w-full text-left rounded-[var(--radius-md)] border p-2 space-y-1.5 transition-all duration-200 hover:-translate-y-0.5"
+                        style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', boxShadow: 'var(--elevation-1)' }}
+                        onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-secondary)'; e.currentTarget.style.boxShadow = 'var(--elevation-2)'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--card-border)'; e.currentTarget.style.boxShadow = 'var(--elevation-1)'; }}
                       >
                         <div className="flex items-center justify-between gap-1">
                           <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${STATUS_COLOR[post.status]}`}>
@@ -370,15 +372,14 @@ export default function CalendarPage() {
 
       {/* ── Edit modal ── */}
       {editPost && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={closeEdit}>
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(10, 11, 20, 0.55)', backdropFilter: 'blur(4px)' }} onClick={closeEdit}>
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-lg rounded-2xl border p-6 space-y-4 max-h-[85vh] overflow-y-auto"
-            style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}
+            className="glass-panel w-full max-w-lg rounded-[var(--radius-xl)] p-6 space-y-4 max-h-[85vh] overflow-y-auto"
           >
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-extrabold" style={{ color: 'var(--text-primary)' }}>Edit Post</h3>
-              <button onClick={closeEdit} className="p-1 rounded-lg" style={{ color: 'var(--text-secondary)' }}>
+              <h3 className="text-h3" style={{ color: 'var(--text-primary)' }}>Edit Post</h3>
+              <button onClick={closeEdit} className="w-8 h-8 rounded-full flex items-center justify-center transition hover:opacity-80" style={{ backgroundColor: 'var(--hover-surface)', color: 'var(--text-secondary)' }}>
                 <X className="h-4 w-4" />
               </button>
             </div>

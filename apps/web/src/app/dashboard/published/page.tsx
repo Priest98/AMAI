@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import SectionHeader from '@/components/ui/SectionHeader';
 import Badge from '@/components/ui/Badge';
+import EmptyState from '@/components/ui/EmptyState';
+import { SkeletonListRows } from '@/components/ui/Skeleton';
 import { Reveal } from '@/components/ui/Reveal';
 import { brandFetch } from '@/lib/api';
 import { useEngineEvents } from '@/lib/useEngineEvents';
@@ -53,20 +55,18 @@ export default function PublishedPostsPage() {
       />
 
       {error && (
-        <div className="p-3.5 rounded-xl border bg-red-500/10 border-red-500/20 text-red-400 text-xs font-semibold">{error}</div>
+        <div className="p-3.5 rounded-[var(--radius-lg)] border text-xs font-semibold" style={{ backgroundColor: 'var(--accent-error-subtle)', borderColor: 'var(--accent-error)', color: 'var(--accent-error)' }}>{error}</div>
       )}
 
       {loading ? (
-        <div className="py-16 flex items-center justify-center text-xs" style={{ color: 'var(--text-secondary)' }}>
-          <Loader2 className="h-4 w-4 animate-spin mr-2" /> Loading…
-        </div>
+        <SkeletonListRows count={5} />
       ) : posts.length === 0 ? (
-        <div className="rounded-xl border p-12 text-center space-y-2" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}>
-          <CheckCircle2 className="h-8 w-8 text-slate-400 mx-auto" />
-          <h3 className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Nothing published yet</h3>
-          <p className="text-xs max-w-md mx-auto" style={{ color: 'var(--text-secondary)' }}>
-            Once a post goes live, it'll show up here automatically.
-          </p>
+        <div className="exec-card p-12">
+          <EmptyState
+            icon={<CheckCircle2 className="h-6 w-6" />}
+            title="Nothing published yet"
+            description="Once a post goes live, it'll show up here automatically."
+          />
         </div>
       ) : (
         <div className="space-y-3">
@@ -80,20 +80,19 @@ export default function PublishedPostsPage() {
                   key={post.id}
                   y={16}
                   delay={Math.min(i, 5) * 0.04}
-                  className="rounded-xl border p-4 flex items-start gap-4"
-                  style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}
+                  className="exec-card exec-card-interactive p-4 flex items-start gap-4"
                 >
-                  <div className="h-9 w-9 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0">
+                  <div className="h-9 w-9 rounded-[var(--radius-lg)] flex items-center justify-center shrink-0" style={{ backgroundColor: 'var(--accent-success-subtle)', color: 'var(--accent-success)' }}>
                     {platform === 'TIKTOK' ? <Video className="h-4 w-4" /> : <Instagram className="h-4 w-4" />}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>
+                      <span className="text-body-sm font-bold" style={{ color: 'var(--text-primary)' }}>
                         {post.publishedAt ? new Date(post.publishedAt).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'Just now'}
                       </span>
-                      <span className="text-[10px] font-mono uppercase" style={{ color: 'var(--text-secondary)' }}>{platform}</span>
+                      <span className="text-caption font-mono uppercase" style={{ color: 'var(--text-muted)' }}>{platform}</span>
                     </div>
-                    <p className="text-xs mt-1 line-clamp-2" style={{ color: 'var(--text-secondary)' }}>{post.caption}</p>
+                    <p className="text-body-sm mt-1 line-clamp-2" style={{ color: 'var(--text-secondary)' }}>{post.caption}</p>
                   </div>
                 </Reveal>
               );
