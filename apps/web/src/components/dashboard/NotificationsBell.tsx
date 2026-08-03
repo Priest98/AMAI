@@ -91,8 +91,8 @@ export default function NotificationsBell() {
     <div className="relative" ref={containerRef}>
       <button
         onClick={toggleOpen}
-        className="relative h-8 w-8 rounded-[var(--radius-md)] transition border flex items-center justify-center touch-target"
-        style={{ backgroundColor: "var(--bg-surface-raised)", borderColor: "var(--card-border)", color: "var(--text-primary)" }}
+        className="btn-icon-glass relative h-8 w-8 flex items-center justify-center touch-target"
+        style={{ color: "var(--text-primary)" }}
         aria-label="Notifications"
       >
         <Bell className="h-3.5 w-3.5" />

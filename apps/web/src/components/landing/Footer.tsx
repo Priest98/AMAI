@@ -2,7 +2,6 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Sparkles } from 'lucide-react';
 
 const COLUMNS = [
   {
@@ -37,11 +36,8 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-5 sm:px-8 py-16">
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-10">
           <div>
-            <Link href="/" className="flex items-center gap-2 font-bold text-lg lp-heading lp-focus-ring">
-              <span className="h-8 w-8 rounded-lg flex items-center justify-center" style={{ background: 'var(--lp-gradient-brand)' }}>
-                <Sparkles className="h-4.5 w-4.5" style={{ color: '#04070D' }} />
-              </span>
-              <span>AMAI</span>
+            <Link href="/" className="font-bold text-lg lp-heading tracking-tight lp-gradient-text lp-focus-ring">
+              AMAI
             </Link>
             <p className="mt-4 text-sm leading-relaxed max-w-xs" style={{ color: 'var(--lp-text-secondary)' }}>
               The AI social media operating system. Upload once, approve once, then let AMAI run your social media.

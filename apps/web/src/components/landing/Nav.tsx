@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, Sparkles } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 
 const NAV_LINKS = [
   { href: '#how-it-works', label: 'How It Works' },
@@ -52,11 +52,8 @@ export default function Nav() {
               : '0 6px 24px -10px rgba(0, 0, 0, 0.4), inset 0 1px 0 0 rgba(255, 255, 255, 0.04)',
           }}
         >
-          <Link href="/" className="flex items-center gap-2 font-bold text-base lp-heading lp-focus-ring shrink-0" aria-label="AMAI home">
-            <span className="h-7 w-7 rounded-full flex items-center justify-center shrink-0" style={{ background: 'var(--lp-gradient-brand)' }}>
-              <Sparkles className="h-3.5 w-3.5" style={{ color: '#04070D' }} />
-            </span>
-            <span>AMAI</span>
+          <Link href="/" className="font-bold text-lg lp-heading tracking-tight lp-gradient-text lp-focus-ring shrink-0" aria-label="AMAI home">
+            AMAI
           </Link>
 
           <div className="hidden lg:flex items-center gap-9 mx-9">
@@ -94,8 +91,7 @@ export default function Nav() {
 
           <button
             type="button"
-            className="lg:hidden p-2.5 rounded-full transition-transform duration-150 active:scale-90 lp-focus-ring"
-            style={{ background: 'rgba(255, 255, 255, 0.06)' }}
+            className="lp-btn-icon-glass lg:hidden p-2.5 lp-focus-ring"
             onClick={() => setOpen((v) => !v)}
             aria-expanded={open}
             aria-label={open ? 'Close menu' : 'Open menu'}

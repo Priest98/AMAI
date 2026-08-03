@@ -17,14 +17,15 @@ export default function StorageProgressBar({ usedGB, totalGB }: StorageProgressB
         </span>
       </div>
       <div
-        className="h-1.5 rounded-full overflow-hidden"
-        style={{ backgroundColor: "var(--bg-surface-raised)" }}
+        className="h-1.5 rounded-full overflow-hidden border backdrop-blur-sm"
+        style={{ backgroundColor: "var(--glass-card-bg)", borderColor: "var(--glass-card-border)" }}
       >
         <div
           className="h-full rounded-full transition-all duration-300"
           style={{
             width: `${percentage}%`,
             backgroundColor: "var(--accent-warning)",
+            boxShadow: "0 0 8px var(--accent-warning)",
           }}
         />
       </div>

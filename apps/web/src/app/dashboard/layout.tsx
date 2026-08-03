@@ -174,17 +174,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* ── 1. Unified 100% Full-Width Top Navigation Bar ── */}
       <header
         className="w-full h-14 border-b flex items-center justify-between px-4 sm:px-6 sticky top-0 z-40 backdrop-blur-md"
-        style={{ backgroundColor: 'var(--glass-bg)', borderColor: 'var(--card-border)' }}
+        style={{ backgroundColor: 'var(--glass-bg)', borderColor: 'var(--glass-border)' }}
       >
         {/* Left: Logo & Mobile Toggle */}
         <div className="flex items-center space-x-3 sm:space-x-4">
           <button
             onClick={() => setIsMobileOpen(true)}
-            className="md:hidden h-8 w-8 rounded-[var(--radius-md)] flex items-center justify-center touch-target"
+            className="btn-icon-glass md:hidden h-8 w-8 flex items-center justify-center touch-target"
             style={{ color: 'var(--text-secondary)' }}
             aria-label="Open Navigation Drawer"
           >
-            <Menu className="h-5 w-5" />
+            <Menu className="h-4 w-4" />
           </button>
 
           <Link href="/dashboard" className="flex items-center space-x-2">
@@ -202,7 +202,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* Right Utility Actions */}
         <div className="flex items-center space-x-2">
           {/* Live Date Picker */}
-          <div className="hidden md:flex items-center space-x-1.5 px-3 py-1 rounded-[var(--radius-md)] text-xs font-medium border" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-secondary)' }}>
+          <div
+            className="hidden md:flex items-center space-x-1.5 px-3 py-1 rounded-[var(--radius-md)] text-xs font-medium border backdrop-blur-md"
+            style={{ backgroundColor: 'var(--glass-card-bg)', borderColor: 'var(--glass-card-border)', color: 'var(--text-secondary)' }}
+          >
             <CalendarIcon className="h-3.5 w-3.5" style={{ color: 'var(--text-secondary)' }} />
             <span className="text-[11px] font-mono">{currentDateStr}</span>
           </div>
@@ -213,8 +216,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {/* Theme Toggle Button */}
           <button
             onClick={toggleTheme}
-            className="h-8 w-8 rounded-[var(--radius-md)] transition-all duration-200 border flex items-center justify-center touch-target"
-            style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-primary)' }}
+            className="btn-icon-glass h-8 w-8 flex items-center justify-center touch-target"
+            style={{ color: 'var(--text-primary)' }}
             title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
           >
             {isDarkMode ? <Sun className="h-3.5 w-3.5" style={{ color: 'var(--accent-warning)' }} /> : <Moon className="h-3.5 w-3.5" style={{ color: 'var(--accent-secondary)' }} />}
@@ -240,18 +243,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: 'spring', damping: 26, stiffness: 320 }}
-              className="fixed top-0 left-0 bottom-0 w-72 z-50 p-5 flex flex-col justify-between border-r md:hidden"
-              style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}
+              className="fixed top-0 left-0 bottom-0 w-72 z-50 p-5 flex flex-col justify-between border-r md:hidden backdrop-blur-xl"
+              style={{ backgroundColor: 'var(--glass-bg)', borderColor: 'var(--glass-border)' }}
             >
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
                   <Logo variant="full" className="h-7" />
                   <button
                     onClick={() => setIsMobileOpen(false)}
-                    className="h-8 w-8 rounded-[var(--radius-md)] flex items-center justify-center touch-target"
+                    className="btn-icon-glass h-8 w-8 flex items-center justify-center touch-target"
                     style={{ color: 'var(--text-secondary)' }}
                   >
-                    <X className="h-5 w-5" />
+                    <X className="h-4 w-4" />
                   </button>
                 </div>
 
@@ -378,7 +381,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </div>
 
       {/* Mobile Bottom Bar — Streamlined Navigation with Center Upload Button */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 border-t px-4 flex items-center justify-around z-30" style={{ backgroundColor: 'var(--glass-bg)', backdropFilter: 'blur(20px) saturate(160%)', borderColor: 'var(--card-border)', boxShadow: 'var(--elevation-4)' }}>
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 border-t px-4 flex items-center justify-around z-30" style={{ backgroundColor: 'var(--glass-bg)', backdropFilter: 'blur(20px) saturate(160%)', WebkitBackdropFilter: 'blur(20px) saturate(160%)', borderColor: 'var(--glass-border)', boxShadow: 'var(--elevation-4)' }}>
         {mobileTabItems.map((tab) => {
           const isActive = pathname === tab.href;
           const Icon = tab.icon;

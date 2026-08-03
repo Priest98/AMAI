@@ -70,8 +70,8 @@ export default function Modal({ open, onClose, title, children, maxWidth = "480p
                 <button
                   onClick={onClose}
                   aria-label="Close"
-                  className="touch-target w-8 h-8 rounded-full flex items-center justify-center transition hover:opacity-80"
-                  style={{ backgroundColor: "var(--hover-surface)", color: "var(--text-secondary)" }}
+                  className="btn-icon-glass touch-target w-8 h-8 flex items-center justify-center"
+                  style={{ color: "var(--text-secondary)" }}
                 >
                   <X className="h-4 w-4" />
                 </button>

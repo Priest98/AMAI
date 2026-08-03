@@ -41,6 +41,20 @@
   --glass-bg: rgba(255, 255, 255, 0.72);
   --glass-border: rgba(255, 255, 255, 0.5);
 
+  /* ---- Glass Design System ----
+   * Card/input/button surfaces get real translucency + blur instead of a
+   * flat opaque fill. Light mode stays bright, airy and soft (higher
+   * opacity, warm white highlight) rather than a dark-mode glass panel
+   * with the colors merely inverted. */
+  --glass-blur: 20px;
+  --glass-blur-sm: 12px;
+  --glass-card-bg: rgba(255, 255, 255, 0.64);
+  --glass-card-bg-hover: rgba(255, 255, 255, 0.8);
+  --glass-card-border: rgba(10, 25, 49, 0.10);
+  --glass-highlight: rgba(255, 255, 255, 0.6);
+  --glass-glow: rgba(74, 127, 167, 0.28);
+  --glass-input-bg: rgba(255, 255, 255, 0.55);
+
   /* ---- Brand & accents: navy blue carries the identity, gunmetal
      anchors dark elements, steel blue is the primary interactive accent ---- */
   --accent-primary: #0A1931;
@@ -91,6 +105,20 @@
 
   --glass-bg: rgba(42, 46, 60, 0.72);
   --glass-border: rgba(179, 207, 229, 0.12);
+
+  /* ---- Glass Design System ----
+   * Dark mode reads rich and deep rather than a bright-mode panel with
+   * colors flipped: lower base opacity so the ambient gradient mesh shows
+   * through, a cool steel-blue highlight instead of flat white, and a
+   * brighter glow so hover states stay legible against a dark backdrop. */
+  --glass-blur: 20px;
+  --glass-blur-sm: 12px;
+  --glass-card-bg: rgba(42, 46, 60, 0.56);
+  --glass-card-bg-hover: rgba(51, 55, 72, 0.68);
+  --glass-card-border: rgba(179, 207, 229, 0.14);
+  --glass-highlight: rgba(179, 207, 229, 0.08);
+  --glass-glow: rgba(127, 176, 219, 0.35);
+  --glass-input-bg: rgba(26, 29, 38, 0.55);
 
   --accent-primary: #6C93B8;
   --accent-secondary: #7FB0DB;
@@ -251,11 +279,19 @@ input, select, textarea {
 }
 
 /* ================================== Cards =================================== */
+/* Every card in the app is now a genuine frosted-glass panel: translucent
+   fill + backdrop blur (not just a flat tinted color), a thin soft border,
+   a subtle inset top highlight for a refined light catch, and layered
+   elevation shadow for depth. Kept to one blur strength here so nested
+   glass surfaces (buttons/badges/tiles inside a card) don't compound into
+   a second, redundant blur pass -- see .surface-tile below. */
 .exec-card {
-  background-color: var(--card-bg);
-  background-image: linear-gradient(180deg, color-mix(in srgb, var(--text-on-accent) 3%, transparent) 0%, transparent 40%);
-  border: 1px solid var(--card-border);
-  box-shadow: var(--card-shadow), inset 0 1px 0 0 color-mix(in srgb, var(--text-on-accent) 6%, transparent);
+  background-color: var(--glass-card-bg);
+  background-image: linear-gradient(180deg, var(--glass-highlight) 0%, transparent 45%);
+  border: 1px solid var(--glass-card-border);
+  backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  box-shadow: var(--card-shadow), inset 0 1px 0 0 var(--glass-highlight);
   border-radius: var(--radius-lg);
   transition: background-color var(--duration-base) var(--ease-standard),
     border-color var(--duration-base) var(--ease-standard),
@@ -266,9 +302,10 @@ input, select, textarea {
   cursor: pointer;
 }
 .exec-card-interactive:hover {
+  background-color: var(--glass-card-bg-hover);
   border-color: var(--card-hover-border);
-  box-shadow: var(--elevation-3), inset 0 1px 0 0 color-mix(in srgb, var(--text-on-accent) 8%, transparent);
-  transform: translateY(-1px);
+  box-shadow: var(--elevation-3), 0 0 0 1px var(--glass-glow), 0 10px 28px -10px var(--glass-glow), inset 0 1px 0 0 var(--glass-highlight);
+  transform: translateY(-2px);
 }
 
 /* Dark "shell" panel that groups a cluster of tiles/charts, echoing the
@@ -279,40 +316,48 @@ input, select, textarea {
   background: linear-gradient(165deg, var(--bg-surface-sunken) 0%, var(--bg-surface) 100%);
   border: 1px solid var(--card-border);
   border-radius: var(--radius-xl);
-  box-shadow: var(--elevation-3), inset 0 1px 0 0 color-mix(in srgb, var(--text-on-accent) 5%, transparent);
+  box-shadow: var(--elevation-3), inset 0 1px 0 0 var(--glass-highlight);
 }
 
 .glass-panel {
   background-color: var(--glass-bg);
   border: 1px solid var(--glass-border);
-  backdrop-filter: blur(20px) saturate(160%);
-  -webkit-backdrop-filter: blur(20px) saturate(160%);
-  box-shadow: var(--elevation-4);
+  backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  box-shadow: var(--elevation-4), inset 0 1px 0 0 var(--glass-highlight);
 }
 
 /* ================================= Buttons =================================== */
+/* Primary stays a solid glossy gradient capsule -- the one button on the
+   page that should read as unmistakably "press this" -- with a soft glow
+   that intensifies on hover/press rather than a flat color swap. */
 .btn-primary-gradient {
   background: var(--gradient-primary-cta);
   color: var(--text-on-accent);
   border-radius: var(--radius-md);
   font-weight: 600;
-  box-shadow: 0 4px 14px -2px rgba(74, 127, 167, 0.35);
+  box-shadow: 0 4px 14px -2px var(--glass-glow), inset 0 1px 0 0 rgba(255, 255, 255, 0.28);
   border: 1px solid rgba(74, 127, 167, 0.35);
   transition: opacity var(--duration-fast) var(--ease-standard), transform var(--duration-fast) var(--ease-standard), box-shadow var(--duration-base) var(--ease-standard);
 }
-.btn-primary-gradient:hover { opacity: 0.95; box-shadow: 0 6px 20px -4px rgba(74, 127, 167, 0.45); }
-.btn-primary-gradient:active { transform: scale(0.98); }
-.btn-primary-gradient:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+.btn-primary-gradient:hover { opacity: 0.96; box-shadow: 0 8px 26px -4px var(--glass-glow), inset 0 1px 0 0 rgba(255, 255, 255, 0.32); transform: translateY(-1px); }
+.btn-primary-gradient:active { transform: scale(0.98) translateY(0); }
+.btn-primary-gradient:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
 
+/* Secondary is the actual "glass" button -- translucent, blurred, thin
+   border -- so pressing it visually reads as one step down from primary. */
 .btn-secondary {
-  background-color: var(--bg-surface);
+  background-color: var(--glass-card-bg);
   color: var(--text-primary);
-  border: 1px solid var(--card-border);
+  border: 1px solid var(--glass-card-border);
   border-radius: var(--radius-md);
   font-weight: 600;
-  transition: border-color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard), transform var(--duration-fast) var(--ease-standard);
+  backdrop-filter: blur(var(--glass-blur-sm)) saturate(150%);
+  -webkit-backdrop-filter: blur(var(--glass-blur-sm)) saturate(150%);
+  box-shadow: inset 0 1px 0 0 var(--glass-highlight);
+  transition: border-color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard), transform var(--duration-fast) var(--ease-standard), box-shadow var(--duration-base) var(--ease-standard);
 }
-.btn-secondary:hover { background-color: var(--hover-surface); border-color: var(--card-hover-border); }
+.btn-secondary:hover { background-color: var(--glass-card-bg-hover); border-color: var(--card-hover-border); box-shadow: 0 0 0 1px var(--glass-glow), inset 0 1px 0 0 var(--glass-highlight); }
 .btn-secondary:active { transform: scale(0.98); }
 
 .btn-ghost {
@@ -320,31 +365,50 @@ input, select, textarea {
   color: var(--text-secondary);
   border-radius: var(--radius-md);
   font-weight: 600;
-  transition: background-color var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
+  transition: background-color var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard), backdrop-filter var(--duration-fast) var(--ease-standard);
 }
-.btn-ghost:hover { background-color: var(--hover-surface); color: var(--text-primary); }
+.btn-ghost:hover { background-color: var(--glass-card-bg); color: var(--text-primary); backdrop-filter: blur(var(--glass-blur-sm)); -webkit-backdrop-filter: blur(var(--glass-blur-sm)); }
+
+/* Circular glass icon button -- theme toggle, notification bell, mobile
+   menu trigger, modal close -- one consistent treatment everywhere a bare
+   icon needs a pressable surface. */
+.btn-icon-glass {
+  background-color: var(--glass-card-bg);
+  border: 1px solid var(--glass-card-border);
+  backdrop-filter: blur(var(--glass-blur-sm)) saturate(150%);
+  -webkit-backdrop-filter: blur(var(--glass-blur-sm)) saturate(150%);
+  box-shadow: inset 0 1px 0 0 var(--glass-highlight);
+  border-radius: var(--radius-full);
+  transition: background-color var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard), box-shadow var(--duration-base) var(--ease-standard), transform var(--duration-fast) var(--ease-standard);
+}
+.btn-icon-glass:hover { background-color: var(--glass-card-bg-hover); box-shadow: 0 0 0 1px var(--glass-glow), inset 0 1px 0 0 var(--glass-highlight); }
+.btn-icon-glass:active { transform: scale(0.94); }
 
 /* ================================== Inputs =================================== */
 .input-field {
-  background-color: var(--bg-surface-sunken);
-  border: 1px solid var(--card-border);
+  background-color: var(--glass-input-bg);
+  border: 1px solid var(--glass-card-border);
   border-radius: var(--radius-md);
   color: var(--text-primary);
+  backdrop-filter: blur(var(--glass-blur-sm));
+  -webkit-backdrop-filter: blur(var(--glass-blur-sm));
   transition: border-color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard), box-shadow var(--duration-fast) var(--ease-standard);
 }
 .input-field:focus {
   outline: none;
   border-color: var(--accent-secondary);
-  background-color: var(--bg-surface);
-  box-shadow: 0 0 0 3px var(--accent-secondary-subtle);
+  background-color: var(--glass-card-bg-hover);
+  box-shadow: 0 0 0 3px var(--accent-secondary-subtle), inset 0 1px 0 0 var(--glass-highlight);
 }
 .input-field::placeholder { color: var(--text-muted); }
 
 /* ================================== Badges =================================== */
 .badge-purple, .badge-gold {
-  background: var(--accent-secondary-subtle);
+  background: color-mix(in srgb, var(--accent-secondary) 14%, var(--glass-card-bg));
   color: var(--accent-secondary);
   border: 1px solid color-mix(in srgb, var(--accent-secondary) 30%, transparent);
+  backdrop-filter: blur(var(--glass-blur-sm));
+  -webkit-backdrop-filter: blur(var(--glass-blur-sm));
 }
 
 /* ============================== Empty & loading states ======================= */
@@ -361,7 +425,9 @@ input, select, textarea {
   width: 3rem;
   height: 3rem;
   border-radius: var(--radius-lg);
-  background: var(--accent-secondary-subtle);
+  background: color-mix(in srgb, var(--accent-secondary) 12%, var(--glass-card-bg));
+  border: 1px solid var(--glass-card-border);
+  box-shadow: inset 0 1px 0 0 var(--glass-highlight);
   color: var(--accent-secondary);
   display: flex;
   align-items: center;
@@ -372,7 +438,8 @@ input, select, textarea {
 .skeleton {
   position: relative;
   overflow: hidden;
-  background-color: var(--bg-surface-sunken);
+  background-color: var(--glass-card-bg);
+  border: 1px solid var(--glass-card-border);
   border-radius: var(--radius-md);
 }
 .skeleton::after {
@@ -400,12 +467,20 @@ input, select, textarea {
   color: var(--text-secondary) !important;
   opacity: 1 !important;
 }
+/* Nested "glass within glass" tile (e.g. a post row inside an exec-card).
+   Deliberately skips its own backdrop-filter -- stacking a second blur
+   pass inside an already-blurred parent is wasted GPU work for a
+   difference nobody would see, so this relies on plain translucency plus
+   the parent's blur to still read as part of the same glass surface. */
 .surface-tile {
-  background-color: var(--bg-surface-raised);
+  background-color: var(--glass-card-bg-hover);
   color: var(--text-primary);
-  border: 1px solid var(--card-border);
+  border: 1px solid var(--glass-card-border);
   border-radius: var(--radius-lg);
-  transition: border-color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard);
+  transition: border-color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard), box-shadow var(--duration-base) var(--ease-standard);
+}
+.surface-tile:hover {
+  box-shadow: 0 0 0 1px var(--glass-glow);
 }
 .surface-tile .tile-label {
   color: var(--text-secondary);
@@ -418,14 +493,16 @@ input, select, textarea {
   background: var(--gradient-primary-cta) !important;
   color: var(--text-on-accent) !important;
   border: 1px solid rgba(74, 127, 167, 0.35) !important;
-  box-shadow: 0 4px 12px -2px rgba(74, 127, 167, 0.4);
+  box-shadow: 0 4px 12px -2px var(--glass-glow), inset 0 1px 0 0 rgba(255, 255, 255, 0.25);
 }
 .btn-gold-cta {
-  background: transparent !important;
+  background: var(--glass-card-bg) !important;
+  backdrop-filter: blur(var(--glass-blur-sm));
+  -webkit-backdrop-filter: blur(var(--glass-blur-sm));
   color: var(--accent-secondary) !important;
   border: 1px solid rgba(74, 127, 167, 0.25) !important;
 }
-.btn-gold-cta:hover { border-color: rgba(74, 127, 167, 0.5) !important; }
+.btn-gold-cta:hover { border-color: rgba(74, 127, 167, 0.5) !important; background: var(--glass-card-bg-hover) !important; }
 
 /* =============================== Scrollbars =================================== */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
