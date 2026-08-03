@@ -78,11 +78,18 @@ export default function RegisterPage() {
   };
 
   if (checkingSession) {
-    return <div className="min-h-screen w-full" style={{ backgroundColor: 'var(--bg-base)' }} />;
+    return <div className="min-h-screen w-full light" style={{ backgroundColor: 'var(--bg-base)' }} />;
   }
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center p-4" style={{ color: 'var(--text-primary)' }}>
+    // Signup is scoped to light mode regardless of the app's saved theme
+    // preference (which still governs the dashboard/login) -- a deliberate,
+    // locally-scoped override via the same .light class the landing page
+    // uses, not a change to the global default.
+    <div
+      className="min-h-screen w-full light flex items-center justify-center p-4"
+      style={{ backgroundColor: 'var(--bg-base)', backgroundImage: 'var(--gradient-mesh-subtle)', color: 'var(--text-primary)' }}
+    >
 
       <motion.div
         initial={{ opacity: 0, y: 15 }}

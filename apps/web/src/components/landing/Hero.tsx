@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { ArrowRight, PlayCircle } from 'lucide-react';
 import EngineOrb from './EngineOrb';
-import { Eyebrow } from './shared';
 
 /**
  * Hotspot callouts ringing the AMAI Engine orb -- minimal dot + leader-line
@@ -68,9 +67,7 @@ export default function Hero() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
         >
-          <Eyebrow>AI Social Media Operating System</Eyebrow>
-
-          <h1 className="lp-heading mt-8 text-5xl sm:text-6xl lg:text-7xl font-bold leading-[1.04] tracking-tight" style={{ color: 'var(--lp-text-primary)' }}>
+          <h1 className="lp-heading text-5xl sm:text-6xl lg:text-7xl font-bold leading-[1.04] tracking-tight" style={{ color: 'var(--lp-text-primary)' }}>
             Upload once. <span className="lp-gradient-text">AMAI</span> handles the rest.
           </h1>
 

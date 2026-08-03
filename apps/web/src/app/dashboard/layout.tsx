@@ -97,6 +97,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [userInitials, setUserInitials] = useState('U');
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
+  const [scrolled, setScrolled] = useState(false);
   // Gates rendering of the actual dashboard shell until the auth check has
   // resolved — without this, an unauthenticated visitor briefly sees the
   // full protected layout flash on screen before the redirect kicks in.
@@ -133,6 +134,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     setIsMobileOpen(false);
   }, [pathname]);
+
+  // Powers the floating header's shrink-on-scroll transition -- same
+  // "island" behavior as the landing page's Nav.tsx.
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 12);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   // Keep <html> in sync too — Tailwind's `dark:` utilities key off an
   // ancestor with the "dark" class, so this must live on <html>, not just
@@ -171,10 +181,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       }`}
       style={{ backgroundColor: 'var(--bg-base)', color: 'var(--text-primary)' }}
     >
-      {/* ── 1. Unified 100% Full-Width Top Navigation Bar ── */}
+      {/* ── 1. Floating "Dynamic Island" Top Navigation ──
+          Same floating glass-pill language as the landing page's Nav.tsx:
+          rounded-full, inset margins, blur/border/shadow, and a tightened
+          shadow/padding once the page scrolls. */}
       <header
-        className="w-full h-14 border-b flex items-center justify-between px-4 sm:px-6 sticky top-0 z-40 backdrop-blur-md"
-        style={{ backgroundColor: 'var(--glass-bg)', borderColor: 'var(--glass-border)' }}
+        className="flex items-center justify-between sticky z-40 mx-3 sm:mx-4 lg:mx-6 rounded-full transition-all duration-500 ease-out"
+        style={{
+          top: scrolled ? '0.5rem' : '0.75rem',
+          padding: scrolled ? '0.45rem 0.5rem 0.45rem 1rem' : '0.65rem 0.75rem 0.65rem 1.25rem',
+          backgroundColor: 'var(--glass-bg)',
+          border: '1px solid var(--glass-border)',
+          backdropFilter: 'blur(20px) saturate(160%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(160%)',
+          boxShadow: scrolled
+            ? '0 10px 30px -12px rgba(0, 0, 0, 0.35), inset 0 1px 0 0 var(--glass-highlight)'
+            : '0 6px 20px -10px rgba(0, 0, 0, 0.22), inset 0 1px 0 0 var(--glass-highlight)',
+        }}
       >
         {/* Left: Logo & Mobile Toggle */}
         <div className="flex items-center space-x-3 sm:space-x-4">
@@ -305,7 +328,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </AnimatePresence>
 
       {/* ── 2. The 3-Column SaaS Grid Container ── */}
-      <div className="flex-1 w-full max-w-[1600px] mx-auto px-3 sm:px-6 py-4 sm:py-6">
+      <div className="flex-1 w-full max-w-[1600px] mx-auto px-3 sm:px-6 pt-5 sm:pt-7 pb-4 sm:pb-6">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
           {/* Column 1: Left Sidebar Navigation */}

@@ -43,7 +43,7 @@ export default function Nav() {
           className="flex items-center justify-between rounded-full transition-all duration-500 ease-out"
           style={{
             padding: scrolled ? '0.4rem 0.4rem 0.4rem 1.25rem' : '0.7rem 0.7rem 0.7rem 1.5rem',
-            background: 'rgba(9, 13, 20, 0.62)',
+            background: 'color-mix(in srgb, var(--lp-bg-soft) 62%, transparent)',
             backdropFilter: 'blur(20px)',
             WebkitBackdropFilter: 'blur(20px)',
             border: '1px solid var(--lp-border)',
@@ -109,7 +109,7 @@ export default function Nav() {
               transition={{ duration: 0.2, ease: 'easeOut' }}
               className="lg:hidden mt-2 rounded-3xl overflow-hidden origin-top"
               style={{
-                background: 'rgba(9, 13, 20, 0.78)',
+                background: 'color-mix(in srgb, var(--lp-bg-soft) 80%, transparent)',
                 backdropFilter: 'blur(20px)',
                 WebkitBackdropFilter: 'blur(20px)',
                 border: '1px solid var(--lp-border)',
