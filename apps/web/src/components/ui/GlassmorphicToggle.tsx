@@ -26,18 +26,18 @@ export default function GlassmorphicToggle({
         height: "32px",
         padding: "3px",
         borderRadius: "9999px",
-        // Outer Glass Capsule Casing — violet glow when active, neutral
+        // Outer Glass Capsule Casing — steel-blue glow when active, neutral
         // grey glass when paused (same mechanics, new brand accent).
         background: checked
-          ? "rgba(124, 58, 237, 0.15)"
+          ? "rgba(74, 127, 167, 0.18)"
           : "rgba(255, 255, 255, 0.08)",
         backdropFilter: "blur(12px)",
         WebkitBackdropFilter: "blur(12px)",
         border: checked
-          ? "1.5px solid rgba(124, 58, 237, 0.5)"
+          ? "1.5px solid rgba(74, 127, 167, 0.55)"
           : "1.5px solid rgba(255, 255, 255, 0.2)",
         boxShadow: checked
-          ? "inset 0 1px 2px rgba(255, 255, 255, 0.4), 0 3px 14px rgba(124, 58, 237, 0.35)"
+          ? "inset 0 1px 2px rgba(255, 255, 255, 0.4), 0 3px 14px rgba(74, 127, 167, 0.4)"
           : "inset 0 1px 2px rgba(255, 255, 255, 0.25), 0 2px 8px rgba(0, 0, 0, 0.15)",
       }}
     >
@@ -46,10 +46,10 @@ export default function GlassmorphicToggle({
         className="w-full h-full rounded-full transition-all duration-300 relative overflow-hidden"
         style={{
           background: checked
-            ? "linear-gradient(90deg, #312E81 0%, #7C3AED 100%)"
+            ? "linear-gradient(90deg, #0A1931 0%, #4A7FA7 100%)"
             : "rgba(100, 116, 139, 0.55)",
           boxShadow: checked
-            ? "inset 0 1px 3px rgba(255, 255, 255, 0.4), 0 0 10px rgba(124, 58, 237, 0.45)"
+            ? "inset 0 1px 3px rgba(255, 255, 255, 0.4), 0 0 10px rgba(74, 127, 167, 0.5)"
             : "inset 0 2px 4px rgba(0, 0, 0, 0.35)",
         }}
       />
@@ -73,7 +73,7 @@ export default function GlassmorphicToggle({
         <div
           className="w-2.5 h-2.5 rounded-full"
           style={{
-            background: checked ? "rgba(124, 58, 237, 0.25)" : "rgba(0, 0, 0, 0.08)",
+            background: checked ? "rgba(74, 127, 167, 0.3)" : "rgba(0, 0, 0, 0.08)",
             border: "1px solid rgba(255, 255, 255, 0.6)",
           }}
         />

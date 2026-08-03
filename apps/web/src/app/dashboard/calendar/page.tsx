@@ -47,7 +47,7 @@ const STATUS_LABEL: Record<PostStatus, string> = {
 
 const STATUS_COLOR: Record<PostStatus, string> = {
   NEEDS_APPROVAL: 'text-amber-400 border-amber-500/30 bg-amber-500/10',
-  SCHEDULED: 'text-violet-400 border-violet-500/30 bg-violet-500/10',
+  SCHEDULED: 'text-blue-400 border-blue-500/30 bg-blue-500/10',
   PUBLISHED: 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10',
   FAILED: 'text-red-400 border-red-500/30 bg-red-500/10',
 };
@@ -236,7 +236,7 @@ export default function CalendarPage() {
         action={
           <Badge variant="success">
             <span className="flex items-center space-x-1">
-              <CalendarClock className="h-3 w-3 text-indigo-400" />
+              <CalendarClock className="h-3 w-3 text-blue-400" />
               <span>{totalVisible} posts this week</span>
             </span>
           </Badge>
@@ -395,7 +395,7 @@ export default function CalendarPage() {
                 value={editCaption}
                 onChange={(e) => setEditCaption(e.target.value)}
                 disabled={editPost.status === 'PUBLISHED' || editPost.status === 'FAILED'}
-                className="w-full rounded-xl p-3 text-xs border outline-none focus:border-indigo-500/50 transition disabled:opacity-50"
+                className="w-full rounded-xl p-3 text-xs border outline-none focus:border-blue-500/50 transition disabled:opacity-50"
                 style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-primary)' }}
               />
             </div>
@@ -407,7 +407,7 @@ export default function CalendarPage() {
                 value={editHashtags}
                 onChange={(e) => setEditHashtags(e.target.value)}
                 disabled={editPost.status === 'PUBLISHED' || editPost.status === 'FAILED'}
-                className="w-full rounded-xl p-2.5 text-xs font-mono border outline-none focus:border-indigo-500/50 transition disabled:opacity-50"
+                className="w-full rounded-xl p-2.5 text-xs font-mono border outline-none focus:border-blue-500/50 transition disabled:opacity-50"
                 style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-primary)' }}
               />
             </div>
@@ -419,7 +419,7 @@ export default function CalendarPage() {
                 value={editTime}
                 onChange={(e) => setEditTime(e.target.value)}
                 disabled={editPost.status === 'PUBLISHED' || editPost.status === 'FAILED'}
-                className="w-full rounded-xl p-2.5 text-xs border outline-none focus:border-indigo-500/50 transition disabled:opacity-50 touch-target"
+                className="w-full rounded-xl p-2.5 text-xs border outline-none focus:border-blue-500/50 transition disabled:opacity-50 touch-target"
                 style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-primary)' }}
               />
             </div>

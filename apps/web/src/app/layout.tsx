@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Space_Grotesk, Inter } from 'next/font/google';
+import { Space_Grotesk, Inter, Bebas_Neue } from 'next/font/google';
 import './globals.css';
 import AnalyticsInit from '@/components/analytics/AnalyticsInit';
 
@@ -21,6 +21,17 @@ const inter = Inter({
   subsets: ['latin'],
   weight: ['400', '500', '600', '700'],
   variable: '--font-body-var',
+  display: 'swap',
+});
+// Bold condensed display face, used only for hero-scale headlines
+// (globals.css's .text-display / .text-display-giant) -- synthesized from
+// the reference moodboard's dramatic oversized hero typography, kept
+// separate from Space Grotesk so regular headings stay readable at UI
+// sizes while hero copy gets the poster-style treatment.
+const bebasNeue = Bebas_Neue({
+  subsets: ['latin'],
+  weight: ['400'],
+  variable: '--font-display-var',
   display: 'swap',
 });
 
@@ -67,7 +78,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`antialiased ${spaceGrotesk.variable} ${inter.variable}`}>
+      <body className={`antialiased ${spaceGrotesk.variable} ${inter.variable} ${bebasNeue.variable}`}>
         <AnalyticsInit />
         {children}
       </body>

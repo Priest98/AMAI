@@ -252,7 +252,7 @@ function MediaSourceSection() {
                         className="w-full text-left px-3 py-2 rounded-lg flex items-center space-x-2 touch-target"
                         style={{ color: 'var(--text-primary)' }}
                       >
-                        <FolderSync className="h-3.5 w-3.5 text-violet-500" />
+                        <FolderSync className="h-3.5 w-3.5 text-blue-500" />
                         <span>Change Folder</span>
                       </button>
                       <button

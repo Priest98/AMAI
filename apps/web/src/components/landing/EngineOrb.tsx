@@ -6,10 +6,10 @@ import { Instagram, Video, Facebook, Youtube, Music2 } from 'lucide-react';
 
 const PLATFORMS = [
   { Icon: Instagram, color: '#E1306C', angle: 0 },
-  { Icon: Music2, color: '#39E7FF', angle: 72 },
+  { Icon: Music2, color: '#FE2C55', angle: 72 },
   { Icon: Facebook, color: '#3B82F6', angle: 144 },
   { Icon: Youtube, color: '#EF4444', angle: 216 },
-  { Icon: Video, color: '#7C5CFF', angle: 288 },
+  { Icon: Video, color: '#7FB0DB', angle: 288 },
 ];
 
 /**
@@ -63,8 +63,8 @@ export default function EngineOrb() {
         })}
         <defs>
           <linearGradient id="lp-line-gradient" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#39E7FF" />
-            <stop offset="100%" stopColor="#7C5CFF" />
+            <stop offset="0%" stopColor="#7FB0DB" />
+            <stop offset="100%" stopColor="#1A3D63" />
           </linearGradient>
         </defs>
       </svg>
@@ -77,7 +77,7 @@ export default function EngineOrb() {
             width: 92,
             height: 92,
             background: 'var(--lp-gradient-brand)',
-            boxShadow: '0 0 60px rgba(57, 231, 255, 0.55), 0 0 120px rgba(124, 92, 255, 0.35)',
+            boxShadow: '0 0 60px rgba(127, 176, 219, 0.55), 0 0 120px rgba(26, 61, 99, 0.4)',
           }}
         >
           <span className="text-[#04070D] font-extrabold text-sm lp-heading tracking-tight">AMAI</span>

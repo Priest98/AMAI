@@ -393,7 +393,7 @@ export default function ConnectedAccountsPage() {
                           className="w-full text-left px-3 py-2 rounded-lg flex items-center space-x-2 touch-target"
                           style={{ color: 'var(--text-primary)' }}
                         >
-                          <RefreshCw className="h-3.5 w-3.5 text-violet-500" />
+                          <RefreshCw className="h-3.5 w-3.5 text-blue-500" />
                           <span>Reconnect Profile</span>
                         </button>
 

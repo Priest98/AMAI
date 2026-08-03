@@ -301,7 +301,7 @@ export default function AmaiEnginePage() {
       {/* ── Posting Schedule (AI publishing calendar) ── */}
       <div className="exec-card p-5 sm:p-6 space-y-5">
         <div className="flex items-center space-x-2">
-          <CalendarClock className="h-4 w-4 text-indigo-400" />
+          <CalendarClock className="h-4 w-4 text-blue-400" />
           <div>
             <h3 className="text-sm font-extrabold tracking-tight" style={{ color: 'var(--text-primary)' }}>Posting Schedule</h3>
             <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
@@ -320,7 +320,7 @@ export default function AmaiEnginePage() {
                 <button
                   key={n}
                   onClick={() => savePostingSchedule({ postsPerDay: n })}
-                  className={`py-2.5 rounded-xl border text-sm font-extrabold transition touch-target ${active ? 'border-indigo-500/60 bg-indigo-500/10 text-indigo-400' : ''}`}
+                  className={`py-2.5 rounded-xl border text-sm font-extrabold transition touch-target ${active ? 'border-blue-500/60 bg-blue-500/10 text-blue-400' : ''}`}
                   style={{ backgroundColor: active ? undefined : 'var(--bg-surface-raised)', borderColor: active ? undefined : 'var(--card-border)', color: active ? undefined : 'var(--text-primary)' }}
                 >
                   {n}
@@ -341,7 +341,7 @@ export default function AmaiEnginePage() {
                 <button
                   key={opt}
                   onClick={() => savePostingSchedule({ scheduleStartFrom: opt })}
-                  className={`py-2.5 px-2 rounded-xl border text-xs font-extrabold transition touch-target ${active ? 'border-indigo-500/60 bg-indigo-500/10 text-indigo-400' : ''}`}
+                  className={`py-2.5 px-2 rounded-xl border text-xs font-extrabold transition touch-target ${active ? 'border-blue-500/60 bg-blue-500/10 text-blue-400' : ''}`}
                   style={{ backgroundColor: active ? undefined : 'var(--bg-surface-raised)', borderColor: active ? undefined : 'var(--card-border)', color: active ? undefined : 'var(--text-primary)' }}
                 >
                   {opt === 'TODAY' ? 'Today' : opt === 'TOMORROW' ? 'Tomorrow' : 'Custom Date'}
@@ -387,7 +387,7 @@ export default function AmaiEnginePage() {
                 <button
                   key={p}
                   onClick={() => savePostingSchedule({ schedulingPlatform: p })}
-                  className={`py-2.5 px-2 rounded-xl border text-xs font-extrabold transition touch-target ${active ? 'border-indigo-500/60 bg-indigo-500/10 text-indigo-400' : ''}`}
+                  className={`py-2.5 px-2 rounded-xl border text-xs font-extrabold transition touch-target ${active ? 'border-blue-500/60 bg-blue-500/10 text-blue-400' : ''}`}
                   style={{ backgroundColor: active ? undefined : 'var(--bg-surface-raised)', borderColor: active ? undefined : 'var(--card-border)', color: active ? undefined : 'var(--text-primary)' }}
                 >
                   {p === 'INSTAGRAM' ? 'Instagram' : p === 'TIKTOK' ? 'TikTok' : 'Both'}

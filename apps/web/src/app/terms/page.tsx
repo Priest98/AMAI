@@ -16,7 +16,7 @@ export default function TermsOfService() {
   return (
     <div className="min-h-screen bg-[#09090b] text-white p-8 max-w-4xl mx-auto space-y-8 font-sans pb-24">
       <div>
-        <Link href="/login" className="text-xs text-violet-400 hover:underline">← Back to AMAI</Link>
+        <Link href="/login" className="text-xs text-blue-400 hover:underline">← Back to AMAI</Link>
         <h1 className="text-3xl font-bold mt-4">AMAI Terms of Service</h1>
         <p className="text-xs text-zinc-500 mt-2">Last updated: {LAST_UPDATED}</p>
       </div>
@@ -74,7 +74,7 @@ export default function TermsOfService() {
       </Section>
 
       <Section title="11. Contact Us">
-        <p>Questions about these Terms? Email <a href={`mailto:${CONTACT_EMAIL}`} className="text-violet-400 hover:underline">{CONTACT_EMAIL}</a>.</p>
+        <p>Questions about these Terms? Email <a href={`mailto:${CONTACT_EMAIL}`} className="text-blue-400 hover:underline">{CONTACT_EMAIL}</a>.</p>
       </Section>
     </div>
   );

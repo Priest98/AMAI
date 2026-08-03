@@ -322,7 +322,7 @@ export default function UploadDropzone({ onUploaded }: { onUploaded?: (asset: an
         onDrop={handleDrop}
         className={`rounded-xl border-2 border-dashed p-6 sm:p-8 text-center transition-all duration-200 ${
           isDragging
-            ? "border-violet-500 bg-violet-500/5 dark:bg-violet-500/10"
+            ? "border-blue-500 bg-blue-500/5 dark:bg-blue-500/10"
             : "border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-zinc-950/40 hover:border-slate-300 dark:hover:border-white/20"
         }`}
       >

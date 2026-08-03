@@ -19,31 +19,34 @@
 
 :root,
 .light {
-  /* ---- Surfaces & elevation ---- */
-  --bg-base: #F7F8FB;
+  /* ---- Surfaces & elevation ----
+   * Neutral base drawn from the platinum/French gray/gunmetal palette,
+   * with the navy/steel-blue palette carrying all brand accent duty. */
+  --bg-base: #F6FAFD;
   --bg-surface: #FFFFFF;
-  --bg-surface-raised: #FBFBFD;
-  --bg-surface-sunken: #F1F3F8;
-  --hover-surface: #F1F4F9;
+  --bg-surface-raised: #FBFCFE;
+  --bg-surface-sunken: #EDF0F5;
+  --hover-surface: #E7ECF3;
   --card-bg: #FFFFFF;
-  --card-border: #E7E9F1;
-  --card-hover-border: #D7DAE6;
+  --card-border: #DCE1EA;
+  --card-hover-border: #C7CEDB;
 
-  --elevation-1: 0 1px 2px 0 rgba(23, 24, 42, 0.04);
-  --elevation-2: 0 1px 2px 0 rgba(23, 24, 42, 0.04), 0 4px 10px -4px rgba(23, 24, 42, 0.07);
-  --elevation-3: 0 2px 4px -1px rgba(23, 24, 42, 0.05), 0 8px 20px -6px rgba(23, 24, 42, 0.10);
-  --elevation-4: 0 4px 8px -2px rgba(23, 24, 42, 0.06), 0 16px 32px -10px rgba(23, 24, 42, 0.14);
-  --elevation-5: 0 8px 16px -4px rgba(23, 24, 42, 0.08), 0 28px 56px -16px rgba(23, 24, 42, 0.20);
+  --elevation-1: 0 1px 2px 0 rgba(10, 25, 49, 0.05);
+  --elevation-2: 0 1px 2px 0 rgba(10, 25, 49, 0.05), 0 4px 10px -4px rgba(10, 25, 49, 0.08);
+  --elevation-3: 0 2px 4px -1px rgba(10, 25, 49, 0.06), 0 8px 20px -6px rgba(10, 25, 49, 0.11);
+  --elevation-4: 0 4px 8px -2px rgba(10, 25, 49, 0.07), 0 16px 32px -10px rgba(10, 25, 49, 0.15);
+  --elevation-5: 0 8px 16px -4px rgba(10, 25, 49, 0.09), 0 28px 56px -16px rgba(10, 25, 49, 0.22);
   --card-shadow: var(--elevation-2);
 
   --glass-bg: rgba(255, 255, 255, 0.72);
   --glass-border: rgba(255, 255, 255, 0.5);
 
-  /* ---- Brand & accents (same indigo/violet identity, refined) ---- */
-  --accent-primary: #312E81;
-  --accent-secondary: #7C3AED;
-  --accent-primary-subtle: rgba(49, 46, 129, 0.08);
-  --accent-secondary-subtle: rgba(124, 58, 237, 0.10);
+  /* ---- Brand & accents: navy blue carries the identity, gunmetal
+     anchors dark elements, steel blue is the primary interactive accent ---- */
+  --accent-primary: #0A1931;
+  --accent-secondary: #4A7FA7;
+  --accent-primary-subtle: rgba(10, 25, 49, 0.07);
+  --accent-secondary-subtle: rgba(74, 127, 167, 0.12);
   --accent-success: #0F9D64;
   --accent-warning: #D97706;
   --accent-error: #DC2626;
@@ -52,30 +55,32 @@
   --accent-error-subtle: rgba(220, 38, 38, 0.10);
 
   /* ---- Text ---- */
-  --text-primary: #14152B;
-  --text-secondary: #53566E;
-  --text-muted: #9497AC;
-  --text-on-accent: #FFFFFF;
+  --text-primary: #0A1931;
+  --text-secondary: #3D4A5C;
+  --text-muted: #8891A0;
+  --text-on-accent: #F6FAFD;
 
-  --gradient-primary-cta: linear-gradient(135deg, #312E81 0%, #7C3AED 100%);
-  --gradient-gold-cta: linear-gradient(135deg, #312E81 0%, #7C3AED 100%);
-  --gradient-mesh-subtle: radial-gradient(60% 60% at 15% 10%, rgba(124, 58, 237, 0.06) 0%, transparent 60%),
-    radial-gradient(50% 50% at 100% 0%, rgba(49, 46, 129, 0.05) 0%, transparent 60%);
+  --gradient-primary-cta: linear-gradient(135deg, #0A1931 0%, #4A7FA7 100%);
+  --gradient-gold-cta: linear-gradient(135deg, #0A1931 0%, #4A7FA7 100%);
+  --gradient-mesh-subtle: radial-gradient(60% 60% at 15% 10%, rgba(74, 127, 167, 0.08) 0%, transparent 60%),
+    radial-gradient(50% 50% at 100% 0%, rgba(10, 25, 49, 0.05) 0%, transparent 60%);
 
   --font-sans: var(--font-body-var), Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-heading: var(--font-heading-var), 'Space Grotesk', var(--font-sans);
+  --font-display: var(--font-display-var), 'Bebas Neue', var(--font-heading);
   --font-mono: 'Geist Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
 }
 
 .dark {
-  --bg-base: #0C0D18;
-  --bg-surface: #15172A;
-  --bg-surface-raised: #1B1D33;
-  --bg-surface-sunken: #0A0B14;
-  --hover-surface: #22243D;
-  --card-bg: #15172A;
-  --card-border: rgba(226, 228, 245, 0.08);
-  --card-hover-border: rgba(226, 228, 245, 0.16);
+  /* Gunmetal as the dark base, steel/sky blue brightened for legibility */
+  --bg-base: #21242F;
+  --bg-surface: #2A2E3C;
+  --bg-surface-raised: #333748;
+  --bg-surface-sunken: #1A1D26;
+  --hover-surface: #3B4054;
+  --card-bg: #2A2E3C;
+  --card-border: rgba(179, 207, 229, 0.10);
+  --card-hover-border: rgba(179, 207, 229, 0.20);
 
   --elevation-1: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
   --elevation-2: 0 1px 2px 0 rgba(0, 0, 0, 0.3), 0 4px 12px -4px rgba(0, 0, 0, 0.45);
@@ -84,13 +89,13 @@
   --elevation-5: 0 10px 20px -4px rgba(0, 0, 0, 0.45), 0 32px 64px -18px rgba(0, 0, 0, 0.65);
   --card-shadow: var(--elevation-2);
 
-  --glass-bg: rgba(21, 23, 42, 0.72);
-  --glass-border: rgba(226, 228, 245, 0.10);
+  --glass-bg: rgba(42, 46, 60, 0.72);
+  --glass-border: rgba(179, 207, 229, 0.12);
 
-  --accent-primary: #8B7CF6;
-  --accent-secondary: #A78BFA;
-  --accent-primary-subtle: rgba(139, 124, 246, 0.14);
-  --accent-secondary-subtle: rgba(167, 139, 250, 0.16);
+  --accent-primary: #6C93B8;
+  --accent-secondary: #7FB0DB;
+  --accent-primary-subtle: rgba(108, 147, 184, 0.16);
+  --accent-secondary-subtle: rgba(127, 176, 219, 0.18);
   --accent-success: #34D399;
   --accent-warning: #FBBF24;
   --accent-error: #F87171;
@@ -98,20 +103,21 @@
   --accent-warning-subtle: rgba(251, 191, 36, 0.14);
   --accent-error-subtle: rgba(248, 113, 113, 0.14);
 
-  --text-primary: #F4F5FA;
-  --text-secondary: #B5B8D1;
-  --text-muted: #74778F;
-  --text-on-accent: #0C0D18;
+  --text-primary: #F6FAFD;
+  --text-secondary: #B3CFE5;
+  --text-muted: #8B95A8;
+  --text-on-accent: #0A1931;
 
-  --gradient-primary-cta: linear-gradient(135deg, #4C46B8 0%, #8B5CF6 100%);
-  --gradient-gold-cta: linear-gradient(135deg, #4C46B8 0%, #8B5CF6 100%);
-  --gradient-mesh-subtle: radial-gradient(60% 60% at 15% 10%, rgba(139, 124, 246, 0.10) 0%, transparent 60%),
-    radial-gradient(50% 50% at 100% 0%, rgba(167, 139, 250, 0.08) 0%, transparent 60%);
+  --gradient-primary-cta: linear-gradient(135deg, #1A3D63 0%, #4A7FA7 100%);
+  --gradient-gold-cta: linear-gradient(135deg, #1A3D63 0%, #4A7FA7 100%);
+  --gradient-mesh-subtle: radial-gradient(60% 60% at 15% 10%, rgba(127, 176, 219, 0.12) 0%, transparent 60%),
+    radial-gradient(50% 50% at 100% 0%, rgba(26, 61, 99, 0.14) 0%, transparent 60%);
 }
 
 @theme inline {
   --font-sans: var(--font-sans);
   --font-heading: var(--font-heading);
+  --font-display: var(--font-display);
   --font-mono: var(--font-mono);
 }
 
@@ -187,11 +193,23 @@ input, select, textarea {
 
 /* =============================== Typography ================================ */
 .text-display {
-  font-family: var(--font-heading);
-  font-weight: 600;
+  font-family: var(--font-display);
+  font-weight: 400;
   font-size: clamp(2rem, 1.6rem + 1.8vw, 2.75rem);
-  line-height: 1.08;
-  letter-spacing: -0.025em;
+  line-height: 1.02;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+}
+/* Oversized, low-opacity background typography for hero sections --
+   the "KEN" treatment from the kendo reference, adapted as an ambient
+   backdrop layer rather than literal foreground text. */
+.text-display-giant {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(5rem, 3rem + 12vw, 13rem);
+  line-height: 0.85;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
 }
 .text-h1 {
   font-family: var(--font-heading);
@@ -235,8 +253,9 @@ input, select, textarea {
 /* ================================== Cards =================================== */
 .exec-card {
   background-color: var(--card-bg);
+  background-image: linear-gradient(180deg, color-mix(in srgb, var(--text-on-accent) 3%, transparent) 0%, transparent 40%);
   border: 1px solid var(--card-border);
-  box-shadow: var(--card-shadow);
+  box-shadow: var(--card-shadow), inset 0 1px 0 0 color-mix(in srgb, var(--text-on-accent) 6%, transparent);
   border-radius: var(--radius-lg);
   transition: background-color var(--duration-base) var(--ease-standard),
     border-color var(--duration-base) var(--ease-standard),
@@ -248,8 +267,19 @@ input, select, textarea {
 }
 .exec-card-interactive:hover {
   border-color: var(--card-hover-border);
-  box-shadow: var(--elevation-3);
+  box-shadow: var(--elevation-3), inset 0 1px 0 0 color-mix(in srgb, var(--text-on-accent) 8%, transparent);
   transform: translateY(-1px);
+}
+
+/* Dark "shell" panel that groups a cluster of tiles/charts, echoing the
+   layered card-within-panel composition from the dashboard reference --
+   a slightly sunken, glassy container that gives the tiles inside it a
+   sense of depth without introducing a second accent color. */
+.glass-shell {
+  background: linear-gradient(165deg, var(--bg-surface-sunken) 0%, var(--bg-surface) 100%);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--elevation-3), inset 0 1px 0 0 color-mix(in srgb, var(--text-on-accent) 5%, transparent);
 }
 
 .glass-panel {
@@ -266,11 +296,11 @@ input, select, textarea {
   color: var(--text-on-accent);
   border-radius: var(--radius-md);
   font-weight: 600;
-  box-shadow: 0 4px 14px -2px rgba(124, 58, 237, 0.35);
-  border: 1px solid rgba(124, 58, 237, 0.35);
+  box-shadow: 0 4px 14px -2px rgba(74, 127, 167, 0.35);
+  border: 1px solid rgba(74, 127, 167, 0.35);
   transition: opacity var(--duration-fast) var(--ease-standard), transform var(--duration-fast) var(--ease-standard), box-shadow var(--duration-base) var(--ease-standard);
 }
-.btn-primary-gradient:hover { opacity: 0.95; box-shadow: 0 6px 20px -4px rgba(124, 58, 237, 0.45); }
+.btn-primary-gradient:hover { opacity: 0.95; box-shadow: 0 6px 20px -4px rgba(74, 127, 167, 0.45); }
 .btn-primary-gradient:active { transform: scale(0.98); }
 .btn-primary-gradient:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
@@ -387,18 +417,18 @@ input, select, textarea {
 .gradient-cta, .btn-emerald-cta {
   background: var(--gradient-primary-cta) !important;
   color: var(--text-on-accent) !important;
-  border: 1px solid rgba(124, 58, 237, 0.35) !important;
-  box-shadow: 0 4px 12px -2px rgba(124, 58, 237, 0.4);
+  border: 1px solid rgba(74, 127, 167, 0.35) !important;
+  box-shadow: 0 4px 12px -2px rgba(74, 127, 167, 0.4);
 }
 .btn-gold-cta {
   background: transparent !important;
   color: var(--accent-secondary) !important;
-  border: 1px solid rgba(124, 58, 237, 0.25) !important;
+  border: 1px solid rgba(74, 127, 167, 0.25) !important;
 }
-.btn-gold-cta:hover { border-color: rgba(124, 58, 237, 0.5) !important; }
+.btn-gold-cta:hover { border-color: rgba(74, 127, 167, 0.5) !important; }
 
 /* =============================== Scrollbars =================================== */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(124, 58, 237, 0.25); border-radius: var(--radius-full); }
-::-webkit-scrollbar-thumb:hover { background: rgba(124, 58, 237, 0.45); }
+::-webkit-scrollbar-thumb { background: rgba(74, 127, 167, 0.25); border-radius: var(--radius-full); }
+::-webkit-scrollbar-thumb:hover { background: rgba(74, 127, 167, 0.45); }

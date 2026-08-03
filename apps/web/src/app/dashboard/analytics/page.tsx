@@ -62,7 +62,7 @@ export default function AnalyticsPage() {
         <p className="text-body-sm mt-1" style={{ color: 'var(--text-secondary)' }}>How your content is moving through the AMAI Engine.</p>
       </div>
 
-      <Reveal className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <Reveal className="glass-shell p-4 sm:p-5 grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard icon={<Clock className="h-4 w-4" style={{ color: 'var(--accent-warning)' }} />} label="Awaiting Approval" value={String(counts.pending)} helperText="In the queue" />
         <StatCard icon={<CalendarClock className="h-4 w-4" style={{ color: 'var(--accent-secondary)' }} />} label="Scheduled" value={String(counts.scheduled)} helperText="Queued to publish" />
         <StatCard icon={<CheckCircle2 className="h-4 w-4" style={{ color: 'var(--accent-success)' }} />} label="Published" value={String(counts.published)} helperText="Live posts" />

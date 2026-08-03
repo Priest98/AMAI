@@ -134,8 +134,9 @@ export default function DashboardPage() {
         <EngineWorkflowVisualization />
       </motion.div>
 
-      {/* KPI Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* KPI Grid — grouped on a glassy shell panel, echoing the
+          card-cluster-on-a-panel composition from the reference dashboard */}
+      <div className="glass-shell p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           icon={<Clock className="h-4 w-4 text-amber-400" />}
           label="Approval Queue"
@@ -143,7 +144,7 @@ export default function DashboardPage() {
           helperText={pendingCount === 0 ? 'All caught up' : 'Posts awaiting review'}
         />
         <StatCard
-          icon={<CalendarClock className="h-4 w-4 text-violet-400" />}
+          icon={<CalendarClock className="h-4 w-4 text-blue-400" />}
           label="Scheduled"
           value={String(scheduledCount)}
           helperText="Queued to publish"

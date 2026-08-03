@@ -1,34 +1,35 @@
 /**
  * AMAI Landing Page — scoped design tokens & keyframes.
  *
- * Intentionally isolated from the dashboard's design system (globals.css /
- * theme-fixes.css, indigo/violet tokens). The marketing site has its own
- * darker, cyan/purple "AI operating system" identity per the landing page
- * spec — scoping everything under `.amai-landing` means none of this can
- * ever leak into (or be overridden by) the authenticated dashboard.
+ * Shares the product's navy/steel-blue + gunmetal/platinum identity
+ * (globals.css uses the same palette) rather than a separate marketing-only
+ * color scheme, per the site-wide rebrand — scoping everything under
+ * `.amai-landing` just keeps the marketing site's darker, more dramatic
+ * surface treatment separate from the dashboard's lighter default, without
+ * splitting the brand into two different color languages.
  */
 
 .amai-landing {
-  --lp-bg: #070B14;
-  --lp-bg-soft: #0B1120;
-  --lp-surface: #111827;
-  --lp-surface-raised: #161E2E;
-  --lp-border: rgba(148, 163, 184, 0.12);
-  --lp-border-strong: rgba(148, 163, 184, 0.22);
+  --lp-bg: #090D14;
+  --lp-bg-soft: #0F131E;
+  --lp-surface: #1A1E2A;
+  --lp-surface-raised: #232838;
+  --lp-border: rgba(179, 207, 229, 0.10);
+  --lp-border-strong: rgba(179, 207, 229, 0.20);
 
-  --lp-cyan: #39E7FF;
-  --lp-cyan-soft: rgba(57, 231, 255, 0.14);
-  --lp-purple: #7C5CFF;
-  --lp-purple-soft: rgba(124, 92, 255, 0.16);
+  --lp-cyan: #7FB0DB;
+  --lp-cyan-soft: rgba(127, 176, 219, 0.16);
+  --lp-purple: #1A3D63;
+  --lp-purple-soft: rgba(26, 61, 99, 0.20);
   --lp-success: #10B981;
   --lp-danger: #EF4444;
 
-  --lp-text-primary: #F8FAFC;
-  --lp-text-secondary: #A5B0C4;
-  --lp-text-muted: #64748B;
+  --lp-text-primary: #F6FAFD;
+  --lp-text-secondary: #B3CFE5;
+  --lp-text-muted: #7E8CA3;
 
-  --lp-gradient-brand: linear-gradient(135deg, #39E7FF 0%, #7C5CFF 100%);
-  --lp-gradient-glow: radial-gradient(circle, rgba(57, 231, 255, 0.35) 0%, rgba(124, 92, 255, 0.15) 45%, transparent 70%);
+  --lp-gradient-brand: linear-gradient(135deg, #9DC6E8 0%, #4A7FA7 100%);
+  --lp-gradient-glow: radial-gradient(circle, rgba(127, 176, 219, 0.35) 0%, rgba(26, 61, 99, 0.18) 45%, transparent 70%);
 
   background: var(--lp-bg);
   color: var(--lp-text-primary);
@@ -36,15 +37,15 @@
 }
 
 .amai-landing.light {
-  --lp-bg: #F8FAFC;
+  --lp-bg: #F6FAFD;
   --lp-bg-soft: #FFFFFF;
   --lp-surface: #FFFFFF;
   --lp-surface-raised: #FFFFFF;
-  --lp-border: rgba(15, 23, 42, 0.08);
-  --lp-border-strong: rgba(15, 23, 42, 0.14);
-  --lp-text-primary: #0B1120;
-  --lp-text-secondary: #475569;
-  --lp-text-muted: #94A3B8;
+  --lp-border: rgba(10, 25, 49, 0.08);
+  --lp-border-strong: rgba(10, 25, 49, 0.14);
+  --lp-text-primary: #0A1931;
+  --lp-text-secondary: #3D4A5C;
+  --lp-text-muted: #8891A0;
 }
 
 .amai-landing .lp-heading {
@@ -78,7 +79,7 @@
 .lp-card:hover {
   border-color: var(--lp-border-strong);
   transform: translateY(-2px);
-  box-shadow: 0 12px 40px -12px rgba(57, 231, 255, 0.15);
+  box-shadow: 0 12px 40px -12px rgba(127, 176, 219, 0.15);
 }
 
 .lp-gradient-text {
@@ -92,12 +93,12 @@
   background: var(--lp-gradient-brand);
   color: #04070D;
   font-weight: 700;
-  box-shadow: 0 8px 30px -8px rgba(57, 231, 255, 0.5);
+  box-shadow: 0 8px 30px -8px rgba(127, 176, 219, 0.5);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 .lp-btn-primary:hover {
   transform: translateY(-1px);
-  box-shadow: 0 12px 36px -8px rgba(57, 231, 255, 0.65);
+  box-shadow: 0 12px 36px -8px rgba(127, 176, 219, 0.65);
 }
 .lp-btn-primary:active {
   transform: translateY(0);
