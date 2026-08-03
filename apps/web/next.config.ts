@@ -53,6 +53,26 @@ const nestAndPrismaPackages = [
   // as the Nest/Prisma packages above, so it needs the same external
   // treatment.
   "@sentry/node",
+  // sharp ships a platform-specific native (.node) binary, loaded via its
+  // own optional-require resolution across several @img/sharp-* packages
+  // (one per platform/libvips variant) -- the exact same shape of problem
+  // Prisma's engine binaries have, and it was missing this same treatment.
+  // Root-caused from production data: every OptimizedMediaAsset row ever
+  // created for an image was zero (only video passthrough rows existed,
+  // and those don't touch sharp), and Instagram aspect-ratio publish
+  // failures (ensureInstagramAspectRatio, also sharp-based) were ~27% of
+  // all publish failures. Webpack bundling sharp instead of leaving it as
+  // a plain runtime require() breaks its ability to find the correct
+  // native binary for Vercel's Lambda runtime -- every sharp call was
+  // very likely throwing and being silently swallowed by a try/catch
+  // that falls back to "use the original, unmodified file" (both the
+  // Media Optimization Engine and the legacy Instagram crop fallback are
+  // deliberately built to never block publishing on an optimization
+  // failure, which is correct in general but meant this specific failure
+  // mode produced no visible error -- just images that were never
+  // actually cropped, silently rejected by Instagram's aspect-ratio rule
+  // at publish time instead).
+  "sharp",
 ];
 
 const nextConfig: NextConfig = {

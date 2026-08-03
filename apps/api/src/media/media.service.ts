@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { EngineService } from '../engine/engine.service';
 import { MediaOptimizationService } from '../media-optimization/media-optimization.service';
-import { MediaStatus, ContentSource, ConnectionStatus } from '@prisma/client';
+import { MediaStatus, ContentSource, ConnectionStatus, PostStatus } from '@prisma/client';
 
 // Kept in sync with apps/web/src/app/api/media-upload-token/route.ts's
 // ALLOWED_CONTENT_TYPES (that route gates what the browser is even allowed
@@ -227,9 +227,47 @@ export class MediaService {
     }
   }
 
+  /**
+   * Found via production data: MediaAsset.delete cascades onto its
+   * PostMedia join row (schema: onDelete: Cascade), but the Post and its
+   * PostTarget rows are untouched -- so deleting media that's still
+   * attached to a pending post silently orphans that post. It sails
+   * through as SCHEDULED/NEEDS_APPROVAL with no visible problem until the
+   * publish attempt runs, at which point publishOne finds
+   * `post.media[0]` undefined and fails with a generic "No media file is
+   * attached to this post." This was confirmed as the single largest
+   * cause of publish failures in production (~30 of the last ~110 failed
+   * attempts, all posts with zero PostMedia rows). Blocking the delete
+   * up front, with a clear reason, replaces a confusing failure minutes
+   * or hours later with an immediate, actionable one.
+   */
+  private static readonly POST_STATUSES_BLOCKING_MEDIA_DELETE: PostStatus[] = [
+    PostStatus.NEEDS_APPROVAL,
+    PostStatus.SCHEDULED,
+    PostStatus.PUBLISHING,
+  ];
+
   async deleteAsset(brandId: string, assetId: string) {
     const asset = await this.prisma.mediaAsset.findFirst({ where: { id: assetId, brandId } });
     if (!asset) throw new NotFoundException('Media asset not found.');
+
+    if (asset.linkedPostId) {
+      const linkedPost = await this.prisma.post.findUnique({
+        where: { id: asset.linkedPostId },
+        select: { status: true },
+      });
+      if (linkedPost && MediaService.POST_STATUSES_BLOCKING_MEDIA_DELETE.includes(linkedPost.status)) {
+        const stateLabel =
+          linkedPost.status === PostStatus.NEEDS_APPROVAL
+            ? 'awaiting approval'
+            : linkedPost.status === PostStatus.SCHEDULED
+              ? 'scheduled to publish'
+              : 'publishing right now';
+        throw new BadRequestException(
+          `This media is attached to a post that's still ${stateLabel}. Reject or cancel that post first -- deleting the media now would leave it unable to publish.`,
+        );
+      }
+    }
 
     if (asset.blobUrl) {
       await this.storage.deleteFile(asset.blobUrl);
