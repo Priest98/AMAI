@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useRef } from 'react';
 import { API_BASE, getBrandId, getToken } from './api';
+import { trackEngineEvent } from './posthog';
 
 export interface EngineEvent {
   id: string;
@@ -39,6 +40,7 @@ export function EngineEventsProvider({ children }: { children: React.ReactNode }
       source.onmessage = (e) => {
         try {
           const parsed = JSON.parse(e.data);
+          trackEngineEvent(parsed);
           listenersRef.current.forEach((fn) => fn(parsed));
         } catch {
           // ignore malformed events
@@ -94,6 +96,7 @@ export function useEngineEvents(onEvent: (event: EngineEvent) => void) {
       source.onmessage = (e) => {
         try {
           const parsed = JSON.parse(e.data);
+          trackEngineEvent(parsed);
           handlerRef.current(parsed);
         } catch {
           // ignore malformed events

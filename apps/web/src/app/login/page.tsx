@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import { Logo } from '@/components/logo';
 import { AtSign, Lock, ArrowRight, Eye, EyeOff, CheckCircle2, AlertCircle } from 'lucide-react';
 import { API_BASE, isAuthenticated, TOKEN_KEY } from '@/lib/api';
+import { capture, identify } from '@/lib/posthog';
 
 
 export default function LoginPage() {
@@ -50,6 +51,8 @@ export default function LoginPage() {
 
       if (res.ok && data.accessToken) {
         localStorage.setItem(TOKEN_KEY, data.accessToken);
+        identify(email, { email });
+        capture('login', { email });
         router.push('/dashboard');
         return;
       }

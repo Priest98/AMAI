@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import AnalyticsInit from '@/components/analytics/AnalyticsInit';
 
 export const metadata: Metadata = {
   title: 'AMAI — AI Social Media Automation',
@@ -44,7 +45,10 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">
+        <AnalyticsInit />
+        {children}
+      </body>
     </html>
   );
 }

@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import { Logo } from '@/components/logo';
 import { User, AtSign, Lock, ArrowRight, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { API_BASE, isAuthenticated } from '@/lib/api';
+import { capture } from '@/lib/posthog';
 
 
 export default function RegisterPage() {
@@ -61,6 +62,7 @@ export default function RegisterPage() {
       const data = await res.json();
 
       if (res.ok && data.success) {
+        capture('signup_completed', { email });
         router.push(`/verify-email?email=${encodeURIComponent(email)}`);
         return;
       }

@@ -47,6 +47,12 @@ const nestAndPrismaPackages = [
   "passport-jwt",
   "passport-oauth2",
   "reflect-metadata",
+  // @sentry/node patches Node's module loader at runtime (via
+  // require-in-the-middle/import-in-the-middle) for its auto-instrumentation
+  // -- the same "dynamic require" shape that breaks under webpack bundling
+  // as the Nest/Prisma packages above, so it needs the same external
+  // treatment.
+  "@sentry/node",
 ];
 
 const nextConfig: NextConfig = {
