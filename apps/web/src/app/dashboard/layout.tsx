@@ -26,6 +26,7 @@ import { getCurrentUser, logout } from '@/lib/api';
 import { EngineEventsProvider } from '@/lib/EngineEventsContext';
 import { OnboardingProvider } from '@/components/onboarding/OnboardingContext';
 import NotificationsBell from '@/components/dashboard/NotificationsBell';
+import { useTheme } from '@/lib/useTheme';
 
 interface NavSubItem {
   label: string;
@@ -96,7 +97,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [userName, setUserName] = useState('User');
   const [userInitials, setUserInitials] = useState('U');
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(true);
+  const { isDark: isDarkMode, toggleTheme } = useTheme();
   const [scrolled, setScrolled] = useState(false);
   // Gates rendering of the actual dashboard shell until the auth check has
   // resolved — without this, an unauthenticated visitor briefly sees the
@@ -115,10 +116,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     setUserName(user.name);
     setUserInitials(user.name.slice(0, 2).toUpperCase());
     setIsAuthChecked(true);
-
-    // Load saved theme preference
-    const savedTheme = localStorage.getItem('marketing_os_theme');
-    setIsDarkMode(savedTheme !== 'light');
   }, [router]);
 
   // Every dashboard <Link> in the mobile nav drawer closes the drawer on
@@ -144,20 +141,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  // Keep <html> in sync too — Tailwind's `dark:` utilities key off an
-  // ancestor with the "dark" class, so this must live on <html>, not just
-  // this layout's own wrapper div (see apps/web/src/app/layout.tsx).
-  useEffect(() => {
-    const root = document.documentElement;
-    root.classList.remove('dark', 'light');
-    root.classList.add(isDarkMode ? 'dark' : 'light');
-  }, [isDarkMode]);
-
-  const toggleTheme = () => {
-    const nextTheme = !isDarkMode;
-    setIsDarkMode(nextTheme);
-    localStorage.setItem('marketing_os_theme', nextTheme ? 'dark' : 'light');
-  };
+  // Theme state (read/write + <html> sync) now lives in the shared
+  // useTheme hook so the dashboard, landing page, sign in, and sign up all
+  // read/write the same 'marketing_os_theme' key and stay in sync.
 
   const handleLogout = () => {
     logout();

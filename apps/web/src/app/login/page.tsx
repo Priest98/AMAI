@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import { Logo } from '@/components/logo';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
+import ThemeToggle from '@/components/ui/ThemeToggle';
 import { AtSign, Lock, ArrowRight, Eye, EyeOff, CheckCircle2, AlertCircle } from 'lucide-react';
 import { API_BASE, isAuthenticated, TOKEN_KEY } from '@/lib/api';
 import { capture, identify } from '@/lib/posthog';
@@ -86,18 +87,21 @@ export default function LoginPage() {
         className="glass-panel w-full max-w-md rounded-[var(--radius-xl)] p-8 sm:p-10 space-y-8 relative overflow-hidden"
       >
         {/* Brand Header */}
-        <div className="space-y-3 text-center sm:text-left">
-          <Link href="/" className="inline-block">
-            <Logo className="h-9" />
-          </Link>
-          <div>
-            <h1 className="text-h1" style={{ color: 'var(--text-primary)' }}>
-              Welcome back to AMAI
-            </h1>
-            <p className="text-body-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-              Sign in to manage your AI social media publishing workspace.
-            </p>
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-3 text-center sm:text-left">
+            <Link href="/" className="inline-block">
+              <Logo className="h-9" />
+            </Link>
+            <div>
+              <h1 className="text-h1" style={{ color: 'var(--text-primary)' }}>
+                Welcome back to AMAI
+              </h1>
+              <p className="text-body-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
+                Sign in to manage your AI social media publishing workspace.
+              </p>
+            </div>
           </div>
+          <ThemeToggle />
         </div>
 
         {/* Error Feedback */}

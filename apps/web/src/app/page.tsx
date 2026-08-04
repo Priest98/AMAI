@@ -79,7 +79,7 @@ export default function Home() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <div
-        className="amai-landing light relative min-h-screen"
+        className="amai-landing relative min-h-screen"
         style={
           {
             // Design System v2: Space Grotesk + Inter are now loaded once at

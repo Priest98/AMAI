@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, X } from 'lucide-react';
+import ThemeToggle from '@/components/ui/ThemeToggle';
 
 const NAV_LINKS = [
   { href: '#how-it-works', label: 'How It Works' },
@@ -71,7 +72,8 @@ export default function Nav() {
             ))}
           </div>
 
-          <div className="hidden lg:flex items-center gap-1 shrink-0">
+          <div className="hidden lg:flex items-center gap-2 shrink-0">
+            <ThemeToggle />
             <Link
               href="/login"
               className="px-4 py-2.5 rounded-full text-sm font-semibold transition-all duration-200 active:scale-95 lp-focus-ring"
@@ -89,15 +91,18 @@ export default function Nav() {
             </Link>
           </div>
 
-          <button
-            type="button"
-            className="lp-btn-icon-glass lg:hidden p-2.5 lp-focus-ring"
-            onClick={() => setOpen((v) => !v)}
-            aria-expanded={open}
-            aria-label={open ? 'Close menu' : 'Open menu'}
-          >
-            {open ? <X className="h-4.5 w-4.5" /> : <Menu className="h-4.5 w-4.5" />}
-          </button>
+          <div className="flex items-center gap-2 lg:hidden">
+            <ThemeToggle />
+            <button
+              type="button"
+              className="lp-btn-icon-glass p-2.5 lp-focus-ring"
+              onClick={() => setOpen((v) => !v)}
+              aria-expanded={open}
+              aria-label={open ? 'Close menu' : 'Open menu'}
+            >
+              {open ? <X className="h-4.5 w-4.5" /> : <Menu className="h-4.5 w-4.5" />}
+            </button>
+          </div>
         </nav>
 
         <AnimatePresence>

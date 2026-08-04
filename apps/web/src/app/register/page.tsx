@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import { Logo } from '@/components/logo';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
+import ThemeToggle from '@/components/ui/ThemeToggle';
 import { User, AtSign, Lock, ArrowRight, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { API_BASE, isAuthenticated } from '@/lib/api';
 import { capture } from '@/lib/posthog';
@@ -78,18 +79,11 @@ export default function RegisterPage() {
   };
 
   if (checkingSession) {
-    return <div className="min-h-screen w-full light" style={{ backgroundColor: 'var(--bg-base)' }} />;
+    return <div className="min-h-screen w-full" style={{ backgroundColor: 'var(--bg-base)' }} />;
   }
 
   return (
-    // Signup is scoped to light mode regardless of the app's saved theme
-    // preference (which still governs the dashboard/login) -- a deliberate,
-    // locally-scoped override via the same .light class the landing page
-    // uses, not a change to the global default.
-    <div
-      className="min-h-screen w-full light flex items-center justify-center p-4"
-      style={{ backgroundColor: 'var(--bg-base)', backgroundImage: 'var(--gradient-mesh-subtle)', color: 'var(--text-primary)' }}
-    >
+    <div className="min-h-screen w-full flex items-center justify-center p-4" style={{ color: 'var(--text-primary)' }}>
 
       <motion.div
         initial={{ opacity: 0, y: 15 }}
@@ -98,18 +92,21 @@ export default function RegisterPage() {
         className="glass-panel w-full max-w-md rounded-[var(--radius-xl)] p-8 sm:p-10 space-y-8 relative overflow-hidden"
       >
         {/* Brand Header */}
-        <div className="space-y-3 text-center sm:text-left">
-          <Link href="/" className="inline-block">
-            <Logo className="h-9" />
-          </Link>
-          <div>
-            <h1 className="text-h1" style={{ color: 'var(--text-primary)' }}>
-              Create your AMAI Account
-            </h1>
-            <p className="text-body-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-              Start automating your content pipeline with AI intelligence.
-            </p>
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-3 text-center sm:text-left">
+            <Link href="/" className="inline-block">
+              <Logo className="h-9" />
+            </Link>
+            <div>
+              <h1 className="text-h1" style={{ color: 'var(--text-primary)' }}>
+                Create your AMAI Account
+              </h1>
+              <p className="text-body-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
+                Start automating your content pipeline with AI intelligence.
+              </p>
+            </div>
           </div>
+          <ThemeToggle />
         </div>
 
         {/* Error Feedback */}
