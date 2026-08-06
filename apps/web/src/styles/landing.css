@@ -307,3 +307,55 @@
   0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
   50% { transform: translate3d(-1.5%, 1%, 0) scale(1.035); }
 }
+
+/* ==================================================================
+ * Cinematic hero + editorial motion additions
+ * ------------------------------------------------------------------
+ * Slow continuous "Ken Burns" drift for the AI-generated hero backdrop,
+ * an editorial-scale display type utility (larger + tighter tracking
+ * than the existing .text-display-giant watermark treatment), and a
+ * bouncing scroll indicator. All pause automatically under
+ * prefers-reduced-motion via the existing blanket rule above.
+ * ================================================================ */
+@keyframes lp-kenburns {
+  0% { transform: scale(1.06) translate3d(0, 0, 0); }
+  50% { transform: scale(1.12) translate3d(-0.8%, -0.6%, 0); }
+  100% { transform: scale(1.06) translate3d(0, 0, 0); }
+}
+.lp-hero-media {
+  animation: lp-kenburns 28s ease-in-out infinite;
+  will-change: transform;
+}
+
+.lp-hero-display {
+  font-family: var(--lp-font-heading, 'Space Grotesk', sans-serif);
+  letter-spacing: -0.035em;
+  line-height: 0.98;
+}
+
+@keyframes lp-scroll-hint {
+  0%, 100% { transform: translateY(0); opacity: 0.5; }
+  50% { transform: translateY(8px); opacity: 1; }
+}
+.lp-scroll-indicator {
+  animation: lp-scroll-hint 2.2s ease-in-out infinite;
+}
+
+/* Fine editorial rule -- a hairline that grows in on scroll reveal,
+   used to separate eyebrow labels from headings in the reworked
+   sections without another glass pill everywhere. */
+.lp-rule {
+  height: 1px;
+  background: linear-gradient(to right, var(--lp-cyan), transparent);
+}
+
+/* Subtle hover glow ring for interactive cards that isn't the full
+   .lp-card lift (used on Integrations tiles, which sit on the already
+   photographic hero backdrop and shouldn't translateY against it). */
+.lp-hover-glow {
+  transition: box-shadow 0.35s ease, border-color 0.35s ease;
+}
+.lp-hover-glow:hover {
+  border-color: var(--lp-cyan);
+  box-shadow: 0 0 0 1px var(--lp-cyan-soft), 0 20px 50px -20px rgba(127, 176, 219, 0.35);
+}

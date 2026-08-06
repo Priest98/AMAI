@@ -7,6 +7,7 @@ import Hero from '@/components/landing/Hero';
 import HowItWorks from '@/components/landing/HowItWorks';
 import EnginePipeline from '@/components/landing/EnginePipeline';
 import Features from '@/components/landing/Features';
+import Integrations from '@/components/landing/Integrations';
 import SocialProof from '@/components/landing/SocialProof';
 import InteractiveDemo from '@/components/landing/InteractiveDemo';
 import Pricing from '@/components/landing/Pricing';
@@ -119,6 +120,7 @@ export default function Home() {
           <EnginePipeline />
           <Features />
           <InteractiveDemo />
+          <Integrations />
           <SocialProof />
           <Pricing />
           <FAQ />

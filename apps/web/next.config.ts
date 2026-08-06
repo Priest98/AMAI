@@ -95,6 +95,11 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "*.public.blob.vercel-storage.com",
       },
+      {
+        // Higgsfield-generated cinematic landing-page background assets.
+        protocol: "https",
+        hostname: "d8j0ntlcm91z4.cloudfront.net",
+      },
     ],
   },
 };

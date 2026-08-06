@@ -2,8 +2,10 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { motion } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
 import { Reveal } from './shared';
+import MagneticButton from './MagneticButton';
 
 export default function FinalCTA() {
   return (
@@ -18,22 +20,24 @@ export default function FinalCTA() {
             style={{ background: 'var(--lp-gradient-glow)' }}
           />
           <div className="relative">
-            <h2 className="lp-heading text-3xl sm:text-5xl font-bold tracking-tight leading-tight">
+            <h2 className="lp-hero-display text-4xl sm:text-6xl font-bold">
               Stop managing five apps
               <br />
               to post one video.
             </h2>
-            <p className="mt-5 text-base max-w-lg mx-auto" style={{ color: 'var(--lp-text-secondary)' }}>
+            <p className="mt-6 text-base sm:text-lg max-w-lg mx-auto" style={{ color: 'var(--lp-text-secondary)' }}>
               Upload once. Approve once. AMAI handles everything in between.
             </p>
-            <div className="mt-9 flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Link
-                href="/register"
-                className="group inline-flex items-center gap-2 px-7 py-3.5 rounded-2xl text-sm lp-btn-primary lp-focus-ring"
-              >
-                Start Automating Free
-                <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
-              </Link>
+            <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+              <MagneticButton as={motion.div}>
+                <Link
+                  href="/register"
+                  className="group inline-flex items-center gap-2 px-8 py-4 rounded-2xl text-sm lp-btn-primary lp-focus-ring"
+                >
+                  Start Automating Free
+                  <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+                </Link>
+              </MagneticButton>
               <Link
                 href="/login"
                 className="inline-flex items-center gap-2 px-7 py-3.5 rounded-2xl text-sm font-semibold lp-btn-ghost lp-focus-ring"
