@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { motion } from 'framer-motion';
 import StatCard from "@/components/ui/StatCard";
 import Badge from "@/components/ui/Badge";
@@ -103,29 +104,54 @@ export default function DashboardPage() {
       animate="show"
       className="space-y-8 max-w-7xl mx-auto pb-24 sm:pb-12"
     >
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-h1" style={{ color: 'var(--text-primary)' }}>
-            Workspace overview
-          </h1>
-          <p className="text-body-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-            Your AI social media manager, working in the background.
-          </p>
+      <div className="relative overflow-hidden rounded-[28px]">
+        {/* Subtle Higgsfield-generated ambient accent -- deliberately faint
+            (low opacity + gradient fade into the page background) since this
+            is a working tool, not a marketing surface: it should read as
+            premium atmosphere, never compete with the KPI numbers or engine
+            visualization below it. */}
+        <div className="absolute inset-0 -z-10" aria-hidden="true">
+          <Image
+            src="https://d8j0ntlcm91z4.cloudfront.net/user_3HXsou9653KJM9YD320GPTi1aul/hf_20260806_150052_8d115273-ebd0-4397-8a29-2bc3f9a0ac2c.png"
+            alt=""
+            fill
+            priority
+            sizes="100vw"
+            className="object-cover opacity-25"
+          />
+          <div
+            className="absolute inset-0"
+            style={{ background: 'linear-gradient(to bottom, transparent 0%, var(--bg-base) 92%)' }}
+          />
         </div>
 
-        <div className="flex items-center gap-2">
-          <Badge variant={engineState === 'ACTIVE' ? 'success' : 'neutral'}>
-            <span className="flex items-center space-x-1.5">
-              {engineState === 'ACTIVE' ? <Zap className="h-3 w-3" /> : <Pause className="h-3 w-3" />}
-              <span>{engineState === 'ACTIVE' ? 'AMAI Active' : 'AMAI Paused'}</span>
-            </span>
-          </Badge>
-          <Badge variant={approvalMode === 'AUTO' ? 'warning' : 'purple'}>
-            <span className="flex items-center space-x-1.5">
-              <ShieldCheck className="h-3 w-3" />
-              <span>{approvalMode === 'AUTO' ? 'Auto Approval' : 'Manual Approval'}</span>
-            </span>
-          </Badge>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-1 py-6 sm:py-8">
+          <div>
+            <h1
+              className="text-3xl sm:text-4xl font-bold tracking-tight"
+              style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-heading)', letterSpacing: '-0.02em' }}
+            >
+              Workspace overview
+            </h1>
+            <p className="text-body-sm mt-2" style={{ color: 'var(--text-secondary)' }}>
+              Your AI social media manager, working in the background.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Badge variant={engineState === 'ACTIVE' ? 'success' : 'neutral'}>
+              <span className="flex items-center space-x-1.5">
+                {engineState === 'ACTIVE' ? <Zap className="h-3 w-3" /> : <Pause className="h-3 w-3" />}
+                <span>{engineState === 'ACTIVE' ? 'AMAI Active' : 'AMAI Paused'}</span>
+              </span>
+            </Badge>
+            <Badge variant={approvalMode === 'AUTO' ? 'warning' : 'purple'}>
+              <span className="flex items-center space-x-1.5">
+                <ShieldCheck className="h-3 w-3" />
+                <span>{approvalMode === 'AUTO' ? 'Auto Approval' : 'Manual Approval'}</span>
+              </span>
+            </Badge>
+          </div>
         </div>
       </div>
 

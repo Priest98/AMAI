@@ -1,4 +1,5 @@
 import React from "react";
+import { CountUp } from "./CountUp";
 
 interface StatCardProps {
   icon: React.ReactNode;
@@ -17,6 +18,11 @@ export default function StatCard({
   valueColor = "var(--text-primary)",
   onExpand,
 }: StatCardProps) {
+  // Animate when `value` is a plain integer (the common case: post/media
+  // counts) -- falls back to a static string render for anything else
+  // (e.g. a value that already carries a unit or symbol) so this stays a
+  // drop-in upgrade rather than a breaking prop-shape change.
+  const numericValue = /^-?\d+$/.test(value) ? Number(value) : null;
   return (
     <div className="exec-card exec-card-interactive p-4 sm:p-5 flex flex-col justify-between">
       <div className="flex items-center justify-between">
@@ -44,8 +50,8 @@ export default function StatCard({
       </div>
 
       <div className="mt-4 flex flex-col space-y-1 min-w-0">
-        <div className="text-numeric leading-tight truncate" style={{ color: valueColor }}>
-          {value}
+        <div className="text-numeric text-2xl sm:text-3xl font-bold leading-tight truncate" style={{ color: valueColor }}>
+          {numericValue !== null ? <CountUp value={numericValue} /> : value}
         </div>
         <div className="text-body-sm leading-tight truncate" style={{ color: "var(--text-secondary)" }}>
           {helperText}
