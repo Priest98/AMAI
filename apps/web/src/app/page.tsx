@@ -15,7 +15,10 @@ import FinalCTA from '@/components/landing/FinalCTA';
 import Footer from '@/components/landing/Footer';
 
 export const metadata: Metadata = {
-  title: 'AMAI — AI Social Media Operating System | Upload once. Approve once.',
+  // Title kept as the exact app name ("AMAI") so the browser-tab title
+  // matches the TikTok Developer Portal app name exactly, per TikTok's
+  // app-review requirement (they flagged a mismatch between the two).
+  title: 'AMAI',
   description:
     'AMAI watches your media, writes captions and hashtags, scores every post, and publishes to Instagram and TikTok on schedule. Upload once, approve once, then let AMAI run your social media.',
   keywords: [

@@ -1,0 +1,14 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" rx="154" fill="url(#monogramGrad)"/>
+  <defs>
+    <linearGradient id="monogramGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0A1931"/>
+      <stop offset="100%" stop-color="#4A7FA7"/>
+    </linearGradient>
+  </defs>
+  <path
+    d="M256 115.2L371.2 371.2H313.6L287.6 313.6H224.4L198.4 371.2H140.8L256 115.2ZM256 189.44L239.36 236.8H272.64L256 189.44Z"
+    fill="#F6FAFD"
+  />
+  <circle cx="256" cy="256" r="19.2" fill="rgba(246, 250, 253, 0.4)"/>
+</svg>

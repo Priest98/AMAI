@@ -36,10 +36,15 @@ const bebasNeue = Bebas_Neue({
 });
 
 export const metadata: Metadata = {
-  title: 'AMAI — AI Social Media Automation',
+  title: 'AMAI',
   description: 'AMAI is an intelligent AI operating system for social media automation, content syncing from Google Drive, and automated publishing to Instagram & TikTok.',
+  icons: {
+    icon: '/icon.svg',
+    shortcut: '/icon.svg',
+    apple: '/icon.svg',
+  },
   openGraph: {
-    title: 'AMAI — AI Social Media Automation',
+    title: 'AMAI',
     description: 'Automate your content pipeline from Google Drive to Instagram & TikTok.',
     url: 'https://marketing-os-eight-virid.vercel.app',
     siteName: 'AMAI',
@@ -64,7 +69,10 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <link rel="icon" href="/app-icon.jpg" />
+        {/* Favicon is set via metadata.icons (/icon.svg) above — a manual
+            <link> here previously pointed at a .jpg, which several browsers
+            and automated crawlers (e.g. TikTok's app reviewer) don't reliably
+            render as a browser-tab favicon. */}
         {/*
           Applies the saved theme to <html> before first paint so both the
           CSS-variable theme AND Tailwind's `dark:` utilities agree on
