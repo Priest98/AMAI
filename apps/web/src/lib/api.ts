@@ -68,9 +68,49 @@ export function getCurrentUser(): CurrentUser | null {
   };
 }
 
+/**
+ * Which client (Brand) the UI is currently acting on.
+ *
+ * The JWT carries a single `brandId` claim, resolved at login from
+ * `organization.brands[0]`. That's correct for Free/Pro (one brand) but
+ * can't express an Agency user switching between clients, since the token
+ * is only reissued at login. So an explicitly-selected client is kept here
+ * and takes precedence over the token claim.
+ *
+ * This is a UI convenience only and is NOT a security boundary: the server
+ * re-verifies on every request that the brand belongs to an organization
+ * the caller is a member of (BrandAccessGuard). Writing any brandId here
+ * grants nothing -- an id the user has no membership for is rejected with
+ * 403 server-side.
+ */
+export const ACTIVE_CLIENT_KEY = 'amai_active_client_id';
+
+export function getActiveClientId(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return localStorage.getItem(ACTIVE_CLIENT_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function setActiveClientId(brandId: string | null): void {
+  if (typeof window === 'undefined') return;
+  try {
+    if (brandId) localStorage.setItem(ACTIVE_CLIENT_KEY, brandId);
+    else localStorage.removeItem(ACTIVE_CLIENT_KEY);
+  } catch {
+    // Private-browsing / storage-disabled: fall back to the token claim.
+  }
+  // Cached GETs are scoped by path, and every brand-scoped path embeds the
+  // brandId -- but clearing avoids briefly showing the previous client's
+  // data on any shared (non-brand-scoped) endpoint.
+  clearGetCache();
+}
+
 /** Convenience — most pages only need the brandId to scope their requests. */
 export function getBrandId(): string {
-  return getCurrentUser()?.brandId || 'primary_brand';
+  return getActiveClientId() || getCurrentUser()?.brandId || 'primary_brand';
 }
 
 /** Clears the session and sends the user back to Sign In. */

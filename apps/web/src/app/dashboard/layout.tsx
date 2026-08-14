@@ -21,11 +21,14 @@ import {
   CheckCircle2,
   BarChart3,
   Plus,
+  Building2,
+  Users,
 } from 'lucide-react';
 import { getCurrentUser, logout } from '@/lib/api';
 import { EngineEventsProvider } from '@/lib/EngineEventsContext';
 import { OnboardingProvider } from '@/components/onboarding/OnboardingContext';
 import NotificationsBell from '@/components/dashboard/NotificationsBell';
+import ClientSwitcher from '@/components/dashboard/ClientSwitcher';
 import { useTheme } from '@/lib/useTheme';
 
 interface NavSubItem {
@@ -43,6 +46,13 @@ const navSections: NavSection[] = [
   {
     items: [
       { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+    ],
+  },
+  {
+    title: 'Agency',
+    items: [
+      { label: 'Portfolio', href: '/dashboard/agency', icon: Building2 },
+      { label: 'Clients', href: '/dashboard/clients', icon: Users },
     ],
   },
   {
@@ -209,9 +219,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div className="hidden sm:block h-4 w-px" style={{ backgroundColor: 'var(--card-border)' }} />
 
           {/* Compact User Greeting */}
-          <span className="hidden sm:inline-block text-body-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+          <span className="hidden lg:inline-block text-body-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
             Hello, <span className="font-bold">{userName}</span>
           </span>
+
+          {/* Renders only when the workspace has more than one client, so
+              the current client is never ambiguous on Agency and never
+              clutters Free/Pro. */}
+          <ClientSwitcher />
         </div>
 
         {/* Right Utility Actions */}

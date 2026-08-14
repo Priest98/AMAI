@@ -32,4 +32,20 @@ export class BrandsController {
   async createBrand(@Param('organizationId') organizationId: string, @Body('name') name: string) {
     return this.brandsService.createForOrganization(organizationId, name);
   }
+
+  /**
+   * Agency portfolio: every client in the organization with the counts an
+   * agency owner needs to triage ("who needs attention, what publishes
+   * today, which connections are broken").
+   *
+   * OrganizationAccessGuard already proves membership, so this can never
+   * read another organization's clients regardless of what id is supplied.
+   * Aggregation happens server-side rather than by fetching everything and
+   * filtering in the browser.
+   */
+  @UseGuards(OrganizationAccessGuard)
+  @Get('organizations/:organizationId/portfolio')
+  async getPortfolio(@Param('organizationId') organizationId: string) {
+    return this.brandsService.getPortfolio(organizationId);
+  }
 }

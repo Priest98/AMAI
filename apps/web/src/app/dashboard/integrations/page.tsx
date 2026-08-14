@@ -113,7 +113,7 @@ export default function ConnectedAccountsPage() {
         }
 
         setMessage({
-          text: `🎉 Successfully connected ${platform}${account ? ` (${account})` : ''}!`,
+          text: `Successfully connected ${platform}${account ? ` (${account})` : ''}!`,
           type: 'success',
         });
         window.history.replaceState({}, document.title, window.location.pathname);

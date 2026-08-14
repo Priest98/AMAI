@@ -17,6 +17,9 @@ import {
   Brain,
   CreditCard,
   Sparkles,
+  Wand2,
+  Zap as ZapIcon,
+  Building2,
 } from 'lucide-react';
 
 type ApprovalMode = 'MANUAL' | 'AUTO';
@@ -63,6 +66,57 @@ const EMPTY_BRAIN: BusinessBrain = {
 /** "a, b,  c" -> ["a", "b", "c"] -- trims, drops empties, keeps input forgiving. */
 function parseTagList(value: string): string[] {
   return value.split(',').map((s) => s.trim()).filter(Boolean);
+}
+
+/**
+ * One labelled field. Extracted so every Business Brain input gets the same
+ * label -> helper -> control rhythm and the same accessibility wiring
+ * (htmlFor/id plus aria-describedby pointing at the helper) rather than each
+ * field re-implementing it. Previously the placeholder was carrying the
+ * explanation, which is what made the form read as a questionnaire: the
+ * purpose of a field vanished the moment you started typing in it.
+ */
+function BrainField({
+  id,
+  label,
+  helper,
+  optional,
+  children,
+}: {
+  id: string;
+  label: string;
+  helper?: string;
+  optional?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <div className="flex items-baseline gap-2">
+        <label htmlFor={id} className="text-body-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+          {label}
+        </label>
+        {optional && (
+          <span className="text-caption" style={{ color: 'var(--text-muted)' }}>Optional</span>
+        )}
+      </div>
+      {helper && (
+        <p id={`${id}-helper`} className="text-body-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
+          {helper}
+        </p>
+      )}
+      <div className="mt-2.5">{children}</div>
+    </div>
+  );
+}
+
+/** Groups related fields under a quiet section heading so the form scans as three short blocks instead of one wall of inputs. */
+function BrainSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="space-y-5">
+      <h4 className="text-overline" style={{ color: 'var(--text-muted)' }}>{title}</h4>
+      {children}
+    </section>
+  );
 }
 
 export default function SettingsPage() {
@@ -158,9 +212,9 @@ export default function SettingsPage() {
       };
       const updated = await brandFetch<BusinessBrain>('/business-brain', { method: 'PATCH', body: JSON.stringify(dto) });
       setBrain(updated);
-      flash('Business Brain saved. AMAI will use this for every new caption and hashtag set.');
+      flash('Changes saved. AMAI will use this for every new caption and hashtag set.');
     } catch (e: any) {
-      flash(e.message || 'Could not save Business Brain.');
+      flash("Couldn't save changes. Try again.");
     } finally {
       setBrainSaving(false);
     }
@@ -377,7 +431,7 @@ export default function SettingsPage() {
                   className="flex items-start gap-2.5 p-3.5 rounded-[var(--radius-md)] border"
                   style={{ borderColor: 'var(--card-border)', backgroundColor: 'var(--bg-surface-sunken)' }}
                 >
-                  <Sparkles className="h-4 w-4 shrink-0 mt-0.5" style={{ color: 'var(--accent-secondary)' }} />
+                  <Wand2 className="h-4 w-4 shrink-0 mt-0.5" style={{ color: 'var(--accent-secondary)' }} />
                   <p className="text-body-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
                     <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{selected.label}</span>{' '}
                     selected. AMAI will use {selected.effect} when generating your posts.
@@ -395,120 +449,162 @@ export default function SettingsPage() {
             <div>
               <h3 className="text-h3" style={{ color: 'var(--text-primary)' }}>Business Brain</h3>
               <p className="text-body-sm mt-2" style={{ color: 'var(--text-secondary)' }}>
-                Tell AMAI about your business once. Every caption, hashtag set, and future recommendation is generated
-                using this context instead of a generic persona.
+                Tell AMAI about your business once. It uses this context to create better content and recommendations.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 gap-4">
-              <div>
-                <label className="block text-overline mb-2" style={{ color: 'var(--text-muted)' }}>What does your business do?</label>
-                <textarea
-                  className="input-field w-full min-h-[80px]"
-                  placeholder="e.g. We design and sell handmade leather bags, made in small batches, for people who want something that lasts."
-                  value={brain.businessDescription || ''}
-                  onChange={(e) => setBrain({ ...brain, businessDescription: e.target.value })}
-                />
-              </div>
+            {/* NOTE -- "Let AMAI fill this in" (spec §6) is intentionally NOT
+                implemented here. It needs a real backend route
+                (POST /brands/:brandId/business-brain/suggest) plus a generic
+                text-generation method on AiService, which currently only
+                exposes analyzeImage / generateCaption / generateHashtags /
+                predictBestPostingTime. That is backend work, and the brief
+                for this pass says not to change backend logic. Shipping the
+                button without the route would give users a control that
+                always errors, so the UI is left out until the endpoint
+                exists rather than faked. */}
 
-              <div>
-                <label className="block text-overline mb-2" style={{ color: 'var(--text-muted)' }}>Who's your target audience?</label>
-                <textarea
-                  className="input-field w-full min-h-[60px]"
-                  placeholder="e.g. Design-conscious professionals aged 25-45 who value craftsmanship over fast fashion."
-                  value={brain.targetAudience || ''}
-                  onChange={(e) => setBrain({ ...brain, targetAudience: e.target.value })}
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-overline mb-2" style={{ color: 'var(--text-muted)' }}>Brand voice</label>
-                  <input
-                    type="text"
-                    className="input-field w-full"
-                    placeholder="e.g. Calm, confident, a little playful"
-                    value={brain.brandVoice || ''}
-                    onChange={(e) => setBrain({ ...brain, brandVoice: e.target.value })}
+            {/* Three short groups instead of one uninterrupted column of ten
+                inputs. Only the first group is needed to make AMAI useful --
+                everything after it is explicitly optional, so the form reads
+                as a few minutes of work rather than a questionnaire. */}
+            <div className="space-y-8">
+              <BrainSection title="About your business">
+                <BrainField
+                  id="bb-description"
+                  label="What does your business do?"
+                  helper="Tell AMAI what you sell and who you serve."
+                >
+                  <textarea
+                    id="bb-description"
+                    aria-describedby="bb-description-helper"
+                    className="input-field w-full min-h-[76px] px-3.5 py-2.5"
+                    placeholder="e.g. We make handmade leather bags."
+                    value={brain.businessDescription || ''}
+                    onChange={(e) => setBrain({ ...brain, businessDescription: e.target.value })}
                   />
-                </div>
-                <div>
-                  <label className="block text-overline mb-2" style={{ color: 'var(--text-muted)' }}>Website URL</label>
+                </BrainField>
+
+                <BrainField
+                  id="bb-audience"
+                  label="Who's your target audience?"
+                  helper="Describe the people you want to reach."
+                >
+                  <textarea
+                    id="bb-audience"
+                    aria-describedby="bb-audience-helper"
+                    className="input-field w-full min-h-[64px] px-3.5 py-2.5"
+                    placeholder="e.g. Professionals who value quality."
+                    value={brain.targetAudience || ''}
+                    onChange={(e) => setBrain({ ...brain, targetAudience: e.target.value })}
+                  />
+                </BrainField>
+
+                <BrainField id="bb-website" label="Website URL" optional helper="Used for extra context. Leave blank if you don't have one.">
                   <input
-                    type="text"
-                    className="input-field w-full"
+                    id="bb-website"
+                    aria-describedby="bb-website-helper"
+                    type="url"
+                    inputMode="url"
+                    className="input-field w-full h-11 px-3.5"
                     placeholder="https://yourbusiness.com"
                     value={brain.websiteUrl || ''}
                     onChange={(e) => setBrain({ ...brain, websiteUrl: e.target.value })}
                   />
-                </div>
-              </div>
+                </BrainField>
+              </BrainSection>
 
-              <div>
-                <label className="block text-overline mb-2" style={{ color: 'var(--text-muted)' }}>Brand personality (comma-separated)</label>
-                <input
-                  type="text"
-                  className="input-field w-full"
-                  placeholder="e.g. witty, premium, no-nonsense"
-                  value={personalityText}
-                  onChange={(e) => setPersonalityText(e.target.value)}
-                />
-              </div>
+              <BrainSection title="Your brand">
+                <BrainField id="bb-voice" label="Brand voice" optional helper="How should AMAI sound when writing for you?">
+                  <input
+                    id="bb-voice"
+                    aria-describedby="bb-voice-helper"
+                    type="text"
+                    className="input-field w-full h-11 px-3.5"
+                    placeholder="e.g. Calm, confident, playful"
+                    value={brain.brandVoice || ''}
+                    onChange={(e) => setBrain({ ...brain, brandVoice: e.target.value })}
+                  />
+                </BrainField>
 
-              <div>
-                <label className="block text-overline mb-2" style={{ color: 'var(--text-muted)' }}>Content pillars (comma-separated)</label>
-                <input
-                  type="text"
-                  className="input-field w-full"
-                  placeholder="e.g. Behind the scenes, Customer stories, Product drops, Tips & how-tos"
-                  value={pillarsText}
-                  onChange={(e) => setPillarsText(e.target.value)}
-                />
-                <p className="text-caption mt-1.5" style={{ color: 'var(--text-muted)' }}>AMAI tags each generated post with whichever pillar it best matches.</p>
-              </div>
+                <BrainField id="bb-personality" label="Brand personality" optional helper="A few words that describe your brand. Separate with commas.">
+                  <input
+                    id="bb-personality"
+                    aria-describedby="bb-personality-helper"
+                    type="text"
+                    className="input-field w-full h-11 px-3.5"
+                    placeholder="e.g. Witty, premium, confident"
+                    value={personalityText}
+                    onChange={(e) => setPersonalityText(e.target.value)}
+                  />
+                </BrainField>
 
-              <div>
-                <label className="block text-overline mb-2" style={{ color: 'var(--text-muted)' }}>Current goals (comma-separated)</label>
-                <input
-                  type="text"
-                  className="input-field w-full"
-                  placeholder="e.g. Grow followers, Drive website traffic, Launch new product"
-                  value={goalsText}
-                  onChange={(e) => setGoalsText(e.target.value)}
-                />
-              </div>
+                <BrainField id="bb-avoid" label="Never mention" optional helper="Topics AMAI should always stay away from.">
+                  <input
+                    id="bb-avoid"
+                    aria-describedby="bb-avoid-helper"
+                    type="text"
+                    className="input-field w-full h-11 px-3.5"
+                    placeholder="e.g. Competitor names, pricing"
+                    value={avoidText}
+                    onChange={(e) => setAvoidText(e.target.value)}
+                  />
+                </BrainField>
+              </BrainSection>
 
-              <div>
-                <label className="block text-overline mb-2" style={{ color: 'var(--text-muted)' }}>Competitive context</label>
-                <textarea
-                  className="input-field w-full min-h-[60px]"
-                  placeholder="Who else is in your space, and what makes you different?"
-                  value={brain.competitiveContext || ''}
-                  onChange={(e) => setBrain({ ...brain, competitiveContext: e.target.value })}
-                />
-              </div>
+              <BrainSection title="Your content">
+                <BrainField id="bb-pillars" label="Content pillars" optional helper="The themes you post about. AMAI tags each post with the closest match.">
+                  <input
+                    id="bb-pillars"
+                    aria-describedby="bb-pillars-helper"
+                    type="text"
+                    className="input-field w-full h-11 px-3.5"
+                    placeholder="e.g. Product tips, customer stories, behind the scenes"
+                    value={pillarsText}
+                    onChange={(e) => setPillarsText(e.target.value)}
+                  />
+                </BrainField>
 
-              <div>
-                <label className="block text-overline mb-2" style={{ color: 'var(--text-muted)' }}>Never mention (comma-separated)</label>
-                <input
-                  type="text"
-                  className="input-field w-full"
-                  placeholder="e.g. competitor names, pricing, politics"
-                  value={avoidText}
-                  onChange={(e) => setAvoidText(e.target.value)}
-                />
-              </div>
+                <BrainField id="bb-goals" label="Current goals" optional helper="What you want your content to achieve right now.">
+                  <input
+                    id="bb-goals"
+                    aria-describedby="bb-goals-helper"
+                    type="text"
+                    className="input-field w-full h-11 px-3.5"
+                    placeholder="e.g. Grow followers, drive sales"
+                    value={goalsText}
+                    onChange={(e) => setGoalsText(e.target.value)}
+                  />
+                </BrainField>
+
+                <BrainField id="bb-competitive" label="Competitive context" optional helper="What makes you different from others in your space.">
+                  <textarea
+                    id="bb-competitive"
+                    aria-describedby="bb-competitive-helper"
+                    className="input-field w-full min-h-[64px] px-3.5 py-2.5"
+                    placeholder="e.g. We're the only local brand doing custom fits."
+                    value={brain.competitiveContext || ''}
+                    onChange={(e) => setBrain({ ...brain, competitiveContext: e.target.value })}
+                  />
+                </BrainField>
+              </BrainSection>
             </div>
 
-            <div className="pt-1">
+            {/* Save row. Status is announced next to the button rather than
+                only via the page-level toast, so the outcome is visible right
+                where the action happened. */}
+            <div className="pt-2 flex flex-wrap items-center gap-3">
               <button
                 onClick={saveBrain}
                 disabled={brainSaving}
-                className="btn-primary-gradient px-5 py-2.5 rounded-[var(--radius-md)] text-xs font-bold flex items-center space-x-2 touch-target disabled:opacity-60"
+                className="btn-primary-gradient px-5 py-2.5 rounded-[var(--radius-md)] text-body-sm font-bold flex items-center gap-2 touch-target disabled:opacity-60"
               >
-                <Brain className="h-3.5 w-3.5" />
-                <span>{brainSaving ? 'Saving…' : 'Save Business Brain'}</span>
+                <Brain className="h-4 w-4" />
+                <span>{brainSaving ? 'Saving…' : 'Save changes'}</span>
               </button>
+              <span aria-live="polite" className="text-body-sm" style={{ color: 'var(--text-muted)' }}>
+                {brainSaving ? 'Saving your changes…' : ''}
+              </span>
             </div>
           </div>
         </div>
@@ -581,8 +677,10 @@ export default function SettingsPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {billing.plan === 'FREE' && (
                       <div className="p-4 rounded-[var(--radius-lg)] border" style={{ borderColor: 'var(--accent-warning)', backgroundColor: 'var(--accent-warning-subtle)' }}>
+                        {/* Zap, not Sparkles: billing should read as capability
+                            and speed, not as a gamified reward. */}
                         <div className="flex items-center gap-1.5 mb-1">
-                          <Sparkles className="h-3.5 w-3.5" style={{ color: 'var(--accent-warning)' }} />
+                          <ZapIcon className="h-3.5 w-3.5" style={{ color: 'var(--accent-warning)' }} />
                           <span className="text-xs font-extrabold" style={{ color: 'var(--text-primary)' }}>Pro</span>
                         </div>
                         <p className="text-caption mb-3" style={{ color: 'var(--text-secondary)' }}>3 accounts, advanced AutoPilot, AI recommendations, content repurposing.</p>
@@ -592,8 +690,10 @@ export default function SettingsPage() {
                       </div>
                     )}
                     <div className="p-4 rounded-[var(--radius-lg)] border" style={{ borderColor: 'var(--card-border)', backgroundColor: 'var(--bg-surface-sunken)' }}>
+                      {/* Building2 reads as "multiple client workspaces", which
+                          is what the Agency tier actually is. */}
                       <div className="flex items-center gap-1.5 mb-1">
-                        <Sparkles className="h-3.5 w-3.5" style={{ color: 'var(--text-muted)' }} />
+                        <Building2 className="h-3.5 w-3.5" style={{ color: 'var(--text-muted)' }} />
                         <span className="text-xs font-extrabold" style={{ color: 'var(--text-primary)' }}>Agency</span>
                       </div>
                       <p className="text-caption mb-3" style={{ color: 'var(--text-secondary)' }}>Multiple client workspaces, team members, agency overview, white-label.</p>

@@ -103,7 +103,7 @@ function VerifyEmailContent() {
               <CheckCircle2 className="h-8 w-8" />
             </div>
             <div className="space-y-2">
-              <h2 className="text-h1" style={{ color: 'var(--text-primary)' }}>Email Verified! 🎉</h2>
+              <h2 className="text-h1" style={{ color: 'var(--text-primary)' }}>Email verified</h2>
               <p className="text-body-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
                 Your account is active. You can now log in and access your AMAI workspace.
               </p>
@@ -120,7 +120,7 @@ function VerifyEmailContent() {
             </div>
 
             <div className="space-y-2">
-              <h2 className="text-h1" style={{ color: 'var(--text-primary)' }}>Check Your Inbox 📩</h2>
+              <h2 className="text-h1" style={{ color: 'var(--text-primary)' }}>Check your inbox</h2>
               <p className="text-body-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
                 We've sent a verification link to <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{userEmail}</span>. Click it to activate your account, then come back and sign in.
               </p>

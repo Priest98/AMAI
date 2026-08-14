@@ -176,7 +176,7 @@ export default function ApprovalQueuePage() {
     setBusyId(id); setBusyAction('approve');
     try {
       await brandFetch(`/posts/${id}/approve`, { method: 'POST', body: JSON.stringify({}) });
-      flash('🎉 Post approved and scheduled for publishing!');
+      flash('Post approved and scheduled for publishing.');
     } catch (e: any) {
       setPosts(snapshot);
       flash(e.message || 'Could not approve this post.');

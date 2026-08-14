@@ -143,7 +143,7 @@ export default function PendingRepliesList() {
 
             <div>
               <p className="text-overline mb-1 flex items-center gap-2" style={{ color: 'var(--accent-secondary)' }}>
-                ✨ AI Generated Reply
+                AI Generated Reply
               </p>
               <div className="surface-tile p-3 text-body-sm" style={{ backgroundColor: 'var(--accent-secondary-subtle)', borderColor: 'var(--accent-secondary)', color: 'var(--text-primary)' }}>
                 {reply.aiGeneratedReply}
