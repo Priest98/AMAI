@@ -1,117 +1,88 @@
 "use client";
 
 import React from 'react';
-import { Eye, PenLine, ShieldCheck, CalendarClock, FolderSync, Activity, Gauge, Layers } from 'lucide-react';
+import { BrainCircuit, PenLine, Rocket, LineChart } from 'lucide-react';
 import { Reveal, Eyebrow } from './shared';
+
+/**
+ * The entire feature story in four cards. Deliberately one line of body
+ * copy each -- this section answers "what does it do for me", and anything
+ * longer turns a scannable answer back into an essay. Concepts that used to
+ * have their own full sections (Content Intelligence, Content Repurposing,
+ * Continuous Learning, the Google Drive pipeline, multi-platform publishing)
+ * are folded into these four cards and the supporting line below, because
+ * they're facets of the same four ideas rather than separate products.
+ */
+const FEATURES = [
+  {
+    Icon: BrainCircuit,
+    title: 'Business Brain',
+    body: 'AMAI learns your business, brand and audience.',
+    tone: 'cyan' as const,
+  },
+  {
+    Icon: PenLine,
+    title: 'AI Content',
+    body: 'Turn your photos and videos into ready-to-publish posts.',
+    tone: 'purple' as const,
+  },
+  {
+    Icon: Rocket,
+    title: 'AutoPilot',
+    body: 'Plan, schedule and publish automatically.',
+    tone: 'cyan' as const,
+  },
+  {
+    Icon: LineChart,
+    title: 'Performance',
+    body: 'See what’s working, and what to do next.',
+    tone: 'purple' as const,
+  },
+];
 
 export default function Features() {
   return (
-    <section id="features" className="relative py-24 sm:py-32" aria-label="Features">
+    <section id="features" className="relative py-16 sm:py-20" aria-label="Features">
       <div className="max-w-7xl mx-auto px-5 sm:px-8">
         <Reveal className="text-center max-w-2xl mx-auto">
-          <Eyebrow>Everything, handled</Eyebrow>
+          <Eyebrow>What You Get</Eyebrow>
           <h2 className="lp-heading mt-5 text-3xl sm:text-4xl font-bold tracking-tight">
-            One engine, every part of the workflow
+            Everything your social media needs.
           </h2>
         </Reveal>
 
-        <div className="mt-16 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          <Reveal className="sm:col-span-2 lg:col-span-2 lg:row-span-2">
-            <div className="lp-card h-full p-8 flex flex-col justify-between min-h-[280px]">
-              <div>
-                <div className="h-12 w-12 rounded-xl flex items-center justify-center" style={{ background: 'var(--lp-cyan-soft)' }}>
-                  <Eye className="h-6 w-6" style={{ color: 'var(--lp-cyan)' }} />
+        <div className="mt-14 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          {FEATURES.map((feature, i) => (
+            <Reveal key={feature.title} delay={i * 0.06}>
+              <div className="lp-card h-full p-6 flex flex-col gap-4">
+                <div
+                  className="h-11 w-11 rounded-xl flex items-center justify-center"
+                  style={{ background: feature.tone === 'cyan' ? 'var(--lp-cyan-soft)' : 'var(--lp-purple-soft)' }}
+                >
+                  <feature.Icon
+                    className="h-5 w-5"
+                    style={{ color: feature.tone === 'cyan' ? 'var(--lp-cyan)' : 'var(--lp-purple)' }}
+                  />
                 </div>
-                <h3 className="lp-heading mt-5 text-xl font-bold">AI Vision that understands your content</h3>
-                <p className="mt-3 text-sm leading-relaxed max-w-md" style={{ color: 'var(--lp-text-secondary)' }}>
-                  AMAI watches every upload — subject, setting, tone, pacing — and uses that
-                  understanding to write captions and hashtags that actually fit, not generic filler.
+                <h3 className="lp-heading font-bold text-base">{feature.title}</h3>
+                <p className="text-sm leading-relaxed" style={{ color: 'var(--lp-text-secondary)' }}>
+                  {feature.body}
                 </p>
               </div>
-              <div className="mt-6 flex flex-wrap gap-2">
-                {['Scene detection', 'Tone matching', 'Format-aware'].map((t) => (
-                  <span key={t} className="px-3 py-1 rounded-full text-[11px] font-semibold lp-glass" style={{ color: 'var(--lp-text-secondary)' }}>
-                    {t}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </Reveal>
-
-          <Reveal delay={0.05}>
-            <div className="lp-card h-full p-6 min-h-[130px]">
-              <PenLine className="h-5 w-5" style={{ color: 'var(--lp-purple)' }} />
-              <h3 className="lp-heading mt-4 font-bold text-[15px]">Captions & hashtags</h3>
-              <p className="mt-2 text-sm leading-relaxed" style={{ color: 'var(--lp-text-secondary)' }}>
-                Written and tagged automatically, on-brand, every time.
-              </p>
-            </div>
-          </Reveal>
-
-          <Reveal delay={0.1}>
-            <div className="lp-card h-full p-6 min-h-[130px]">
-              <Gauge className="h-5 w-5" style={{ color: 'var(--lp-purple)' }} />
-              <h3 className="lp-heading mt-4 font-bold text-[15px]">Content scoring</h3>
-              <p className="mt-2 text-sm leading-relaxed" style={{ color: 'var(--lp-text-secondary)' }}>
-                Every post is scored before it ever reaches your queue.
-              </p>
-            </div>
-          </Reveal>
-
-          <Reveal delay={0.15}>
-            <div className="lp-card h-full p-6 min-h-[130px]">
-              <ShieldCheck className="h-5 w-5" style={{ color: 'var(--lp-cyan)' }} />
-              <h3 className="lp-heading mt-4 font-bold text-[15px]">Approval Queue</h3>
-              <p className="mt-2 text-sm leading-relaxed" style={{ color: 'var(--lp-text-secondary)' }}>
-                Edit caption, hashtags, targets or schedule before it goes live.
-              </p>
-            </div>
-          </Reveal>
-
-          <Reveal delay={0.2}>
-            <div className="lp-card h-full p-6 min-h-[130px]">
-              <CalendarClock className="h-5 w-5" style={{ color: 'var(--lp-cyan)' }} />
-              <h3 className="lp-heading mt-4 font-bold text-[15px]">Smart scheduling</h3>
-              <p className="mt-2 text-sm leading-relaxed" style={{ color: 'var(--lp-text-secondary)' }}>
-                Publishes at the moment your audience is actually online.
-              </p>
-            </div>
-          </Reveal>
-
-          <Reveal delay={0.25} className="sm:col-span-2 lg:col-span-2">
-            <div className="lp-card h-full p-6 min-h-[130px] flex items-center gap-5">
-              <div className="h-12 w-12 shrink-0 rounded-xl flex items-center justify-center" style={{ background: 'var(--lp-purple-soft)' }}>
-                <FolderSync className="h-5 w-5" style={{ color: 'var(--lp-purple)' }} />
-              </div>
-              <div>
-                <h3 className="lp-heading font-bold text-[15px]">Google Drive sync</h3>
-                <p className="mt-1 text-sm leading-relaxed" style={{ color: 'var(--lp-text-secondary)' }}>
-                  Drop files in a watched folder — AMAI picks them up automatically, no manual export.
-                </p>
-              </div>
-            </div>
-          </Reveal>
-
-          <Reveal delay={0.3}>
-            <div className="lp-card h-full p-6 min-h-[130px]">
-              <Activity className="h-5 w-5" style={{ color: 'var(--lp-purple)' }} />
-              <h3 className="lp-heading mt-4 font-bold text-[15px]">Live activity feed</h3>
-              <p className="mt-2 text-sm leading-relaxed" style={{ color: 'var(--lp-text-secondary)' }}>
-                Watch every stage happen in real time, from upload to published.
-              </p>
-            </div>
-          </Reveal>
-
-          <Reveal delay={0.35}>
-            <div className="lp-card h-full p-6 min-h-[130px]">
-              <Layers className="h-5 w-5" style={{ color: 'var(--lp-cyan)' }} />
-              <h3 className="lp-heading mt-4 font-bold text-[15px]">Multi-platform</h3>
-              <p className="mt-2 text-sm leading-relaxed" style={{ color: 'var(--lp-text-secondary)' }}>
-                One approval, published to Instagram and TikTok together.
-              </p>
-            </div>
-          </Reveal>
+            </Reveal>
+          ))}
         </div>
+
+        {/* Where the old standalone "One workflow. Multiple channels." and
+            "Google Drive → content engine" sections ended up. These are
+            supporting details, not headline claims -- a visitor wants to
+            know they're covered, not read a section about each. */}
+        <Reveal delay={0.3} className="mt-10 text-center">
+          <p className="text-sm max-w-2xl mx-auto" style={{ color: 'var(--lp-text-muted)' }}>
+            Publish across Instagram, TikTok and supported channels from one place, and connect Google
+            Drive to turn content you already have into posts.
+          </p>
+        </Reveal>
       </div>
     </section>
   );

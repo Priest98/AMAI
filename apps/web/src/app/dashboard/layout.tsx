@@ -187,13 +187,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       >
         {/* Left: Logo & Mobile Toggle */}
         <div className="flex items-center space-x-3 sm:space-x-4">
+          {/* lg:hidden, not md:hidden. The sidebar below is `hidden lg:block`,
+              so anything hidden at md left tablets (768-1023px, e.g. iPad
+              portrait) with no navigation at all: no sidebar, no drawer
+              trigger, no bottom bar. Every mobile nav affordance now shares
+              the sidebar's lg breakpoint so exactly one of the two is always
+              present. */}
           <button
             onClick={() => setIsMobileOpen(true)}
-            className="btn-icon-glass md:hidden h-8 w-8 flex items-center justify-center touch-target"
+            className="btn-icon-glass lg:hidden h-9 w-9 flex items-center justify-center touch-target"
             style={{ color: 'var(--text-secondary)' }}
-            aria-label="Open Navigation Drawer"
+            aria-label="Open navigation menu"
           >
-            <Menu className="h-4 w-4" />
+            <Menu className="h-5 w-5" />
           </button>
 
           <Link href="/dashboard" className="flex items-center space-x-2">
@@ -225,7 +231,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {/* Theme Toggle Button */}
           <button
             onClick={toggleTheme}
-            className="btn-icon-glass h-8 w-8 flex items-center justify-center touch-target"
+            className="btn-icon-glass h-9 w-9 flex items-center justify-center touch-target"
             style={{ color: 'var(--text-primary)' }}
             title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
           >
@@ -244,7 +250,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsMobileOpen(false)}
-              className="fixed inset-0 z-40 md:hidden"
+              className="fixed inset-0 z-40 lg:hidden"
               style={{ backgroundColor: 'rgba(10, 11, 20, 0.6)', backdropFilter: 'blur(4px)' }}
             />
             <motion.div
@@ -252,15 +258,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: 'spring', damping: 26, stiffness: 320 }}
-              className="fixed top-0 left-0 bottom-0 w-72 z-50 p-5 flex flex-col justify-between border-r md:hidden backdrop-blur-xl"
+              className="fixed top-0 left-0 bottom-0 w-[17rem] max-w-[85vw] z-50 p-5 flex flex-col justify-between border-r lg:hidden backdrop-blur-xl overflow-y-auto"
               style={{ backgroundColor: 'var(--glass-bg)', borderColor: 'var(--glass-border)' }}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Navigation menu"
             >
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
                   <Logo variant="full" className="h-7" />
                   <button
                     onClick={() => setIsMobileOpen(false)}
-                    className="btn-icon-glass h-8 w-8 flex items-center justify-center touch-target"
+                    className="btn-icon-glass h-9 w-9 flex items-center justify-center touch-target"
                     style={{ color: 'var(--text-secondary)' }}
                   >
                     <X className="h-4 w-4" />
@@ -284,7 +293,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                             href={item.href}
                             data-tour={NAV_TOUR_IDS[item.href]}
                             onClick={() => setIsMobileOpen(false)}
-                            className="flex items-center space-x-3 px-3 py-2 rounded-[var(--radius-md)] text-body-sm font-semibold transition-all duration-200"
+                            className="flex items-center space-x-3 px-3 py-2.5 rounded-[var(--radius-md)] text-body-sm font-semibold transition-all duration-200 touch-target"
                             style={{
                               backgroundColor: isActive ? 'var(--accent-secondary-subtle)' : 'transparent',
                               color: isActive ? 'var(--accent-secondary)' : 'var(--text-secondary)',
@@ -314,16 +323,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </AnimatePresence>
 
       {/* ── 2. The 3-Column SaaS Grid Container ── */}
-      <div className="flex-1 w-full max-w-[1600px] mx-auto px-3 sm:px-6 pt-5 sm:pt-7 pb-4 sm:pb-6">
+      {/* Bottom padding clears the fixed mobile tab bar (4rem + safe-area).
+          Previously pb-4/pb-6 meant the last ~48px of every page sat behind
+          it and could not be scrolled into view. Reset to a normal gap at lg
+          where the bar is gone and the sidebar takes over. */}
+      <div
+        className="flex-1 w-full max-w-[1600px] mx-auto px-4 sm:px-6 pt-5 sm:pt-7 pb-[calc(5.5rem+env(safe-area-inset-bottom))] lg:pb-8"
+      >
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
           {/* Column 1: Left Sidebar Navigation */}
           <aside className="hidden lg:block lg:col-span-3">
-            <div className="exec-card sticky top-20 p-4 space-y-6">
+            <div className="exec-card sticky top-20 p-5 space-y-6">
 
               {/* Profile Card */}
-              <div className="surface-tile p-3 flex items-center space-x-3">
-                <div className="h-8 w-8 rounded-[var(--radius-md)] flex items-center justify-center font-bold text-xs" style={{ background: 'var(--gradient-primary-cta)', color: 'var(--text-on-accent)' }}>
+              <div className="surface-tile p-3.5 flex items-center space-x-3">
+                <div className="h-9 w-9 shrink-0 rounded-[var(--radius-md)] flex items-center justify-center font-bold text-xs" style={{ background: 'var(--gradient-primary-cta)', color: 'var(--text-on-accent)' }}>
                   {userInitials}
                 </div>
                 <div className="min-w-0 flex-1">
@@ -335,9 +350,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               {/* Navigation Links */}
               <nav className="space-y-4">
                 {navSections.map((section, sIdx) => (
-                  <div key={sIdx} className="space-y-0.5">
+                  <div key={sIdx} className="space-y-1">
                     {section.title && (
-                      <p className="text-overline px-3 py-1">
+                      <p className="text-overline px-3 pb-1.5 pt-1">
                         {section.title}
                       </p>
                     )}
@@ -349,7 +364,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                           key={item.label}
                           href={item.href}
                           data-tour={NAV_TOUR_IDS[item.href]}
-                          className="flex items-center space-x-2.5 px-3 py-2 rounded-[var(--radius-md)] text-body-sm font-semibold transition-all duration-200"
+                          className="flex items-center space-x-2.5 px-3 py-2.5 rounded-[var(--radius-md)] text-body-sm font-semibold transition-all duration-200"
                           style={{
                             backgroundColor: isActive ? 'var(--accent-secondary-subtle)' : 'transparent',
                             color: isActive ? 'var(--accent-secondary)' : 'var(--text-secondary)',
@@ -390,7 +405,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </div>
 
       {/* Mobile Bottom Bar — Streamlined Navigation with Center Upload Button */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 border-t px-4 flex items-center justify-around z-30" style={{ backgroundColor: 'var(--glass-bg)', backdropFilter: 'blur(20px) saturate(160%)', WebkitBackdropFilter: 'blur(20px) saturate(160%)', borderColor: 'var(--glass-border)', boxShadow: 'var(--elevation-4)' }}>
+      {/* lg:hidden to match the sidebar breakpoint (see the drawer trigger
+          above). paddingBottom carries the iOS home-indicator inset so the
+          tab row never sits underneath it. */}
+      <nav
+        className="lg:hidden fixed bottom-0 left-0 right-0 border-t px-2 sm:px-4 flex items-center justify-around z-30"
+        style={{
+          height: 'calc(4rem + env(safe-area-inset-bottom))',
+          paddingBottom: 'env(safe-area-inset-bottom)',
+          backgroundColor: 'var(--glass-bg)',
+          backdropFilter: 'blur(20px) saturate(160%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(160%)',
+          borderColor: 'var(--glass-border)',
+          boxShadow: 'var(--elevation-4)',
+        }}
+      >
         {mobileTabItems.map((tab) => {
           const isActive = pathname === tab.href;
           const Icon = tab.icon;
@@ -414,11 +443,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <Link
               key={tab.label}
               href={tab.href}
-              className="flex flex-col items-center justify-center w-12 h-10 rounded-[var(--radius-sm)] transition-all duration-200 touch-target"
+              aria-current={isActive ? 'page' : undefined}
+              className="flex flex-col items-center justify-center gap-1 w-14 h-12 rounded-[var(--radius-sm)] transition-all duration-200 touch-target"
               style={{ color: isActive ? 'var(--accent-secondary)' : 'var(--text-muted)' }}
             >
-              <Icon className={`h-4 w-4 ${isActive ? 'scale-110' : ''}`} />
-              <span className="text-[9px] mt-0.5 tracking-tight font-semibold">{tab.label}</span>
+              <Icon className={`h-[18px] w-[18px] ${isActive ? 'scale-110' : ''}`} />
+              {/* 9px was effectively unreadable; 10px with normal tracking
+                  still fits five tabs at 320px. */}
+              <span className="text-[10px] leading-none font-semibold">{tab.label}</span>
             </Link>
           );
         })}

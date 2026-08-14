@@ -4,6 +4,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AiService } from '../ai/ai.service';
 import { PublishingService } from '../queue/publishing.service';
 import { SchedulingService } from './scheduling.service';
+import { BusinessBrainService } from '../business-brain/business-brain.service';
+import { EntitlementsService } from '../billing/entitlements.service';
 import {
   EngineState,
   ApprovalMode,
@@ -53,6 +55,8 @@ export class EngineService {
     private events: EventEmitter2,
     private publishingService: PublishingService,
     private schedulingService: SchedulingService,
+    private businessBrainService: BusinessBrainService,
+    private entitlementsService: EntitlementsService,
   ) {}
 
   // ─────────────────────────────────────────────────────────────
@@ -251,15 +255,27 @@ export class EngineService {
       ? connectedAccounts.map((a) => a.platform).join(', ')
       : 'Instagram & TikTok';
 
+    // Business Brain: the brand context (voice, audience, content pillars,
+    // goals, things to avoid) every AI generation step below should reflect
+    // instead of writing something generic. Returns '' if nothing's been
+    // configured yet, so this is always safe to pass through unconditionally.
+    const brainContext = await this.businessBrainService.buildPromptContext(brandId);
+
     // 2-3. Generate caption and hashtags — independent of each other, run
     // concurrently rather than one after another to cut real wall-clock
     // time roughly in half.
     const [{ caption }, hashtagResult] = await Promise.all([
-      this.aiService.generateCaption(brandId, 'amai_engine', topic, platformLabel, config.defaultTone || 'friendly'),
+      this.aiService.generateCaption(brandId, 'amai_engine', topic, platformLabel, config.defaultTone || 'friendly', brainContext),
       this.aiService.generateHashtags(topic, platformLabel, config.defaultTone || 'Content Creator'),
     ]);
     const hashtags = Array.from(new Set(hashtagResult.allHashtags)).slice(0, 8);
     this.logger.log(`[${asset.id}] Caption generated (${caption.length} chars), ${hashtags.length} hashtags generated`);
+    // Only counted once generation actually succeeded -- a rejected or
+    // failed attempt (caught further up the call stack) never burns quota.
+    this.entitlementsService
+      .getOrganizationIdForBrand(brandId)
+      .then((organizationId) => this.entitlementsService.recordAiGeneration(organizationId))
+      .catch((err) => this.logger.warn(`[${asset.id}] Failed to record AI generation usage: ${err.message}`));
     this.logEvent(brandId, EngineEventType.CAPTION_GENERATED, { mediaAssetId: asset.id, message: 'Caption generated.' }).catch(() => {});
     this.logEvent(brandId, EngineEventType.HASHTAGS_GENERATED, { mediaAssetId: asset.id, message: `${hashtags.length} hashtags generated.` }).catch(() => {});
 
@@ -294,6 +310,12 @@ export class EngineService {
     const willAutoPublish = config.state === EngineState.ACTIVE && config.approvalMode === ApprovalMode.AUTO;
     const postStatus = willAutoPublish ? PostStatus.SCHEDULED : PostStatus.NEEDS_APPROVAL;
 
+    // AI Content Intelligence (foundation): tag this post with whichever
+    // Business Brain content pillar it best matches, if any are configured.
+    // Purely additive -- null when no pillars exist yet or none match.
+    const brain = await this.businessBrainService.getOrCreate(brandId);
+    const contentPillar = this.businessBrainService.pickBestPillar(brain.contentPillars, topic, caption);
+
     const post = await this.prisma.post.create({
       data: {
         brandId,
@@ -304,6 +326,7 @@ export class EngineService {
         scheduledAt,
         optimalScore,
         contentCategory,
+        contentPillar,
         peakTimeDetected: true,
         media: { create: [{ assetId: asset.id }] },
         targets: {

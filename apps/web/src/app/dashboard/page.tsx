@@ -7,8 +7,10 @@ import StatCard from "@/components/ui/StatCard";
 import Badge from "@/components/ui/Badge";
 import EmptyState from "@/components/ui/EmptyState";
 import EngineWorkflowVisualization from "@/components/engine/EngineWorkflowVisualization";
-import { apiFetch, brandFetch, getBrandId } from '@/lib/api';
+import { apiFetch, brandFetch } from '@/lib/api';
 import { useEngineEvents } from '@/lib/useEngineEvents';
+import { getBillingSummary, BillingSummary } from '@/lib/billing';
+import UsageBar from '@/components/billing/UsageBar';
 import {
   CheckCircle2,
   Clock,
@@ -20,6 +22,7 @@ import {
   Folder,
   Upload,
   CalendarClock,
+  Crown,
 } from 'lucide-react';
 
 const containerVariants = {
@@ -58,6 +61,11 @@ export default function DashboardPage() {
   const [connectedAccountList, setConnectedAccountList] = useState<string[]>([]);
   const [mediaCount, setMediaCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [billing, setBilling] = useState<BillingSummary | null>(null);
+
+  useEffect(() => {
+    getBillingSummary().then(setBilling).catch(() => {});
+  }, []);
 
   // Previously this fired 6 separate requests on every mount and every SSE
   // engine event (3 of them full `/posts?status=X` payloads just to read
@@ -69,7 +77,7 @@ export default function DashboardPage() {
       const [config, stats, accounts] = await Promise.all([
         brandFetch<{ state: 'ACTIVE' | 'PAUSED'; approvalMode: 'MANUAL' | 'AUTO' }>('/engine/state'),
         brandFetch<DashStats>('/posts/stats'),
-        apiFetch<any>(`/oauth/accounts?brandId=${encodeURIComponent(getBrandId())}`).catch(() => null),
+        apiFetch<any>('/oauth/accounts').catch(() => null),
       ]);
 
       setEngineState(config.state);
@@ -268,6 +276,35 @@ export default function DashboardPage() {
               </Link>
             </div>
           </div>
+
+          {/* Plan-aware widget: Free gets usage bars + an upgrade nudge,
+              Pro/Agency just gets a quiet plan badge -- no upgrade nagging
+              for users who already pay (spec #21: "Do not show irrelevant
+              Free upgrade prompts to active Pro users"). */}
+          {billing && (
+            <div className="exec-card p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <Crown className="h-3.5 w-3.5" style={{ color: 'var(--accent-warning)' }} />
+                  <h3 className="text-h3" style={{ color: 'var(--text-primary)' }}>{billing.entitlements.displayName} Plan</h3>
+                </div>
+                <Link href="/dashboard/settings?tab=billing" className="link-neutral text-body-sm font-semibold hover:underline">
+                  {billing.plan === 'FREE' ? 'Upgrade' : 'Manage'}
+                </Link>
+              </div>
+
+              {billing.plan === 'FREE' ? (
+                <div className="space-y-3">
+                  <UsageBar label="AI Generations" used={billing.usage.aiGenerations.used} limit={billing.usage.aiGenerations.limit} planName="Free" />
+                  <UsageBar label="Posts" used={billing.usage.posts.used} limit={billing.usage.posts.limit} planName="Free" />
+                </div>
+              ) : (
+                <p className="text-body-sm" style={{ color: 'var(--text-secondary)' }}>
+                  {billing.usage.aiGenerations.used} AI generations · {billing.usage.posts.used} posts this month.
+                </p>
+              )}
+            </div>
+          )}
         </motion.aside>
       </div>
     </motion.div>

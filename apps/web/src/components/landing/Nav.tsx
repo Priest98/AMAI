@@ -7,8 +7,8 @@ import { Menu, X } from 'lucide-react';
 import ThemeToggle from '@/components/ui/ThemeToggle';
 
 const NAV_LINKS = [
+  { href: '#product', label: 'Product' },
   { href: '#how-it-works', label: 'How It Works' },
-  { href: '#engine', label: 'AMAI Engine' },
   { href: '#features', label: 'Features' },
   { href: '#pricing', label: 'Pricing' },
   { href: '#faq', label: 'FAQ' },

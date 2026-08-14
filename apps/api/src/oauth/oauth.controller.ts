@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Patch, Query, Body, Param, Res, HttpStatus, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Patch, Query, Body, Param, Req, Res, HttpStatus, UseGuards } from '@nestjs/common';
 import { OAuthService } from './oauth.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { getAppUrl } from '../common/app-url.util';
@@ -187,24 +187,36 @@ export class OAuthController {
   // MULTI-ACCOUNT MANAGEMENT ENDPOINTS
   // ─────────────────────────────────────────────────────────────
 
-  // Public account & config status check
+  // Fixed during the V2 full-system audit: this used to be
+  // `@Get('accounts')` with NO guard at all and a client-supplied
+  // `?brandId=` query param (defaulting to 'primary_brand') -- anyone,
+  // unauthenticated, could enumerate any brand's connected-account handles
+  // and Google Drive connection status. disconnect/rename below had
+  // JwtAuthGuard but zero ownership check, so any logged-in user could
+  // disconnect or rename ANY OTHER organization's live Instagram/TikTok
+  // connection by accountId alone -- worse than read-only leakage, this
+  // could break another brand's live AutoPilot publishing. Fixed by
+  // trusting only req.user.brandId (from the verified JWT), never a
+  // client-supplied value, for all three.
+  @UseGuards(JwtAuthGuard)
   @Get('accounts')
-  async getConnectedAccounts(@Query('brandId') brandId: string) {
-    return this.oauthService.getConnectedAccounts(brandId || 'primary_brand');
+  async getConnectedAccounts(@Req() req: any) {
+    return this.oauthService.getConnectedAccounts(req.user.brandId);
   }
 
   @UseGuards(JwtAuthGuard)
   @Delete('accounts/:accountId')
-  async disconnectAccount(@Param('accountId') accountId: string) {
-    return this.oauthService.disconnectAccount(accountId);
+  async disconnectAccount(@Req() req: any, @Param('accountId') accountId: string) {
+    return this.oauthService.disconnectAccount(req.user.brandId, accountId);
   }
 
   @UseGuards(JwtAuthGuard)
   @Patch('accounts/:accountId')
   async renameAccount(
+    @Req() req: any,
     @Param('accountId') accountId: string,
     @Body() body: { handle: string },
   ) {
-    return this.oauthService.renameAccount(accountId, body.handle);
+    return this.oauthService.renameAccount(req.user.brandId, accountId, body.handle);
   }
 }

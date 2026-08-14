@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { Check, X, MessageSquare, Share2, ExternalLink, RefreshCw, AlertCircle } from 'lucide-react';
-import { apiFetch, getBrandId } from '@/lib/api';
+import { brandFetch } from '@/lib/api';
 import EmptyState from '@/components/ui/EmptyState';
 
 export interface PendingCommentReplyResponse {
@@ -24,13 +24,11 @@ export default function PendingRepliesList() {
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  const brandId = getBrandId();
-
   const fetchReplies = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await apiFetch<PendingCommentReplyResponse[]>(`/growth/${brandId}/pending-replies`);
+      const data = await brandFetch<PendingCommentReplyResponse[]>('/growth/pending-replies');
       setReplies(data);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error';
@@ -38,7 +36,7 @@ export default function PendingRepliesList() {
     } finally {
       setLoading(false);
     }
-  }, [brandId]);
+  }, []);
 
   useEffect(() => {
     fetchReplies();
@@ -47,7 +45,7 @@ export default function PendingRepliesList() {
   const handleApprove = async (id: string) => {
     setActionLoading(id);
     try {
-      await apiFetch(`/growth/replies/${id}/approve`, { method: 'POST' });
+      await brandFetch(`/growth/replies/${id}/approve`, { method: 'POST' });
       setReplies((prev) => prev.filter((r) => r.id !== id));
     } catch (err) {
       alert('Failed to approve reply. Please try again.');
@@ -59,7 +57,7 @@ export default function PendingRepliesList() {
   const handleReject = async (id: string) => {
     setActionLoading(id);
     try {
-      await apiFetch(`/growth/replies/${id}/reject`, { method: 'POST' });
+      await brandFetch(`/growth/replies/${id}/reject`, { method: 'POST' });
       setReplies((prev) => prev.filter((r) => r.id !== id));
     } catch (err) {
       alert('Failed to reject reply. Please try again.');

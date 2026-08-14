@@ -106,7 +106,7 @@ export class AiService {
   /**
    * Context-Aware & Niche-Specific AI Caption Generation
    */
-  async generateCaption(brandId: string, userId: string, topic: string, platform: string, tone: string) {
+  async generateCaption(brandId: string, userId: string, topic: string, platform: string, tone: string, brandContext?: string) {
     const niche = tone || 'Content Creator';
     const isAiTopic = /ai|artificial intelligence|machine learning|automation|gpt/i.test(topic + ' ' + niche);
 
@@ -115,12 +115,14 @@ export class AiService {
 
     const prompt = `You are a professional social media manager specializing in the ${niche} industry.
 Write a compelling, authentic post for ${platform} about: "${topic}".
+${brandContext ? `\n${brandContext}\n` : ''}
 Requirements:
 1. Hook the audience in the first sentence.
 2. Include engaging body content with clear value.
 3. End with a strong Call-To-Action (CTA).
 4. Include 4-6 highly relevant hashtags specifically for ${niche}.
 5. ${isAiTopic ? '' : 'CRITICAL REQUIREMENT: Do NOT include generic AI hashtags like #AI, #ArtificialIntelligence, or #MachineLearning unless the content is explicitly about AI technology.'}
+${brandContext ? '6. Stay consistent with the business context above — voice, audience, pillars, and things to avoid all matter more than generic best practices.' : ''}
 Keep the caption under character limits for ${platform}.
 CRITICAL OUTPUT FORMAT: Reply with ONLY the finished caption text, exactly as it should be posted. Do not include a title or label like "Caption:" or "Caption for Instagram:". Do not use markdown formatting (no **, no #, no bullet points, no headers). Do not add any commentary, explanation, or visual/production suggestions before or after the caption. The very first character of your reply must be the first character of the caption itself.`;
 

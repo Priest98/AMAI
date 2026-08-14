@@ -1,38 +1,48 @@
 import type { Metadata } from 'next';
-import { Space_Grotesk, Inter, Bebas_Neue } from 'next/font/google';
+import localFont from 'next/font/local';
 import './globals.css';
 import AnalyticsInit from '@/components/analytics/AnalyticsInit';
 
-// Design System v2: loaded once, app-wide, at the root so every route --
-// dashboard, auth pages, and the marketing site -- shares one typographic
-// identity. Previously the dashboard's CSS referenced a font named 'Geist'
-// that was never actually loaded anywhere as a webfont (only the landing
-// page loaded real fonts, scoped to its own --lp-font-* variables), so the
-// entire authenticated app was silently rendering in the browser's system
-// font this whole time. globals.css consumes these as --font-heading-var /
-// --font-body-var.
-const spaceGrotesk = Space_Grotesk({
-  subsets: ['latin'],
-  weight: ['500', '600', '700'],
-  variable: '--font-heading-var',
-  display: 'swap',
-});
-const inter = Inter({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
+/**
+ * AMAI typography system: Morrison (product) + Kugile (brand).
+ *
+ * Loaded once here at the root so every route -- dashboard, auth pages and
+ * the marketing site -- shares one typographic identity, and self-hosted via
+ * next/font/local (both faces are licensed files, neither exists on Google
+ * Fonts). next/font inlines the @font-face, preloads the file and gives it a
+ * stable CSS variable, so no component loads a font itself.
+ *
+ * MORRISON drives both --font-body-var and --font-heading-var: only the
+ * Regular (400) file was supplied, so there is deliberately no separate
+ * heading face and no weight array claiming weights the file doesn't
+ * contain. adjustFontFallback lets Next compute fallback metrics to reduce
+ * layout shift while the face loads.
+ */
+const morrison = localFont({
+  src: [{ path: '../fonts/Morrison-Regular.otf', weight: '400', style: 'normal' }],
   variable: '--font-body-var',
   display: 'swap',
+  fallback: ['system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],
 });
-// Bold condensed display face, used only for hero-scale headlines
-// (globals.css's .text-display / .text-display-giant) -- synthesized from
-// the reference moodboard's dramatic oversized hero typography, kept
-// separate from Space Grotesk so regular headings stay readable at UI
-// sizes while hero copy gets the poster-style treatment.
-const bebasNeue = Bebas_Neue({
-  subsets: ['latin'],
-  weight: ['400'],
+
+/**
+ * KUGILE is the display/brand face, used sparingly (hero headline and a
+ * small number of marketing headings) so it stays a moment of contrast
+ * rather than the page's default voice.
+ *
+ * IMPORTANT CONSTRAINT -- the supplied Kugile_Demo.ttf maps only 53 glyphs:
+ * A-Z, a-z and space. It contains NO digits and NO punctuation (not even a
+ * period, comma, apostrophe or ampersand). Any character outside A-Za-z will
+ * silently fall back to Morrison mid-word, so Kugile must only be applied to
+ * letters-only strings. The fallback below is Morrison rather than a system
+ * font so that when a stray character does fall through, it lands on the
+ * product face instead of Times New Roman.
+ */
+const kugile = localFont({
+  src: [{ path: '../fonts/Kugile-Regular.ttf', weight: '400', style: 'normal' }],
   variable: '--font-display-var',
   display: 'swap',
+  fallback: ['var(--font-body-var)', 'system-ui', 'serif'],
 });
 
 export const metadata: Metadata = {
@@ -86,7 +96,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`antialiased ${spaceGrotesk.variable} ${inter.variable} ${bebasNeue.variable}`}>
+      <body className={`antialiased ${morrison.variable} ${kugile.variable}`}>
         <AnalyticsInit />
         {children}
       </body>

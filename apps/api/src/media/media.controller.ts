@@ -3,6 +3,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { BrandAccessGuard } from '../auth/brand-access.guard';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { MediaService } from './media.service';
+import { EntitlementGuard, RequireEntitlement } from '../billing/entitlement.guard';
 
 @UseGuards(JwtAuthGuard, BrandAccessGuard)
 @Controller('brands/:brandId/media')
@@ -70,6 +71,8 @@ export class MediaController {
    * (success or a clean, retryable MediaStatus.FAILED) well inside
    * Vercel's platform timeout.
    */
+  @UseGuards(EntitlementGuard)
+  @RequireEntitlement('generate_ai_content')
   @Post('assets/:assetId/process')
   async processAsset(
     @Param('brandId') brandId: string,

@@ -5,6 +5,7 @@ import { EncryptionService } from '../encryption/encryption.service';
 import { StorageService } from '../storage/storage.service';
 import { MediaOptimizationService } from '../media-optimization/media-optimization.service';
 import { Platform, TargetStatus, PostStatus, MediaStatus, EngineEventType, ConnectionStatus } from '@prisma/client';
+import { EntitlementsService } from '../billing/entitlements.service';
 
 const MAX_PUBLISH_ATTEMPTS = 3;
 
@@ -40,6 +41,7 @@ export class PublishingService {
     private storage: StorageService,
     private events: EventEmitter2,
     private mediaOptimization: MediaOptimizationService,
+    private entitlementsService: EntitlementsService,
   ) {}
 
   /** Finds every post that's due and publishes each of its pending targets. */
@@ -430,10 +432,22 @@ export class PublishingService {
     const publishedCount = await this.prisma.postTarget.count({ where: { postId, status: TargetStatus.PUBLISHED } });
     const status = publishedCount > 0 ? PostStatus.PUBLISHED : PostStatus.FAILED;
 
-    await this.prisma.post.update({
+    const updatedPost = await this.prisma.post.update({
       where: { id: postId },
       data: { status, publishedAt: status === PostStatus.PUBLISHED ? new Date() : undefined },
     });
+
+    if (status === PostStatus.PUBLISHED) {
+      // Counted once, on the transition into PUBLISHED -- finalizeIfComplete
+      // can in principle be reached more than once for edge-case retry
+      // orderings, but a post only *becomes* PUBLISHED a single time (Prisma
+      // read above already reflects the pre-update status via publishedCount
+      // being computed first), so this doesn't double-count on replays.
+      this.entitlementsService
+        .getOrganizationIdForBrand(updatedPost.brandId)
+        .then((organizationId) => this.entitlementsService.recordPostPublished(organizationId))
+        .catch((err) => this.logger.warn(`Failed to record post-published usage for post ${postId}: ${err.message}`));
+    }
 
     if (status === PostStatus.PUBLISHED && mediaAssetId) {
       const asset = await this.prisma.mediaAsset.findUnique({ where: { id: mediaAssetId } });

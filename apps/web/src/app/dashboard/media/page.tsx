@@ -63,7 +63,7 @@ function MediaSourceSection() {
 
   const fetchDriveStatus = useCallback(async () => {
     try {
-      const data = await apiFetch<{ googleDrive?: GoogleDriveConfig }>(`/oauth/accounts?brandId=${getBrandId()}`);
+      const data = await apiFetch<{ googleDrive?: GoogleDriveConfig }>('/oauth/accounts');
       if (data?.googleDrive) setGoogleDrive(data.googleDrive);
     } catch {
       // Non-fatal — the card just shows "not connected" until this succeeds.
@@ -127,9 +127,9 @@ function MediaSourceSection() {
       if (!result.connected) {
         setMessage({ text: 'Connect a Drive folder first, then sync.', type: 'error' });
       } else if (result.ingested > 0) {
-        setMessage({ text: `Synced — pulled in ${result.ingested} new file${result.ingested === 1 ? '' : 's'}.`, type: 'success' });
+        setMessage({ text: `Synced. Pulled in ${result.ingested} new file${result.ingested === 1 ? '' : 's'}.`, type: 'success' });
       } else {
-        setMessage({ text: 'Synced — no new files since last check.', type: 'success' });
+        setMessage({ text: 'Synced. No new files since last check.', type: 'success' });
       }
     } catch (e: any) {
       setMessage({ text: e.message || 'Sync failed. Please try again.', type: 'error' });
@@ -426,7 +426,7 @@ export default function MediaLibraryPage() {
       <div>
         <h1 className="text-h1" style={{ color: 'var(--text-primary)' }}>Media Library</h1>
         <p className="text-body-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-          Upload photos and videos — the AMAI Engine takes it from here.
+          Upload photos and videos. The AMAI Engine takes it from here.
         </p>
       </div>
 

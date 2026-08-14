@@ -9,9 +9,11 @@ import { AiModule } from '../ai/ai.module';
 import { QueueModule } from '../queue/queue.module';
 import { EncryptionModule } from '../encryption/encryption.module';
 import { CronController } from '../cron/cron.controller';
+import { BusinessBrainModule } from '../business-brain/business-brain.module';
+import { BillingModule } from '../billing/billing.module';
 
 @Module({
-  imports: [AiModule, QueueModule, EncryptionModule],
+  imports: [AiModule, QueueModule, EncryptionModule, BusinessBrainModule, BillingModule],
   controllers: [EngineController, CronController],
   providers: [EngineService, EngineJobsService, GoogleDriveService, SchedulingService, SupabaseRealtimeService],
   exports: [EngineService],

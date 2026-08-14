@@ -24,7 +24,33 @@ export async function getBackendPort(): Promise<number> {
     const { AppModule } = await import('../../../api/src/app.module');
 
     const server = express();
-    const nestApp = await NestFactory.create(AppModule, new ExpressAdapter(server));
+
+    // The billing webhook (currently Paystack, see billing.module.ts) and
+    // the Instagram/Meta comment webhook
+    // (apps/api/src/billing/billing.controller.ts,
+    // apps/api/src/webhooks/webhooks.controller.ts) both need the exact raw
+    // request bytes to verify their provider's signature -- parsing to JSON
+    // first (Nest's default bodyParser behavior) would change the bytes and
+    // always fail verification. bodyParser: false below disables Nest's
+    // automatic parsing so we can apply it ourselves: each webhook path gets
+    // express.raw() (keeps req.body a Buffer), every other path gets the
+    // normal express.json()/urlencoded() Nest would have used anyway.
+    //
+    // Added during the V2 full-system audit: the Instagram webhook handler
+    // received an x-hub-signature-256 header but never verified it (the
+    // body arrived pre-parsed as JSON with no way to recover the exact
+    // signed bytes) -- anyone could POST a forged payload claiming to be
+    // Meta. Wiring the raw body through here is what makes real
+    // verification in the controller possible at all.
+    server.use('/api/billing/webhook', express.raw({ type: 'application/json' }));
+    server.use('/api/webhooks/instagram', express.raw({ type: 'application/json' }));
+    server.use((req, res, next) => {
+      if (Buffer.isBuffer(req.body)) return next(); // already handled by express.raw() above
+      return express.json()(req, res, next);
+    });
+    server.use(express.urlencoded({ extended: true }));
+
+    const nestApp = await NestFactory.create(AppModule, new ExpressAdapter(server), { bodyParser: false });
 
     nestApp.setGlobalPrefix('api');
     nestApp.enableCors({ origin: '*', credentials: true });

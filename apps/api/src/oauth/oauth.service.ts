@@ -5,6 +5,7 @@ import { EngineService } from '../engine/engine.service';
 import { Platform, ConnectionStatus, EngineEventType } from '@prisma/client';
 import * as crypto from 'crypto';
 import { getAppUrl } from '../common/app-url.util';
+import { EntitlementsService } from '../billing/entitlements.service';
 
 @Injectable()
 export class OAuthService {
@@ -16,7 +17,25 @@ export class OAuthService {
     private prisma: PrismaService,
     private encryption: EncryptionService,
     private engineService: EngineService,
+    private entitlementsService: EntitlementsService,
   ) {}
+
+  /**
+   * Only blocks brand-new connections -- reconnecting/refreshing a token
+   * for a platform account that's already linked to this brand must always
+   * be allowed, since that isn't adding a new account against the limit.
+   */
+  private async assertCanConnectNewAccount(brandId: string, platform: Platform, platformAccountId: string) {
+    const existing = await this.prisma.socialAccount.findUnique({
+      where: { platform_platformAccountId: { platform, platformAccountId } },
+    });
+    if (existing) return; // reconnect/refresh, not a new account
+
+    const result = await this.entitlementsService.canPerformAction(brandId, 'connect_social_account');
+    if (!result.allowed) {
+      throw new BadRequestException(result.reason || 'Your plan does not allow connecting another account.');
+    }
+  }
 
   // ─────────────────────────────────────────────────────────────
   // HELPERS
@@ -440,6 +459,8 @@ export class OAuthService {
 
     const encryptedToken = this.encryption.encrypt(finalToken);
 
+    await this.assertCanConnectNewAccount(brandId, Platform.INSTAGRAM, platformAccountId);
+
     await this.prisma.socialAccount.upsert({
       where: { platform_platformAccountId: { platform: Platform.INSTAGRAM, platformAccountId } },
       update: {
@@ -588,6 +609,8 @@ export class OAuthService {
     const encryptedAccess = this.encryption.encrypt(accessToken);
     const encryptedRefresh = refreshToken ? this.encryption.encrypt(refreshToken) : null;
 
+    await this.assertCanConnectNewAccount(brandId, Platform.TIKTOK, platformAccountId);
+
     await this.prisma.socialAccount.upsert({
       where: { platform_platformAccountId: { platform: Platform.TIKTOK, platformAccountId } },
       update: {
@@ -702,12 +725,16 @@ export class OAuthService {
     };
   }
 
-  async disconnectAccount(accountId: string) {
-    const deleted = await this.prisma.socialAccount.delete({ where: { id: accountId } });
-    await this.engineService.logEvent(deleted.brandId, EngineEventType.ACCOUNT_DISCONNECTED, {
-      message: `${deleted.platform} account disconnected.`,
+  /** Scoped by (id AND brandId) -- not just id -- so an authenticated user can never disconnect another brand's connected account. See OAuthController's audit comment. */
+  async disconnectAccount(brandId: string, accountId: string) {
+    const result = await this.prisma.socialAccount.deleteMany({ where: { id: accountId, brandId } });
+    if (result.count === 0) {
+      throw new NotFoundException('Account not found for this brand.');
+    }
+    await this.engineService.logEvent(brandId, EngineEventType.ACCOUNT_DISCONNECTED, {
+      message: `Account disconnected.`,
     });
-    return { success: true, id: deleted.id };
+    return { success: true, id: accountId };
   }
 
   async disconnectGoogleDrive(brandId: string) {
@@ -719,9 +746,10 @@ export class OAuthService {
     return { success: true, brandId };
   }
 
-  async renameAccount(accountId: string, newHandle: string) {
+  /** Scoped by (id AND brandId) -- see disconnectAccount's comment above. */
+  async renameAccount(brandId: string, accountId: string, newHandle: string) {
     const account = await this.prisma.socialAccount.findUnique({ where: { id: accountId } });
-    if (!account) throw new NotFoundException('Account not found');
+    if (!account || account.brandId !== brandId) throw new NotFoundException('Account not found for this brand.');
 
     let meta: any = {};
     try { meta = JSON.parse(account.metadata || '{}'); } catch {}

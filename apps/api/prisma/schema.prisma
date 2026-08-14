@@ -37,14 +37,113 @@ model User {
 }
 
 model Organization {
-  id        String               @id @default(dbgenerated("(gen_random_uuid())::text"))
-  name      String
-  slug      String               @unique
-  ownerId   String
-  createdAt DateTime             @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime             @default(now()) @updatedAt @db.Timestamptz(6)
-  brands    Brand[]
-  members   OrganizationMember[]
+  id           String               @id @default(dbgenerated("(gen_random_uuid())::text"))
+  name         String
+  slug         String               @unique
+  ownerId      String
+  createdAt    DateTime             @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime             @default(now()) @updatedAt @db.Timestamptz(6)
+  brands       Brand[]
+  members      OrganizationMember[]
+  subscription Subscription?
+  usageRecords UsageRecord[]
+}
+
+enum PlanTier {
+  FREE
+  PRO
+  AGENCY
+}
+
+/// Mirrors the payment provider's own subscription lifecycle rather than
+/// inventing new states -- so PAST_DUE/CANCELLED/EXPIRED always reflect
+/// what Stripe (or whichever provider) actually reports via webhook,
+/// never a guess made client-side.
+enum SubscriptionStatus {
+  ACTIVE
+  TRIALING
+  PAST_DUE
+  CANCELLED
+  EXPIRED
+}
+
+/// One row per Organization -- the billing unit. An Organization can own
+/// multiple Brands (see Brand.organizationId), which is exactly the
+/// structure Agency needs for multi-client workspaces, so Agency reuses
+/// this instead of a parallel "workspace" model. Free organizations get a
+/// row here too (plan = FREE, provider = null) created at signup, so
+/// "does this org have an active subscription" is never a special case --
+/// every organization always has exactly one.
+model Subscription {
+  id             String             @id @default(dbgenerated("(gen_random_uuid())::text"))
+  organizationId String             @unique
+  plan           PlanTier           @default(FREE)
+  status         SubscriptionStatus @default(ACTIVE)
+  // What currency the customer is actually being charged in (USD/GBP/NGN
+  // today -- see plans.config.ts SupportedCurrency). Free plan has no
+  // charge at all, so this stays at the default until a real checkout
+  // happens; set from the Stripe Price object's own currency at webhook
+  // time, never guessed at.
+  currency       String             @default("USD")
+  // Null for Free (no payment provider involved at all).
+  provider               String?
+  providerCustomerId     String?
+  providerSubscriptionId String?
+  currentPeriodStart     DateTime?  @db.Timestamptz(6)
+  currentPeriodEnd       DateTime?  @db.Timestamptz(6)
+  // True once the user has requested cancellation but the provider's
+  // current billing period hasn't ended yet -- Pro access stays active
+  // until currentPeriodEnd, then a webhook flips this to FREE/CANCELLED.
+  cancelAtPeriodEnd Boolean  @default(false)
+  createdAt         DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  usageRecords UsageRecord[]
+
+  @@index([providerCustomerId], map: "idx_subscription_provider_customer")
+  @@index([providerSubscriptionId], map: "idx_subscription_provider_subscription")
+}
+
+enum UsageMetric {
+  AI_GENERATION
+  POST_PUBLISHED
+}
+
+/// Metered usage counters, one row per (organization, metric, period).
+/// Only for metrics that actually reset on a cadence (AI generations,
+/// posts published) -- social-account count and storage are checked live
+/// against SocialAccount/MediaAsset instead of tracked here, since those
+/// are running totals, not per-period counters.
+model UsageRecord {
+  id             String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  organizationId String
+  subscriptionId String?
+  metric         UsageMetric
+  periodStart    DateTime  @db.Timestamptz(6)
+  periodEnd      DateTime  @db.Timestamptz(6)
+  count          Int       @default(0)
+  updatedAt      DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@unique([organizationId, metric, periodStart])
+  @@index([organizationId, metric], map: "idx_usage_record_org_metric")
+}
+
+/// Idempotency guard for webhook processing -- payment providers routinely
+/// retry webhook deliveries, and double-processing a "payment succeeded"
+/// event must never double-extend a billing period or double-fire an
+/// analytics event.
+model BillingWebhookEvent {
+  id          String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  provider    String
+  eventId     String
+  type        String
+  processedAt DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([provider, eventId])
 }
 
 model OrganizationMember {
@@ -82,8 +181,86 @@ model Brand {
   posts               Post[]
   socialAccounts      SocialAccount[]
   engineEvents        EngineEvent[]
+  businessBrain       BusinessBrain?
+  memoryEntries       MemoryEntry[]
 
   @@index([organizationId], map: "idx_brand_org")
+}
+
+/// The AMAI "Business Brain" — the persistent business-context store every
+/// AI feature (Content Intelligence, Content Strategy, Autopilot 2.0,
+/// Recommendation Center) reads before generating anything, instead of
+/// generating from a generic "tone" string alone. Explicit fields are what
+/// the owner tells AMAI directly (Intelligent Onboarding + Settings).
+/// Learned fields are AMAI's own evolving summary, refined over time from
+/// performance data and corrections — see MemoryEntry for the granular,
+/// timestamped trail behind those learned values.
+///
+/// One row per Brand, created lazily on first access (see
+/// BusinessBrainService.getOrCreate) so existing brands don't need a
+/// backfill migration.
+model BusinessBrain {
+  id      String @id @default(dbgenerated("(gen_random_uuid())::text"))
+  brandId String @unique
+  brand   Brand  @relation(fields: [brandId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  // --- Explicit knowledge (owner-provided) ---
+  businessDescription String? // what the business does, in the owner's own words
+  targetAudience       String? // who they're trying to reach
+  brandVoice           String? // e.g. "Playful and bold", "Calm and expert"
+  brandPersonality     String[] @default([]) // short tags: "witty", "premium", "no-nonsense"
+  contentPillars       String[] @default([]) // recurring themes AMAI should draw content ideas from
+  goals                String[] @default([]) // e.g. "Grow followers", "Drive website traffic"
+  competitiveContext   String? // who else is in their space / how to differentiate
+  avoidTopics          String[] @default([]) // hard "never post about / never say" list
+  preferredLanguage    String   @default("en")
+  websiteUrl           String?
+
+  // Intelligent Onboarding progress — separate from User.onboardingCompleted
+  // (that one is the generic product-tour flag; this tracks completion of
+  // the business-context capture flow specifically).
+  brainSetupCompleted Boolean @default(false)
+  brainSetupStep      Int     @default(0)
+
+  // --- Learned knowledge (AMAI-populated, refined automatically) ---
+  learnedInsights Json? // structured, evolving summary AMAI maintains itself (top themes, best-performing angles, etc.)
+  lastLearnedAt   DateTime? @db.Timestamptz(6)
+
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+
+  memoryEntries MemoryEntry[]
+}
+
+enum MemoryEntryType {
+  PREFERENCE          // explicit stated preference ("always use emojis", "never post on Sundays")
+  CORRECTION          // user edited/rejected AI output in a way that implies a standing rule
+  PERFORMANCE_INSIGHT // derived from real post performance data
+}
+
+/// Individual, timestamped facts AMAI has learned about a brand — the audit
+/// trail behind BusinessBrain.learnedInsights. Kept as its own table (rather
+/// than folded into BusinessBrain) so every learned fact carries its own
+/// provenance (source post, confidence, when learned) and the AMAI Memory
+/// feature can list/expire/dismiss entries individually without touching
+/// the rest of the brain.
+model MemoryEntry {
+  id           String          @id @default(dbgenerated("(gen_random_uuid())::text"))
+  brandId      String
+  brainId      String
+  type         MemoryEntryType
+  key          String // short machine-usable label, e.g. "posting_tone"
+  value        String // the learned fact/preference, human-readable
+  confidence   Float           @default(0.5) // 0-1, raised as evidence accumulates
+  sourcePostId String? // the Post this was learned from, if any
+  active       Boolean         @default(true) // false = superseded/dismissed, kept for history
+  createdAt    DateTime        @default(now()) @db.Timestamptz(6)
+
+  brand Brand         @relation(fields: [brandId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  brain BusinessBrain @relation(fields: [brainId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([brandId, type], map: "idx_memory_entry_brand_type")
+  @@index([brandId, active], map: "idx_memory_entry_brand_active")
 }
 
 model GrowthSettings {
@@ -239,6 +416,11 @@ model Post {
   // back-to-back. Nullable: posts created outside that pipeline (manual,
   // legacy) simply don't have one.
   contentCategory  String?
+  // Which BusinessBrain.contentPillars entry (if any) this post was matched
+  // to by AI Content Intelligence. Nullable: only set once that feature
+  // runs; free string rather than a relation so a pillar being renamed or
+  // removed later never breaks historical posts.
+  contentPillar    String?
   approvedAt       DateTime?    @db.Timestamptz(6)
   rejectedAt       DateTime?    @db.Timestamptz(6)
   publishedAt      DateTime?    @db.Timestamptz(6)

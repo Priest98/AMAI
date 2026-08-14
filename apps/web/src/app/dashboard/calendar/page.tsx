@@ -232,7 +232,7 @@ export default function CalendarPage() {
     <div className="space-y-6 max-w-7xl mx-auto pb-24 sm:pb-12">
       <SectionHeader
         title="Publishing Calendar"
-        subtitle="The AI-built 7-day content calendar — drag a post to another day, or click it to edit."
+        subtitle="The AI-built 7-day content calendar. Drag a post to another day, or click it to edit."
         action={
           <Badge variant="success">
             <span className="flex items-center space-x-1">

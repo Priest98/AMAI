@@ -76,17 +76,11 @@ export default function ConnectedAccountsPage() {
   const fetchAccounts = async () => {
     setLoading(true);
     try {
-      const brandId = getBrandId();
-      const token = typeof window !== 'undefined' ? localStorage.getItem('marketing_os_token') : null;
-      const headers: Record<string, string> = {};
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-      const res = await fetch(`${API_BASE}/oauth/accounts?brandId=${brandId}`, { headers });
-      if (res.ok) {
-        const data = await res.json();
-        setAccounts(data.socialAccounts || []);
-      }
+      // Backend now derives the brand from the authenticated JWT (req.user.brandId)
+      // rather than trusting a client-supplied query param -- see the V2 audit
+      // fix in oauth.controller.ts. apiFetch already attaches the auth header.
+      const data = await apiFetch<{ socialAccounts?: any[] }>('/oauth/accounts');
+      setAccounts(data.socialAccounts || []);
     } catch (err) {
       console.error('Failed to fetch connected accounts', err);
     } finally {

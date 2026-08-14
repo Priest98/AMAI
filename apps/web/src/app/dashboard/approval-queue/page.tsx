@@ -6,7 +6,7 @@ import SectionHeader from '@/components/ui/SectionHeader';
 import Badge from '@/components/ui/Badge';
 import EmptyState from '@/components/ui/EmptyState';
 import { Reveal } from '@/components/ui/Reveal';
-import { apiFetch, brandFetch, getBrandId } from '@/lib/api';
+import { apiFetch, brandFetch } from '@/lib/api';
 import { useEngineEvents } from '@/lib/useEngineEvents';
 import {
   CheckCircle2,
@@ -97,7 +97,7 @@ export default function ApprovalQueuePage() {
 
   const loadAccounts = useCallback(async () => {
     try {
-      const data = await apiFetch<{ socialAccounts: ConnectedAccount[] }>(`/oauth/accounts?brandId=${getBrandId()}`);
+      const data = await apiFetch<{ socialAccounts: ConnectedAccount[] }>('/oauth/accounts');
       setAccounts((data.socialAccounts || []).filter((a) => a.status === 'CONNECTED'));
     } catch {
       // Non-fatal — platform toggles just show as unavailable.
@@ -237,7 +237,7 @@ export default function ApprovalQueuePage() {
     setBusyId(id); setBusyAction('schedule');
     try {
       await brandFetch(`/posts/${id}/approve`, { method: 'POST', body: JSON.stringify(buildEditBody()) });
-      flash('📅 Post scheduled — check Scheduled Posts.');
+      flash('📅 Post scheduled. Check Scheduled Posts.');
     } catch (e: any) {
       setPosts(snapshot);
       flash(e.message || 'Could not schedule this post.');
@@ -277,7 +277,7 @@ export default function ApprovalQueuePage() {
 
       const reasons = (result.publishErrors || []).map((e) => `${e.platform}: ${e.error}`).join(' · ');
       if (result.status === 'PUBLISHED') {
-        flash('✅ Published — live on the connected platform(s) now.');
+        flash('✅ Published. Live on the connected platform(s) now.');
       } else if (result.status === 'FAILED') {
         // Every target exhausted its retries — a real, terminal failure.
         flash(`Publishing failed. ${reasons || 'Check the connected account and try again.'}`);
@@ -288,7 +288,7 @@ export default function ApprovalQueuePage() {
         // success message.
         flash(`Hit a temporary issue and will retry automatically. ${reasons}`);
       } else {
-        flash('Publishing — check Scheduled Posts for status.');
+        flash('Publishing. Check Scheduled Posts for status.');
       }
     } catch (e: any) {
       // A genuine request-level failure (network error, 500 before the
