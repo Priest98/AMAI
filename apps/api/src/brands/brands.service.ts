@@ -137,4 +137,159 @@ export class BrandsService {
       clients,
     };
   }
+
+  /** Brand ids belonging to this organization. The single place cross-client queries derive their scope, so no aggregation can read outside the org. */
+  private async brandIdsFor(organizationId: string): Promise<string[]> {
+    const rows = await this.prisma.brand.findMany({ where: { organizationId }, select: { id: true } });
+    return rows.map((r) => r.id);
+  }
+
+  /**
+   * Posts awaiting approval across every client, each tagged with the
+   * client it belongs to so the reviewer always knows whose content they
+   * are looking at. Ordering is oldest-first: the thing that has been
+   * waiting longest is the thing most at risk of missing its slot.
+   */
+  async getAgencyApprovalQueue(organizationId: string) {
+    const brandIds = await this.brandIdsFor(organizationId);
+
+    const posts = await this.prisma.post.findMany({
+      where: { brandId: { in: brandIds }, status: 'NEEDS_APPROVAL' },
+      orderBy: { createdAt: 'asc' },
+      take: 200,
+      select: {
+        id: true,
+        caption: true,
+        hashtags: true,
+        scheduledAt: true,
+        createdAt: true,
+        brand: { select: { id: true, name: true } },
+        targets: { select: { platform: true } },
+        media: { select: { asset: { select: { blobUrl: true } } }, take: 1 },
+      },
+    });
+
+    return {
+      total: posts.length,
+      posts: posts.map((p) => ({
+        id: p.id,
+        caption: p.caption,
+        hashtags: p.hashtags,
+        scheduledAt: p.scheduledAt,
+        createdAt: p.createdAt,
+        clientId: p.brand.id,
+        clientName: p.brand.name,
+        platforms: Array.from(new Set(p.targets.map((t) => t.platform))),
+        thumbnailUrl: p.media[0]?.asset?.blobUrl || null,
+      })),
+    };
+  }
+
+  /**
+   * Scheduled posts across the portfolio for a date window, tagged by
+   * client so the calendar can colour/filter by client without a second
+   * round trip per client.
+   *
+   * `days` is clamped so a crafted query can't ask for an unbounded range.
+   */
+  async getAgencyCalendar(organizationId: string, days = 30) {
+    const window = Math.min(Math.max(days, 1), 90);
+    const brandIds = await this.brandIdsFor(organizationId);
+
+    const from = new Date();
+    from.setHours(0, 0, 0, 0);
+    const to = new Date(from);
+    to.setDate(to.getDate() + window);
+
+    const posts = await this.prisma.post.findMany({
+      where: {
+        brandId: { in: brandIds },
+        status: { in: ['SCHEDULED', 'PUBLISHING', 'PUBLISHED'] },
+        scheduledAt: { gte: from, lte: to },
+      },
+      orderBy: { scheduledAt: 'asc' },
+      select: {
+        id: true,
+        status: true,
+        scheduledAt: true,
+        caption: true,
+        brand: { select: { id: true, name: true } },
+        targets: { select: { platform: true } },
+      },
+    });
+
+    return {
+      from,
+      to,
+      posts: posts.map((p) => ({
+        id: p.id,
+        status: p.status,
+        scheduledAt: p.scheduledAt,
+        caption: p.caption,
+        clientId: p.brand.id,
+        clientName: p.brand.name,
+        platforms: Array.from(new Set(p.targets.map((t) => t.platform))),
+      })),
+    };
+  }
+
+  /**
+   * Portfolio analytics.
+   *
+   * IMPORTANT: these are *publishing* metrics (counts of what AMAI did),
+   * not *performance* metrics. AMAI does not currently ingest reach,
+   * impressions, engagement or follower data from Instagram/TikTok, so
+   * those are reported as unavailable rather than invented. Anything
+   * returned here is a real row count.
+   */
+  async getAgencyAnalytics(organizationId: string, days = 30) {
+    const window = Math.min(Math.max(days, 1), 365);
+    const brandIds = await this.brandIdsFor(organizationId);
+
+    const since = new Date();
+    since.setDate(since.getDate() - window);
+
+    const brands = await this.prisma.brand.findMany({
+      where: { organizationId },
+      select: { id: true, name: true },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    const rows = await this.prisma.post.findMany({
+      where: {
+        brandId: { in: brandIds },
+        status: { in: ['PUBLISHED', 'FAILED', 'SCHEDULED', 'NEEDS_APPROVAL'] },
+        createdAt: { gte: since },
+      },
+      select: { brandId: true, status: true },
+    });
+
+    const perClient = brands.map((b) => {
+      const mine = rows.filter((r) => r.brandId === b.id);
+      return {
+        clientId: b.id,
+        clientName: b.name,
+        published: mine.filter((r) => r.status === 'PUBLISHED').length,
+        failed: mine.filter((r) => r.status === 'FAILED').length,
+        scheduled: mine.filter((r) => r.status === 'SCHEDULED').length,
+        awaitingApproval: mine.filter((r) => r.status === 'NEEDS_APPROVAL').length,
+      };
+    });
+
+    return {
+      windowDays: window,
+      since,
+      totals: {
+        published: perClient.reduce((n, c) => n + c.published, 0),
+        failed: perClient.reduce((n, c) => n + c.failed, 0),
+        scheduled: perClient.reduce((n, c) => n + c.scheduled, 0),
+        awaitingApproval: perClient.reduce((n, c) => n + c.awaitingApproval, 0),
+        clients: brands.length,
+      },
+      // Explicitly declared so the UI can say "not available yet" instead of
+      // rendering a zero that looks like real measured performance.
+      unavailableMetrics: ['reach', 'impressions', 'engagement', 'followerGrowth'],
+      perClient,
+    };
+  }
 }

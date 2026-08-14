@@ -53,6 +53,9 @@ const navSections: NavSection[] = [
     items: [
       { label: 'Portfolio', href: '/dashboard/agency', icon: Building2 },
       { label: 'Clients', href: '/dashboard/clients', icon: Users },
+      { label: 'All Approvals', href: '/dashboard/agency/approvals', icon: CheckSquare },
+      { label: 'All Calendar', href: '/dashboard/agency/calendar', icon: CalendarClock },
+      { label: 'Portfolio Analytics', href: '/dashboard/agency/analytics', icon: BarChart3 },
     ],
   },
   {

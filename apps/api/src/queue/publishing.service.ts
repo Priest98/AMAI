@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
+import { deriveConnectionHealth } from '../oauth/connection-health';
 import { EncryptionService } from '../encryption/encryption.service';
 import { StorageService } from '../storage/storage.service';
 import { MediaOptimizationService } from '../media-optimization/media-optimization.service';
@@ -280,6 +281,40 @@ export class PublishingService {
     try {
       if (!mediaAsset?.blobUrl) {
         throw new Error('No media file is attached to this post.');
+      }
+
+      // Pre-flight connection check.
+      //
+      // ensureFreshAccessToken below will attempt a refresh where a refresh
+      // token exists, so this deliberately only hard-fails the cases that
+      // refresh genuinely cannot rescue: a connection already marked EXPIRED,
+      // or a lapsed token with no refresh token to trade in. Anything else
+      // (including EXPIRING_SOON) is allowed through, because the real token
+      // state -- not an approximate expiry -- decides whether publishing can
+      // proceed.
+      //
+      // The point is to fail with a message that names the fix, and to emit
+      // it as an engine event the dashboard can surface, rather than letting
+      // the platform reject the call with an opaque auth error.
+      {
+        const health = deriveConnectionHealth(target.socialAccount);
+        const cannotRecover =
+          health.health === 'REAUTH_REQUIRED' && !target.socialAccount.refreshToken;
+
+        if (cannotRecover) {
+          const warnEvent = await this.prisma.engineEvent.create({
+            data: {
+              brandId: target.post.brandId,
+              type: EngineEventType.PUBLISH_FAILED,
+              postId: target.postId,
+              message: `${target.platform} needs to be reconnected before this post can publish.`,
+            },
+          });
+          this.events.emit('engine.activity', warnEvent);
+          throw new Error(
+            `Your ${target.platform} connection has expired. Reconnect it in Integrations, then retry this post.`,
+          );
+        }
       }
 
       const accessToken = await this.ensureFreshAccessToken(target.socialAccount);

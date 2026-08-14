@@ -85,6 +85,61 @@ export async function createClient(name: string): Promise<{ id: string; name: st
   });
 }
 
+// ---- Cross-client aggregations -----------------------------------------
+
+export interface AgencyQueuePost {
+  id: string;
+  caption: string;
+  hashtags: string[];
+  scheduledAt: string | null;
+  createdAt: string;
+  clientId: string;
+  clientName: string;
+  platforms: string[];
+  thumbnailUrl: string | null;
+}
+
+export async function getAgencyApprovalQueue(): Promise<{ total: number; posts: AgencyQueuePost[] }> {
+  const organizationId = await getOrganizationId();
+  return apiFetch(`/organizations/${organizationId}/approval-queue`);
+}
+
+export interface AgencyCalendarPost {
+  id: string;
+  status: string;
+  scheduledAt: string | null;
+  caption: string;
+  clientId: string;
+  clientName: string;
+  platforms: string[];
+}
+
+export async function getAgencyCalendar(days = 30): Promise<{ from: string; to: string; posts: AgencyCalendarPost[] }> {
+  const organizationId = await getOrganizationId();
+  return apiFetch(`/organizations/${organizationId}/calendar?days=${days}`);
+}
+
+export interface AgencyAnalytics {
+  windowDays: number;
+  since: string;
+  totals: { published: number; failed: number; scheduled: number; awaitingApproval: number; clients: number };
+  /** Metrics AMAI cannot measure yet. The UI must say so rather than render a misleading zero. */
+  unavailableMetrics: string[];
+  perClient: {
+    clientId: string;
+    clientName: string;
+    published: number;
+    failed: number;
+    scheduled: number;
+    awaitingApproval: number;
+  }[];
+}
+
+export async function getAgencyAnalytics(days = 30): Promise<AgencyAnalytics> {
+  const organizationId = await getOrganizationId();
+  return apiFetch(`/organizations/${organizationId}/analytics?days=${days}`);
+}
+
 /** Presentation metadata for each health state. Kept in one place so the dashboard, clients list and switcher can't drift. */
 export const HEALTH_META: Record<ConnectionHealth, { label: string; tone: 'ok' | 'warn' | 'error' | 'muted' }> = {
   CONNECTED: { label: 'Connected', tone: 'ok' },

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { BrandAccessGuard } from '../auth/brand-access.guard';
 import { OrganizationAccessGuard } from './organization-access.guard';
@@ -47,5 +47,34 @@ export class BrandsController {
   @Get('organizations/:organizationId/portfolio')
   async getPortfolio(@Param('organizationId') organizationId: string) {
     return this.brandsService.getPortfolio(organizationId);
+  }
+
+  /**
+   * Cross-client aggregations. All three derive their brand scope from the
+   * organization inside the service, so a client id can never be smuggled
+   * in from the request to widen the query beyond this organization.
+   */
+  @UseGuards(OrganizationAccessGuard)
+  @Get('organizations/:organizationId/approval-queue')
+  async getAgencyApprovalQueue(@Param('organizationId') organizationId: string) {
+    return this.brandsService.getAgencyApprovalQueue(organizationId);
+  }
+
+  @UseGuards(OrganizationAccessGuard)
+  @Get('organizations/:organizationId/calendar')
+  async getAgencyCalendar(
+    @Param('organizationId') organizationId: string,
+    @Query('days') days?: string,
+  ) {
+    return this.brandsService.getAgencyCalendar(organizationId, days ? Number(days) : undefined);
+  }
+
+  @UseGuards(OrganizationAccessGuard)
+  @Get('organizations/:organizationId/analytics')
+  async getAgencyAnalytics(
+    @Param('organizationId') organizationId: string,
+    @Query('days') days?: string,
+  ) {
+    return this.brandsService.getAgencyAnalytics(organizationId, days ? Number(days) : undefined);
   }
 }
