@@ -441,6 +441,16 @@ model PostTarget {
   platform                 Platform
   platformSpecificMetadata String?
   status                   TargetStatus    @default(PENDING)
+  // Retry bookkeeping. Attempts were previously derived by COUNTing
+  // PublishingLog rows on every failure; storing them makes the retry state
+  // readable in one query and lets a stuck in-flight claim be reclaimed
+  // safely (see claimedAt).
+  attemptCount             Int             @default(0)
+  lastAttemptAt            DateTime?       @db.Timestamptz(6)
+  // When the current PUBLISHING claim was taken. A claim older than the
+  // reclaim window is treated as abandoned (function killed mid-publish),
+  // so a post can never be stranded in-flight forever.
+  claimedAt                DateTime?       @db.Timestamptz(6)
   post                     Post            @relation(fields: [postId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   socialAccount            SocialAccount   @relation(fields: [socialAccountId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   publishingLogs           PublishingLog[]
@@ -608,6 +618,12 @@ enum PostStatus {
 
 enum TargetStatus {
   PENDING
+  // In-flight. Exists so a publish attempt can be *claimed* atomically:
+  // publishOne transitions PENDING -> PUBLISHING with a WHERE guard, and the
+  // database guarantees exactly one caller wins. Without a distinct in-flight
+  // state, two overlapping cron runs could both read PENDING and both publish
+  // the same post to the customer's real account.
+  PUBLISHING
   PUBLISHED
   FAILED
 }

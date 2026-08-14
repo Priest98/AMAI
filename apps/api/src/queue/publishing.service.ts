@@ -10,6 +10,14 @@ import { EntitlementsService } from '../billing/entitlements.service';
 
 const MAX_PUBLISH_ATTEMPTS = 3;
 
+/**
+ * How long a PUBLISHING claim is respected before another runner may take
+ * it over. Long enough that a genuinely slow upload (large video to TikTok)
+ * is never stolen mid-flight, short enough that a hard function kill
+ * self-heals on the next cron pass rather than stranding the post.
+ */
+const STALE_CLAIM_MS = 10 * 60 * 1000;
+
 // TikTok access tokens are short-lived (~24h) but come with a refresh_token
 // that's valid far longer (per TikTok's docs, ~365 days, refreshed forward
 // on use). Previously `refreshTikTokToken()` existed but was only wired to
@@ -85,7 +93,15 @@ export class PublishingService {
       // "Scheduled" forever with no way for the user to tell why.
       const pendingTargets = post.targets.length === 0
         ? await this.attachTargetsForConnectedAccounts(post.id, post.brandId)
-        : post.targets.filter((t) => t.status === TargetStatus.PENDING);
+        : post.targets.filter(
+            (t) =>
+              t.status === TargetStatus.PENDING ||
+              // Reclaim in-flight targets whose claim has gone stale (the
+              // function was killed mid-publish). publishOne re-checks the
+              // claim atomically, so listing one here can't double-publish.
+              (t.status === TargetStatus.PUBLISHING &&
+                (!t.claimedAt || t.claimedAt.getTime() < Date.now() - STALE_CLAIM_MS)),
+          );
 
       for (const target of pendingTargets) {
         try {
@@ -255,8 +271,44 @@ export class PublishingService {
       this.logger.warn(`PostTarget ${postTargetId} no longer exists — skipping.`);
       return;
     }
-    if (target.status !== 'PENDING') {
-      return; // already resolved
+
+    // ---- Idempotency: atomically CLAIM this target before publishing ----
+    //
+    // The previous guard was `if (target.status !== 'PENDING') return;` --
+    // a read-then-act race. Two overlapping cron invocations (Vercel Cron
+    // retries a timed-out run, and publishDuePosts also re-sweeps posts
+    // stuck in PUBLISHING) could both read PENDING, both pass the check,
+    // and both publish the SAME post to the customer's real Instagram or
+    // TikTok account. A duplicate public post is not recoverable by us.
+    //
+    // This is a compare-and-swap: the WHERE clause makes the transition
+    // conditional inside a single UPDATE, so the database -- not the
+    // application -- decides the winner. `count === 0` means another runner
+    // already owns this attempt, so we return without touching the platform.
+    //
+    // A claim older than STALE_CLAIM_MS is also eligible, so a function
+    // killed mid-publish can't strand a target in PUBLISHING forever.
+    const staleClaimCutoff = new Date(Date.now() - STALE_CLAIM_MS);
+    const claim = await this.prisma.postTarget.updateMany({
+      where: {
+        id: target.id,
+        OR: [
+          { status: TargetStatus.PENDING },
+          { status: TargetStatus.PUBLISHING, claimedAt: { lt: staleClaimCutoff } },
+        ],
+      },
+      data: {
+        status: TargetStatus.PUBLISHING,
+        claimedAt: new Date(),
+        lastAttemptAt: new Date(),
+        attemptCount: { increment: 1 },
+      },
+    });
+
+    if (claim.count === 0) {
+      // Already claimed by a concurrent run, or already resolved.
+      this.logger.log(`PostTarget ${target.id} is already claimed or resolved — skipping to avoid a duplicate publish.`);
+      return;
     }
 
     const mediaAsset = target.post.media[0]?.asset;
@@ -378,7 +430,7 @@ export class PublishingService {
       }
 
       await this.prisma.$transaction([
-        this.prisma.postTarget.update({ where: { id: target.id }, data: { status: TargetStatus.PUBLISHED } }),
+        this.prisma.postTarget.update({ where: { id: target.id }, data: { status: TargetStatus.PUBLISHED, claimedAt: null } }),
         this.prisma.publishingLog.create({
           data: { postTargetId: target.id, status: TargetStatus.PUBLISHED, apiResponse: JSON.stringify({ providerPostId }) },
         }),
@@ -394,15 +446,27 @@ export class PublishingService {
       const message = error?.message || 'Publish failed for an unknown reason.';
       this.logger.error(`Publish failed for target ${target.id} (${target.platform}): ${message}`);
 
-      const priorFailures = await this.prisma.publishingLog.count({
-        where: { postTargetId: target.id, status: TargetStatus.FAILED },
+      // attemptCount was incremented by the atomic claim above, so it is the
+      // authoritative attempt number for this run. Re-read it rather than
+      // counting PublishingLog rows: the log can contain non-attempt entries
+      // and a COUNT is an extra query on every failure.
+      const claimed = await this.prisma.postTarget.findUnique({
+        where: { id: target.id },
+        select: { attemptCount: true },
       });
-      const isTerminal = priorFailures + 1 >= MAX_PUBLISH_ATTEMPTS;
+      const attemptsSoFar = claimed?.attemptCount ?? 1;
+      const isTerminal = attemptsSoFar >= MAX_PUBLISH_ATTEMPTS;
 
       await this.prisma.$transaction([
+        // Releasing the claim: PENDING makes it eligible for the next cron
+        // pass, FAILED stops it permanently. Either way the target leaves
+        // PUBLISHING, so it is never left holding a claim it isn't using.
         this.prisma.postTarget.update({
           where: { id: target.id },
-          data: { status: isTerminal ? TargetStatus.FAILED : TargetStatus.PENDING },
+          data: {
+            status: isTerminal ? TargetStatus.FAILED : TargetStatus.PENDING,
+            claimedAt: null,
+          },
         }),
         this.prisma.publishingLog.create({
           data: { postTargetId: target.id, status: TargetStatus.FAILED, errorMessage: message },
@@ -424,7 +488,7 @@ export class PublishingService {
 
         await this.finalizeIfComplete(target.postId, target.platform, null, mediaAsset?.id);
       } else {
-        this.logger.warn(`Target ${target.id} left PENDING for retry (attempt ${priorFailures + 1}/${MAX_PUBLISH_ATTEMPTS}).`);
+        this.logger.warn(`Target ${target.id} released back to PENDING for retry (attempt ${attemptsSoFar}/${MAX_PUBLISH_ATTEMPTS}).`);
         // Only bounce the post back to SCHEDULED if nothing has actually
         // published for it yet. If a sibling target already succeeded
         // (e.g. Instagram went out fine but TikTok is retrying because its
