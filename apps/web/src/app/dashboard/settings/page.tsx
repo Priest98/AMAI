@@ -665,6 +665,12 @@ export default function SettingsPage() {
                   <UsageBar label="AI Generations" used={billing.usage.aiGenerations.used} limit={billing.usage.aiGenerations.limit} planName={billing.entitlements.displayName} />
                   <UsageBar label="Posts" used={billing.usage.posts.used} limit={billing.usage.posts.limit} planName={billing.entitlements.displayName} />
                   <UsageBar label="Storage" used={billing.usage.storage.used} limit={billing.usage.storage.limit} formatValue={formatBytes} planName={billing.entitlements.displayName} />
+                  <UsageBar label="Social accounts" used={billing.usage.socialAccounts.used} limit={billing.usage.socialAccounts.limit} planName={billing.entitlements.displayName} />
+                  {/* Only meaningful on a plan that allows more than one
+                      client -- showing "1 / 1" to a Pro user is noise. */}
+                  {billing.entitlements.maxBrands !== 1 && (
+                    <UsageBar label="Clients" used={billing.usage.clients.used} limit={billing.usage.clients.limit} planName={billing.entitlements.displayName} />
+                  )}
                 </div>
               </div>
 

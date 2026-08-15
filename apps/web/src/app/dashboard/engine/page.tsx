@@ -6,6 +6,7 @@ import GlassmorphicToggle from '@/components/ui/GlassmorphicToggle';
 import EngineWorkflowVisualization from '@/components/engine/EngineWorkflowVisualization';
 import { brandFetch } from '@/lib/api';
 import { useEngineEvents, EngineEvent } from '@/lib/useEngineEvents';
+import ControlCenter from '@/components/engine/ControlCenter';
 import {
   Zap,
   Pause,
@@ -183,6 +184,11 @@ export default function AmaiEnginePage() {
           The brain of your workspace. It watches for new content and runs your publishing workflow automatically.
         </p>
       </div>
+
+      {/* Live pipeline + subsystem health. Placed directly under the
+          heading because "is AMAI working right now" is the first question
+          this page exists to answer. */}
+      <ControlCenter />
 
       <AnimatePresence>
         {message && (

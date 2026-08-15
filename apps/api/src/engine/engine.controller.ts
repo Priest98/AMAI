@@ -21,6 +21,17 @@ export class EngineController {
     return this.engineService.getOrCreateConfig(brandId);
   }
 
+  /**
+   * AutoPilot control centre payload: live pipeline counts plus subsystem
+   * health. Every value is read from real data -- there are no synthesised
+   * metrics here, and a subsystem AMAI cannot actually probe reports
+   * 'unknown' rather than a reassuring green tick.
+   */
+  @Get('control-center')
+  async getControlCenter(@Param('brandId') brandId: string) {
+    return this.engineService.getControlCenter(brandId);
+  }
+
   @Patch('state')
   async setState(@Param('brandId') brandId: string, @Body('state') state: EngineState) {
     return this.engineService.setState(brandId, state);

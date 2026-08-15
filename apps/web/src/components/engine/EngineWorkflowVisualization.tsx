@@ -30,7 +30,7 @@ type StageKey = "upload" | "optimize" | "caption" | "hashtags" | "scoring" | "sc
 interface Stage {
   key: StageKey;
   label: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
   matches: string[];
 }
 

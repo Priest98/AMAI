@@ -6,6 +6,7 @@ import { PublishingService } from '../queue/publishing.service';
 import { SchedulingService } from './scheduling.service';
 import { BusinessBrainService } from '../business-brain/business-brain.service';
 import { EntitlementsService } from '../billing/entitlements.service';
+import { toPublicConnection } from '../oauth/connection-health';
 import {
   EngineState,
   ApprovalMode,
@@ -70,6 +71,93 @@ export class EngineService {
       config = await this.prisma.amaiEngineConfig.create({ data: { brandId } });
     }
     return config;
+  }
+
+  /**
+   * AutoPilot control centre.
+   *
+   * Answers "is AMAI actually working, and is anything blocking it" from
+   * real rows only. Where AMAI genuinely cannot determine a subsystem's
+   * health it reports 'unknown' -- a green tick that isn't backed by a
+   * check is worse than an honest gap, because the whole point of this
+   * panel is trust in the automation.
+   */
+  async getControlCenter(brandId: string) {
+    const config = await this.getOrCreateConfig(brandId);
+    const now = new Date();
+    const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+    const [
+      preparedCount,
+      scheduledCount,
+      awaitingApprovalCount,
+      failedCount,
+      publishedLast24h,
+      accounts,
+      disabledAiKeys,
+      nextScheduled,
+    ] = await Promise.all([
+      this.prisma.post.count({ where: { brandId, status: PostStatus.DRAFT } }),
+      this.prisma.post.count({ where: { brandId, status: PostStatus.SCHEDULED } }),
+      this.prisma.post.count({ where: { brandId, status: PostStatus.NEEDS_APPROVAL } }),
+      this.prisma.post.count({ where: { brandId, status: PostStatus.FAILED } }),
+      this.prisma.post.count({ where: { brandId, status: PostStatus.PUBLISHED, publishedAt: { gte: dayAgo } } }),
+      this.prisma.socialAccount.findMany({
+        where: { brandId },
+        select: { id: true, platform: true, metadata: true, status: true, tokenExpiresAt: true, refreshToken: true },
+      }),
+      // AI health comes from AiProviderKeyHealth, which the AI key manager
+      // already maintains: a key with disabledUntil in the future has been
+      // banned after repeated failures. This is a real recorded signal, not
+      // a probe -- AMAI does not ping providers just to render this panel.
+      this.prisma.aiProviderKeyHealth.count({
+        where: { disabledUntil: { gt: now } },
+      }),
+      this.prisma.post.findFirst({
+        where: { brandId, status: PostStatus.SCHEDULED, scheduledAt: { gte: now } },
+        orderBy: { scheduledAt: 'asc' },
+        select: { scheduledAt: true },
+      }),
+    ]);
+
+    const connections = accounts.map((a) => toPublicConnection(a, now));
+
+    return {
+      state: config.state,
+      approvalMode: config.approvalMode,
+      pipeline: {
+        prepared: preparedCount,
+        scheduled: scheduledCount,
+        awaitingApproval: awaitingApprovalCount,
+        failed: failedCount,
+        publishedLast24h,
+      },
+      // "Next scan" is not a real scheduled tick AMAI can name -- publishing
+      // is driven by Vercel Cron hitting /api/cron/publish-due, and this
+      // service has no visibility into that schedule. The next scheduled
+      // post is the honest equivalent.
+      nextScheduledAt: nextScheduled?.scheduledAt ?? null,
+      connections,
+      health: {
+        ai: disabledAiKeys > 0
+          ? { status: 'degraded' as const, detail: `${disabledAiKeys} AI provider key${disabledAiKeys === 1 ? ' is' : 's are'} temporarily disabled after repeated failures.` }
+          : { status: 'ok' as const, detail: null },
+        connections: connections.some((c) => c.needsReauth)
+          ? { status: 'action_required' as const, detail: 'A connected account needs to be reconnected.' }
+          : connections.some((c) => c.health === 'EXPIRING_SOON')
+            ? { status: 'degraded' as const, detail: 'A connection is expiring soon.' }
+            : connections.length === 0
+              ? { status: 'action_required' as const, detail: 'No social accounts connected.' }
+              : { status: 'ok' as const, detail: null },
+        publishing: failedCount > 0
+          ? { status: 'degraded' as const, detail: `${failedCount} post${failedCount === 1 ? '' : 's'} failed and need attention.` }
+          : { status: 'ok' as const, detail: null },
+        // Deliberately not asserted: AMAI has no probe for the cron runner
+        // or blob storage from inside this request, so claiming they are
+        // healthy would be fabricating a check that never ran.
+        scheduler: { status: 'unknown' as const, detail: 'Runs on an external schedule; not probed from here.' },
+      },
+    };
   }
 
   async setState(brandId: string, state: EngineState) {

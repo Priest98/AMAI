@@ -44,6 +44,9 @@ export interface BillingSummary {
     aiGenerations: { used: number; limit: number };
     posts: { used: number; limit: number };
     storage: { used: number; limit: number };
+    /** Live counts, not period counters -- disconnecting an account frees the slot immediately. */
+    socialAccounts: { used: number; limit: number };
+    clients: { used: number; limit: number };
     periodStart: string;
     periodEnd: string;
   };

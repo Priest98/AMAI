@@ -28,6 +28,16 @@ export class BillingService {
     const storage = await this.entitlementsService.checkStorageUsage(organizationId);
     const period = this.usageService.getCurrentPeriod();
 
+    // Countable (non-metered) entitlements. These are live counts rather
+    // than period counters -- disconnecting an account frees the slot
+    // immediately, so a stored tally would drift. Clients only matter on a
+    // plan that allows more than one, but the number is cheap and lets the
+    // UI decide whether to show it.
+    const [socialAccountCount, clientCount] = await Promise.all([
+      this.prisma.socialAccount.count({ where: { brand: { organizationId } } }),
+      this.prisma.brand.count({ where: { organizationId } }),
+    ]);
+
     return {
       plan: this.entitlementsService.effectivePlan(subscription),
       subscribedPlan: subscription.plan,
@@ -40,6 +50,13 @@ export class BillingService {
         aiGenerations: { used: usage.AI_GENERATION, limit: entitlements.maxMonthlyAiGenerations },
         posts: { used: usage.POST_PUBLISHED, limit: entitlements.maxMonthlyPosts },
         storage: { used: storage.used, limit: storage.limit },
+        // maxSocialAccountsPerBrand is a per-brand ceiling; for a single-brand
+        // Free/Pro org that equals the org total, and for Agency the useful
+        // comparison is still per-brand, so the limit is reported as-is
+        // rather than multiplied by brand count (which would imply a pooled
+        // allowance that isn't how the entitlement is enforced).
+        socialAccounts: { used: socialAccountCount, limit: entitlements.maxSocialAccountsPerBrand },
+        clients: { used: clientCount, limit: entitlements.maxBrands },
         periodStart: period.start,
         periodEnd: period.end,
       },
