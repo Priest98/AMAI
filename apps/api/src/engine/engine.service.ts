@@ -6,7 +6,7 @@ import { PublishingService } from '../queue/publishing.service';
 import { SchedulingService } from './scheduling.service';
 import { BusinessBrainService } from '../business-brain/business-brain.service';
 import { EntitlementsService } from '../billing/entitlements.service';
-import { toPublicConnection } from '../oauth/connection-health';
+import { toPublicConnection, deriveConnectionHealth } from '../oauth/connection-health';
 import {
   EngineState,
   ApprovalMode,
@@ -481,6 +481,14 @@ export class EngineService {
       await this.replaceTargets(brandId, postId, overrides.targets);
     }
 
+    // Preflight: catch the same problems publishOne() would eventually hit
+    // (no media, no connected platform, an expired connection with no
+    // refresh token) here, before the post leaves the Approval Queue --
+    // with a specific, actionable message -- instead of letting it sit in
+    // SCHEDULED for hours only to fail silently when the cron finally
+    // reaches it.
+    await this.runPublishPreflight(brandId, postId, overrides?.caption ?? post.caption);
+
     const scheduledAt = overrides?.publishNow
       ? new Date()
       : overrides?.scheduledAt
@@ -671,6 +679,54 @@ export class EngineService {
         }),
       ),
     ]);
+  }
+
+  /**
+   * Publishing preflight: run at the Approval Queue's approve step, before
+   * a post is allowed to become SCHEDULED. Distinct from the connection
+   * preflight in PublishingService.publishOne() (which runs immediately
+   * before the actual platform API call) -- this one runs at scheduling
+   * time so a broken post is rejected with a specific, actionable message
+   * right away, rather than silently sitting in the queue until the next
+   * cron pass discovers the same problem hours later.
+   */
+  private async runPublishPreflight(brandId: string, postId: string, caption: string): Promise<void> {
+    const [media, targets] = await Promise.all([
+      this.prisma.postMedia.findFirst({ where: { postId }, include: { asset: true } }),
+      this.prisma.postTarget.findMany({ where: { postId }, include: { socialAccount: true } }),
+    ]);
+
+    const issues: string[] = [];
+
+    if (!caption || !caption.trim()) {
+      issues.push('This post has no caption.');
+    }
+
+    if (!media?.asset?.blobUrl) {
+      issues.push('This post has no media attached.');
+    }
+
+    if (targets.length === 0) {
+      const anyConnected = await this.prisma.socialAccount.count({
+        where: { brandId, status: ConnectionStatus.CONNECTED },
+      });
+      issues.push(
+        anyConnected > 0
+          ? 'No platform is selected for this post — choose at least one connected account.'
+          : 'No social account is connected for this brand yet — connect one in Integrations first.',
+      );
+    } else {
+      for (const target of targets) {
+        const health = deriveConnectionHealth(target.socialAccount);
+        if (health.health === 'REAUTH_REQUIRED' && !target.socialAccount.refreshToken) {
+          issues.push(`${target.platform} needs to be reconnected before this post can publish — reconnect it in Integrations.`);
+        }
+      }
+    }
+
+    if (issues.length > 0) {
+      throw new BadRequestException(issues.join(' '));
+    }
   }
 
   private async getBrandPostOrThrow(brandId: string, postId: string) {
