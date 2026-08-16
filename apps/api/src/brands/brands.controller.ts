@@ -77,4 +77,21 @@ export class BrandsController {
   ) {
     return this.brandsService.getAgencyAnalytics(organizationId, days ? Number(days) : undefined);
   }
+
+  /**
+   * Internal cost-visibility endpoint -- "what does this customer cost
+   * AMAI". Not linked from anywhere in the customer-facing UI; guarded the
+   * same as every other organization-scoped resource (OrganizationAccessGuard
+   * proves membership), which is enough to keep it invisible to anyone
+   * outside this organization. There is no cross-organization admin view
+   * yet -- see the Admin Dashboard work for that.
+   */
+  @UseGuards(OrganizationAccessGuard)
+  @Get('organizations/:organizationId/cost-summary')
+  async getCostSummary(
+    @Param('organizationId') organizationId: string,
+    @Query('days') days?: string,
+  ) {
+    return this.brandsService.getCostSummary(organizationId, days ? Number(days) : undefined);
+  }
 }

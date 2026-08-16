@@ -316,7 +316,7 @@ export class EngineService {
     const isVideo = asset.mimeType?.startsWith('video/');
     let topic: string;
     if (!isVideo && asset.blobUrl) {
-      const visionTopic = await this.aiService.analyzeImage(asset.blobUrl);
+      const visionTopic = await this.aiService.analyzeImage(asset.blobUrl, brandId, 'amai_engine');
       topic = visionTopic || this.deriveTopicFromFilename(asset.filename, asset.batchName);
     } else {
       topic = this.deriveTopicFromFilename(asset.filename, asset.batchName);
@@ -354,7 +354,7 @@ export class EngineService {
     // time roughly in half.
     const [{ caption }, hashtagResult] = await Promise.all([
       this.aiService.generateCaption(brandId, 'amai_engine', topic, platformLabel, config.defaultTone || 'friendly', brainContext),
-      this.aiService.generateHashtags(topic, platformLabel, config.defaultTone || 'Content Creator'),
+      this.aiService.generateHashtags(topic, platformLabel, config.defaultTone || 'Content Creator', brandId, 'amai_engine'),
     ]);
     const hashtags = Array.from(new Set(hashtagResult.allHashtags)).slice(0, 8);
     this.logger.log(`[${asset.id}] Caption generated (${caption.length} chars), ${hashtags.length} hashtags generated`);

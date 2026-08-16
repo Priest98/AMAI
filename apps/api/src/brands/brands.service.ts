@@ -292,4 +292,67 @@ export class BrandsService {
       perClient,
     };
   }
+
+  /**
+   * Internal cost-visibility foundation: "what does this customer actually
+   * cost AMAI" -- AI calls/tokens, vision calls, storage, uploads, and
+   * publishing calls, all real counts for a real window. Not shown to
+   * customers; this is for AMAI's own operating visibility.
+   *
+   * AiUsageLog.tokensUsed is genuine provider-reported usage (Groq's
+   * usage.total_tokens / Gemini's usageMetadata.totalTokenCount) as of this
+   * change -- it used to be a hardcoded 120 on every row, which would have
+   * made this entire endpoint fabricated by construction. Storage is the
+   * sum of MediaAsset.sizeBytes for assets still holding a blobUrl (once a
+   * post publishes, the blob is deleted and sizeBytes on that row no longer
+   * reflects real storage cost, so it's excluded). Publishing calls are
+   * counted from PublishingLog, which has exactly one row per real attempt
+   * against a platform API (see PublishingService.publishOne).
+   */
+  async getCostSummary(organizationId: string, days = 30) {
+    const window = Math.min(Math.max(days, 1), 365);
+    const brandIds = await this.brandIdsFor(organizationId);
+    const since = new Date();
+    since.setDate(since.getDate() - window);
+
+    const [aiCalls, aiTokens, visionCalls, storageBytes, uploadsInWindow, publishAttempts, publishFailures] = await Promise.all([
+      this.prisma.aiUsageLog.count({ where: { brandId: { in: brandIds }, createdAt: { gte: since } } }),
+      this.prisma.aiUsageLog.aggregate({
+        where: { brandId: { in: brandIds }, createdAt: { gte: since } },
+        _sum: { tokensUsed: true },
+      }),
+      this.prisma.aiUsageLog.count({
+        where: { brandId: { in: brandIds }, createdAt: { gte: since }, prompt: { startsWith: '[vision]' } },
+      }),
+      this.prisma.mediaAsset.aggregate({
+        where: { brandId: { in: brandIds }, blobUrl: { not: null } },
+        _sum: { sizeBytes: true },
+      }),
+      this.prisma.mediaAsset.count({ where: { brandId: { in: brandIds }, createdAt: { gte: since } } }),
+      this.prisma.publishingLog.count({
+        where: { postTarget: { post: { brandId: { in: brandIds } } }, createdAt: { gte: since } },
+      }),
+      this.prisma.publishingLog.count({
+        where: { postTarget: { post: { brandId: { in: brandIds } } }, createdAt: { gte: since }, status: 'FAILED' },
+      }),
+    ]);
+
+    return {
+      windowDays: window,
+      since,
+      ai: {
+        calls: aiCalls,
+        visionCalls,
+        totalTokens: aiTokens._sum.tokensUsed ?? 0,
+      },
+      storage: {
+        currentBytes: storageBytes._sum.sizeBytes ?? 0,
+        uploadsInWindow,
+      },
+      publishing: {
+        attemptsInWindow: publishAttempts,
+        failuresInWindow: publishFailures,
+      },
+    };
+  }
 }

@@ -85,7 +85,7 @@ export class AiService {
    * without the whole pipeline breaking. Video analysis isn't implemented
    * here yet — video assets always use the filename fallback for now.
    */
-  async analyzeImage(imageUrl: string): Promise<string | null> {
+  async analyzeImage(imageUrl: string, brandId?: string, userId?: string): Promise<string | null> {
     const visionPrompt = 'Describe the main subject of this image in 3-8 words, suitable as a social media post topic. Just the phrase, no punctuation, no preamble.';
     const result = await this.aiGateway.generate({
       label: 'vision analysis',
@@ -100,7 +100,33 @@ export class AiService {
         },
       ],
     });
+    if (result) {
+      this.logUsage(brandId, userId, `[vision] ${visionPrompt}`, result.text, result.tokensUsed);
+    }
     return result?.text ?? null;
+  }
+
+  /**
+   * Cost-visibility foundation: records one real AiUsageLog row per AI call
+   * so "what does one customer cost AMAI" can be answered from genuine
+   * data. tokensUsed comes from the provider's own response (Groq's
+   * usage.total_tokens, Gemini's usageMetadata.totalTokenCount) -- this
+   * used to be a hardcoded `120` on every caption call regardless of what
+   * actually happened, which would have made a cost dashboard built on top
+   * of it fabricated by construction. 0 here means the provider genuinely
+   * didn't report a token count for that call, not "cheap" -- an honest
+   * gap rather than a plausible-looking guess.
+   */
+  private logUsage(brandId: string | undefined, userId: string | undefined, prompt: string, completion: string, tokensUsed: number | undefined): void {
+    this.prisma.aiUsageLog.create({
+      data: {
+        brandId: brandId || 'primary_brand',
+        userId: userId || 'amai_engine',
+        prompt,
+        completion,
+        tokensUsed: tokensUsed ?? 0,
+      },
+    }).catch(() => {});
   }
 
   /**
@@ -150,17 +176,7 @@ CRITICAL OUTPUT FORMAT: Reply with ONLY the finished caption text, exactly as it
       text = `✨ Elevate your style and presence! Check out our latest ${topic || 'feature'} crafted specially for our ${niche} community. What do you think? Drop your thoughts below! ${defaultTags}`;
     }
 
-    try {
-      await this.prisma.aiUsageLog.create({
-        data: {
-          brandId: brandId || 'primary_brand',
-          userId: userId || 'usr_primary',
-          prompt,
-          completion: text,
-          tokensUsed: 120,
-        },
-      });
-    } catch {}
+    this.logUsage(brandId, userId, prompt, text, result?.tokensUsed);
 
     return { caption: text };
   }
@@ -170,7 +186,7 @@ CRITICAL OUTPUT FORMAT: Reply with ONLY the finished caption text, exactly as it
    * back to the static niche map only when no provider is configured or
    * every provider fails.
    */
-  async generateHashtags(topic: string = 'General', platform: string = 'Instagram', niche: string = 'Content Creator'): Promise<HashtagsResult> {
+  async generateHashtags(topic: string = 'General', platform: string = 'Instagram', niche: string = 'Content Creator', brandId?: string, userId?: string): Promise<HashtagsResult> {
     const hashtagPrompt = `Generate hashtags for a ${platform} post about "${topic}" in the ${niche} niche.
 Return strictly valid JSON, no markdown, no commentary, in this exact shape:
 {"highVolume": ["#tag", ...5], "mediumCompetition": ["#tag", ...5], "nicheHashtags": ["#tag", ...5], "brandedHashtags": ["#tag", ...2]}
@@ -199,6 +215,9 @@ highVolume = broad, high-traffic tags. mediumCompetition = moderately specific t
     };
 
     const result = await this.aiGateway.generate({ label: 'hashtag generation', maxTokens: 300, messages: [{ role: 'user', content: hashtagPrompt }] });
+    if (result) {
+      this.logUsage(brandId, userId, hashtagPrompt, result.text, result.tokensUsed);
+    }
     const parsed = parseHashtagJson(result?.text ?? null);
     if (parsed) return parsed;
 
