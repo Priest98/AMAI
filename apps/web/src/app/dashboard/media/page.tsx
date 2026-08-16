@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import UploadDropzone from "@/components/media/UploadDropzone";
 import EmptyState from "@/components/ui/EmptyState";
 import { SkeletonCardGrid } from "@/components/ui/Skeleton";
-import { apiFetch, brandFetch, getBrandId, API_BASE } from '@/lib/api';
+import { apiFetch, brandFetch, getBrandId, getToken, API_BASE } from '@/lib/api';
 import { useEngineEvents } from '@/lib/useEngineEvents';
 import { GoogleDriveLogo } from '@/components/icons/platform-logos';
 import {
@@ -105,7 +105,13 @@ function MediaSourceSection() {
   const folder = googleDrive?.folderName || localGoogle?.folderName || 'content';
 
   const handleConnect = () => {
-    window.location.href = `${API_BASE}/oauth/google/connect?brandId=${getBrandId()}`;
+    // Security-audit fix: full browser navigation, can't carry an
+    // Authorization header -- google/connect now requires auth and
+    // re-verifies brand membership server-side, so the token travels as a
+    // query param (same fallback JwtStrategy already supports for SSE).
+    const token = getToken();
+    if (!token) { window.location.href = '/login'; return; }
+    window.location.href = `${API_BASE}/oauth/google/connect?brandId=${encodeURIComponent(getBrandId())}&token=${encodeURIComponent(token)}`;
   };
 
   const handleDisconnect = async () => {

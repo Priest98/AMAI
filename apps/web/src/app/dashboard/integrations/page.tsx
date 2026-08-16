@@ -12,7 +12,7 @@ import {
   Info,
   X,
 } from 'lucide-react';
-import { API_BASE, apiFetch } from '@/lib/api';
+import { API_BASE, apiFetch, getBrandId, getToken } from '@/lib/api';
 
 interface ConnectedAccount {
   id: string;
@@ -46,19 +46,6 @@ export default function ConnectedAccountsPage() {
     lastSynced: string;
   } | null>(null);
 
-  const getBrandId = () => {
-    if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('marketing_os_token');
-      if (token) {
-        try {
-          const payload = JSON.parse(atob(token.split('.')[1]));
-          if (payload.brandId) return payload.brandId;
-        } catch {}
-      }
-    }
-    return 'primary_brand';
-  };
-
   const loadLocalConnections = () => {
     if (typeof window !== 'undefined') {
       try {
@@ -76,10 +63,14 @@ export default function ConnectedAccountsPage() {
   const fetchAccounts = async () => {
     setLoading(true);
     try {
-      // Backend now derives the brand from the authenticated JWT (req.user.brandId)
-      // rather than trusting a client-supplied query param -- see the V2 audit
-      // fix in oauth.controller.ts. apiFetch already attaches the auth header.
-      const data = await apiFetch<{ socialAccounts?: any[] }>('/oauth/accounts');
+      // Passes the ClientSwitcher's currently-active client explicitly --
+      // without it the backend falls back to the JWT's fixed brandId
+      // (organization.brands[0]), which is right for Free/Pro but would
+      // silently always show client #1's accounts for an Agency user who's
+      // switched to a different client. The backend re-verifies this
+      // brandId against real membership (assertBrandAccess in
+      // oauth.controller.ts) rather than trusting it outright.
+      const data = await apiFetch<{ socialAccounts?: any[] }>(`/oauth/accounts?brandId=${encodeURIComponent(getBrandId())}`);
       setAccounts(data.socialAccounts || []);
     } catch (err) {
       console.error('Failed to fetch connected accounts', err);
@@ -128,8 +119,16 @@ export default function ConnectedAccountsPage() {
   }, []);
 
   const handleConnect = (platform: 'instagram' | 'tiktok') => {
+    // Security-audit fix: this is a full browser navigation, not a fetch(),
+    // so it can't carry an Authorization header -- the connect endpoint now
+    // requires auth and re-verifies brand membership server-side, so the
+    // token has to travel as a query param (same fallback JwtStrategy
+    // already supports for the SSE stream). brandId alone is no longer
+    // trusted by the backend; it's just which brand to request.
     const brandId = getBrandId();
-    window.location.href = `${API_BASE}/oauth/${platform}/connect?brandId=${brandId}`;
+    const token = getToken();
+    if (!token) { window.location.href = '/login'; return; }
+    window.location.href = `${API_BASE}/oauth/${platform}/connect?brandId=${encodeURIComponent(brandId)}&token=${encodeURIComponent(token)}`;
   };
 
   /**
@@ -163,7 +162,7 @@ export default function ConnectedAccountsPage() {
       // even read -- the DB row was never deleted, and the account
       // reappeared as "connected" the moment fetchAccounts() ran below.
       if (accountId) {
-        await apiFetch(`/oauth/accounts/${accountId}`, { method: 'DELETE' });
+        await apiFetch(`/oauth/accounts/${accountId}?brandId=${encodeURIComponent(getBrandId())}`, { method: 'DELETE' });
       }
       setMessage({ text: 'Account disconnected successfully.', type: 'success' });
       await fetchAccounts();
