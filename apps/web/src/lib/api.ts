@@ -184,7 +184,13 @@ export async function apiFetch<T = any>(path: string, init: RequestInit = {}): P
 
     if (!res.ok) {
       const message = data?.message || `Request failed (${res.status})`;
-      throw new Error(Array.isArray(message) ? message.join(', ') : message);
+      const err: any = new Error(Array.isArray(message) ? message.join(', ') : message);
+      // Attached (not just thrown as a string) so callers that need to
+      // distinguish e.g. 403 (access denied) from a generic failure can --
+      // see the /dashboard/admin layout's use of this for platformRole
+      // gating, since the JWT itself doesn't carry that claim client-side.
+      err.status = res.status;
+      throw err;
     }
 
     if (method === 'GET') {
