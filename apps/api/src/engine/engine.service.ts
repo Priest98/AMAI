@@ -373,25 +373,13 @@ export class EngineService {
     // rather than the old single ad-hoc "next best time" heuristic.
     const mediaKind: 'video' | 'image' = isVideo ? 'video' : 'image';
     const contentCategory = this.schedulingService.classifyContentCategory(topic, caption);
-    const { scheduledAt, priorityUsed } = await this.schedulingService.assignNextSlot(
-      brandId,
-      {
-        postsPerDay: config.postsPerDay,
-        scheduleStartFrom: config.scheduleStartFrom,
-        customStartDate: config.customStartDate,
-        timeZone: config.timeZone,
-        schedulingPlatform: config.schedulingPlatform,
-      },
-      { mediaKind, contentCategory },
-    );
-    // 1=primary table slot -> 95, 2/3=secondary/tertiary -> a bit lower,
-    // 99=generated fallback time (table exhausted for the day) -> lower still.
-    const optimalScore = priorityUsed === 1 ? 95 : priorityUsed === 99 ? 70 : Math.max(80, 95 - priorityUsed * 5);
-    this.logger.log(`[${asset.id}] Content scheduled: scheduledAt=${scheduledAt.toISOString()} priority=${priorityUsed} score=${optimalScore}`);
-    this.logEvent(brandId, EngineEventType.BEST_TIME_DETERMINED, {
-      mediaAssetId: asset.id,
-      message: `Scheduled for ${scheduledAt.toLocaleString('en-US', { timeZone: config.timeZone || 'UTC', dateStyle: 'medium', timeStyle: 'short' })} (${config.timeZone || 'UTC'}).`,
-    }).catch(() => {});
+    const schedulingCfg = {
+      postsPerDay: config.postsPerDay,
+      scheduleStartFrom: config.scheduleStartFrom,
+      customStartDate: config.customStartDate,
+      timeZone: config.timeZone,
+      schedulingPlatform: config.schedulingPlatform,
+    };
 
     // 5. Check Approval Mode (Paused always forces the approval queue, even
     // if Auto Approval is selected — publishing is what Pause blocks).
@@ -404,27 +392,74 @@ export class EngineService {
     const brain = await this.businessBrainService.getOrCreate(brandId);
     const contentPillar = this.businessBrainService.pickBestPillar(brain.contentPillars, topic, caption);
 
-    const post = await this.prisma.post.create({
-      data: {
-        brandId,
-        caption,
-        hashtags,
-        source: asset.source,
-        status: postStatus,
-        scheduledAt,
-        optimalScore,
-        contentCategory,
-        contentPillar,
-        peakTimeDetected: true,
-        media: { create: [{ assetId: asset.id }] },
-        targets: {
-          create: connectedAccounts.map((acc) => ({
-            socialAccountId: acc.id,
-            platform: acc.platform,
-          })),
-        },
-      },
-    });
+    // assignNextSlot() checks for a free slot and this create() books it in
+    // two separate steps (see uq_post_brand_scheduled_at's doc comment in
+    // schema.prisma for why they can't easily be one atomic operation here
+    // -- the AI calls above make a single wrapping transaction impractical).
+    // Two concurrent uploads to the same brand can both be told the same
+    // instant is free and both attempt to book it; the DB unique constraint
+    // is what actually prevents the double-book, and this retry is what
+    // turns that constraint violation into "transparently try the next
+    // slot" instead of a failed upload. Re-picking a slot is cheap (DB
+    // reads only, no AI calls) so retrying here doesn't repeat any of the
+    // expensive work above.
+    const MAX_SLOT_RETRIES = 3;
+    let post: Awaited<ReturnType<typeof this.prisma.post.create>> | undefined;
+    let scheduledAt!: Date;
+    let priorityUsed!: number;
+    let optimalScore!: number;
+    for (let attempt = 1; attempt <= MAX_SLOT_RETRIES; attempt++) {
+      ({ scheduledAt, priorityUsed } = await this.schedulingService.assignNextSlot(brandId, schedulingCfg, { mediaKind, contentCategory }));
+      // 1=primary table slot -> 95, 2/3=secondary/tertiary -> a bit lower,
+      // 99=generated fallback time (table exhausted for the day) -> lower still.
+      optimalScore = priorityUsed === 1 ? 95 : priorityUsed === 99 ? 70 : Math.max(80, 95 - priorityUsed * 5);
+
+      try {
+        post = await this.prisma.post.create({
+          data: {
+            brandId,
+            caption,
+            hashtags,
+            source: asset.source,
+            status: postStatus,
+            scheduledAt,
+            optimalScore,
+            contentCategory,
+            contentPillar,
+            peakTimeDetected: true,
+            media: { create: [{ assetId: asset.id }] },
+            targets: {
+              create: connectedAccounts.map((acc) => ({
+                socialAccountId: acc.id,
+                platform: acc.platform,
+              })),
+            },
+          },
+        });
+        break;
+      } catch (error: any) {
+        const isSlotCollision = error?.code === 'P2002' && Array.isArray(error?.meta?.target)
+          ? error.meta.target.includes('brandId') && error.meta.target.includes('scheduledAt')
+          : error?.code === 'P2002';
+        if (isSlotCollision && attempt < MAX_SLOT_RETRIES) {
+          this.logger.warn(`[${asset.id}] Slot collision at ${scheduledAt.toISOString()} (attempt ${attempt}/${MAX_SLOT_RETRIES}), retrying with a fresh slot.`);
+          continue;
+        }
+        throw error;
+      }
+    }
+    if (!post) {
+      // Unreachable in practice (the loop above always either returns a
+      // created post or throws), but keeps this typed as non-nullable below
+      // instead of asserting it -- a genuine safety net costs nothing here.
+      throw new Error(`[${asset.id}] Failed to create post: exhausted ${MAX_SLOT_RETRIES} slot retries without a definitive success or failure.`);
+    }
+
+    this.logger.log(`[${asset.id}] Content scheduled: scheduledAt=${scheduledAt.toISOString()} priority=${priorityUsed} score=${optimalScore}`);
+    this.logEvent(brandId, EngineEventType.BEST_TIME_DETERMINED, {
+      mediaAssetId: asset.id,
+      message: `Scheduled for ${scheduledAt.toLocaleString('en-US', { timeZone: config.timeZone || 'UTC', dateStyle: 'medium', timeStyle: 'short' })} (${config.timeZone || 'UTC'}).`,
+    }).catch(() => {});
 
     await this.prisma.mediaAsset.update({
       where: { id: asset.id },

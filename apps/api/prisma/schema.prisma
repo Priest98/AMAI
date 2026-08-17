@@ -430,6 +430,35 @@ model Post {
   media            PostMedia[]
   targets          PostTarget[]
 
+  // Closes a real check-then-write race in SchedulingService.assignNextSlot:
+  // it checks isSlotTaken() (a separate count() query) and only later does
+  // EngineService actually INSERT the Post -- two concurrent uploads to the
+  // same brand (bulk upload, two team members uploading at once) could both
+  // see the same instant as free and both book it, double-occupying a
+  // configured posting slot / exceeding postsPerDay for that moment. This
+  // constraint makes that impossible at the database level; EngineService
+  // catches the resulting unique-violation and retries with a fresh slot
+  // (see MAX_SLOT_RETRIES there) so a collision degrades to "picked the
+  // next available time" instead of two posts silently sharing one.
+  //
+  // Deliberately NOT filtered by status, unlike isSlotTaken() (which
+  // excludes REJECTED posts so a rejected post's old time can be reused).
+  // Prisma's stable schema syntax has no way to express a partial/filtered
+  // unique index, and this project applies schema changes via `prisma db
+  // push` with no migrations directory for hand-written SQL -- adding one
+  // here would be new process, not a quick fix. Accepted trade-off: a new
+  // post cannot reuse the *exact* instant of a brand's previously-rejected
+  // post; EngineService's retry just picks the next slot instead, which is
+  // safe and only very marginally less tight calendar packing, not a bug.
+  // NULL scheduledAt (drafts) is exempt automatically -- Postgres treats
+  // every NULL as distinct in a unique index.
+  //
+  // Before running `prisma db push` with this change: if any brand already
+  // has two non-null-scheduledAt posts colliding on the exact same
+  // (brandId, scheduledAt) today (only possible if this exact race already
+  // happened in production pre-fix), the push will fail until that
+  // duplicate is resolved -- it will not silently drop or corrupt data.
+  @@unique([brandId, scheduledAt], map: "uq_post_brand_scheduled_at")
   @@index([brandId, status], map: "idx_post_brand_status")
   @@index([scheduledAt], map: "idx_post_scheduled")
 }
