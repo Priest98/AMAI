@@ -17,6 +17,20 @@ import { EngineJobsService } from '../engine/engine-jobs.service';
  * Since neither handler reads a request body or otherwise behaves
  * differently based on verb, accepting both is a no-op safety-wise — it's
  * purely so the same endpoint can be triggered by either scheduler.
+ *
+ * IMPORTANT: this requires two separate handler *methods* per route, each
+ * with exactly one HTTP-method decorator, delegating to a shared private
+ * implementation. Nest's route decorators (@Get/@Post/etc.) write path and
+ * method onto the same reflected-metadata slot on the target function;
+ * stacking two of them on one method doesn't register two routes, it just
+ * lets whichever decorator TypeScript applies last (decorators run
+ * bottom-to-top, so the topmost one in source) silently overwrite the
+ * other's metadata. Confirmed the hard way in production: an earlier
+ * version of this file had @Get and @Post stacked on a single method, and
+ * Nest's own boot log (RouterExplorer) only ever showed the route mapped
+ * as GET -- every POST call (from QStash) got a genuine 404, and it had
+ * nothing to do with deployment or build caching, despite three separate
+ * rebuilds while chasing that theory first.
  */
 @Controller('cron')
 export class CronController {
@@ -34,21 +48,37 @@ export class CronController {
     }
   }
 
-  @Get('publish-due')
-  @Post('publish-due')
-  async publishDue(@Headers('authorization') authHeader?: string) {
+  private async runPublishDue(authHeader?: string) {
     this.assertAuthorized(authHeader);
     const result = await this.publishingService.publishDuePosts();
     this.logger.log(`publish-due: ${JSON.stringify(result)}`);
     return { success: true, ...result };
   }
 
-  @Get('sync-drive')
-  @Post('sync-drive')
-  async syncDrive(@Headers('authorization') authHeader?: string) {
+  @Get('publish-due')
+  async publishDueGet(@Headers('authorization') authHeader?: string) {
+    return this.runPublishDue(authHeader);
+  }
+
+  @Post('publish-due')
+  async publishDuePost(@Headers('authorization') authHeader?: string) {
+    return this.runPublishDue(authHeader);
+  }
+
+  private async runSyncDrive(authHeader?: string) {
     this.assertAuthorized(authHeader);
     const result = await this.engineJobsService.syncAllGoogleDrive();
     this.logger.log(`sync-drive: ${JSON.stringify(result)}`);
     return { success: true, ...result };
+  }
+
+  @Get('sync-drive')
+  async syncDriveGet(@Headers('authorization') authHeader?: string) {
+    return this.runSyncDrive(authHeader);
+  }
+
+  @Post('sync-drive')
+  async syncDrivePost(@Headers('authorization') authHeader?: string) {
+    return this.runSyncDrive(authHeader);
   }
 }
