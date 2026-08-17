@@ -11,8 +11,9 @@ import {
   ArrowRight,
   Plug,
   Zap,
+  UserCog,
 } from 'lucide-react';
-import { getPortfolio, Portfolio, PortfolioClient, HEALTH_META, healthColor, expiryLabel } from '@/lib/agency';
+import { getPortfolio, Portfolio, PortfolioClient, HEALTH_META, healthColor, expiryLabel, getOrgMembers, OrgMember } from '@/lib/agency';
 import { getBillingSummary, BillingSummary } from '@/lib/billing';
 import { setActiveClientId } from '@/lib/api';
 
@@ -264,6 +265,51 @@ export default function AgencyDashboardPage() {
             ))}
           </div>
         )}
+      </div>
+
+      <TeamSection />
+    </div>
+  );
+}
+
+/**
+ * P1 agency team/roles foundation. Read-only for now -- the Role enum
+ * (OWNER/ADMIN/MANAGER/CREATOR/EDITOR/CLIENT/VIEWER) and OrganizationMember
+ * model already existed, used only inside guards and the maxTeamMembers
+ * entitlement check; this is the first place that actually shows them to
+ * the account owner. Invite/edit-role isn't built yet -- see
+ * BrandsService.listMembers's doc comment.
+ */
+function TeamSection() {
+  const [members, setMembers] = useState<OrgMember[] | null>(null);
+
+  useEffect(() => {
+    getOrgMembers().then(setMembers).catch(() => setMembers([]));
+  }, []);
+
+  if (!members || members.length === 0) return null;
+
+  return (
+    <div className="exec-card card-pad">
+      <div className="flex items-center gap-2">
+        <UserCog className="h-4 w-4 shrink-0" style={{ color: 'var(--text-muted)' }} />
+        <h2 className="text-h3" style={{ color: 'var(--text-primary)' }}>Team</h2>
+      </div>
+      <div className="mt-3 space-y-1.5">
+        {members.map((m) => (
+          <div key={m.membershipId} className="surface-tile p-3 flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-body-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{m.name}</p>
+              <p className="text-caption truncate" style={{ color: 'var(--text-muted)' }}>{m.email}</p>
+            </div>
+            <span
+              className="text-caption font-bold px-2.5 py-1 rounded-full shrink-0"
+              style={{ backgroundColor: 'var(--hover-surface)', color: 'var(--text-secondary)' }}
+            >
+              {m.role.charAt(0) + m.role.slice(1).toLowerCase()}
+            </span>
+          </div>
+        ))}
       </div>
     </div>
   );

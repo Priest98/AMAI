@@ -140,6 +140,25 @@ export async function getAgencyAnalytics(days = 30): Promise<AgencyAnalytics> {
   return apiFetch(`/organizations/${organizationId}/analytics?days=${days}`);
 }
 
+// ---- P1 agency team/roles foundation -----------------------------------
+
+export interface OrgMember {
+  membershipId: string;
+  role: 'OWNER' | 'ADMIN' | 'MANAGER' | 'CREATOR' | 'EDITOR' | 'CLIENT' | 'VIEWER';
+  memberSince: string;
+  userId: string;
+  email: string;
+  name: string;
+  avatar: string | null;
+  lastLogin: string | null;
+}
+
+/** Read-only today -- see BrandsService.listMembers's doc comment for why invite/edit isn't built yet. */
+export async function getOrgMembers(): Promise<OrgMember[]> {
+  const organizationId = await getOrganizationId();
+  return apiFetch(`/organizations/${organizationId}/members`);
+}
+
 /** Presentation metadata for each health state. Kept in one place so the dashboard, clients list and switcher can't drift. */
 export const HEALTH_META: Record<ConnectionHealth, { label: string; tone: 'ok' | 'warn' | 'error' | 'muted' }> = {
   CONNECTED: { label: 'Connected', tone: 'ok' },

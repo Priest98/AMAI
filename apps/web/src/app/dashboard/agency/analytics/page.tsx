@@ -2,9 +2,36 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Info, ArrowRight } from 'lucide-react';
+import { Info, ArrowRight, Download } from 'lucide-react';
 import { getAgencyAnalytics, AgencyAnalytics } from '@/lib/agency';
 import { setActiveClientId } from '@/lib/api';
+
+/**
+ * P1 agency reporting foundation. Client-side CSV of exactly what's
+ * already rendered on this page -- no new backend aggregation, no
+ * fabricated figures, and the unavailable-metrics note (reach/impressions/
+ * etc.) travels into the file too so a report handed to a client doesn't
+ * imply more was measured than actually was.
+ */
+function exportAnalyticsCsv(data: AgencyAnalytics, days: number) {
+  const rows: string[][] = [
+    ['Client', 'Published', 'Scheduled', 'Awaiting approval', 'Failed'],
+    ...data.perClient.map((c) => [c.clientName, String(c.published), String(c.scheduled), String(c.awaitingApproval), String(c.failed)]),
+    [],
+    ['Totals', String(data.totals.published), String(data.totals.scheduled), String(data.totals.awaitingApproval), String(data.totals.failed)],
+    [],
+    [`Window: last ${days} days`],
+    [`Not measured: ${data.unavailableMetrics.join(', ')}`],
+  ];
+  const csv = rows.map((r) => r.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `amai-portfolio-analytics-${days}d-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 /**
  * Portfolio analytics.
@@ -66,21 +93,30 @@ export default function AgencyAnalyticsPage() {
             Publishing activity across {d.totals.clients} client{d.totals.clients === 1 ? '' : 's'}.
           </p>
         </div>
-        <div className="surface-tile p-1.5 flex gap-1.5">
-          {WINDOWS.map((w) => (
-            <button
-              key={w}
-              onClick={() => setDays(w)}
-              aria-pressed={days === w}
-              className="px-3.5 py-2 rounded-[var(--radius-md)] text-body-sm font-bold touch-target"
-              style={{
-                backgroundColor: days === w ? 'var(--bg-surface-raised)' : 'transparent',
-                color: days === w ? 'var(--text-primary)' : 'var(--text-muted)',
-              }}
-            >
-              {w}d
-            </button>
-          ))}
+        <div className="flex items-center gap-2">
+          <div className="surface-tile p-1.5 flex gap-1.5">
+            {WINDOWS.map((w) => (
+              <button
+                key={w}
+                onClick={() => setDays(w)}
+                aria-pressed={days === w}
+                className="px-3.5 py-2 rounded-[var(--radius-md)] text-body-sm font-bold touch-target"
+                style={{
+                  backgroundColor: days === w ? 'var(--bg-surface-raised)' : 'transparent',
+                  color: days === w ? 'var(--text-primary)' : 'var(--text-muted)',
+                }}
+              >
+                {w}d
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => exportAnalyticsCsv(d, days)}
+            className="btn-secondary px-3.5 py-2.5 rounded-[var(--radius-md)] text-body-sm font-bold flex items-center gap-2 touch-target"
+          >
+            <Download className="h-3.5 w-3.5" />
+            <span>Export CSV</span>
+          </button>
         </div>
       </div>
 

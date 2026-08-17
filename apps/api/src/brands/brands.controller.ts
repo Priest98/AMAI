@@ -94,4 +94,15 @@ export class BrandsController {
   ) {
     return this.brandsService.getCostSummary(organizationId, days ? Number(days) : undefined);
   }
+
+  /**
+   * P1 agency team/roles foundation -- read-only for now, see
+   * BrandsService.listMembers's doc comment for why invite/edit isn't
+   * included yet.
+   */
+  @UseGuards(OrganizationAccessGuard)
+  @Get('organizations/:organizationId/members')
+  async listMembers(@Param('organizationId') organizationId: string) {
+    return this.brandsService.listMembers(organizationId);
+  }
 }

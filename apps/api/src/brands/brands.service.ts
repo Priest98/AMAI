@@ -138,6 +138,38 @@ export class BrandsService {
     };
   }
 
+  /**
+   * P1 agency team/roles foundation. The Role enum and OrganizationMember
+   * model already existed (used today only inside guards and the
+   * maxTeamMembers entitlement check) -- this is the first place that
+   * actually surfaces them. Deliberately read-only: invite/edit/remove
+   * would need real architecture of their own (invite tokens, email
+   * delivery, permission-to-change-roles rules) that the master spec says
+   * to prepare for, not necessarily fully implement yet.
+   */
+  async listMembers(organizationId: string) {
+    const members = await this.prisma.organizationMember.findMany({
+      where: { organizationId },
+      orderBy: { createdAt: 'asc' },
+      select: {
+        id: true,
+        role: true,
+        createdAt: true,
+        user: { select: { id: true, email: true, fullName: true, avatar: true, lastLogin: true } },
+      },
+    });
+    return members.map((m) => ({
+      membershipId: m.id,
+      role: m.role,
+      memberSince: m.createdAt,
+      userId: m.user.id,
+      email: m.user.email,
+      name: m.user.fullName || m.user.email.split('@')[0],
+      avatar: m.user.avatar,
+      lastLogin: m.user.lastLogin,
+    }));
+  }
+
   /** Brand ids belonging to this organization. The single place cross-client queries derive their scope, so no aggregation can read outside the org. */
   private async brandIdsFor(organizationId: string): Promise<string[]> {
     const rows = await this.prisma.brand.findMany({ where: { organizationId }, select: { id: true } });
