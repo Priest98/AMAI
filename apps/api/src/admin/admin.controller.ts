@@ -6,8 +6,8 @@ import { AdminService } from './admin.service';
 /**
  * AMAI's own internal operating view -- cross-organization data (users by
  * plan, MRR estimate, platform-wide failures, AI provider health). Gated
- * by PlatformAdminGuard's ADMIN_EMAILS allowlist, not by anything a
- * customer (including an Agency owner) can ever satisfy.
+ * by PlatformAdminGuard's platformRole check (OWNER/ADMIN only), not by
+ * anything a customer (including an Agency owner) can ever satisfy.
  */
 @UseGuards(JwtAuthGuard, PlatformAdminGuard)
 @Controller('admin')

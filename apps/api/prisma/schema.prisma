@@ -21,6 +21,15 @@ model User {
   fullName                   String?
   avatar                     String?
   role                       Role                 @default(OWNER)
+  // Platform-level admin access to the internal AMAI Admin dashboard --
+  // deliberately separate from `role` above (which is only ever a signup
+  // default, never actually checked against anything) and from
+  // OrganizationMember.role (which governs access to a specific org's
+  // brands, not the platform as a whole). Nothing before this field
+  // existed to answer "is this person allowed into /admin" at all.
+  // NONE is the default for every user, including the founder's own
+  // account, until explicitly granted -- this must fail closed.
+  platformRole               PlatformRole         @default(NONE)
   emailVerified              Boolean              @default(false)
   emailVerifiedAt            DateTime?            @db.Timestamptz(6)
   verificationToken          String?              @unique
@@ -34,6 +43,23 @@ model User {
   createdAt                  DateTime             @default(now()) @db.Timestamptz(6)
   updatedAt                  DateTime             @default(now()) @updatedAt @db.Timestamptz(6)
   memberships                OrganizationMember[]
+  auditLogs                  AuditLog[]
+}
+
+// Platform-wide admin permission tier, distinct from any organization's
+// membership role. v1 only actually distinguishes NONE (no admin access,
+// the default for every account) from ADMIN (full access) -- the other
+// tiers are modeled now so the permission checks in AdminModule guards
+// can be written once against the full set, per the spec's request for a
+// system that "can later support Owner/Admin/Support/Developer/Read-only"
+// without needing a second migration when that's actually built out.
+enum PlatformRole {
+  NONE
+  OWNER
+  ADMIN
+  SUPPORT
+  DEVELOPER
+  READONLY
 }
 
 model Organization {
@@ -610,6 +636,108 @@ model EngineEvent {
   brand        Brand           @relation(fields: [brandId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([brandId, createdAt], map: "idx_engine_event_brand_created")
+}
+
+/// Records every privileged action taken through the Admin dashboard (and,
+/// later, the Telegram bot / any future "source"). Per spec: this is the
+/// system of record for "who did what, when, to what, with what result" --
+/// intentionally simple (no soft-delete, append-only) since an audit log
+/// that can itself be edited or deleted isn't a real audit log.
+model AuditLog {
+  id            String      @id @default(dbgenerated("(gen_random_uuid())::text"))
+  adminUserId   String
+  action        String
+  resourceType  String?
+  resourceId    String?
+  // Snapshots of before/after state for mutating actions -- null for
+  // read-only actions (e.g. "viewed customer detail") where there's no
+  // state change to record. Stored as JSON rather than typed columns since
+  // the shape genuinely varies per action type.
+  previousState Json?
+  newState      Json?
+  result        AuditResult @default(SUCCESS)
+  source        AuditSource @default(DASHBOARD)
+  ipAddress     String?
+  userAgent     String?
+  createdAt     DateTime    @default(now()) @db.Timestamptz(6)
+  adminUser     User        @relation(fields: [adminUserId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([adminUserId, createdAt], map: "idx_audit_log_admin_created")
+  @@index([resourceType, resourceId], map: "idx_audit_log_resource")
+  @@index([createdAt], map: "idx_audit_log_created")
+}
+
+enum AuditResult {
+  SUCCESS
+  FAILURE
+}
+
+enum AuditSource {
+  DASHBOARD
+  TELEGRAM
+  API
+}
+
+/// Deduplicated error groups for the Admin dashboard's Errors page. AMAI
+/// already reports exceptions to Sentry (see SentryExceptionFilter), but
+/// nothing in the app can *read* Sentry's data back out without a Sentry
+/// API token (a credential that doesn't exist yet) -- these two models are
+/// a parallel, app-owned capture path written by the same exception filter,
+/// so the admin dashboard has real grouped/queryable error data immediately
+/// without a new external dependency. Not a Sentry replacement -- Sentry
+/// stays the source of truth for alerting; this is the source of truth for
+/// "show the founder a groupable, filterable list inside AMAI itself."
+model ErrorGroup {
+  id              String        @id @default(dbgenerated("(gen_random_uuid())::text"))
+  // Stable dedupe key: a hash of (error class + normalized message with
+  // request-specific values stripped + top stack frame). Deliberately NOT
+  // the raw message -- most error messages embed IDs/values that would
+  // otherwise make every occurrence its own "unique" group instead of
+  // collapsing into one, defeating the entire point of grouping.
+  signature       String        @unique
+  title           String
+  service         String?
+  environment     String?
+  severity        ErrorSeverity @default(ERROR)
+  occurrenceCount Int           @default(1)
+  firstSeenAt     DateTime      @default(now()) @db.Timestamptz(6)
+  lastSeenAt      DateTime      @default(now()) @db.Timestamptz(6)
+  resolved        Boolean       @default(false)
+  events          ErrorEvent[]
+
+  @@index([lastSeenAt], map: "idx_error_group_last_seen")
+  @@index([resolved, lastSeenAt], map: "idx_error_group_resolved_last_seen")
+}
+
+model ErrorEvent {
+  id            String     @id @default(dbgenerated("(gen_random_uuid())::text"))
+  groupId       String
+  message       String
+  stackTrace    String?
+  service       String?
+  endpoint      String?
+  httpStatus    Int?
+  userId        String?
+  requestId     String?
+  environment   String?
+  deploymentSha String?
+  // Redaction happens BEFORE this is ever written (see the capture
+  // interceptor's redactSecrets step) -- this field must never be assumed
+  // safe to display raw without that having already run upstream.
+  context       Json?
+  createdAt     DateTime   @default(now()) @db.Timestamptz(6)
+  group         ErrorGroup @relation(fields: [groupId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([groupId, createdAt], map: "idx_error_event_group_created")
+  @@index([userId], map: "idx_error_event_user")
+}
+
+enum ErrorSeverity {
+  DEBUG
+  INFO
+  WARN
+  ERROR
+  FATAL
 }
 
 enum Role {
