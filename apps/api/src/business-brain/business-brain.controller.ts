@@ -1,13 +1,20 @@
 import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { BrandAccessGuard } from '../auth/brand-access.guard';
+import { EntitlementGuard, RequireEntitlement } from '../billing/entitlement.guard';
+import { EntitlementsService } from '../billing/entitlements.service';
 import { BusinessBrainService } from './business-brain.service';
 import type { UpdateBusinessBrainDto } from './business-brain.service';
+import { AiService } from '../ai/ai.service';
 
 @UseGuards(JwtAuthGuard, BrandAccessGuard)
 @Controller('brands/:brandId/business-brain')
 export class BusinessBrainController {
-  constructor(private readonly businessBrainService: BusinessBrainService) {}
+  constructor(
+    private readonly businessBrainService: BusinessBrainService,
+    private readonly aiService: AiService,
+    private readonly entitlementsService: EntitlementsService,
+  ) {}
 
   @Get()
   async get(@Param('brandId') brandId: string) {
@@ -35,5 +42,36 @@ export class BusinessBrainController {
   async promptContext(@Param('brandId') brandId: string) {
     const context = await this.businessBrainService.buildPromptContext(brandId);
     return { context };
+  }
+
+  /**
+   * P1 AI content intelligence: concrete content ideas grounded in this
+   * brand's real Business Brain context. Gated by the same
+   * 'generate_ai_content' entitlement every other AI-consuming action uses
+   * (media.controller.ts's processAsset) so this can't become a free,
+   * unmetered way around the plan's monthly AI generation limit.
+   */
+  @UseGuards(EntitlementGuard)
+  @RequireEntitlement('generate_ai_content')
+  @Post('content-ideas')
+  async contentIdeas(@Param('brandId') brandId: string) {
+    const [brain, context] = await Promise.all([
+      this.businessBrainService.getOrCreate(brandId),
+      this.businessBrainService.buildPromptContext(brandId),
+    ]);
+    if (!context) {
+      return { ideas: [], reason: 'Fill in your Business Brain first so ideas are grounded in your actual business.' };
+    }
+    const ideas = await this.aiService.generateContentIdeas(brandId, 'amai_engine', context, brain.contentPillars);
+    // Only counted once generation actually succeeded, same as the AMAI
+    // Engine's own caption/hashtag generation -- a failed/empty attempt
+    // never burns quota.
+    if (ideas.length > 0) {
+      this.entitlementsService
+        .getOrganizationIdForBrand(brandId)
+        .then((organizationId) => this.entitlementsService.recordAiGeneration(organizationId))
+        .catch(() => {});
+    }
+    return { ideas };
   }
 }

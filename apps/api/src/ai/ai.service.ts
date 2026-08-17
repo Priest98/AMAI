@@ -57,6 +57,26 @@ const NICHE_HASHTAG_MAP: Record<string, { highVolume: string[]; medium: string[]
 };
 
 /**
+ * Real, substantive platform differences for caption generation --
+ * previously the only "platform-specific" behavior was substituting the
+ * platform's name into an otherwise-identical prompt, which produces the
+ * same caption shape for Instagram and TikTok with a find-and-replace
+ * difference. These are genuine style/format conventions each platform's
+ * own creators actually follow, not invented distinctions.
+ *
+ * Publishing today only supports INSTAGRAM and TIKTOK (see
+ * PublishingService.publishToPlatform) -- FACEBOOK/X/LINKEDIN exist in the
+ * Platform enum for future use but aren't connectable yet, so they get a
+ * neutral fallback rather than fabricated platform conventions for a
+ * platform AMAI doesn't actually publish to.
+ */
+const PLATFORM_GUIDANCE: Record<string, string> = {
+  Instagram: `Instagram-specific conventions: the caption can run longer and more narrative than TikTok -- line breaks between short paragraphs read better than one dense block. Hashtags conventionally sit as a block at the very end, separate from the caption body. Aesthetic, polished language fits the platform; it's fine to be a little more "written" rather than spoken.`,
+  TikTok: `TikTok-specific conventions: keep it short and punchy -- TikTok captions get far less on-screen reading time than Instagram's (viewers are watching the video, not reading). Hook in the first few words, write like you talk (casual, direct, not "written"), and 3-5 hashtags woven naturally read better than a long block at the end. Avoid anything that reads like a press release.`,
+};
+const DEFAULT_PLATFORM_GUIDANCE = `Keep the tone natural for a short-form social post and stay within typical character limits for this platform.`;
+
+/**
  * AMAI-Engine-facing façade over the AI Layer. This class owns *what* to
  * ask for (prompts, niche defaults, output cleanup, static fallback
  * templates) and always resolves to a usable string even if every
@@ -139,6 +159,8 @@ export class AiService {
     const nicheData = NICHE_HASHTAG_MAP[niche] || NICHE_HASHTAG_MAP['Content Creator'];
     const defaultTags = [...nicheData.highVolume.slice(0, 2), ...nicheData.medium.slice(0, 2), ...nicheData.niche.slice(0, 2)].join(' ');
 
+    const platformGuidance = PLATFORM_GUIDANCE[platform] || DEFAULT_PLATFORM_GUIDANCE;
+
     const prompt = `You are a professional social media manager specializing in the ${niche} industry.
 Write a compelling, authentic post for ${platform} about: "${topic}".
 ${brandContext ? `\n${brandContext}\n` : ''}
@@ -149,7 +171,7 @@ Requirements:
 4. Include 4-6 highly relevant hashtags specifically for ${niche}.
 5. ${isAiTopic ? '' : 'CRITICAL REQUIREMENT: Do NOT include generic AI hashtags like #AI, #ArtificialIntelligence, or #MachineLearning unless the content is explicitly about AI technology.'}
 ${brandContext ? '6. Stay consistent with the business context above — voice, audience, pillars, and things to avoid all matter more than generic best practices.' : ''}
-Keep the caption under character limits for ${platform}.
+${platformGuidance}
 CRITICAL OUTPUT FORMAT: Reply with ONLY the finished caption text, exactly as it should be posted. Do not include a title or label like "Caption:" or "Caption for Instagram:". Do not use markdown formatting (no **, no #, no bullet points, no headers). Do not add any commentary, explanation, or visual/production suggestions before or after the caption. The very first character of your reply must be the first character of the caption itself.`;
 
     const result = await this.aiGateway.generate({ label: 'caption generation', maxTokens: 300, messages: [{ role: 'user', content: prompt }] });
@@ -179,6 +201,57 @@ CRITICAL OUTPUT FORMAT: Reply with ONLY the finished caption text, exactly as it
     this.logUsage(brandId, userId, prompt, text, result?.tokensUsed);
 
     return { caption: text };
+  }
+
+  /**
+   * P1 AI content intelligence: concrete content ideas grounded in this
+   * brand's actual Business Brain context, not generic "post more!"
+   * suggestions. Falls back to an empty list (not fabricated ideas) if no
+   * provider is configured or every provider fails -- an empty state the
+   * frontend can render honestly is better than three plausible-sounding
+   * but made-up ideas.
+   */
+  async generateContentIdeas(
+    brandId: string,
+    userId: string,
+    brainContext: string,
+    pillars: string[],
+  ): Promise<{ pillar: string | null; idea: string; why: string }[]> {
+    if (!brainContext) return [];
+
+    const pillarLine = pillars.length
+      ? `Draw ideas from these content pillars where relevant: ${pillars.join(', ')}. It's fine for an idea to not map to any pillar if it's genuinely a good fit for the business.`
+      : `No content pillars are configured yet -- suggest ideas that fit the business description and audience below.`;
+
+    const prompt = `You are a social media strategist for the business described below.
+${brainContext}
+${pillarLine}
+
+Suggest 5 concrete, specific content ideas this business could post about next -- not generic advice like "share behind the scenes" with no specifics, but an actual idea tied to what this business does.
+
+Return strictly valid JSON, no markdown, no commentary, in this exact shape:
+[{"pillar": "<matching pillar name or null>", "idea": "<one or two sentence concrete idea>", "why": "<one short sentence on why this fits the brand/audience>"}]`;
+
+    const result = await this.aiGateway.generate({ label: 'content idea suggestions', maxTokens: 500, messages: [{ role: 'user', content: prompt }] });
+    if (!result) return [];
+
+    this.logUsage(brandId, userId, prompt, result.text, result.tokensUsed);
+
+    try {
+      const cleaned = result.text.trim().replace(/^```json\s*|```$/g, '').trim();
+      const parsed = JSON.parse(cleaned);
+      if (!Array.isArray(parsed)) return [];
+      return parsed
+        .filter((p) => p && typeof p.idea === 'string' && p.idea.trim())
+        .slice(0, 5)
+        .map((p) => ({
+          pillar: typeof p.pillar === 'string' && p.pillar.trim() ? p.pillar : null,
+          idea: p.idea.trim(),
+          why: typeof p.why === 'string' ? p.why.trim() : '',
+        }));
+    } catch {
+      return [];
+    }
   }
 
   /**

@@ -173,6 +173,10 @@ export default function SettingsPage() {
   const [goalsText, setGoalsText] = useState('');
   const [avoidText, setAvoidText] = useState('');
 
+  const [contentIdeas, setContentIdeas] = useState<{ pillar: string | null; idea: string; why: string }[] | null>(null);
+  const [ideasLoading, setIdeasLoading] = useState(false);
+  const [ideasMessage, setIdeasMessage] = useState('');
+
   useEffect(() => {
     const user = getCurrentUser();
     if (user) setUserEmail(user.email);
@@ -221,6 +225,32 @@ export default function SettingsPage() {
   };
 
   const flash = (msg: string) => { setMessage(msg); setTimeout(() => setMessage(''), 3000); };
+
+  /**
+   * P1 AI content intelligence: concrete ideas grounded in whatever's
+   * actually saved to the Business Brain right now. Saves first if there
+   * are unsaved edits, so ideas are never generated from stale context.
+   */
+  const handleGetContentIdeas = async () => {
+    setIdeasLoading(true);
+    setIdeasMessage('');
+    try {
+      await saveBrain();
+      const result = await brandFetch<{ ideas: { pillar: string | null; idea: string; why: string }[]; reason?: string }>(
+        '/business-brain/content-ideas',
+        { method: 'POST', body: JSON.stringify({}) },
+      );
+      setContentIdeas(result.ideas);
+      if (result.ideas.length === 0) {
+        setIdeasMessage(result.reason || "Couldn't generate ideas right now. Try again in a moment.");
+      }
+    } catch (e: any) {
+      setContentIdeas(null);
+      setIdeasMessage(e.message || "Couldn't generate content ideas. Try again.");
+    } finally {
+      setIdeasLoading(false);
+    }
+  };
 
   const handleTogglePublishingMode = async (mode: ApprovalMode) => {
     setApprovalModeState(mode);
@@ -588,6 +618,53 @@ export default function SettingsPage() {
                   />
                 </BrainField>
               </BrainSection>
+            </div>
+
+            {/* Content idea suggestions -- grounded in the Business Brain
+                context above, not generic advice. Empty by default; only
+                populated once the user asks, so this never looks like AMAI
+                is claiming to have already generated something. */}
+            <div className="pt-2 border-t" style={{ borderColor: 'var(--card-border)' }}>
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-5">
+                <div>
+                  <h4 className="text-body font-bold" style={{ color: 'var(--text-primary)' }}>Content ideas</h4>
+                  <p className="text-caption mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                    A few concrete post ideas based on your business, audience and pillars above.
+                  </p>
+                </div>
+                <button
+                  onClick={handleGetContentIdeas}
+                  disabled={ideasLoading}
+                  className="btn-secondary px-4 py-2.5 rounded-[var(--radius-md)] text-body-sm font-bold touch-target flex items-center gap-2 disabled:opacity-60"
+                >
+                  <Wand2 className="h-3.5 w-3.5" />
+                  {ideasLoading ? 'Thinking…' : 'Get content ideas'}
+                </button>
+              </div>
+
+              {ideasMessage && (
+                <p className="text-caption mt-3" style={{ color: 'var(--text-secondary)' }}>{ideasMessage}</p>
+              )}
+
+              {contentIdeas && contentIdeas.length > 0 && (
+                <ul className="mt-4 space-y-2.5">
+                  {contentIdeas.map((idea, i) => (
+                    <li key={i} className="surface-tile p-3.5">
+                      <div className="flex items-start justify-between gap-3">
+                        <p className="text-body-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{idea.idea}</p>
+                        {idea.pillar && (
+                          <span className="text-caption font-bold px-2 py-0.5 rounded-full shrink-0" style={{ backgroundColor: 'color-mix(in srgb, var(--accent-secondary) 14%, transparent)', color: 'var(--accent-secondary)' }}>
+                            {idea.pillar}
+                          </span>
+                        )}
+                      </div>
+                      {idea.why && (
+                        <p className="text-caption mt-1.5" style={{ color: 'var(--text-muted)' }}>{idea.why}</p>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
 
             {/* Save row. Status is announced next to the button rather than
