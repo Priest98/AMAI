@@ -286,7 +286,7 @@ export class MediaService {
     // page load as the library grows. 300 is a generous ceiling for the
     // grid view today; if libraries grow past that this should become
     // real cursor pagination with a "load more" affordance in the UI.
-    return this.prisma.mediaAsset.findMany({
+    const assets = await this.prisma.mediaAsset.findMany({
       where: {
         brandId,
         folderId: folderId || null,
@@ -299,9 +299,39 @@ export class MediaService {
         status: true,
         lastErrorMessage: true,
         createdAt: true,
+        linkedPostId: true,
       },
       orderBy: { createdAt: 'desc' },
       take: 300,
+    });
+
+    // P1 media intelligence: surface the AI-derived category/pillar once
+    // the AMAI Engine pipeline has actually run on this asset (i.e. once
+    // it has a linked Post -- classifyContentCategory and
+    // pickBestPillar already compute these from the real vision-derived
+    // topic + generated caption at that point, see engine.service.ts). No
+    // new schema column needed: MediaAsset.linkedPostId isn't a Prisma
+    // relation (plain string, no @relation in schema.prisma), so this is a
+    // second batched query + in-memory merge rather than a nested
+    // include. Assets with no linked post yet (still PENDING/PROCESSING,
+    // or never scheduled) simply get category: null -- never guessed.
+    const linkedPostIds = assets.map((a) => a.linkedPostId).filter((id): id is string => !!id);
+    const categoryByPostId = new Map<string, { contentCategory: string | null; contentPillar: string | null }>();
+    if (linkedPostIds.length > 0) {
+      const posts = await this.prisma.post.findMany({
+        where: { id: { in: linkedPostIds } },
+        select: { id: true, contentCategory: true, contentPillar: true },
+      });
+      for (const p of posts) categoryByPostId.set(p.id, { contentCategory: p.contentCategory, contentPillar: p.contentPillar });
+    }
+
+    return assets.map((a) => {
+      const tags = a.linkedPostId ? categoryByPostId.get(a.linkedPostId) : undefined;
+      return {
+        ...a,
+        contentCategory: tags?.contentCategory ?? null,
+        contentPillar: tags?.contentPillar ?? null,
+      };
     });
   }
 

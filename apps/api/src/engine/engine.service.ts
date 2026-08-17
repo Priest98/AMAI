@@ -729,6 +729,72 @@ export class EngineService {
     }
   }
 
+  /**
+   * P1 content calendar intelligence: balance/repetition detection over
+   * real scheduled data, surfaced to the user rather than left as an
+   * invisible scheduler-only behavior. SchedulingService.assignNextSlot
+   * already makes a best-effort attempt to avoid placing two same-category
+   * posts back-to-back at creation time, but that's a single bounded skip,
+   * not a guarantee -- this looks at what's actually on the calendar now
+   * and reports it honestly, including any repeats that did slip through.
+   *
+   * Every count here is a real query against Post.contentCategory /
+   * contentPillar (both already populated by the pipeline in
+   * processMediaAsset) -- nothing is inferred or estimated.
+   */
+  async getCalendarInsights(brandId: string, days = 30) {
+    const window = Math.min(Math.max(days, 1), 90);
+    const from = new Date();
+    const to = new Date(from.getTime() + window * 24 * 60 * 60 * 1000);
+
+    const [posts, brain] = await Promise.all([
+      this.prisma.post.findMany({
+        where: {
+          brandId,
+          scheduledAt: { gte: from, lte: to },
+          status: { in: [PostStatus.SCHEDULED, PostStatus.PUBLISHED, PostStatus.PUBLISHING] },
+        },
+        orderBy: { scheduledAt: 'asc' },
+        select: { id: true, scheduledAt: true, contentCategory: true, contentPillar: true },
+      }),
+      this.businessBrainService.getOrCreate(brandId),
+    ]);
+
+    const categoryCounts = new Map<string, number>();
+    const pillarCounts = new Map<string, number>();
+    const repeats: { firstPostId: string; secondPostId: string; category: string; scheduledAt: Date | null }[] = [];
+
+    let prev: (typeof posts)[number] | null = null;
+    for (const p of posts) {
+      if (p.contentCategory) categoryCounts.set(p.contentCategory, (categoryCounts.get(p.contentCategory) || 0) + 1);
+      if (p.contentPillar) pillarCounts.set(p.contentPillar, (pillarCounts.get(p.contentPillar) || 0) + 1);
+
+      if (prev && prev.contentCategory && prev.contentCategory === p.contentCategory) {
+        repeats.push({ firstPostId: prev.id, secondPostId: p.id, category: p.contentCategory, scheduledAt: p.scheduledAt });
+      }
+      prev = p;
+    }
+
+    const configuredPillars = brain.contentPillars || [];
+    const uncoveredPillars = configuredPillars.filter((pillar) => !pillarCounts.has(pillar));
+
+    return {
+      windowDays: window,
+      from,
+      to,
+      totalScheduled: posts.length,
+      categoryCounts: Object.fromEntries(categoryCounts),
+      pillarCounts: Object.fromEntries(pillarCounts),
+      // Pillars the user configured but that have zero posts in this
+      // window -- only meaningful if pillars are actually configured.
+      uncoveredPillars,
+      // Back-to-back same-category posts that made it onto the calendar
+      // despite the scheduler's diversity nudge (e.g. it's the only
+      // category available, or the bounded search gave up).
+      backToBackRepeats: repeats,
+    };
+  }
+
   private async getBrandPostOrThrow(brandId: string, postId: string) {
     const post = await this.prisma.post.findFirst({ where: { id: postId, brandId } });
     if (!post) throw new NotFoundException('Post not found.');

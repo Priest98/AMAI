@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Body, Param, Sse, MessageEvent, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, Query, Sse, MessageEvent, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { BrandAccessGuard } from '../auth/brand-access.guard';
 import { Observable, map, merge, of, timer, takeUntil } from 'rxjs';
@@ -30,6 +30,16 @@ export class EngineController {
   @Get('control-center')
   async getControlCenter(@Param('brandId') brandId: string) {
     return this.engineService.getControlCenter(brandId);
+  }
+
+  /**
+   * Content calendar intelligence: real category/pillar balance and
+   * back-to-back repetition over the brand's actual scheduled posts. See
+   * EngineService.getCalendarInsights for what's computed and why.
+   */
+  @Get('calendar-insights')
+  async getCalendarInsights(@Param('brandId') brandId: string, @Query('days') days?: string) {
+    return this.engineService.getCalendarInsights(brandId, days ? Number(days) : undefined);
   }
 
   @Patch('state')

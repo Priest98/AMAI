@@ -22,7 +22,19 @@ interface MediaAsset {
   status: 'PENDING' | 'PROCESSING' | 'READY' | 'SCHEDULED' | 'PUBLISHED' | 'FAILED';
   lastErrorMessage?: string | null;
   createdAt: string;
+  // P1 media intelligence: the AI-derived category/pillar, once the AMAI
+  // Engine pipeline has run on this asset (null until then -- never guessed).
+  contentCategory?: string | null;
+  contentPillar?: string | null;
 }
+
+const CATEGORY_LABEL: Record<string, string> = {
+  promotional: 'Promotional',
+  educational: 'Educational',
+  behind_the_scenes: 'Behind the scenes',
+  product: 'Product',
+  general: 'General',
+};
 
 interface GoogleDriveConfig {
   id: string;
@@ -525,6 +537,21 @@ export default function MediaLibraryPage() {
                   {asset.status === 'FAILED' && asset.lastErrorMessage && (
                     <div className="absolute bottom-0 inset-x-0 bg-black/70 px-2 py-1">
                       <p className="text-[9px] text-red-300 truncate">{asset.lastErrorMessage}</p>
+                    </div>
+                  )}
+
+                  {/* P1 media intelligence: shows once the AMAI Engine has
+                      actually classified this asset (i.e. it has a real,
+                      generated caption behind it) -- absent for anything
+                      still PENDING/PROCESSING, never guessed. */}
+                  {asset.contentCategory && asset.status !== 'FAILED' && (
+                    <div className="absolute bottom-1 right-1">
+                      <span
+                        className="inline-block px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-black/60 text-white truncate max-w-[90px]"
+                        title={asset.contentPillar ? `${CATEGORY_LABEL[asset.contentCategory] || asset.contentCategory} · ${asset.contentPillar}` : undefined}
+                      >
+                        {CATEGORY_LABEL[asset.contentCategory] || asset.contentCategory}
+                      </span>
                     </div>
                   )}
 

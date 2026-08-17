@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import SectionHeader from '@/components/ui/SectionHeader';
 import Badge from '@/components/ui/Badge';
+import CalendarInsights from '@/components/calendar/CalendarInsights';
 import { Reveal } from '@/components/ui/Reveal';
 import { brandFetch } from '@/lib/api';
 import { useEngineEvents } from '@/lib/useEngineEvents';
@@ -249,6 +250,8 @@ export default function CalendarPage() {
           <button onClick={() => setMessage('')} className="hover:opacity-70">✕</button>
         </div>
       )}
+
+      <CalendarInsights />
 
       <div className="flex items-center justify-between">
         <button
