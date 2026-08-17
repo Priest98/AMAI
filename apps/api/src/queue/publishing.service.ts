@@ -11,6 +11,28 @@ import { EntitlementsService } from '../billing/entitlements.service';
 const MAX_PUBLISH_ATTEMPTS = 3;
 
 /**
+ * How long one publishDuePosts() pass is allowed to keep starting new
+ * publish attempts before it stops and returns cleanly. Left well under
+ * the Next.js route's maxDuration=60s cap (see apps/web/src/app/api/
+ * [...path]/route.ts) so this always finishes with a normal response
+ * instead of being hard-killed mid-request -- a graceful "ran out of
+ * time, the rest will be picked up next pass" beats a SIGKILL that only
+ * self-heals 10 minutes later via the stale-claim sweep.
+ */
+const PUBLISH_PASS_DEADLINE_MS = 45_000;
+
+/**
+ * How many publishOne() calls run at once within a pass. Safe to raise
+ * above 1 specifically because publishOne()'s atomic claim (see below)
+ * means concurrent attempts on different targets can never race each
+ * other into a duplicate publish -- this is pure throughput, not a
+ * correctness trade-off. Kept modest (not unbounded) so one pass doesn't
+ * fan out into dozens of simultaneous Instagram/TikTok API calls, which
+ * would risk tripping THEIR rate limits instead of ours.
+ */
+const PUBLISH_CONCURRENCY = 5;
+
+/**
  * How long a PUBLISHING claim is respected before another runner may take
  * it over. Long enough that a genuinely slow upload (large video to TikTok)
  * is never stolen mid-flight, short enough that a hard function kill
@@ -53,8 +75,21 @@ export class PublishingService {
     private entitlementsService: EntitlementsService,
   ) {}
 
-  /** Finds every post that's due and publishes each of its pending targets. */
-  async publishDuePosts() {
+  /**
+   * Finds every post that's due and publishes each of its pending targets.
+   *
+   * `brandId` is optional and scopes the sweep to one brand -- passed by
+   * the opportunistic-publish path (posts.service.ts's getPosts/getStats,
+   * triggered on every dashboard load) so one user's page load only ever
+   * does publishing work for *their own* brand, not a global scan across
+   * every organization's due posts. Left undefined for the actual cron
+   * path (CronController), which is the one place a genuinely global sweep
+   * is correct -- it's the backstop that guarantees a post publishes even
+   * if nobody's dashboard happens to load.
+   */
+  async publishDuePosts(brandId?: string) {
+    const passStart = Date.now();
+
     // Also sweeps up posts stuck in PUBLISHING for more than 5 minutes —
     // the normal path always reverts PUBLISHING back to SCHEDULED on a
     // non-terminal failure (see publishOne), but a hard function kill
@@ -65,6 +100,7 @@ export class PublishingService {
     const staleCutoff = new Date(Date.now() - 5 * 60 * 1000);
     const due = await this.prisma.post.findMany({
       where: {
+        ...(brandId ? { brandId } : {}),
         OR: [
           { status: PostStatus.SCHEDULED, scheduledAt: { lte: new Date() } },
           { status: PostStatus.PUBLISHING, updatedAt: { lte: staleCutoff } },
@@ -78,8 +114,10 @@ export class PublishingService {
       take: 50,
     });
 
-    let published = 0;
-    let failed = 0;
+    // Gather phase: cheap (DB reads/writes only, no platform API calls), so
+    // stays sequential -- the concurrency budget below is reserved for the
+    // actually-expensive part (real Instagram/TikTok calls in publishOne).
+    const targetIds: string[] = [];
     for (const post of due) {
       // A SCHEDULED post with zero targets ever created means it was
       // auto-scheduled by the AMAI Engine at a moment when no platform was
@@ -102,19 +140,47 @@ export class PublishingService {
               (t.status === TargetStatus.PUBLISHING &&
                 (!t.claimedAt || t.claimedAt.getTime() < Date.now() - STALE_CLAIM_MS)),
           );
+      for (const t of pendingTargets) targetIds.push(t.id);
+    }
 
-      for (const target of pendingTargets) {
+    // Execute phase: PUBLISH_CONCURRENCY workers pulling from a shared
+    // cursor, each stopping before starting a new attempt once the pass
+    // deadline is reached. Safe to run concurrently because publishOne()'s
+    // atomic claim (compare-and-swap on PENDING/stale-PUBLISHING ->
+    // PUBLISHING) means two workers can never both win the same target --
+    // this only adds throughput, it changes nothing about correctness.
+    let published = 0;
+    let failed = 0;
+    let cursor = 0;
+    let deadlineHit = false;
+
+    const worker = async () => {
+      while (cursor < targetIds.length) {
+        if (Date.now() - passStart > PUBLISH_PASS_DEADLINE_MS) {
+          deadlineHit = true;
+          return;
+        }
+        const targetId = targetIds[cursor++];
         try {
-          await this.publishOne(target.id);
+          await this.publishOne(targetId);
           published++;
         } catch {
           failed++; // publishOne already logs + records this; keep going.
         }
       }
-    }
+    };
+
+    await Promise.all(
+      Array.from({ length: Math.min(PUBLISH_CONCURRENCY, targetIds.length) }, () => worker()),
+    );
 
     if (due.length > 0) {
-      this.logger.log(`publishDuePosts: checked ${due.length} due post(s), ${published} published, ${failed} failed this pass.`);
+      const skipped = targetIds.length - published - failed;
+      this.logger.log(
+        `publishDuePosts${brandId ? ` (brand ${brandId})` : ''}: checked ${due.length} due post(s), ` +
+        `${published} published, ${failed} failed, ${skipped} not yet attempted this pass` +
+        `${deadlineHit ? ' (pass deadline reached -- remaining targets will be picked up next pass)' : ''}.`,
+      );
     }
     return { checked: due.length, published, failed };
   }

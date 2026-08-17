@@ -54,7 +54,7 @@ export class PostsService {
   }
 
   async getPosts(brandId: string, status?: PostStatus) {
-    await this.opportunisticPublish().catch(() => {});
+    await this.opportunisticPublish(brandId).catch(() => {});
 
     // Safety cap — same reasoning as MediaAsset.getAssets: this already has
     // the right indexes (idx_post_brand_status) and select-scoped relations,
@@ -75,14 +75,23 @@ export class PostsService {
     });
   }
 
-  /** See OPPORTUNISTIC_PUBLISH_TIMEOUT_MS doc comment above. */
-  private opportunisticPublish(): Promise<void> {
+  /**
+   * See OPPORTUNISTIC_PUBLISH_TIMEOUT_MS doc comment above.
+   *
+   * Scoped to the calling brand -- one user's dashboard load should only
+   * ever do publishing work for their own brand, not scan every brand in
+   * the system on every page view. The cron-triggered global sweep (see
+   * PublishingService.publishDuePosts's own doc comment) is what still
+   * guarantees every brand's due posts get published even if nobody with
+   * access to that brand ever loads a page.
+   */
+  private opportunisticPublish(brandId: string): Promise<void> {
     return new Promise<void>((resolve) => {
       const timer = setTimeout(() => {
         this.logger.warn(`Opportunistic publish pass exceeded ${OPPORTUNISTIC_PUBLISH_TIMEOUT_MS}ms; remaining due posts will be picked up by the next cron run or page load.`);
         resolve();
       }, OPPORTUNISTIC_PUBLISH_TIMEOUT_MS);
-      this.publishingService.publishDuePosts().then(
+      this.publishingService.publishDuePosts(brandId).then(
         () => { clearTimeout(timer); resolve(); },
         (error: any) => {
           clearTimeout(timer);
@@ -101,7 +110,7 @@ export class PostsService {
    * read `.length` off them. One round trip, no wasted payload.
    */
   async getStats(brandId: string) {
-    await this.opportunisticPublish().catch(() => {});
+    await this.opportunisticPublish(brandId).catch(() => {});
 
     const [needsApprovalCount, scheduledCount, publishedCount, mediaCount, pendingPreview] = await Promise.all([
       this.prisma.post.count({ where: { brandId, status: PostStatus.NEEDS_APPROVAL } }),
