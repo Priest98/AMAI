@@ -10,6 +10,18 @@ import 'reflect-metadata';
 // needs to talk to the NestJS app in-process — originally just the
 // `/api/*` catch-all reverse proxy, now also the Vercel Blob client-upload
 // token route, which needs to reuse the same JWT auth as the rest of the API.
+//
+// Cache-bust note: apps/web/package.json has no formal workspace dependency
+// on apps/api (this file reaches into ../../../api/src via a raw relative
+// import instead), so a build system that hashes inputs by declared package
+// dependencies -- rather than actually-imported files -- can fail to notice
+// when apps/api/src changes and serve a stale bundle. Confirmed live: after
+// adding @Post to CronController (apps/api/src/cron/cron.controller.ts),
+// three separate rebuilds (including one with Vercel's "Use existing Build
+// Cache" explicitly unchecked) still deployed a NestJS instance whose own
+// boot log only mapped {/api/cron/publish-due, GET} -- never POST. Editing
+// this file (which apps/web *does* track natively) is what forces the
+// bundle containing app.module.ts to actually be reprocessed.
 let backendPortPromise: Promise<number> | null = null;
 
 export async function getBackendPort(): Promise<number> {
