@@ -393,9 +393,10 @@ export class EngineService {
     const contentPillar = this.businessBrainService.pickBestPillar(brain.contentPillars, topic, caption);
 
     // assignNextSlot() checks for a free slot and this create() books it in
-    // two separate steps (see uq_post_brand_scheduled_at's doc comment in
-    // schema.prisma for why they can't easily be one atomic operation here
-    // -- the AI calls above make a single wrapping transaction impractical).
+    // two separate steps (see uq_post_brand_scheduled_at_active's doc
+    // comment on the Post model in schema.prisma for why they can't easily
+    // be one atomic operation here -- the AI calls above make a single
+    // wrapping transaction impractical).
     // Two concurrent uploads to the same brand can both be told the same
     // instant is free and both attempt to book it; the DB unique constraint
     // is what actually prevents the double-book, and this retry is what
