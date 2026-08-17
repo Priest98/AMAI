@@ -461,30 +461,36 @@ model Post {
   // EngineService actually INSERT the Post -- two concurrent uploads to the
   // same brand (bulk upload, two team members uploading at once) could both
   // see the same instant as free and both book it, double-occupying a
-  // configured posting slot / exceeding postsPerDay for that moment. This
-  // constraint makes that impossible at the database level; EngineService
-  // catches the resulting unique-violation and retries with a fresh slot
-  // (see MAX_SLOT_RETRIES there) so a collision degrades to "picked the
-  // next available time" instead of two posts silently sharing one.
+  // configured posting slot / exceeding postsPerDay for that moment.
   //
-  // Deliberately NOT filtered by status, unlike isSlotTaken() (which
-  // excludes REJECTED posts so a rejected post's old time can be reused).
+  // UPDATE (this was originally a blanket @@unique here -- corrected after
+  // it actually blocked a real deploy): a plain @@unique([brandId,
+  // scheduledAt]) was rejected by `prisma db push`'s own data-loss check,
+  // because production already has real historical rows sharing a
+  // timestamp among PUBLISHED/FAILED/REJECTED posts -- resolved outcomes,
+  // not the race this constraint exists to close (a new row from
+  // assignNextSlot() always starts in DRAFT/NEEDS_APPROVAL/SCHEDULED/
+  // PUBLISHING, never directly in a terminal state, so those never collide
+  // with each other in practice -- confirmed via a direct query before
+  // this was applied). So the real constraint is a PARTIAL unique index,
+  // scoped to only the non-terminal statuses that can actually race:
+  //
+  //   CREATE UNIQUE INDEX "uq_post_brand_scheduled_at_active"
+  //   ON "Post" ("brandId", "scheduledAt")
+  //   WHERE status NOT IN ('PUBLISHED', 'FAILED', 'REJECTED');
+  //
   // Prisma's stable schema syntax has no way to express a partial/filtered
-  // unique index, and this project applies schema changes via `prisma db
-  // push` with no migrations directory for hand-written SQL -- adding one
-  // here would be new process, not a quick fix. Accepted trade-off: a new
-  // post cannot reuse the *exact* instant of a brand's previously-rejected
-  // post; EngineService's retry just picks the next slot instead, which is
-  // safe and only very marginally less tight calendar packing, not a bug.
-  // NULL scheduledAt (drafts) is exempt automatically -- Postgres treats
-  // every NULL as distinct in a unique index.
-  //
-  // Before running `prisma db push` with this change: if any brand already
-  // has two non-null-scheduledAt posts colliding on the exact same
-  // (brandId, scheduledAt) today (only possible if this exact race already
-  // happened in production pre-fix), the push will fail until that
-  // duplicate is resolved -- it will not silently drop or corrupt data.
-  @@unique([brandId, scheduledAt], map: "uq_post_brand_scheduled_at")
+  // unique index, so it is NOT declared as a Prisma-managed @@unique/@@index
+  // here and `prisma db push` will never see or touch it -- it was applied
+  // directly against the database as a one-off migration. EngineService's
+  // P2002 retry logic (see MAX_SLOT_RETRIES there) still catches this
+  // exactly the same way it would a schema-declared constraint: Postgres
+  // reports the same unique-violation error regardless of whether Prisma's
+  // schema knows the index exists. NULL scheduledAt (drafts) is exempt
+  // automatically -- Postgres treats every NULL as distinct in a unique
+  // index. The @@index below is a normal, Prisma-managed, non-unique index
+  // over the same two columns purely for query performance.
+  @@index([brandId, scheduledAt], map: "idx_post_brand_scheduled_at")
   @@index([brandId, status], map: "idx_post_brand_status")
   @@index([scheduledAt], map: "idx_post_scheduled")
 }
