@@ -40,6 +40,15 @@ export function EngineEventsProvider({ children }: { children: React.ReactNode }
       source.onmessage = (e) => {
         try {
           const parsed = JSON.parse(e.data);
+          // 'CONNECTED' is a transport-level handshake the backend sends on
+          // every (re)connect purely to tune the browser's EventSource retry
+          // interval (see EngineController.streamEvents) -- it has no
+          // createdAt/message and isn't a real engine event. Every listener
+          // here just appends whatever it's handed to a UI list (see the
+          // Engine page's Activity History), so without this guard it shows
+          // up there as a bogus "CONNECTED — Invalid Date" row on every
+          // reconnect (~every 50s while the stream is open).
+          if (parsed?.type === 'CONNECTED') return;
           trackEngineEvent(parsed);
           listenersRef.current.forEach((fn) => fn(parsed));
         } catch {
@@ -96,6 +105,9 @@ export function useEngineEvents(onEvent: (event: EngineEvent) => void) {
       source.onmessage = (e) => {
         try {
           const parsed = JSON.parse(e.data);
+          // See the matching guard in EngineEventsProvider above -- 'CONNECTED'
+          // is a transport handshake, not a real event.
+          if (parsed?.type === 'CONNECTED') return;
           trackEngineEvent(parsed);
           handlerRef.current(parsed);
         } catch {
