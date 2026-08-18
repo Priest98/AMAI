@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Info, ArrowRight, Download } from 'lucide-react';
 import { getAgencyAnalytics, AgencyAnalytics } from '@/lib/agency';
 import { setActiveClientId } from '@/lib/api';
+import AgencyUpgradePrompt from '@/components/dashboard/AgencyUpgradePrompt';
 
 /**
  * P1 agency reporting foundation. Client-side CSV of exactly what's
@@ -65,12 +66,19 @@ export default function AgencyAnalyticsPage() {
   const [days, setDays] = useState(30);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [needsUpgrade, setNeedsUpgrade] = useState(false);
 
   useEffect(() => {
     setLoading(true);
     getAgencyAnalytics(days)
       .then(setData)
-      .catch(() => setError("Couldn't load analytics. Try again."))
+      .catch((err: any) => {
+        if (err?.status === 403) {
+          setNeedsUpgrade(true);
+        } else {
+          setError("Couldn't load analytics. Try again.");
+        }
+      })
       .finally(() => setLoading(false));
   }, [days]);
 
@@ -80,6 +88,14 @@ export default function AgencyAnalyticsPage() {
   };
 
   if (loading && !data) return <div className="p-10 text-center text-body-sm" style={{ color: 'var(--text-secondary)' }}>Loading analytics…</div>;
+  if (needsUpgrade) {
+    return (
+      <AgencyUpgradePrompt
+        title="Portfolio Analytics"
+        description="Aggregated analytics across every client is part of the Agency plan. Upgrade to see your whole portfolio's performance in one place."
+      />
+    );
+  }
   if (error) return <div className="exec-card card-pad text-center text-body-sm" style={{ color: 'var(--text-secondary)' }}>{error}</div>;
 
   const d = data!;

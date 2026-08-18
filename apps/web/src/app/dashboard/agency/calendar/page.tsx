@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { CalendarClock } from 'lucide-react';
 import { getAgencyCalendar, AgencyCalendarPost } from '@/lib/agency';
+import AgencyUpgradePrompt from '@/components/dashboard/AgencyUpgradePrompt';
 
 /**
  * Portfolio calendar: what is publishing across every client, grouped by
@@ -23,12 +24,19 @@ export default function AgencyCalendarPage() {
   const [posts, setPosts] = useState<AgencyCalendarPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [needsUpgrade, setNeedsUpgrade] = useState(false);
   const [hidden, setHidden] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     getAgencyCalendar(30)
       .then((r) => setPosts(r.posts))
-      .catch(() => setError("Couldn't load the calendar. Try again."))
+      .catch((err: any) => {
+        if (err?.status === 403) {
+          setNeedsUpgrade(true);
+        } else {
+          setError("Couldn't load the calendar. Try again.");
+        }
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -59,6 +67,14 @@ export default function AgencyCalendarPage() {
   }, [posts, hidden]);
 
   if (loading) return <div className="p-10 text-center text-body-sm" style={{ color: 'var(--text-secondary)' }}>Loading calendar…</div>;
+  if (needsUpgrade) {
+    return (
+      <AgencyUpgradePrompt
+        title="All Calendar"
+        description="Viewing what's publishing across every client is part of the Agency plan. Upgrade to see your whole portfolio's calendar in one place."
+      />
+    );
+  }
   if (error) return <div className="exec-card card-pad text-center text-body-sm" style={{ color: 'var(--text-secondary)' }}>{error}</div>;
 
   const todayKey = dayKey(new Date());

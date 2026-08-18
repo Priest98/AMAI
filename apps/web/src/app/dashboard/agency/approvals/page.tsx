@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { CheckSquare, ArrowRight } from 'lucide-react';
 import { getAgencyApprovalQueue, AgencyQueuePost } from '@/lib/agency';
 import { setActiveClientId } from '@/lib/api';
+import AgencyUpgradePrompt from '@/components/dashboard/AgencyUpgradePrompt';
 
 /**
  * Portfolio approval queue: everything awaiting review across every client,
@@ -23,12 +24,19 @@ export default function AgencyApprovalsPage() {
   const [posts, setPosts] = useState<AgencyQueuePost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [needsUpgrade, setNeedsUpgrade] = useState(false);
   const [clientFilter, setClientFilter] = useState<string>('all');
 
   useEffect(() => {
     getAgencyApprovalQueue()
       .then((r) => setPosts(r.posts))
-      .catch(() => setError("Couldn't load the approval queue. Try again."))
+      .catch((err: any) => {
+        if (err?.status === 403) {
+          setNeedsUpgrade(true);
+        } else {
+          setError("Couldn't load the approval queue. Try again.");
+        }
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -56,6 +64,14 @@ export default function AgencyApprovalsPage() {
   };
 
   if (loading) return <div className="p-10 text-center text-body-sm" style={{ color: 'var(--text-secondary)' }}>Loading approvals…</div>;
+  if (needsUpgrade) {
+    return (
+      <AgencyUpgradePrompt
+        title="All Approvals"
+        description="Reviewing every client's approval queue in one place is part of the Agency plan. Upgrade to triage posts across your whole portfolio."
+      />
+    );
+  }
   if (error) return <div className="exec-card card-pad text-center text-body-sm" style={{ color: 'var(--text-secondary)' }}>{error}</div>;
 
   return (

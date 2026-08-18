@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Search, Plus, ArrowRight, X } from 'lucide-react';
 import { getPortfolio, createClient, Portfolio, PortfolioClient, HEALTH_META, healthColor, expiryLabel } from '@/lib/agency';
 import { setActiveClientId } from '@/lib/api';
+import AgencyUpgradePrompt from '@/components/dashboard/AgencyUpgradePrompt';
 
 /**
  * Client management. Search, triage and open a client, or add a new one.
@@ -150,12 +151,20 @@ export default function ClientsPage() {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
   const [adding, setAdding] = useState(false);
+  const [needsUpgrade, setNeedsUpgrade] = useState(false);
 
   const load = () => {
     setLoading(true);
+    setNeedsUpgrade(false);
     getPortfolio()
       .then(setPortfolio)
-      .catch(() => setError("Couldn't load your clients. Try again."))
+      .catch((err: any) => {
+        if (err?.status === 403) {
+          setNeedsUpgrade(true);
+        } else {
+          setError("Couldn't load your clients. Try again.");
+        }
+      })
       .finally(() => setLoading(false));
   };
 
@@ -178,6 +187,14 @@ export default function ClientsPage() {
 
   if (loading) {
     return <div className="p-10 text-center text-body-sm" style={{ color: 'var(--text-secondary)' }}>Loading clients…</div>;
+  }
+  if (needsUpgrade) {
+    return (
+      <AgencyUpgradePrompt
+        title="Clients"
+        description="Client management is part of the Agency plan. Upgrade to add client workspaces, switch between them and see your whole portfolio in one place."
+      />
+    );
   }
   if (error) {
     return <div className="exec-card card-pad text-center text-body-sm" style={{ color: 'var(--text-secondary)' }}>{error}</div>;

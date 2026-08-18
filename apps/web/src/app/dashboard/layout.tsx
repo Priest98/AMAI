@@ -25,6 +25,7 @@ import {
   Users,
 } from 'lucide-react';
 import { getCurrentUser, logout } from '@/lib/api';
+import { getBillingSummary } from '@/lib/billing';
 import { EngineEventsProvider } from '@/lib/EngineEventsContext';
 import { OnboardingProvider } from '@/components/onboarding/OnboardingContext';
 import NotificationsBell from '@/components/dashboard/NotificationsBell';
@@ -110,6 +111,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [userName, setUserName] = useState('User');
   const [userInitials, setUserInitials] = useState('U');
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  // Defaults to hidden/blank until the real plan is known -- briefly showing
+  // Agency nav items or a wrong workspace label to a Free/Pro user (even for
+  // one render) is worse than a half-second delay before they appear.
+  const [hasAgency, setHasAgency] = useState(false);
+  const [workspaceLabel, setWorkspaceLabel] = useState('');
   const { isDark: isDarkMode, toggleTheme } = useTheme();
   const [scrolled, setScrolled] = useState(false);
   // Gates rendering of the actual dashboard shell until the auth check has
@@ -130,6 +136,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     setUserInitials(user.name.slice(0, 2).toUpperCase());
     setIsAuthChecked(true);
   }, [router]);
+
+  // Drives which nav items render (the "Agency" section is Agency-plan only
+  // -- see AgencyEntitlementGuard on the backend, which is the real
+  // enforcement; this only controls what's shown) and the workspace label
+  // under the user's name. Failure just leaves both at their Free-like
+  // defaults rather than throwing, since a billing hiccup shouldn't take
+  // down the whole dashboard shell.
+  useEffect(() => {
+    getBillingSummary()
+      .then((b) => {
+        setHasAgency(b.entitlements.clientManagement === true);
+        setWorkspaceLabel(`${b.plan.toLowerCase()}_workspace`);
+      })
+      .catch(() => {});
+  }, []);
+
+  const visibleNavSections = navSections.filter((section) => section.title !== 'Agency' || hasAgency);
 
   // Every dashboard <Link> in the mobile nav drawer closes the drawer on
   // click, but this layout never remounts between routes, so any
@@ -295,7 +318,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </div>
 
                 <nav className="space-y-4">
-                  {navSections.map((section, sIdx) => (
+                  {visibleNavSections.map((section, sIdx) => (
                     <div key={sIdx} className="space-y-0.5">
                       {section.title && (
                         <p className="text-overline px-3 py-1">
@@ -361,13 +384,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-body-sm font-bold truncate" style={{ color: 'var(--text-primary)' }}>{userName}</p>
-                  <p className="text-caption truncate" style={{ color: 'var(--text-muted)' }}>pro_workspace</p>
+                  {workspaceLabel && (
+                    <p className="text-caption truncate" style={{ color: 'var(--text-muted)' }}>{workspaceLabel}</p>
+                  )}
                 </div>
               </div>
 
               {/* Navigation Links */}
               <nav className="space-y-4">
-                {navSections.map((section, sIdx) => (
+                {visibleNavSections.map((section, sIdx) => (
                   <div key={sIdx} className="space-y-1">
                     {section.title && (
                       <p className="text-overline px-3 pb-1.5 pt-1">

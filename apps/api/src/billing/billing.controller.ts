@@ -1,9 +1,10 @@
-import { Body, Controller, Get, Headers, HttpCode, HttpStatus, Logger, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, Headers, HttpCode, HttpStatus, Logger, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { BrandAccessGuard } from '../auth/brand-access.guard';
 import { BillingService } from './billing.service';
 import { PLAN_CONFIG, PLAN_PRICING } from './plans.config';
+import type { PlanTier } from '@prisma/client';
 
 @Controller()
 export class BillingController {
@@ -42,6 +43,26 @@ export class BillingController {
   @Post('brands/:brandId/billing/portal')
   async openPortal(@Param('brandId') brandId: string) {
     return this.billingService.openBillingPortal(brandId);
+  }
+
+  /**
+   * LOCAL DEV / QA ONLY. Lets an authenticated OWNER instantly switch their
+   * own organization's plan for testing Pro/Agency-gated features without a
+   * real payment provider -- none is configured in local dev (see
+   * apps/api/.env, no Paystack or Stripe keys), so the real checkout flow
+   * can't be exercised locally at all. Mirrors the existing dev-only
+   * auto-verify-email pattern in AuthService.register: gated on NODE_ENV so
+   * this can never exist in production, and still requires a real
+   * authenticated session + BrandAccessGuard, so it can only ever change
+   * the caller's own organization, never anyone else's.
+   */
+  @UseGuards(JwtAuthGuard, BrandAccessGuard)
+  @Post('brands/:brandId/billing/dev-set-plan')
+  async devSetPlan(@Param('brandId') brandId: string, @Body('plan') plan: PlanTier) {
+    if (process.env.NODE_ENV !== 'development') {
+      throw new ForbiddenException('Not available outside local development.');
+    }
+    return this.billingService.devSetPlan(brandId, plan);
   }
 
   /**

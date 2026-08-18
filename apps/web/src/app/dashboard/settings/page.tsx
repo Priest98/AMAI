@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { brandFetch, getCurrentUser } from '@/lib/api';
-import { getBillingSummary, startCheckout, openBillingPortal, formatBytes, BillingSummary } from '@/lib/billing';
+import { getBillingSummary, startCheckout, openBillingPortal, devSetPlan, formatBytes, BillingSummary } from '@/lib/billing';
 import UsageBar from '@/components/billing/UsageBar';
 import { useOnboarding } from '@/components/onboarding/OnboardingContext';
 import {
@@ -131,13 +131,30 @@ export default function SettingsPage() {
   const [billingLoading, setBillingLoading] = useState(true);
   const [checkoutLoading, setCheckoutLoading] = useState<'PRO' | 'AGENCY' | null>(null);
   const [portalLoading, setPortalLoading] = useState(false);
+  const [devPlanLoading, setDevPlanLoading] = useState(false);
 
-  useEffect(() => {
+  const loadBilling = () => {
+    setBillingLoading(true);
     getBillingSummary()
       .then(setBilling)
       .catch(() => {})
       .finally(() => setBillingLoading(false));
-  }, []);
+  };
+
+  useEffect(loadBilling, []);
+
+  // LOCAL DEV / QA ONLY -- see lib/billing.ts's devSetPlan doc comment.
+  const handleDevSetPlan = async (plan: 'FREE' | 'PRO' | 'AGENCY') => {
+    setDevPlanLoading(true);
+    try {
+      await devSetPlan(plan);
+      loadBilling();
+    } catch (e: any) {
+      flash(e.message || 'Could not switch plan.');
+    } finally {
+      setDevPlanLoading(false);
+    }
+  };
 
   const handleUpgrade = async (plan: 'PRO' | 'AGENCY') => {
     setCheckoutLoading(plan);
@@ -737,6 +754,30 @@ export default function SettingsPage() {
                     </button>
                   )}
                 </div>
+
+                {/* LOCAL DEV / QA ONLY -- the backend independently enforces
+                    NODE_ENV=development on this endpoint (see
+                    BillingController.devSetPlan), so this control is inert
+                    (every click 403s) in any deployed environment even if
+                    this block were ever left rendered by mistake. No
+                    payment provider is configured locally at all, so this is
+                    the only way to exercise Pro/Agency-gated UI in dev. */}
+                {process.env.NODE_ENV === 'development' && (
+                  <div className="pt-4 border-t flex flex-wrap items-center gap-2" style={{ borderColor: 'var(--card-border)' }}>
+                    <span className="text-caption font-bold" style={{ color: 'var(--text-muted)' }}>DEV: set plan →</span>
+                    {(['FREE', 'PRO', 'AGENCY'] as const).map((p) => (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => handleDevSetPlan(p)}
+                        disabled={devPlanLoading || billing.plan === p}
+                        className="btn-secondary px-3 py-1.5 rounded-[var(--radius-md)] text-caption font-bold touch-target disabled:opacity-40"
+                      >
+                        {p}
+                      </button>
+                    ))}
+                  </div>
+                )}
 
                 <div className="space-y-4 pt-2 border-t" style={{ borderColor: 'var(--card-border)' }}>
                   <UsageBar label="AI Generations" used={billing.usage.aiGenerations.used} limit={billing.usage.aiGenerations.limit} planName={billing.entitlements.displayName} />

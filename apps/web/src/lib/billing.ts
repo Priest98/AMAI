@@ -75,6 +75,17 @@ export async function openBillingPortal(): Promise<void> {
   window.location.href = url;
 }
 
+/**
+ * LOCAL DEV / QA ONLY -- calls the NODE_ENV-gated backend endpoint (see
+ * BillingController.devSetPlan) that instantly switches the caller's own
+ * org plan for testing Pro/Agency-gated features without a payment
+ * provider, which isn't configured in local dev at all. The backend
+ * enforces the NODE_ENV check independently; this is just the client for it.
+ */
+export async function devSetPlan(plan: PlanTier): Promise<{ organizationId: string; plan: PlanTier; status: SubscriptionStatus }> {
+  return brandFetch('/billing/dev-set-plan', { method: 'POST', body: JSON.stringify({ plan }) });
+}
+
 export function formatBytes(bytes: number): string {
   if (bytes <= 0) return '0 MB';
   const mb = bytes / (1024 * 1024);

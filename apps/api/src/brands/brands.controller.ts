@@ -2,6 +2,7 @@ import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/co
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { BrandAccessGuard } from '../auth/brand-access.guard';
 import { OrganizationAccessGuard } from './organization-access.guard';
+import { AgencyEntitlementGuard } from './agency-entitlement.guard';
 import { BrandsService } from './brands.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -42,8 +43,14 @@ export class BrandsController {
    * read another organization's clients regardless of what id is supplied.
    * Aggregation happens server-side rather than by fetching everything and
    * filtering in the browser.
+   *
+   * AgencyEntitlementGuard additionally requires the organization's plan to
+   * have the `clientManagement` entitlement (AGENCY only) -- this is the
+   * feature the Agency plan is sold on, so Free/Pro orgs must not be able to
+   * reach it just because OrganizationAccessGuard proves they're a member of
+   * their own org.
    */
-  @UseGuards(OrganizationAccessGuard)
+  @UseGuards(OrganizationAccessGuard, AgencyEntitlementGuard)
   @Get('organizations/:organizationId/portfolio')
   async getPortfolio(@Param('organizationId') organizationId: string) {
     return this.brandsService.getPortfolio(organizationId);
@@ -52,15 +59,16 @@ export class BrandsController {
   /**
    * Cross-client aggregations. All three derive their brand scope from the
    * organization inside the service, so a client id can never be smuggled
-   * in from the request to widen the query beyond this organization.
+   * in from the request to widen the query beyond this organization. Agency
+   * plan only -- see AgencyEntitlementGuard.
    */
-  @UseGuards(OrganizationAccessGuard)
+  @UseGuards(OrganizationAccessGuard, AgencyEntitlementGuard)
   @Get('organizations/:organizationId/approval-queue')
   async getAgencyApprovalQueue(@Param('organizationId') organizationId: string) {
     return this.brandsService.getAgencyApprovalQueue(organizationId);
   }
 
-  @UseGuards(OrganizationAccessGuard)
+  @UseGuards(OrganizationAccessGuard, AgencyEntitlementGuard)
   @Get('organizations/:organizationId/calendar')
   async getAgencyCalendar(
     @Param('organizationId') organizationId: string,
@@ -69,7 +77,7 @@ export class BrandsController {
     return this.brandsService.getAgencyCalendar(organizationId, days ? Number(days) : undefined);
   }
 
-  @UseGuards(OrganizationAccessGuard)
+  @UseGuards(OrganizationAccessGuard, AgencyEntitlementGuard)
   @Get('organizations/:organizationId/analytics')
   async getAgencyAnalytics(
     @Param('organizationId') organizationId: string,

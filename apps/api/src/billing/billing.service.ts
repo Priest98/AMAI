@@ -87,6 +87,17 @@ export class BillingService {
     });
   }
 
+  /** LOCAL DEV / QA ONLY -- see the NODE_ENV guard in BillingController.devSetPlan, the actual enforcement point. */
+  async devSetPlan(brandId: string, plan: PlanTier) {
+    const organizationId = await this.entitlementsService.getOrganizationIdForBrand(brandId);
+    const subscription = await this.prisma.subscription.upsert({
+      where: { organizationId },
+      update: { plan, status: SubscriptionStatus.ACTIVE },
+      create: { organizationId, plan, status: SubscriptionStatus.ACTIVE },
+    });
+    return { organizationId, plan: subscription.plan, status: subscription.status };
+  }
+
   async openBillingPortal(brandId: string) {
     const organizationId = await this.entitlementsService.getOrganizationIdForBrand(brandId);
     const subscription = await this.entitlementsService.getSubscription(organizationId);
