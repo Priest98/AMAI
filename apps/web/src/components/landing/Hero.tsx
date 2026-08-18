@@ -149,12 +149,22 @@ export default function Hero() {
       id="product"
       ref={sectionRef}
       onMouseMove={handleMouseMove}
-      className="relative pt-32 pb-20 sm:pt-40 sm:pb-24 px-5 sm:px-8 overflow-hidden min-h-[80vh] flex items-center"
+      className="relative isolate pt-32 pb-20 sm:pt-40 sm:pb-24 px-5 sm:px-8 overflow-hidden min-h-[80vh] flex items-center"
       aria-label="Introduction"
     >
       {/* Cinematic backdrop -- AI-generated abstract light environment,
           slow continuous Ken Burns drift, dimmed + gradient-masked so
-          headline copy stays fully legible over it at every viewport. */}
+          headline copy stays fully legible over it at every viewport.
+
+          `isolate` (CSS `isolation: isolate`) is load-bearing here, not
+          decorative: without it this <section> doesn't establish its own
+          stacking context, so the backdrop's `-z-10` wrapper below resolves
+          against the page-wide .lp-ambient-bg layer (z-index -1, a sibling
+          much higher up the tree) instead of staying local to the hero --
+          and since -10 < -1, the ambient layer painted on top and hid this
+          entire image. Confirmed via DOM/stacking-context inspection: the
+          image was loading correctly (network 200, non-zero natural size)
+          but was 100% visually obscured before this fix. */}
       <div className="absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
         <div className="lp-hero-media absolute inset-0">
           <Image
@@ -189,16 +199,14 @@ export default function Hero() {
             Your AI Social Media Employee
           </p>
 
-          {/* The one deliberate Kugile moment on the page. Kugile Demo maps
-              only A-Z/a-z, so the two periods below fall back to Morrison --
-              acceptable because a period carries no styling, but it is why
-              Kugile must not be applied to headings containing digits,
-              ampersands or apostrophes. Font size is left on the existing
-              responsive scale so the display face inherits the same
-              clamping and never overflows small viewports. */}
+          {/* The one deliberate Instrument Serif moment in the hero (the
+              .lp-hero-display class carries the display-font treatment --
+              see landing.css). Font size is left on the existing responsive
+              scale so the display face inherits the same clamping and never
+              overflows small viewports. */}
           <h1
-            className="lp-hero-display mt-5 text-6xl sm:text-7xl lg:text-8xl font-bold"
-            style={{ color: 'var(--lp-text-primary)', fontFamily: 'var(--font-display)' }}
+            className="lp-hero-display mt-5 text-6xl sm:text-7xl lg:text-8xl"
+            style={{ color: 'var(--lp-text-primary)' }}
           >
             Your social media.
             <br />

@@ -14,11 +14,17 @@ import { getBackendPort } from '@/lib/backendPort';
 // file bytes straight to Blob storage — never touching our serverless
 // function's body-size ceiling at all.
 //
-// This app uses Bearer-JWT-in-localStorage auth (no cookies/sessions), so
-// the client passes `headers: { Authorization: ... }` through `upload()`,
-// and we verify it here by making a fast in-process loopback call to the
-// already-booted NestJS app's `/auth/me`, reusing the exact same auth logic
-// as every other authenticated endpoint instead of duplicating it.
+// Security audit fix (3.5): this app used to authenticate via a Bearer JWT
+// stored in localStorage, so the client passed `headers: { Authorization:
+// ... } }` through `upload()`. The JWT now lives in an httpOnly cookie
+// instead (never readable by page JS), so the browser attaches it to this
+// same-origin request automatically -- we just need to forward that Cookie
+// header on our own loopback call below, the same way the reverse-proxy
+// route handler already does. We verify it by making a fast in-process
+// loopback call to the already-booted NestJS app's `/auth/me`, reusing the
+// exact same auth logic as every other authenticated endpoint instead of
+// duplicating it. The Authorization header path is kept as a fallback for
+// anything that still sends one (see JwtStrategy) -- costs nothing to keep.
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -38,18 +44,22 @@ const ALLOWED_CONTENT_TYPES = [
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const body = (await request.json()) as HandleUploadBody;
   const authHeader = request.headers.get('authorization');
+  const cookieHeader = request.headers.get('cookie');
 
   try {
     const jsonResponse = await handleUpload({
       body,
       request,
       onBeforeGenerateToken: async () => {
-        if (!authHeader?.startsWith('Bearer ')) {
+        if (!authHeader?.startsWith('Bearer ') && !cookieHeader) {
           throw new Error('Not authenticated.');
         }
         const port = await getBackendPort();
+        const forwardHeaders: Record<string, string> = {};
+        if (cookieHeader) forwardHeaders.cookie = cookieHeader;
+        if (authHeader) forwardHeaders.authorization = authHeader;
         const meRes = await fetch(`http://127.0.0.1:${port}/api/auth/me`, {
-          headers: { authorization: authHeader },
+          headers: forwardHeaders,
         });
         if (!meRes.ok) {
           throw new Error('Not authenticated.');

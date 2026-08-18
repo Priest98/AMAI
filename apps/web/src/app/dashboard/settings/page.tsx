@@ -781,7 +781,18 @@ export default function SettingsPage() {
 
                 <div className="space-y-4 pt-2 border-t" style={{ borderColor: 'var(--card-border)' }}>
                   <UsageBar label="AI Generations" used={billing.usage.aiGenerations.used} limit={billing.usage.aiGenerations.limit} planName={billing.entitlements.displayName} />
-                  <UsageBar label="Posts" used={billing.usage.posts.used} limit={billing.usage.posts.limit} planName={billing.entitlements.displayName} />
+                  <UsageBar
+                    label="Posts"
+                    used={billing.usage.posts.used}
+                    limit={billing.usage.posts.limit}
+                    planName={billing.entitlements.displayName}
+                    unitLabel="posts"
+                    reachedMessage={
+                      billing.entitlements.tier === 'FREE'
+                        ? `You've reached your ${billing.usage.posts.limit}-post monthly limit. Upgrade to Pro for up to 150 posts per month.`
+                        : `You've reached your ${billing.usage.posts.limit}-post monthly limit. Your allowance resets at the start of your next billing period.`
+                    }
+                  />
                   <UsageBar label="Storage" used={billing.usage.storage.used} limit={billing.usage.storage.limit} formatValue={formatBytes} planName={billing.entitlements.displayName} />
                   <UsageBar label="Social accounts" used={billing.usage.socialAccounts.used} limit={billing.usage.socialAccounts.limit} planName={billing.entitlements.displayName} />
                   {/* Only meaningful on a plan that allows more than one

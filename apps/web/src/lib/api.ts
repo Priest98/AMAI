@@ -15,38 +15,24 @@ export const API_BASE = (
   process.env.NEXT_PUBLIC_API_URL || '/api'
 ).replace(/\/$/, '');
 
-export const TOKEN_KEY = 'marketing_os_token';
-
-function decodeJwtPayload(token: string): any | null {
-  try {
-    return JSON.parse(atob(token.split('.')[1]));
-  } catch {
-    return null;
-  }
-}
-
-/** True if the token is malformed, missing an exp claim, or past expiry. */
-export function isTokenExpired(token: string): boolean {
-  const payload = decodeJwtPayload(token);
-  if (!payload || typeof payload.exp !== 'number') return true;
-  return payload.exp * 1000 <= Date.now();
-}
-
-export function getToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  const token = localStorage.getItem(TOKEN_KEY);
-  if (!token) return null;
-  if (isTokenExpired(token)) {
-    localStorage.removeItem(TOKEN_KEY);
-    return null;
-  }
-  return token;
-}
-
-/** True if there's a currently-valid (present, well-formed, unexpired) session. */
-export function isAuthenticated(): boolean {
-  return getToken() !== null;
-}
+// Security audit fix (3.5): the session credential (JWT) used to be
+// returned in the login response and persisted here under this key, where
+// any XSS anywhere in the app -- at any point during the token's up-to-
+// 30-day lifetime -- could read it straight out with a plain
+// `localStorage.getItem(...)` and replay it as a fully-valid session from
+// anywhere. It's now issued as an httpOnly cookie by AuthController.login
+// instead (see apps/api/src/auth/auth.controller.ts): the browser attaches
+// it automatically to same-origin requests, and page JS -- including any
+// injected XSS payload -- can never read its value at all.
+//
+// This key now stores only a *non-sensitive* snapshot of the logged-in
+// user (id/email/name/brandId + when the session expires) purely so the
+// UI can synchronously answer "who's logged in?" without an extra network
+// round trip on every render. If an attacker reads this, they learn your
+// name and email -- not a credential they can do anything with. The actual
+// access-control decision is always re-checked server-side against the
+// httpOnly cookie on every request; this cache is a UI convenience only.
+const USER_CACHE_KEY = 'amai_user';
 
 export interface CurrentUser {
   id: string;
@@ -55,17 +41,58 @@ export interface CurrentUser {
   brandId: string;
 }
 
+interface CachedUser extends CurrentUser {
+  /** ISO timestamp, mirrors the httpOnly cookie's own expiry. */
+  expiresAt: string;
+}
+
+/** Called after a successful login/register response to cache the (non-sensitive) user snapshot. */
+export function setSession(user: CurrentUser, expiresAt: string): void {
+  if (typeof window === 'undefined') return;
+  const cached: CachedUser = { ...user, expiresAt };
+  try {
+    localStorage.setItem(USER_CACHE_KEY, JSON.stringify(cached));
+  } catch {
+    // Private-browsing / storage-disabled -- getCurrentUser() will just
+    // return null until the next successful /auth/me call; nothing here is
+    // itself a credential, so there's no security downside to losing it.
+  }
+}
+
+function readCachedUser(): CachedUser | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(USER_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as CachedUser;
+    if (!parsed?.expiresAt || new Date(parsed.expiresAt).getTime() <= Date.now()) {
+      localStorage.removeItem(USER_CACHE_KEY);
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * True if a (locally cached) session looks currently valid. This is a UI
+ * convenience check only, based on the cached expiry -- it does NOT read
+ * or verify the actual httpOnly cookie (page JS can't). The server is
+ * always the real authority: any request whose cookie is missing, expired,
+ * or otherwise invalid gets a 401 from the API regardless of what this
+ * returns, and apiFetch()'s 401 handling reconciles the two by clearing
+ * this cache and redirecting to Sign In.
+ */
+export function isAuthenticated(): boolean {
+  return readCachedUser() !== null;
+}
+
 export function getCurrentUser(): CurrentUser | null {
-  const token = getToken();
-  if (!token) return null;
-  const payload = decodeJwtPayload(token);
-  if (!payload) return null;
-  return {
-    id: payload.sub || payload.id || '',
-    email: payload.email || '',
-    name: payload.name || (payload.email ? payload.email.split('@')[0] : 'User'),
-    brandId: payload.brandId || 'primary_brand',
-  };
+  const cached = readCachedUser();
+  if (!cached) return null;
+  const { expiresAt, ...user } = cached;
+  return user;
 }
 
 /**
@@ -113,10 +140,25 @@ export function getBrandId(): string {
   return getActiveClientId() || getCurrentUser()?.brandId || 'primary_brand';
 }
 
-/** Clears the session and sends the user back to Sign In. */
-export function logout(): void {
+/**
+ * Clears the session and sends the user back to Sign In.
+ *
+ * Security audit fix (3.5): the session cookie is httpOnly, so page JS
+ * can never clear it directly the way `localStorage.removeItem` used to --
+ * this now calls the backend's /auth/logout to actually clear it
+ * server-side first. Best-effort: even if that call fails (offline, etc.),
+ * the local user cache is still cleared and the user is still sent to
+ * Sign In, matching the old behavior's guarantee that the UI never gets
+ * stuck looking authenticated after logout.
+ */
+export async function logout(): Promise<void> {
   if (typeof window === 'undefined') return;
-  localStorage.removeItem(TOKEN_KEY);
+  try {
+    await fetch(`${API_BASE}/auth/logout`, { method: 'POST', credentials: 'include' });
+  } catch {
+    // best-effort -- still clear local state and redirect below
+  }
+  localStorage.removeItem(USER_CACHE_KEY);
   window.location.href = '/login';
 }
 
@@ -158,14 +200,19 @@ export async function apiFetch<T = any>(path: string, init: RequestInit = {}): P
   }
 
   const doFetch = async (): Promise<T> => {
-    const token = getToken();
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       ...(init.headers as Record<string, string> | undefined),
     };
-    if (token) headers['Authorization'] = `Bearer ${token}`;
 
-    const res = await fetch(`${API_BASE}${path}`, { ...init, headers });
+    // Security audit fix (3.5): no Authorization header built from a
+    // client-readable token anymore -- the httpOnly session cookie travels
+    // automatically on same-origin requests. `credentials: 'include'` is
+    // technically redundant for same-origin fetches (the default is
+    // 'same-origin', which already includes cookies), but explicit here
+    // since API_BASE can be overridden to a different origin for local dev
+    // (NEXT_PUBLIC_API_URL), where the default would silently drop it.
+    const res = await fetch(`${API_BASE}${path}`, { ...init, headers, credentials: 'include' });
 
     // A 401 means the session is no longer valid (expired, revoked, or the
     // token never existed) -- bounce back to Sign In instead of leaving

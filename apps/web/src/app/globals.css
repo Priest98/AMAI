@@ -4,12 +4,11 @@
 /*
  * AMAI Design System v2 — Light & Dark
  *
- * Typography: Morrison (product/UI, ~90%) + Kugile (display/brand, ~10%).
- * Both are self-hosted licensed files loaded once in layout.tsx via
- * next/font/local; neither exists on Google Fonts. Only Morrison Regular
- * (400) was supplied, so no rule here claims a weight the file does not
- * contain -- hierarchy comes from size, color and spacing rather than
- * weight until further Morrison weights are added.
+ * Typography: Plus Jakarta Sans (product/UI, ~90%) + Instrument Serif
+ * (display/brand, ~10%). Both loaded once in layout.tsx via next/font/google
+ * (self-hosted at build time, full Latin glyph coverage, real weight range
+ * 400-800 on the body face -- see layout.tsx for why this replaced the
+ * previous Morrison + Kugile pair).
  *
  * Visual language: confident, minimal, spacious. Calm in light mode, rich
  * and comfortable for long sessions in dark mode. Same tokens drive both
@@ -80,10 +79,9 @@
   --gradient-mesh-subtle: radial-gradient(60% 60% at 15% 10%, rgba(74, 127, 167, 0.08) 0%, transparent 60%),
     radial-gradient(50% 50% at 100% 0%, rgba(10, 25, 49, 0.05) 0%, transparent 60%);
 
-  /* AMAI typography: Morrison (product) + Kugile (brand).
-     Morrison drives both body and headings -- only the Regular (400) file
-     was supplied, so there is no separate heading face and nothing here
-     claims a weight the file doesn't contain. Kugile is display only. */
+  /* AMAI typography: Plus Jakarta Sans (product) + Instrument Serif (brand).
+     Plus Jakarta Sans drives both body and headings; Instrument Serif is
+     display only, applied selectively via --font-display. */
   --font-sans: var(--font-body-var), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-heading: var(--font-body-var), var(--font-sans);
   --font-display: var(--font-display-var), var(--font-body-var), var(--font-sans);
@@ -242,12 +240,11 @@ body {
   background-attachment: fixed;
   color: var(--text-primary);
   font-family: var(--font-sans);
-  /* "cv11"/"ss01" were Inter-specific stylistic sets that Morrison doesn't
-     contain. Instead we explicitly suppress Morrison's 30 discretionary
-     ligatures (CA, CE, CH, CO, GA, KA, LA, RA...) for UI text: they fuse
-     letter pairs mid-word, which is striking on a headline and looks like
-     a rendering fault in a label or error message. Opt back in per-element
-     with .allow-display-ligatures where the decorative form is wanted. */
+  /* Suppress discretionary ligatures for UI text generally -- a safe
+     default regardless of which face is active, since fused letter pairs
+     read as a rendering fault in a label or error message. Opt back in
+     per-element with .allow-display-ligatures where a decorative form is
+     wanted (not currently used anywhere). */
   font-variant-ligatures: no-discretionary-ligatures;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;

@@ -434,6 +434,14 @@ model Post {
   ctaText          String?
   source           ContentSource @default(MANUAL)
   status           PostStatus   @default(DRAFT)
+  // SINGLE = exactly one media item (the original, still-default behavior).
+  // CAROUSEL = 2-5 media items published/scheduled as one post with one
+  // caption/hashtag set -- see PostMedia.order for display order and
+  // EngineService.composeManualPost for the only place CAROUSEL posts are
+  // created. Never inferred from PostMedia count; always set explicitly at
+  // creation time so "5 images uploaded together" can never silently become
+  // "5 separate posts" or vice versa.
+  postType         PostType     @default(SINGLE)
   scheduledAt      DateTime?    @db.Timestamptz(6)
   optimalScore     Int?
   peakTimeDetected Boolean      @default(false)
@@ -523,6 +531,11 @@ model PostTarget {
 model PostMedia {
   postId  String
   assetId String
+  // Display/publish order within a CAROUSEL post (0-based). Always 0 for
+  // SINGLE posts. Lets the composer/approval-queue/publisher show and
+  // publish carousel images in the order the user arranged them, rather
+  // than whatever order the join rows happen to come back in.
+  order   Int        @default(0)
   asset   MediaAsset @relation(fields: [assetId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   post    Post       @relation(fields: [postId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
@@ -625,6 +638,24 @@ model PendingCommentReply {
   updatedAt           DateTime    @default(now()) @updatedAt @db.Timestamptz(6)
   brand               Brand       @relation(fields: [brandId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
+  // Idempotency fix (found still open in the production-readiness audit):
+  // both Meta and TikTok document "at-least-once" webhook delivery and
+  // explicitly tell integrators to guard against duplicate receipts (TikTok:
+  // "Webhook endpoints might receive the same event more than once. There
+  // should be a guard against duplicated event receipts by making your
+  // event processing idempotent" --
+  // https://developers.tiktok.com/doc/webhooks-overview). Nothing enforced
+  // that here before -- a redelivered comment webhook would re-run the AI
+  // reply generation (wasted spend) and create a second row for the same
+  // comment, which a human approver would then unknowingly approve twice,
+  // posting two duplicate AI replies to one comment under the brand's real
+  // account. Unlike the Post scheduling constraint elsewhere in this file,
+  // this doesn't need a partial/filtered index (no legitimate case where
+  // the same platform+comment should ever have two rows, at any status), so
+  // it's declared as a normal Prisma-managed @@unique -- WebhooksService
+  // catches the resulting P2002 and treats it as "already queued, not an
+  // error," same pattern already proven on the scheduling-slot retry.
+  @@unique([platform, originalCommentId], map: "uq_pending_reply_platform_comment")
   @@index([brandId, status], map: "idx_pending_reply_brand_status")
 }
 
@@ -777,6 +808,11 @@ enum PostStatus {
   PUBLISHED
   FAILED
   REJECTED
+}
+
+enum PostType {
+  SINGLE
+  CAROUSEL
 }
 
 enum TargetStatus {

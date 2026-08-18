@@ -1,45 +1,54 @@
 import type { Metadata } from 'next';
-import localFont from 'next/font/local';
+import { Plus_Jakarta_Sans, Instrument_Serif } from 'next/font/google';
 import './globals.css';
 import AnalyticsInit from '@/components/analytics/AnalyticsInit';
 
 /**
- * AMAI typography system: Morrison (product) + Kugile (brand).
+ * AMAI typography system: Plus Jakarta Sans (product/UI) + Instrument Serif
+ * (display/brand).
  *
  * Loaded once here at the root so every route -- dashboard, auth pages and
- * the marketing site -- shares one typographic identity, and self-hosted via
- * next/font/local (both faces are licensed files, neither exists on Google
- * Fonts). next/font inlines the @font-face, preloads the file and gives it a
- * stable CSS variable, so no component loads a font itself.
+ * the marketing site -- shares one typographic identity. Both are fetched
+ * via next/font/google, which downloads the files at build time and
+ * self-hosts them from our own domain (no runtime request to Google, same
+ * privacy/perf profile as self-hosting manually) while giving each a
+ * complete Latin glyph set and a real weight range.
  *
- * MORRISON drives both --font-body-var and --font-heading-var: only the
- * Regular (400) file was supplied, so there is deliberately no separate
- * heading face and no weight array claiming weights the file doesn't
- * contain. adjustFontFallback lets Next compute fallback metrics to reduce
- * layout shift while the face loads.
+ * This replaces the previous Morrison + Kugile pair (audit findings, see
+ * project history):
+ *   - Kugile-Regular.ttf was licensed as a demo/trial file and, confirmed
+ *     via direct font inspection, mapped only 53 glyphs -- A-Z, a-z, space
+ *     -- with NO digits or punctuation. Any heading containing a period,
+ *     comma or number silently fell back to the body face mid-word.
+ *   - Morrison-Regular.otf was a single static weight (400 only, confirmed
+ *     via font inspection -- no fvar/variable axis). Every `font-bold` /
+ *     `font-semibold` utility in the app was therefore rendering as
+ *     browser-synthesized ("faux") bold, not a real bold weight.
+ * PLUS JAKARTA SANS drives --font-body-var across a full weight range
+ * (400-800), so bold/semibold text renders with an actual bold face instead
+ * of synthetic bolding.
  */
-const morrison = localFont({
-  src: [{ path: '../fonts/Morrison-Regular.otf', weight: '400', style: 'normal' }],
+const plusJakartaSans = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700', '800'],
   variable: '--font-body-var',
   display: 'swap',
   fallback: ['system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],
 });
 
 /**
- * KUGILE is the display/brand face, used sparingly (hero headline and a
- * small number of marketing headings) so it stays a moment of contrast
- * rather than the page's default voice.
- *
- * IMPORTANT CONSTRAINT -- the supplied Kugile_Demo.ttf maps only 53 glyphs:
- * A-Z, a-z and space. It contains NO digits and NO punctuation (not even a
- * period, comma, apostrophe or ampersand). Any character outside A-Za-z will
- * silently fall back to Morrison mid-word, so Kugile must only be applied to
- * letters-only strings. The fallback below is Morrison rather than a system
- * font so that when a stray character does fall through, it lands on the
- * product face instead of Times New Roman.
+ * INSTRUMENT SERIF is the display/brand face, used sparingly (hero headline
+ * and the final-CTA headline) so it stays a moment of contrast rather than
+ * the page's default voice -- a condensed editorial serif built for large
+ * sizes, which reads as premium/sophisticated without tipping into the
+ * more decorative end of the display-serif spectrum (Playfair, Bodoni).
+ * Full Latin glyph coverage (digits, punctuation) unlike Kugile, so no
+ * character-set restriction on what copy can use it.
  */
-const kugile = localFont({
-  src: [{ path: '../fonts/Kugile-Regular.ttf', weight: '400', style: 'normal' }],
+const instrumentSerif = Instrument_Serif({
+  subsets: ['latin'],
+  weight: '400',
+  style: ['normal', 'italic'],
   variable: '--font-display-var',
   display: 'swap',
   fallback: ['var(--font-body-var)', 'system-ui', 'serif'],
@@ -96,7 +105,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`antialiased ${morrison.variable} ${kugile.variable}`}>
+      <body className={`antialiased ${plusJakartaSans.variable} ${instrumentSerif.variable}`}>
         <AnalyticsInit />
         {children}
       </body>

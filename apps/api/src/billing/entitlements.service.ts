@@ -1,8 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PlanTier, SubscriptionStatus, UsageMetric } from '@prisma/client';
 import { UsageService } from './usage.service';
-import { getPlanEntitlements } from './plans.config';
+import { getPlanEntitlements, PLAN_CONFIG } from './plans.config';
 import type { PlanEntitlements } from './plans.config';
 
 export type BillableAction =
@@ -180,5 +180,39 @@ export class EntitlementsService {
   async recordPostPublished(organizationId: string): Promise<void> {
     const sub = await this.getSubscription(organizationId);
     await this.usageService.increment(organizationId, UsageMetric.POST_PUBLISHED, sub.id);
+  }
+
+  /**
+   * The single chokepoint for "this brand is about to commit to publishing
+   * one more post this month" -- reserves the monthly credit immediately
+   * (not when the platform API call eventually succeeds), so a post counts
+   * against the plan's limit the moment it's scheduled, however it got
+   * there: AutoPilot auto-scheduling, Approval Queue approve/Publish Now,
+   * or a scheduled-for-later approval. A single-image post and an N-image
+   * carousel post both call this exactly once, because both are one Post
+   * row -- this is what makes "19 singles + 1 five-image carousel = 20
+   * posts" true: the carousel's extra media rows never touch this counter.
+   *
+   * Deliberately NOT called from retryPost() (already-counted post, retrying
+   * doesn't burn a second credit) or editPost() (no status transition).
+   *
+   * Throws ForbiddenException with plan-specific, user-facing copy when the
+   * org is already at its monthly limit -- callers should let this
+   * exception propagate rather than swallow it, so the block is visible to
+   * the client exactly the way every other entitlement failure already is.
+   */
+  async reservePostSlot(brandId: string): Promise<void> {
+    const organizationId = await this.getOrganizationIdForBrand(brandId);
+    const check = await this.canPerformAction(brandId, 'create_post');
+    if (!check.allowed) {
+      const plan = await this.getPlanForOrganization(organizationId);
+      const limit = check.usage?.limit ?? PLAN_CONFIG[plan].maxMonthlyPosts;
+      const message =
+        plan === PlanTier.FREE
+          ? `You've reached your ${limit}-post monthly limit. Upgrade to Pro for up to ${PLAN_CONFIG[PlanTier.PRO].maxMonthlyPosts} posts per month.`
+          : `You've reached your ${limit}-post monthly limit. Your allowance resets at the start of your next billing period.`;
+      throw new ForbiddenException(message);
+    }
+    await this.recordPostPublished(organizationId);
   }
 }

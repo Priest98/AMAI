@@ -12,7 +12,7 @@ import {
   Info,
   X,
 } from 'lucide-react';
-import { API_BASE, apiFetch, getBrandId, getToken } from '@/lib/api';
+import { API_BASE, apiFetch, getBrandId, isAuthenticated } from '@/lib/api';
 
 interface ConnectedAccount {
   id: string;
@@ -119,16 +119,16 @@ export default function ConnectedAccountsPage() {
   }, []);
 
   const handleConnect = (platform: 'instagram' | 'tiktok') => {
-    // Security-audit fix: this is a full browser navigation, not a fetch(),
-    // so it can't carry an Authorization header -- the connect endpoint now
-    // requires auth and re-verifies brand membership server-side, so the
-    // token has to travel as a query param (same fallback JwtStrategy
-    // already supports for the SSE stream). brandId alone is no longer
-    // trusted by the backend; it's just which brand to request.
+    // Security audit fix (3.5): this is a full browser navigation, not a
+    // fetch() -- previously couldn't carry an Authorization header, so the
+    // token traveled as a `?token=` query param instead. With the session
+    // now in an httpOnly cookie, the browser attaches it automatically to
+    // this same-origin navigation. brandId alone is still not trusted by
+    // the backend; it's just which brand to request -- the connect
+    // endpoint re-verifies membership server-side regardless.
     const brandId = getBrandId();
-    const token = getToken();
-    if (!token) { window.location.href = '/login'; return; }
-    window.location.href = `${API_BASE}/oauth/${platform}/connect?brandId=${encodeURIComponent(brandId)}&token=${encodeURIComponent(token)}`;
+    if (!isAuthenticated()) { window.location.href = '/login'; return; }
+    window.location.href = `${API_BASE}/oauth/${platform}/connect?brandId=${encodeURIComponent(brandId)}`;
   };
 
   /**
@@ -446,6 +446,24 @@ export default function ConnectedAccountsPage() {
                 Tap to authorize your TikTok Creator account to schedule video uploads and track metrics.
               </p>
             )}
+
+            {/* Was a silent product gap found in the production-readiness
+                audit: TikTok's own Content Posting API forces every
+                unaudited app's posts to private (SELF_ONLY) server-side --
+                see publishing.service.ts's resolveTikTokPrivacyLevel() for
+                the confirmed source. Users need to be told this explicitly
+                rather than discovering it by checking their own TikTok
+                profile after AMAI reports a post as "published." Shown
+                regardless of connection state since it's true either way. */}
+            <div
+              className="flex items-start space-x-2 rounded-lg p-2.5 text-[11px] leading-relaxed"
+              style={{ backgroundColor: 'var(--accent-warning-subtle, rgba(245,158,11,0.1))', color: 'var(--text-secondary)' }}
+            >
+              <Info className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" style={{ color: 'var(--accent-warning)' }} />
+              <span>
+                <strong style={{ color: 'var(--text-primary)' }}>Currently private on TikTok.</strong> Until AMAI's TikTok integration completes TikTok&apos;s own content-posting review, posts published here are visible only to your account (TikTok&apos;s platform-side restriction for unreviewed apps, not an AMAI setting).
+              </span>
+            </div>
           </div>
         </motion.div>
 

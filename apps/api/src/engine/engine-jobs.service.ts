@@ -4,7 +4,8 @@ import { EncryptionService } from '../encryption/encryption.service';
 import { StorageService } from '../storage/storage.service';
 import { GoogleDriveService } from './google-drive.service';
 import { EngineService } from './engine.service';
-import { ContentSource, MediaStatus, TargetStatus } from '@prisma/client';
+import { MediaOptimizationService } from '../media-optimization/media-optimization.service';
+import { ConnectionStatus, ContentSource, MediaStatus, TargetStatus } from '@prisma/client';
 
 /**
  * Google Drive sync — pulls new files from each brand's connected folder
@@ -27,6 +28,7 @@ export class EngineJobsService {
     private storage: StorageService,
     private driveService: GoogleDriveService,
     private engineService: EngineService,
+    private mediaOptimizationService: MediaOptimizationService,
   ) {}
 
   async syncAllGoogleDrive() {
@@ -107,6 +109,28 @@ export class EngineJobsService {
           // loop already awaits several async steps per file sequentially,
           // so this is consistent with the existing shape, not a new cost.
           await this.engineService.handleMediaUploaded({ mediaAssetId: asset.id });
+
+          // Platform-aware media processing must cover Google Drive-synced
+          // media too, not just Direct Upload -- this was previously
+          // missing entirely (Drive sync only ever ran the AI
+          // caption/hashtag pipeline), meaning every Drive-sourced image
+          // silently published as the raw original with no platform-correct
+          // derivative. Mirrors MediaService.triggerOptimization's own
+          // logic exactly: optimize for every currently-connected platform,
+          // never let a failure here break the sync loop.
+          try {
+            const connectedAccounts = await this.prisma.socialAccount.findMany({
+              where: { brandId: config.brandId, status: ConnectionStatus.CONNECTED },
+              select: { platform: true },
+            });
+            const platforms = Array.from(new Set(connectedAccounts.map((a) => a.platform)));
+            if (platforms.length > 0) {
+              await this.mediaOptimizationService.optimizeForPlatforms(asset.id, config.brandId, platforms);
+            }
+          } catch (optError: any) {
+            this.logger.warn(`Drive sync: Media Optimization Engine failed for asset ${asset.id}: ${optError?.message || optError}`);
+          }
+
           ingested++;
         } catch (fileErr: any) {
           this.logger.warn(`Drive sync: failed to ingest file ${file.id} for brand ${config.brandId}: ${fileErr?.message || fileErr}`);

@@ -398,7 +398,9 @@ export class AuthService {
     } catch (e) {}
 
     const payload = { sub: user.id, email: user.email, brandId };
-    const expiresIn = rememberMe ? '30d' : '1d';
+    const expiresInDays = rememberMe ? 30 : 1;
+    const expiresIn = `${expiresInDays}d`;
+    const expiresAt = new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000);
     return {
       user: {
         id: user.id,
@@ -408,7 +410,13 @@ export class AuthService {
         brandId,
         emailVerified: user.emailVerified ?? true,
       },
+      // Security audit fix (3.5): still returned from the service (the
+      // controller needs the raw value to set the httpOnly cookie), but
+      // AuthController.login no longer echoes this back in the HTTP
+      // response body -- see that method's comment for why.
       accessToken: this.jwtService.sign(payload, { expiresIn }),
+      expiresAt,
+      maxAgeMs: expiresInDays * 24 * 60 * 60 * 1000,
     };
   }
 

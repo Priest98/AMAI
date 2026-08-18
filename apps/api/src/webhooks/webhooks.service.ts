@@ -48,18 +48,33 @@ export class WebhooksService {
       return;
     }
 
-    await this.prisma.pendingCommentReply.create({
-      data: {
-        brandId,
-        platform,
-        platformAccountId,
-        originalPostId,
-        originalCommentId,
-        originalCommentText,
-        aiGeneratedReply: aiReplyText,
-        status: 'PENDING'
+    try {
+      await this.prisma.pendingCommentReply.create({
+        data: {
+          brandId,
+          platform,
+          platformAccountId,
+          originalPostId,
+          originalCommentId,
+          originalCommentText,
+          aiGeneratedReply: aiReplyText,
+          status: 'PENDING'
+        }
+      });
+    } catch (error: any) {
+      // Redelivery of a webhook we've already processed (see the schema
+      // comment on PendingCommentReply's @@unique) -- both Meta and TikTok
+      // document at-least-once delivery, so this is an expected, not
+      // exceptional, outcome, not a bug being swallowed. The AI reply was
+      // already generated above by this point (can't be avoided without a
+      // pre-check race of its own), but at least the duplicate row -- and
+      // therefore the duplicate human-approved reply -- never happens.
+      if (error?.code === 'P2002') {
+        this.logger.log(`Duplicate webhook delivery for comment ${originalCommentId} on ${platform} -- already queued, skipping.`);
+        return;
       }
-    });
+      throw error;
+    }
 
     this.logger.log(`Successfully queued AI reply for manual approval. Brand: ${brandId}`);
   }

@@ -3,7 +3,8 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { BrandAccessGuard } from '../auth/brand-access.guard';
 import { PostsService } from './posts.service';
 import { EngineService } from '../engine/engine.service';
-import { PostStatus, Platform } from '@prisma/client';
+import { PostStatus } from '@prisma/client';
+import { CreatePostDto, ComposeManualPostDto, ApprovePostDto, EditPostDto } from './dto';
 
 @UseGuards(JwtAuthGuard, BrandAccessGuard)
 @Controller('brands/:brandId/posts')
@@ -16,13 +17,7 @@ export class PostsController {
   @Post()
   async createPost(
     @Param('brandId') brandId: string,
-    @Body() dto: {
-      caption: string;
-      mediaAssetIds?: string[];
-      targets?: { platform: Platform; socialAccountId: string; metadata?: any }[];
-      scheduledAt?: string;
-      status?: PostStatus;
-    }
+    @Body() dto: CreatePostDto,
   ) {
     return this.postsService.createPost(brandId, dto);
   }
@@ -44,6 +39,20 @@ export class PostsController {
   }
 
   // ─────────────────────────────────────────────────────────────
+  // Manual composer — Single Image / Carousel. A static 'compose' segment,
+  // same reasoning as 'stats' above: declared before the dynamic :postId
+  // routes so it's never shadowed by them.
+  // ─────────────────────────────────────────────────────────────
+
+  @Post('compose')
+  async composeManualPost(
+    @Param('brandId') brandId: string,
+    @Body() dto: ComposeManualPostDto,
+  ) {
+    return this.engineService.composeManualPost(brandId, dto);
+  }
+
+  // ─────────────────────────────────────────────────────────────
   // Approval Queue actions — every post the AMAI Engine prepares lands
   // here first (Manual Approval), or is auto-scheduled (Auto Approval).
   // ─────────────────────────────────────────────────────────────
@@ -52,14 +61,7 @@ export class PostsController {
   async approvePost(
     @Param('brandId') brandId: string,
     @Param('postId') postId: string,
-    @Body() dto: {
-      caption?: string;
-      hashtags?: string[];
-      ctaText?: string;
-      scheduledAt?: string;
-      targets?: { platform: Platform; socialAccountId: string }[];
-      publishNow?: boolean;
-    },
+    @Body() dto: ApprovePostDto,
   ) {
     return this.engineService.approvePost(brandId, postId, dto);
   }
@@ -78,13 +80,7 @@ export class PostsController {
   async editPost(
     @Param('brandId') brandId: string,
     @Param('postId') postId: string,
-    @Body() dto: {
-      caption?: string;
-      hashtags?: string[];
-      ctaText?: string;
-      scheduledAt?: string;
-      targets?: { platform: Platform; socialAccountId: string }[];
-    },
+    @Body() dto: EditPostDto,
   ) {
     return this.engineService.editPost(brandId, postId, dto);
   }

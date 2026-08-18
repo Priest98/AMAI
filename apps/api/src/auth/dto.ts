@@ -1,5 +1,21 @@
 import { IsEmail, IsNotEmpty, IsOptional, IsString, MinLength, IsBoolean } from 'class-validator';
 
+// Security audit fix (4.1): UpdateOnboardingDto added -- was previously an
+// inline @Body() object-literal type with zero runtime validation.
+export class UpdateOnboardingDto {
+  @IsOptional()
+  @IsBoolean()
+  completed?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  skipped?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  restart?: boolean;
+}
+
 export class RegisterDto {
   @IsEmail()
   @IsNotEmpty()

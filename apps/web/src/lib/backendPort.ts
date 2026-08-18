@@ -44,6 +44,13 @@ export async function getBackendPort(): Promise<number> {
     // verification in the controller possible at all.
     server.use('/api/billing/webhook', express.raw({ type: 'application/json' }));
     server.use('/api/webhooks/instagram', express.raw({ type: 'application/json' }));
+    // TikTok's comment webhook previously had zero signature verification
+    // (a known, explicitly-flagged gap from the V2 full-system audit) --
+    // same raw-body requirement as Instagram/billing above, needed so
+    // apps/api/src/webhooks/webhooks.controller.ts can verify TikTok's
+    // documented Tiktok-Signature HMAC-SHA256 scheme against the exact
+    // bytes TikTok signed. See https://developers.tiktok.com/doc/webhooks-verification.
+    server.use('/api/webhooks/tiktok', express.raw({ type: 'application/json' }));
     server.use((req, res, next) => {
       if (Buffer.isBuffer(req.body)) return next(); // already handled by express.raw() above
       return express.json()(req, res, next);
@@ -53,7 +60,24 @@ export async function getBackendPort(): Promise<number> {
     const nestApp = await NestFactory.create(AppModule, new ExpressAdapter(server), { bodyParser: false });
 
     nestApp.setGlobalPrefix('api');
-    nestApp.enableCors({ origin: '*', credentials: true });
+    // Security audit fix (7.1): this used to be `origin: '*'` with
+    // `credentials: true` -- an invalid combination per the Fetch spec, and
+    // one that let literally any website's client-side JS read responses
+    // from this API cross-origin. Auth here is a Bearer JWT attached
+    // manually by our own frontend (not an ambient cookie), so this was
+    // never a full session-hijack vector, but it defeated CORS as a
+    // defense-in-depth backstop for any endpoint that's ever accidentally
+    // left unguarded. Restrict to the app's own origins.
+    const corsAllowedOrigins = [
+      process.env.APP_URL, // canonical deployment URL, see apps/api/src/common/app-url.util.ts
+      process.env.FRONTEND_URL, // legacy/alt var, also read by apps/api/src/main.ts
+      'http://localhost:3000',
+    ].filter((origin): origin is string => Boolean(origin))
+      .map((origin) => origin.replace(/\/$/, ''));
+    nestApp.enableCors({
+      origin: corsAllowedOrigins.length > 0 ? corsAllowedOrigins : 'http://localhost:3000',
+      credentials: true,
+    });
     nestApp.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,

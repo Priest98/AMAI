@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import type { CSSProperties } from 'react';
+import { Suspense } from 'react';
 import '@/styles/landing.css';
 
 import Nav from '@/components/landing/Nav';
@@ -13,6 +14,70 @@ import Pricing from '@/components/landing/Pricing';
 import FAQ from '@/components/landing/FAQ';
 import FinalCTA from '@/components/landing/FinalCTA';
 import Footer from '@/components/landing/Footer';
+import { headers } from 'next/headers';
+
+/**
+ * Fetches the plan catalogue server-side so it's already baked into the
+ * initial HTML instead of the Pricing section paying its own client-side
+ * round trip after hydration (see the comment on Pricing's initialData
+ * prop for the measured impact -- that round trip wasn't even starting
+ * until 7+ seconds after navigation on this page).
+ *
+ * Deliberately calls the app's OWN public /api/billing/plans route by
+ * absolute same-origin URL rather than importing getBackendPort() and
+ * talking to the NestJS app's loopback port directly. Those look
+ * equivalent but aren't: Turbopack compiles Server Components (this file)
+ * and Route Handlers (src/app/api/[...path]/route.ts) into separate server
+ * chunks, each with its OWN copy of backendPort.ts's module-level
+ * `backendPortPromise` cache -- importing it here booted a SECOND,
+ * independent NestJS application (its own Prisma client, its own DB pool)
+ * on every request instead of reusing the one the route handler already
+ * has warm. Confirmed via a temporary debug log: that second instance's
+ * Prisma client failed to reach Supabase entirely
+ * (PrismaClientInitializationError, pooler connection limit), silently
+ * falling back to null every time and wasting a full failed boot+connect
+ * attempt per request in the process. Going through the public route
+ * instead reuses the already-initialized, already-connected instance.
+ *
+ * Next's fetch cache holds the result for an hour: /billing/plans has no
+ * auth, no per-visitor data and no DB query at all (see
+ * BillingController.getPlans -- it returns the static PLAN_CONFIG /
+ * PLAN_PRICING objects directly), so there is nothing request-specific to
+ * invalidate on. One visitor pays the cost of populating the cache; every
+ * other visitor within the hour gets it for free. Falls back to null (and
+ * Pricing's own client-side fetch takes over) if this ever fails, so a
+ * backend hiccup at request time degrades gracefully instead of breaking
+ * the page.
+ */
+async function getPlansServerSide() {
+  try {
+    const h = await headers();
+    const host = h.get('host') || 'localhost:3000';
+    const protocol = host.startsWith('localhost') || host.startsWith('127.0.0.1') ? 'http' : 'https';
+    const res = await fetch(`${protocol}://${host}/api/billing/plans`, {
+      next: { revalidate: 3600 },
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Isolated in its own async component (rather than awaited at the top of
+ * Home()) specifically so a slow/cold backend can't block the rest of the
+ * page's HTML from streaming. Wrapped in <Suspense> below with the
+ * ordinary client-fetching <Pricing /> as its fallback -- worst case
+ * (server fetch is slow or fails) is exactly today's behavior; best case
+ * (the common one, since the result is cached for an hour) the numbers are
+ * already in the initial HTML and Pricing never has to fetch client-side
+ * at all.
+ */
+async function PricingSection() {
+  const initialPlansData = await getPlansServerSide();
+  return <Pricing initialData={initialPlansData} />;
+}
 
 export const metadata: Metadata = {
   // Title kept as the exact app name ("AMAI") so the browser-tab title
@@ -86,16 +151,15 @@ export default function Home() {
         className="amai-landing relative min-h-screen"
         style={
           {
-            // Morrison is loaded once at the root layout
-            // (apps/web/src/app/layout.tsx) and shared by the whole app.
-            // These aliases keep every landing component's existing
-            // var(--lp-font-heading) / var(--lp-font-body) references
-            // working unchanged. Both now point at Morrison: only its
-            // Regular file was supplied, so there is no separate heading
-            // face to alias. (Previously --lp-font-heading pointed at
-            // --font-heading-var, which stopped existing when Space Grotesk
-            // was removed -- that would have silently dropped every landing
-            // heading to a system-font fallback.)
+            // The body/UI face (Plus Jakarta Sans) is loaded once at the
+            // root layout (apps/web/src/app/layout.tsx) and shared by the
+            // whole app. These aliases keep every landing component's
+            // existing var(--lp-font-heading) / var(--lp-font-body)
+            // references working unchanged -- both point at the same body
+            // face, since headings use size/weight/spacing for hierarchy
+            // rather than a separate heading face. The one exception is
+            // .lp-hero-display (Hero + FinalCTA headlines), which reads
+            // --font-display directly for the Instrument Serif treatment.
             '--lp-font-heading': 'var(--font-body-var)',
             '--lp-font-body': 'var(--font-body-var)',
           } as CSSProperties
@@ -148,7 +212,9 @@ export default function Home() {
           <Features />
           <AutopilotSection />
           <ProductVisual />
-          <Pricing />
+          <Suspense fallback={<Pricing initialData={null} />}>
+            <PricingSection />
+          </Suspense>
           <FAQ />
           <FinalCTA />
         </main>

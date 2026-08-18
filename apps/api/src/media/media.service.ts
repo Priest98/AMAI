@@ -1,10 +1,11 @@
 import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
-import { EngineService } from '../engine/engine.service';
+import { EngineService, STALE_PROCESSING_MINUTES } from '../engine/engine.service';
 import { MediaOptimizationService } from '../media-optimization/media-optimization.service';
 import { EntitlementsService } from '../billing/entitlements.service';
 import { MediaStatus, ContentSource, ConnectionStatus, PostStatus } from '@prisma/client';
+import { claimedMimeTypeMatchesBytes } from './magic-bytes.util';
 
 // Kept in sync with apps/web/src/app/api/media-upload-token/route.ts's
 // ALLOWED_CONTENT_TYPES (that route gates what the browser is even allowed
@@ -32,12 +33,11 @@ function assertAllowedMimeType(mimeType: string | undefined | null): void {
   }
 }
 
-// Every external AI call in the pipeline (AiService.analyzeImage /
-// generateCaption / generateHashtags) is now individually time-bounded,
-// so a single asset's full pipeline run has a real worst case instead of
-// being open-ended. 2 minutes is comfortably past that, so this sweep
-// won't collide with an asset that's still legitimately mid-flight.
-const STALE_PROCESSING_MINUTES = 2;
+// STALE_PROCESSING_MINUTES now lives in engine.service.ts (imported above)
+// -- EngineService.processMediaAsset's own atomic claim needs to agree with
+// this sweep on exactly the same staleness threshold, or the two could
+// disagree about whether a given PROCESSING asset is actually abandoned.
+// See that file's comment for the full reasoning.
 // Re-processing a stale asset happens inline inside a GET /assets
 // request, on top of whatever a cold Lambda start already costs (Nest
 // boot + first DB connection can itself take several seconds) — observed
@@ -87,6 +87,13 @@ export class MediaService {
   async uploadAsset(brandId: string, file: Express.Multer.File, folderId?: string, userId?: string) {
     if (!file) throw new BadRequestException('No file provided');
     assertAllowedMimeType(file.mimetype);
+    // Security audit fix (8.2): the buffer is already in hand on this path
+    // (memory-storage multer), so this check is free -- no extra fetch
+    // needed, unlike the register() path below.
+    if (!claimedMimeTypeMatchesBytes(file.buffer, file.mimetype)) {
+      this.logger.warn(`Upload rejected: claimed type "${file.mimetype}" does not match file content. brand=${brandId} file="${file.originalname}"`);
+      throw new BadRequestException('This file\'s content does not match its claimed type. Please check the file and try again.');
+    }
     await this.assertWithinStorageLimit(brandId, file.size || 0);
     this.logger.log(`Upload started: brand=${brandId} file="${file.originalname}" size=${file.size} type=${file.mimetype}`);
 
@@ -123,6 +130,26 @@ export class MediaService {
     }
     assertAllowedMimeType(dto.mimeType);
 
+    // Security audit fix (8.2): unlike uploadAsset() above, the bytes for
+    // this path already live in Blob storage -- fetch just the leading
+    // bytes via a Range request rather than downloading the whole file
+    // (which could be a large video) just to sniff a signature. Fails open
+    // (logs and continues) on any fetch/range problem rather than blocking
+    // a legitimate upload over an infra hiccup -- this is a defense-in-depth
+    // check layered on top of the allowlist checks above and at
+    // token-issuance time, not the sole gate.
+    try {
+      const leadingBytes = await this.fetchLeadingBytes(dto.url, 32);
+      if (leadingBytes && !claimedMimeTypeMatchesBytes(leadingBytes, dto.mimeType)) {
+        await this.storage.deleteFile(dto.url).catch(() => {});
+        this.logger.warn(`Registration rejected: claimed type "${dto.mimeType}" does not match file content. brand=${brandId} url=${dto.url}`);
+        throw new BadRequestException('This file\'s content does not match its claimed type. Please check the file and try again.');
+      }
+    } catch (err) {
+      if (err instanceof BadRequestException) throw err;
+      this.logger.warn(`Content-sniffing check skipped (fetch failed): ${(err as any)?.message || err}`);
+    }
+
     // The bytes are already sitting in Blob storage by this point (the
     // browser uploaded them directly before calling register) -- the quota
     // check here can only refuse to create the DB record, not prevent the
@@ -138,6 +165,24 @@ export class MediaService {
 
     this.logger.log(`Upload registered: brand=${brandId} file="${dto.filename}" size=${dto.size} type=${dto.mimeType}`);
     return this.createAssetRecord(brandId, dto, userId);
+  }
+
+  /**
+   * Fetches just the first `maxBytes` of a URL via an HTTP Range request,
+   * for magic-byte sniffing without downloading a potentially large file in
+   * full. Returns null (rather than throwing) if the server doesn't honor
+   * Range or the request otherwise fails -- callers treat that as "can't
+   * verify" and fail open, not as a rejection.
+   */
+  private async fetchLeadingBytes(url: string, maxBytes: number): Promise<Buffer | null> {
+    try {
+      const res = await fetch(url, { headers: { Range: `bytes=0-${maxBytes - 1}` } });
+      if (!res.ok && res.status !== 206) return null;
+      const arrayBuffer = await res.arrayBuffer();
+      return Buffer.from(arrayBuffer);
+    } catch {
+      return null;
+    }
   }
 
   private async createAssetRecord(
@@ -317,7 +362,17 @@ export class MediaService {
   }
 
   async getAssets(brandId: string, folderId?: string) {
-    await this.sweepStaleProcessing(brandId).catch(() => {});
+    // Deliberately NOT awaited. sweepStaleProcessing (unlike
+    // PostsService.opportunisticPublish) has no timeout cap at all -- it
+    // runs the full AI vision/caption/hashtags/scheduling pipeline
+    // (EngineService.handleMediaUploaded) for a stuck asset, which was
+    // blocking every single Media Library page load behind however long
+    // that pipeline call took. SWEEP_MAX_ITEMS=1 already bounds it to at
+    // most one asset, but "at most one AI pipeline call" is still not
+    // something a page load should wait on. Still fires and still
+    // self-heals stuck assets the same way, just without gating the
+    // response the caller is waiting on.
+    this.sweepStaleProcessing(brandId).catch(() => {});
 
     // Projected + capped: the Media Library grid only ever renders these
     // seven fields (not batchId/batchName/relativePath/userId/platform/
@@ -376,6 +431,20 @@ export class MediaService {
   }
 
   async createFolder(brandId: string, name: string, parentId?: string) {
+    // Lower-severity sibling of the createPost media-asset IDOR (see that
+    // fix's comment for the full pattern): parentId previously went straight
+    // into the create() with no check it's actually a folder belonging to
+    // this brand. Low real exploitability (getFolders always re-scopes by
+    // the caller's own brandId, so a mismatched parentId can't surface
+    // another org's folder contents), but a folder silently pointing at an
+    // id outside the brand is still a dangling, unverified reference worth
+    // closing the same way the higher-severity version was.
+    if (parentId) {
+      const parent = await this.prisma.mediaFolder.findFirst({ where: { id: parentId, brandId }, select: { id: true } });
+      if (!parent) {
+        throw new BadRequestException('Parent folder could not be found in this brand\'s media library.');
+      }
+    }
     return this.prisma.mediaFolder.create({
       data: {
         brandId,

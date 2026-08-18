@@ -10,6 +10,10 @@ interface UsageBarProps {
   limit: number; // -1 = unlimited
   formatValue?: (n: number) => string;
   planName?: string;
+  /** e.g. "posts" -- when set, the subtitle reads "12/20 posts used, 8 posts remaining" instead of the generic "12 / 20". */
+  unitLabel?: string;
+  /** Overrides the default "reached" copy with exact, caller-supplied text (e.g. the plan-specific monthly post-limit messaging). */
+  reachedMessage?: string;
 }
 
 /**
@@ -19,11 +23,12 @@ interface UsageBarProps {
  * than one line of copy, never a modal -- the bar itself is the constant
  * visual, the copy only appears once it's actually relevant.
  */
-export default function UsageBar({ label, used, limit, formatValue, planName }: UsageBarProps) {
+export default function UsageBar({ label, used, limit, formatValue, planName, unitLabel, reachedMessage }: UsageBarProps) {
   const unlimited = limit === -1;
   const percent = unlimited ? 0 : Math.min(100, Math.round((used / Math.max(limit, 1)) * 100));
   const stage = unlimited ? null : usageStage(percent);
   const fmt = formatValue || ((n: number) => String(n));
+  const remaining = unlimited ? null : Math.max(0, limit - used);
 
   const barColor = stage === 'reached' ? 'var(--accent-error)' : stage === 'near' ? 'var(--accent-warning)' : 'var(--accent-primary, var(--accent-success))';
 
@@ -32,7 +37,11 @@ export default function UsageBar({ label, used, limit, formatValue, planName }: 
       <div className="flex items-center justify-between mb-1.5">
         <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{label}</span>
         <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-          {unlimited ? `${fmt(used)} · Unlimited` : `${fmt(used)} / ${fmt(limit)}`}
+          {unlimited
+            ? `${fmt(used)} · Unlimited`
+            : unitLabel
+              ? `${fmt(used)}/${fmt(limit)} ${unitLabel} used, ${fmt(remaining!)} ${unitLabel} remaining`
+              : `${fmt(used)} / ${fmt(limit)}`}
         </span>
       </div>
       <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bg-surface-sunken)' }}>
@@ -45,16 +54,29 @@ export default function UsageBar({ label, used, limit, formatValue, planName }: 
         <p className="mt-1.5 text-caption" style={{ color: stage === 'reached' ? 'var(--accent-error)' : 'var(--text-muted)' }}>
           {stage === 'approaching' && `You're approaching your ${planName || 'plan'} limit.`}
           {stage === 'near' && (
-            <>
-              You've used {fmt(used)} of {fmt(limit)} this month.{' '}
-              <Link href="/dashboard/settings?tab=billing" className="underline font-semibold">Explore Pro</Link>
-            </>
+            unitLabel ? (
+              `${fmt(used)} / ${fmt(limit)} ${unitLabel} used. ${fmt(remaining!)} ${unitLabel} remaining this month.`
+            ) : (
+              <>
+                You've used {fmt(used)} of {fmt(limit)} this month.{' '}
+                <Link href="/dashboard/settings?tab=billing" className="underline font-semibold">Explore Pro</Link>
+              </>
+            )
           )}
           {stage === 'reached' && (
-            <>
-              You've reached your {planName || 'plan'} limit.{' '}
-              <Link href="/dashboard/settings?tab=billing" className="underline font-semibold">Upgrade to Pro</Link>
-            </>
+            reachedMessage ? (
+              <>
+                {reachedMessage}{' '}
+                {!/upgrade/i.test(reachedMessage) && (
+                  <Link href="/dashboard/settings?tab=billing" className="underline font-semibold">View plans</Link>
+                )}
+              </>
+            ) : (
+              <>
+                You've reached your {planName || 'plan'} limit.{' '}
+                <Link href="/dashboard/settings?tab=billing" className="underline font-semibold">Upgrade to Pro</Link>
+              </>
+            )
           )}
         </p>
       )}

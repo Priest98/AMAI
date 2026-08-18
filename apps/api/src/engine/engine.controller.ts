@@ -5,7 +5,8 @@ import { Observable, map, merge, of, timer, takeUntil } from 'rxjs';
 import { EngineService } from './engine.service';
 import { EngineJobsService } from './engine-jobs.service';
 import { SupabaseRealtimeService } from './supabase-realtime.service';
-import { EngineState, ApprovalMode, ScheduleStartOption, SchedulingPlatform } from '@prisma/client';
+import { EngineState, ApprovalMode } from '@prisma/client';
+import { UpdateEngineConfigDto, UpdatePostingScheduleDto } from './dto';
 
 @UseGuards(JwtAuthGuard, BrandAccessGuard)
 @Controller('brands/:brandId/engine')
@@ -53,7 +54,7 @@ export class EngineController {
   }
 
   @Patch('config')
-  async updateConfig(@Param('brandId') brandId: string, @Body() dto: { defaultTone?: string }) {
+  async updateConfig(@Param('brandId') brandId: string, @Body() dto: UpdateEngineConfigDto) {
     return this.engineService.updateConfig(brandId, dto);
   }
 
@@ -61,13 +62,7 @@ export class EngineController {
   @Patch('posting-schedule')
   async updatePostingSchedule(
     @Param('brandId') brandId: string,
-    @Body() dto: {
-      postsPerDay?: number;
-      scheduleStartFrom?: ScheduleStartOption;
-      customStartDate?: string | null;
-      timeZone?: string;
-      schedulingPlatform?: SchedulingPlatform;
-    },
+    @Body() dto: UpdatePostingScheduleDto,
   ) {
     return this.engineService.updatePostingSchedule(brandId, dto);
   }

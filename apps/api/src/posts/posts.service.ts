@@ -1,7 +1,8 @@
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PublishingService } from '../queue/publishing.service';
-import { PostStatus, Platform, MediaStatus } from '@prisma/client';
+import { MediaStatus, PostStatus } from '@prisma/client';
+import { CreatePostDto } from './dto';
 
 // Vercel Cron on this plan only fires /api/cron/publish-due once a day
 // (see vercel.json), which left genuinely-due posts sitting in SCHEDULED
@@ -16,14 +17,6 @@ import { PostStatus, Platform, MediaStatus } from '@prisma/client';
 // platform API call can never make the posts list itself hang.
 const OPPORTUNISTIC_PUBLISH_TIMEOUT_MS = 20_000;
 
-interface CreatePostDto {
-  caption: string;
-  mediaAssetIds?: string[];
-  targets?: { platform: Platform; socialAccountId: string; metadata?: any }[];
-  scheduledAt?: string;
-  status?: PostStatus;
-}
-
 @Injectable()
 export class PostsService {
   private readonly logger = new Logger(PostsService.name);
@@ -34,6 +27,44 @@ export class PostsService {
   ) {}
 
   async createPost(brandId: string, dto: CreatePostDto) {
+    // Defense-in-depth against the "call the API directly" bypass vector:
+    // this raw endpoint must never be able to hand a caller a SCHEDULED or
+    // PUBLISHED post directly -- that would skip both runPublishPreflight
+    // and the monthly-post-limit reservation, which only ever run inside
+    // EngineService.approvePost(). Every real path to SCHEDULED (AutoPilot,
+    // Approval Queue, the manual Single/Carousel composer) goes through
+    // EngineService; this endpoint may only create a DRAFT or hand a post
+    // straight into the Approval Queue for review like everything else.
+    if (dto.status && dto.status !== PostStatus.DRAFT && dto.status !== PostStatus.NEEDS_APPROVAL) {
+      throw new BadRequestException('Posts can only be created as DRAFT or NEEDS_APPROVAL directly. Use the Approval Queue to schedule or publish.');
+    }
+    if (dto.mediaAssetIds && dto.mediaAssetIds.length > 5) {
+      throw new BadRequestException('You can add up to 5 images per post.');
+    }
+
+    // IDOR fix (found in production-readiness audit): this previously
+    // reassigned mediaAssetIds via updateMany({ where: { id: { in: ... } } })
+    // with no ownership check at all -- a caller from any organization could
+    // supply another organization's MediaAsset id and this endpoint would
+    // silently detach it from whatever the victim brand was doing with it
+    // and attach it into the caller's own post (whose response includes the
+    // asset's blobUrl, so it also leaked a reference to another org's private
+    // media). Same pattern already proven correct in
+    // EngineService.composeManualPost: resolve the ids scoped to the calling
+    // brand FIRST, and reject the whole request if any id doesn't resolve
+    // within that scope, rather than silently reassigning only the ones that
+    // do. Checked before creating the Post row so an invalid request never
+    // leaves behind an orphaned empty draft.
+    if (dto.mediaAssetIds && dto.mediaAssetIds.length > 0) {
+      const owned = await this.prisma.mediaAsset.findMany({
+        where: { id: { in: dto.mediaAssetIds }, brandId },
+        select: { id: true },
+      });
+      if (owned.length !== dto.mediaAssetIds.length) {
+        throw new BadRequestException('One or more selected images could not be found in this brand\'s media library.');
+      }
+    }
+
     const post = await this.prisma.post.create({
       data: {
         brandId,
@@ -45,7 +76,10 @@ export class PostsService {
 
     if (dto.mediaAssetIds && dto.mediaAssetIds.length > 0) {
       await this.prisma.mediaAsset.updateMany({
-        where: { id: { in: dto.mediaAssetIds } },
+        // brandId re-asserted here too (belt-and-braces, not load-bearing on
+        // its own): the findMany check above is what actually rejects a
+        // cross-tenant request before any write happens.
+        where: { id: { in: dto.mediaAssetIds }, brandId },
         data: { status: MediaStatus.SCHEDULED, linkedPostId: post.id }
       });
     }
@@ -54,7 +88,18 @@ export class PostsService {
   }
 
   async getPosts(brandId: string, status?: PostStatus) {
-    await this.opportunisticPublish(brandId).catch(() => {});
+    // Deliberately NOT awaited -- this used to block the whole list query
+    // behind up to OPPORTUNISTIC_PUBLISH_TIMEOUT_MS (20s) of publish-attempt
+    // work before the page's actual data even started fetching, on every
+    // single Approval Queue / Scheduled / Published page load. It still
+    // fires (any due post still gets its opportunistic chance to publish,
+    // same as before) and errors are still swallowed the same way -- it
+    // just no longer gates the response the caller is waiting on. Worst
+    // case from not awaiting: this one response's counts/rows reflect the
+    // pre-publish state for a post that finishes publishing a moment later,
+    // self-corrects on the next load/poll (same staleness window the 20s
+    // timeout fallback already accepted as fine).
+    this.opportunisticPublish(brandId).catch(() => {});
 
     // Safety cap — same reasoning as MediaAsset.getAssets: this already has
     // the right indexes (idx_post_brand_status) and select-scoped relations,
@@ -110,7 +155,10 @@ export class PostsService {
    * read `.length` off them. One round trip, no wasted payload.
    */
   async getStats(brandId: string) {
-    await this.opportunisticPublish(brandId).catch(() => {});
+    // See the identical comment on getPosts() above -- not awaited so the
+    // dashboard's stats query (called on every single dashboard load) never
+    // pays this call's up-to-20s worst case before it can even start.
+    this.opportunisticPublish(brandId).catch(() => {});
 
     const [needsApprovalCount, scheduledCount, publishedCount, mediaCount, pendingPreview] = await Promise.all([
       this.prisma.post.count({ where: { brandId, status: PostStatus.NEEDS_APPROVAL } }),

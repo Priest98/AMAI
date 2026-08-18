@@ -1,11 +1,14 @@
-import { Controller, Get, Post, Delete, Patch, Query, Body, Param, Req, Res, HttpStatus, UseGuards, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Patch, Query, Body, Param, Req, Res, HttpStatus, UseGuards, ForbiddenException, NotFoundException, Logger } from '@nestjs/common';
 import { OAuthService } from './oauth.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PrismaService } from '../prisma/prisma.service';
 import { getAppUrl } from '../common/app-url.util';
+import { UpdateGoogleFolderDto, RefreshAccountDto, RenameAccountDto } from './dto';
 
 @Controller('oauth')
 export class OAuthController {
+  private readonly logger = new Logger(OAuthController.name);
+
   constructor(
     private readonly oauthService: OAuthService,
     private readonly prisma: PrismaService,
@@ -70,10 +73,13 @@ export class OAuthController {
       const authUrl = this.oauthService.getGoogleAuthUrl(targetBrand);
       return res.redirect(authUrl);
     } catch (err: any) {
-      // Surface setup error directly to the Media Library page (Google
-      // Drive lives there now, not Integrations).
+      // Security audit fix (4.5): err.message used to be reflected straight
+      // into the redirect URL -- could leak internal detail (stack context,
+      // Prisma error text, etc.) to the browser. Log it server-side, show a
+      // generic message to the user.
+      this.logger.error(`Google Drive connect failed: ${err?.message || err}`);
       return res.redirect(
-        `${this.appUrl}/dashboard/media?error=${encodeURIComponent(err.message)}`,
+        `${this.appUrl}/dashboard/media?error=${encodeURIComponent('Failed to start Google Drive connection. Please try again.')}`,
       );
     }
   }
@@ -103,8 +109,9 @@ export class OAuthController {
         `${this.appUrl}/dashboard/media?success=true&platform=Google%20Drive&account=${encodeURIComponent(result.accountEmail)}`,
       );
     } catch (err: any) {
+      this.logger.error(`Google Drive callback failed: ${err?.message || err}`);
       return res.redirect(
-        `${this.appUrl}/dashboard/media?error=${encodeURIComponent(err.message || 'Google OAuth failed')}`,
+        `${this.appUrl}/dashboard/media?error=${encodeURIComponent('We could not connect your Google Drive account. Please try again.')}`,
       );
     }
   }
@@ -119,7 +126,7 @@ export class OAuthController {
 
   @UseGuards(JwtAuthGuard)
   @Post('google/select-folder')
-  async updateGoogleFolder(@Req() req: any, @Body() body: { brandId?: string; folderId: string; folderName?: string }) {
+  async updateGoogleFolder(@Req() req: any, @Body() body: UpdateGoogleFolderDto) {
     const targetBrand = body.brandId || req.user.brandId;
     await this.assertBrandAccess(req.user.id, targetBrand);
     return this.oauthService.updateGoogleFolder(targetBrand, body.folderId, body.folderName);
@@ -148,8 +155,9 @@ export class OAuthController {
       const authUrl = this.oauthService.getInstagramAuthUrl(targetBrand);
       return res.redirect(authUrl);
     } catch (err: any) {
+      this.logger.error(`Instagram connect failed: ${err?.message || err}`);
       return res.redirect(
-        `${this.appUrl}/dashboard/integrations?error=${encodeURIComponent(err.message)}`,
+        `${this.appUrl}/dashboard/integrations?error=${encodeURIComponent('Failed to start Instagram connection. Please try again.')}`,
       );
     }
   }
@@ -180,15 +188,16 @@ export class OAuthController {
         `${this.appUrl}/dashboard/integrations?success=true&platform=Instagram&account=${encodeURIComponent(result.handle)}`,
       );
     } catch (err: any) {
+      this.logger.error(`Instagram callback failed: ${err?.message || err}`);
       return res.redirect(
-        `${this.appUrl}/dashboard/integrations?error=${encodeURIComponent(err.message || 'Instagram OAuth failed')}`,
+        `${this.appUrl}/dashboard/integrations?error=${encodeURIComponent('We could not connect your Instagram account. Please try again.')}`,
       );
     }
   }
 
   @UseGuards(JwtAuthGuard)
   @Post('instagram/refresh')
-  async refreshInstagram(@Req() req: any, @Body() body: { accountId: string }) {
+  async refreshInstagram(@Req() req: any, @Body() body: RefreshAccountDto) {
     await this.assertAccountAccess(req.user.id, body.accountId);
     return this.oauthService.refreshInstagramToken(body.accountId);
   }
@@ -208,8 +217,9 @@ export class OAuthController {
       const authUrl = this.oauthService.getTikTokAuthUrl(targetBrand);
       return res.redirect(authUrl);
     } catch (err: any) {
+      this.logger.error(`TikTok connect failed: ${err?.message || err}`);
       return res.redirect(
-        `${this.appUrl}/dashboard/integrations?error=${encodeURIComponent(err.message)}`,
+        `${this.appUrl}/dashboard/integrations?error=${encodeURIComponent('Failed to start TikTok connection. Please try again.')}`,
       );
     }
   }
@@ -239,15 +249,16 @@ export class OAuthController {
         `${this.appUrl}/dashboard/integrations?success=true&platform=TikTok&account=${encodeURIComponent(result.handle)}`,
       );
     } catch (err: any) {
+      this.logger.error(`TikTok callback failed: ${err?.message || err}`);
       return res.redirect(
-        `${this.appUrl}/dashboard/integrations?error=${encodeURIComponent(err.message || 'TikTok OAuth failed')}`,
+        `${this.appUrl}/dashboard/integrations?error=${encodeURIComponent('We could not connect your TikTok account. Please try again.')}`,
       );
     }
   }
 
   @UseGuards(JwtAuthGuard)
   @Post('tiktok/refresh')
-  async refreshTikTok(@Req() req: any, @Body() body: { accountId: string }) {
+  async refreshTikTok(@Req() req: any, @Body() body: RefreshAccountDto) {
     await this.assertAccountAccess(req.user.id, body.accountId);
     return this.oauthService.refreshTikTokToken(body.accountId);
   }
@@ -297,7 +308,7 @@ export class OAuthController {
   async renameAccount(
     @Req() req: any,
     @Param('accountId') accountId: string,
-    @Body() body: { handle: string; brandId?: string },
+    @Body() body: RenameAccountDto,
   ) {
     const targetBrand = body.brandId || req.user.brandId;
     if (body.brandId) await this.assertBrandAccess(req.user.id, targetBrand);

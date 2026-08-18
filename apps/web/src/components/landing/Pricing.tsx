@@ -14,6 +14,8 @@ import { getPlans } from '@/lib/billing';
 import type { PlanEntitlements, PlanPricing, PlanTier } from '@/lib/billing';
 import { detectCurrency, formatPrice, type Currency } from '@/lib/currency';
 
+type PlansResponse = { plans: PlanEntitlements[]; pricing: Record<PlanTier, Record<Currency, PlanPricing>> };
+
 interface CardCopy {
   tier: PlanTier;
   badge?: string;
@@ -85,9 +87,31 @@ function formatStorage(bytes: number): string {
   return gb >= 1 ? `${gb} GB` : `${Math.round(bytes / (1024 * 1024))} MB`;
 }
 
-export default function Pricing() {
-  const [plans, setPlans] = useState<Record<PlanTier, PlanEntitlements> | null>(null);
-  const [pricing, setPricing] = useState<Record<PlanTier, Record<Currency, PlanPricing>> | null>(null);
+/** Reshapes the API's `plans: PlanEntitlements[]` array into a by-tier map, shared by the SSR-prop path and the client-fetch fallback below. */
+function toByTier(data: PlansResponse): Record<PlanTier, PlanEntitlements> {
+  const byTier: any = {};
+  data.plans.forEach((p) => { byTier[p.tier] = p; });
+  return byTier;
+}
+
+export default function Pricing({ initialData }: { initialData?: PlansResponse | null }) {
+  // initialData comes from the server (page.tsx fetches it during SSR, see
+  // the comment there) so plan numbers are already present in the very
+  // first HTML the browser paints -- this section used to wait for full
+  // client hydration to even START its own fetch (measured: the fetch to
+  // /billing/plans wasn't firing until 7+ seconds after navigation start on
+  // this page, well after window.load, because it was gated behind the
+  // whole landing bundle downloading, parsing and hydrating first). Static,
+  // rarely-changing catalogue data like this has no reason to pay that
+  // cost -- it's fetched once server-side with a 1h revalidate window
+  // (see getPlansServerSide in page.tsx) and reused by every visitor hitting
+  // Next's cache, not re-queried per page load.
+  const [plans, setPlans] = useState<Record<PlanTier, PlanEntitlements> | null>(
+    initialData ? toByTier(initialData) : null,
+  );
+  const [pricing, setPricing] = useState<Record<PlanTier, Record<Currency, PlanPricing>> | null>(
+    initialData?.pricing ?? null,
+  );
   // Detected once on mount (client-only -- Intl/navigator aren't available
   // during SSR) rather than on every render, so the price a visitor sees
   // doesn't flicker between currencies mid-scroll.
@@ -95,14 +119,18 @@ export default function Pricing() {
 
   useEffect(() => {
     setCurrency(detectCurrency());
+    // Server already supplied the catalogue -- no need to also pay a
+    // client round trip for the same data on first paint. Only fetch here
+    // if the server fetch failed/was skipped (e.g. backend briefly
+    // unavailable at build/request time), so the section still works.
+    if (initialData) return;
     getPlans()
       .then((data) => {
-        const byTier: any = {};
-        data.plans.forEach((p) => { byTier[p.tier] = p; });
-        setPlans(byTier);
+        setPlans(toByTier(data));
         setPricing(data.pricing);
       })
       .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Live-numbers overlay: appends the plan's actual account/post/AI/storage

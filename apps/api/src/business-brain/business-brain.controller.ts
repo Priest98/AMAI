@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { BrandAccessGuard } from '../auth/brand-access.guard';
 import { EntitlementGuard, RequireEntitlement } from '../billing/entitlement.guard';
@@ -51,6 +52,10 @@ export class BusinessBrainController {
    * (media.controller.ts's processAsset) so this can't become a free,
    * unmetered way around the plan's monthly AI generation limit.
    */
+  // Security audit fix (6.2): see media.controller.ts's processAsset for
+  // why this needs its own per-minute ceiling on top of the monthly
+  // entitlement check.
+  @Throttle({ default: { limit: 15, ttl: 60_000 } })
   @UseGuards(EntitlementGuard)
   @RequireEntitlement('generate_ai_content')
   @Post('content-ideas')

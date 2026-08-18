@@ -20,7 +20,7 @@ export default function FinalCTA() {
             style={{ background: 'var(--lp-gradient-glow)' }}
           />
           <div className="relative">
-            <h2 className="lp-hero-display text-4xl sm:text-6xl font-bold">
+            <h2 className="lp-hero-display text-4xl sm:text-6xl">
               Let your social media
               <br />
               run itself.

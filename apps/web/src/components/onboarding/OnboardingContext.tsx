@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 import { TOUR_STEPS, TOTAL_STEPS, TourStep } from './tourSteps';
@@ -105,7 +105,15 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     goToStep(0);
   }, [goToStep]);
 
-  const value: OnboardingContextValue = {
+  // This provider sits at the dashboard layout level (same as
+  // EngineEventsProvider) and wraps every /dashboard/* page. Without
+  // memoizing this object, DashboardLayout state that has nothing to do with
+  // onboarding (mobile drawer open/close, header scroll shrink) still forced
+  // a brand-new `value` on every render, re-rendering every consumer
+  // (WelcomeModal, TourOverlay, and anything calling useOnboarding()) for no
+  // reason. It still changes exactly when it should -- on phase/step/route
+  // transitions -- since those are real dependencies below.
+  const value: OnboardingContextValue = useMemo(() => ({
     phase,
     currentStep: TOUR_STEPS[stepIndex],
     stepIndex,
@@ -115,7 +123,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     nextStep,
     prevStep,
     restartTour,
-  };
+  }), [phase, stepIndex, startTour, skipTour, nextStep, prevStep, restartTour]);
 
   return (
     <OnboardingContext.Provider value={value}>

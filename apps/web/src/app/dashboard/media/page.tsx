@@ -6,12 +6,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import UploadDropzone from "@/components/media/UploadDropzone";
 import EmptyState from "@/components/ui/EmptyState";
 import { SkeletonCardGrid } from "@/components/ui/Skeleton";
-import { apiFetch, brandFetch, getBrandId, getToken, API_BASE } from '@/lib/api';
+import { apiFetch, brandFetch, getBrandId, isAuthenticated, API_BASE } from '@/lib/api';
 import { useEngineEvents } from '@/lib/useEngineEvents';
 import { GoogleDriveLogo } from '@/components/icons/platform-logos';
 import {
   Trash2, Film, Loader2, Sparkles, AlertCircle, CheckCircle2, MoreVertical,
-  RefreshCw, FolderSync, LogOut, X, Upload,
+  RefreshCw, FolderSync, LogOut, X, Upload, Images, Image as ImageIcon,
+  ArrowUp, ArrowDown, CheckSquare, Square, Wand2,
 } from 'lucide-react';
 
 interface MediaAsset {
@@ -26,7 +27,22 @@ interface MediaAsset {
   // Engine pipeline has run on this asset (null until then -- never guessed).
   contentCategory?: string | null;
   contentPillar?: string | null;
+  // Whether this asset already belongs to a post (single or carousel).
+  // Only assets with no linkedPostId are eligible to be picked into a new
+  // Carousel/Single composer selection -- everything else is already
+  // spoken for by the automatic pipeline or a previous composer post.
+  linkedPostId?: string | null;
 }
+
+/** One image staged in the manual Single/Carousel composer, in the order the user arranged it. */
+interface CarouselItem {
+  id: string;
+  filename: string;
+  blobUrl: string;
+  mimeType: string;
+}
+
+const MAX_CAROUSEL_IMAGES = 5;
 
 const CATEGORY_LABEL: Record<string, string> = {
   promotional: 'Promotional',
@@ -117,13 +133,15 @@ function MediaSourceSection() {
   const folder = googleDrive?.folderName || localGoogle?.folderName || 'content';
 
   const handleConnect = () => {
-    // Security-audit fix: full browser navigation, can't carry an
-    // Authorization header -- google/connect now requires auth and
-    // re-verifies brand membership server-side, so the token travels as a
-    // query param (same fallback JwtStrategy already supports for SSE).
-    const token = getToken();
-    if (!token) { window.location.href = '/login'; return; }
-    window.location.href = `${API_BASE}/oauth/google/connect?brandId=${encodeURIComponent(getBrandId())}&token=${encodeURIComponent(token)}`;
+    // Security audit fix (3.5): this is a full browser navigation
+    // (window.location.href), which can't carry an Authorization header --
+    // that's why the token used to be appended as a `?token=` query param.
+    // With the session now in an httpOnly cookie, the browser attaches it
+    // automatically to this same-origin navigation, so there's nothing left
+    // to append. google/connect still re-verifies brand membership
+    // server-side regardless (see OAuthController.assertBrandAccess).
+    if (!isAuthenticated()) { window.location.href = '/login'; return; }
+    window.location.href = `${API_BASE}/oauth/google/connect?brandId=${encodeURIComponent(getBrandId())}`;
   };
 
   const handleDisconnect = async () => {
@@ -392,6 +410,19 @@ export default function MediaLibraryPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  // ── Manual composer: Single Image / Carousel ──────────────────────────
+  // 'single' is the existing, unchanged behavior: every uploaded file
+  // immediately becomes its own post via the automatic AMAI Engine
+  // pipeline (1 image -> 1 caption -> 1 hashtag set -> 1 post). 'carousel'
+  // routes through the new manual composer below: images are staged, not
+  // auto-posted, until the user explicitly hits "Create Carousel Post" --
+  // that's what makes "upload 5 photos" mean ONE post with 5 images
+  // instead of 5 separate posts.
+  const [composerMode, setComposerMode] = useState<'single' | 'carousel'>('single');
+  const [carouselItems, setCarouselItems] = useState<CarouselItem[]>([]);
+  const [composing, setComposing] = useState(false);
+  const [composeMessage, setComposeMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+
   const fetchMediaAssets = useCallback(async () => {
     try {
       const data = await brandFetch<MediaAsset[]>('/media/assets');
@@ -431,11 +462,77 @@ export default function MediaLibraryPage() {
   const handleDeleteAsset = async (id: string) => {
     const prev = assets;
     setAssets(assets.filter((a) => a.id !== id));
+    setCarouselItems((c) => c.filter((i) => i.id !== id));
     try {
       await brandFetch(`/media/assets/${id}`, { method: 'DELETE' });
     } catch (e: any) {
       setAssets(prev); // revert on failure
       setError(e.message || 'Could not delete that file.');
+    }
+  };
+
+  // A freshly-uploaded image in Carousel mode: add it to the staged
+  // selection, up to the hard 5-image cap. Never silently drops it —
+  // beyond the cap, the file is still uploaded and sits in the library
+  // (selectable manually below), it's just not auto-added to this batch.
+  const handleCarouselAssetReady = (asset: CarouselItem) => {
+    setCarouselItems((prev) => {
+      if (prev.some((i) => i.id === asset.id)) return prev;
+      if (prev.length >= MAX_CAROUSEL_IMAGES) {
+        setComposeMessage({ text: 'You can add up to 5 images per post.', type: 'error' });
+        return prev;
+      }
+      return [...prev, asset];
+    });
+    // Keep the grid in sync so the eligibility check (linkedPostId) below
+    // reflects newly-uploaded assets without waiting for a full refetch.
+    fetchMediaAssets();
+  };
+
+  const toggleAssetForCarousel = (asset: MediaAsset) => {
+    if (!asset.blobUrl) return;
+    setCarouselItems((prev) => {
+      if (prev.some((i) => i.id === asset.id)) {
+        return prev.filter((i) => i.id !== asset.id);
+      }
+      if (prev.length >= MAX_CAROUSEL_IMAGES) {
+        setComposeMessage({ text: 'You can add up to 5 images per post.', type: 'error' });
+        return prev;
+      }
+      return [...prev, { id: asset.id, filename: asset.filename, blobUrl: asset.blobUrl!, mimeType: asset.mimeType }];
+    });
+  };
+
+  const moveCarouselItem = (index: number, direction: -1 | 1) => {
+    setCarouselItems((prev) => {
+      const next = [...prev];
+      const target = index + direction;
+      if (target < 0 || target >= next.length) return prev;
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  };
+
+  const removeCarouselItem = (id: string) => {
+    setCarouselItems((prev) => prev.filter((i) => i.id !== id));
+  };
+
+  const handleComposeCarousel = async () => {
+    if (carouselItems.length < 2) return;
+    setComposing(true);
+    setComposeMessage(null);
+    try {
+      await brandFetch('/posts/compose', {
+        method: 'POST',
+        body: JSON.stringify({ mediaAssetIds: carouselItems.map((i) => i.id), postType: 'CAROUSEL' }),
+      });
+      setComposeMessage({ text: `Carousel post created with ${carouselItems.length} images — it's ready for your review in the Approval Queue.`, type: 'success' });
+      setCarouselItems([]);
+      fetchMediaAssets();
+    } catch (e: any) {
+      setComposeMessage({ text: e.message || 'Could not create the carousel post.', type: 'error' });
+    } finally {
+      setComposing(false);
     }
   };
 
@@ -461,9 +558,128 @@ export default function MediaLibraryPage() {
       </Suspense>
 
       {/* Upload Dropzone Component */}
-      <div data-tour="tour-upload-dropzone" className="exec-card p-5 sm:p-6">
-        <h2 className="text-h3 mb-4" style={{ color: 'var(--text-primary)' }}>Upload New Media</h2>
-        <UploadDropzone onUploaded={handleUploaded} />
+      <div data-tour="tour-upload-dropzone" className="exec-card p-5 sm:p-6 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-h3" style={{ color: 'var(--text-primary)' }}>Upload New Media</h2>
+
+          {/* Explicit Single Image / Carousel choice, per-upload -- this is
+              the one place AMAI decides "1 image = 1 post" vs "up to 5
+              images = 1 post, one caption, one hashtag set". Never inferred
+              from how many files get dropped at once. */}
+          <div className="inline-flex rounded-xl border p-1 gap-1" style={{ backgroundColor: 'var(--bg-surface-sunken)', borderColor: 'var(--card-border)' }}>
+            <button
+              type="button"
+              onClick={() => setComposerMode('single')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center space-x-1.5 transition ${composerMode === 'single' ? 'btn-emerald-cta' : ''}`}
+              style={composerMode !== 'single' ? { color: 'var(--text-secondary)' } : undefined}
+            >
+              <ImageIcon className="h-3.5 w-3.5" />
+              <span>Single Image</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setComposerMode('carousel')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center space-x-1.5 transition ${composerMode === 'carousel' ? 'btn-emerald-cta' : ''}`}
+              style={composerMode !== 'carousel' ? { color: 'var(--text-secondary)' } : undefined}
+            >
+              <Images className="h-3.5 w-3.5" />
+              <span>Carousel</span>
+            </button>
+          </div>
+        </div>
+
+        {composerMode === 'single' ? (
+          <p className="text-[11px] -mt-2" style={{ color: 'var(--text-secondary)' }}>
+            Each file becomes its own post automatically — 1 image, 1 caption, 1 hashtag set.
+          </p>
+        ) : (
+          <p className="text-[11px] -mt-2" style={{ color: 'var(--text-secondary)' }}>
+            Upload 2–5 images (or select from the library below) to combine into ONE post with one caption and one hashtag set.
+          </p>
+        )}
+
+        <UploadDropzone
+          onUploaded={handleUploaded}
+          mode={composerMode}
+          onCarouselAssetReady={handleCarouselAssetReady}
+        />
+
+        {composerMode === 'carousel' && (
+          <div className="rounded-xl border p-4 space-y-3" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold flex items-center space-x-1.5" style={{ color: 'var(--text-primary)' }}>
+                <Images className="h-3.5 w-3.5" />
+                <span>Carousel ({carouselItems.length}/{MAX_CAROUSEL_IMAGES})</span>
+              </h3>
+              {carouselItems.length > 0 && (
+                <button onClick={() => setCarouselItems([])} className="text-[10px] font-semibold" style={{ color: 'var(--text-muted)' }}>
+                  Clear all
+                </button>
+              )}
+            </div>
+
+            <AnimatePresence>
+              {composeMessage && (
+                <motion.div
+                  initial={{ opacity: 0, y: -6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  className={`p-2.5 rounded-lg text-[11px] font-semibold flex items-center justify-between border ${
+                    composeMessage.type === 'success'
+                      ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
+                      : 'bg-red-500/10 text-red-500 border-red-500/20'
+                  }`}
+                >
+                  <span>{composeMessage.text}</span>
+                  <button onClick={() => setComposeMessage(null)}><X className="h-3 w-3" /></button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {carouselItems.length === 0 ? (
+              <p className="text-[11px] text-center py-3" style={{ color: 'var(--text-muted)' }}>
+                Upload images above or click eligible images in the library below to add them here, in order.
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {carouselItems.map((item, i) => (
+                  <div key={item.id} className="relative w-20 h-20 rounded-lg overflow-hidden border shrink-0 group" style={{ borderColor: 'var(--card-border)' }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={item.blobUrl} alt={item.filename} className="w-full h-full object-cover" />
+                    <span className="absolute top-1 left-1 h-4 w-4 rounded-full bg-black/70 text-white text-[9px] font-bold flex items-center justify-center">{i + 1}</span>
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition flex flex-col items-center justify-center gap-1">
+                      <div className="flex space-x-1">
+                        <button onClick={() => moveCarouselItem(i, -1)} disabled={i === 0} className="p-1 rounded bg-white/20 disabled:opacity-30 text-white">
+                          <ArrowUp className="h-3 w-3" />
+                        </button>
+                        <button onClick={() => moveCarouselItem(i, 1)} disabled={i === carouselItems.length - 1} className="p-1 rounded bg-white/20 disabled:opacity-30 text-white">
+                          <ArrowDown className="h-3 w-3" />
+                        </button>
+                      </div>
+                      <button onClick={() => removeCarouselItem(item.id)} className="p-1 rounded bg-red-500 text-white">
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="flex items-center justify-between pt-1">
+              <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                {carouselItems.length < 2 ? 'Add at least 2 images to create a carousel post.' : 'Images publish in this order.'}
+              </p>
+              <button
+                onClick={handleComposeCarousel}
+                disabled={carouselItems.length < 2 || composing}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-white transition flex items-center space-x-1.5 shadow-md btn-emerald-cta disabled:opacity-40"
+              >
+                {composing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />}
+                <span>Create Carousel Post</span>
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Media Gallery */}
@@ -485,12 +701,35 @@ export default function MediaLibraryPage() {
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
             {assets.map((asset) => {
               const statusInfo = STATUS_LABEL[asset.status] || STATUS_LABEL.PENDING;
+              // Carousel-mode selection: only images not already linked to
+              // another post can be picked into the batch above -- an asset
+              // that's already SCHEDULED/PUBLISHED as its own single post
+              // (or part of another carousel) can't also be reused here.
+              const isEligibleForCarousel = composerMode === 'carousel' && !asset.linkedPostId && !asset.mimeType?.startsWith('video') && !!asset.blobUrl;
+              const isSelectedForCarousel = carouselItems.some((i) => i.id === asset.id);
               return (
                 <div
                   key={asset.id}
-                  className="group relative aspect-square rounded-[var(--radius-lg)] border overflow-hidden transition-all duration-200"
-                  style={{ borderColor: 'var(--card-border)', backgroundColor: 'var(--bg-surface-sunken)' }}
+                  onClick={isEligibleForCarousel ? () => toggleAssetForCarousel(asset) : undefined}
+                  className={`group relative aspect-square rounded-[var(--radius-lg)] border overflow-hidden transition-all duration-200 ${isEligibleForCarousel ? 'cursor-pointer' : ''} ${
+                    composerMode === 'carousel' && !isEligibleForCarousel ? 'opacity-40' : ''
+                  }`}
+                  style={{
+                    borderColor: isSelectedForCarousel ? 'var(--accent-primary, #10b981)' : 'var(--card-border)',
+                    backgroundColor: 'var(--bg-surface-sunken)',
+                    ...(isSelectedForCarousel ? { boxShadow: '0 0 0 2px var(--accent-primary, #10b981)' } : {}),
+                  }}
                 >
+                  {composerMode === 'carousel' && isEligibleForCarousel && (
+                    <div className="absolute top-2 right-2 z-10">
+                      {isSelectedForCarousel ? (
+                        <CheckSquare className="h-5 w-5 text-emerald-400 drop-shadow" />
+                      ) : (
+                        <Square className="h-5 w-5 text-white/80 drop-shadow" />
+                      )}
+                    </div>
+                  )}
+
                   {asset.blobUrl ? (
                     asset.mimeType?.startsWith('video') ? (
                       <div className="relative w-full h-full bg-zinc-900">
@@ -557,7 +796,7 @@ export default function MediaLibraryPage() {
 
                   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition duration-200 flex items-center justify-center">
                     <button
-                      onClick={() => handleDeleteAsset(asset.id)}
+                      onClick={(e) => { e.stopPropagation(); handleDeleteAsset(asset.id); }}
                       className="p-2 rounded-xl bg-red-500 text-white shadow-lg hover:scale-105 transition touch-target"
                       title="Delete File"
                     >
