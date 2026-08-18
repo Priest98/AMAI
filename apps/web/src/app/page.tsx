@@ -1,19 +1,83 @@
 import type { Metadata } from 'next';
 import type { CSSProperties } from 'react';
+import { Suspense } from 'react';
 import '@/styles/landing.css';
 
 import Nav from '@/components/landing/Nav';
 import Hero from '@/components/landing/Hero';
+import ProblemSection from '@/components/landing/ProblemSection';
 import HowItWorks from '@/components/landing/HowItWorks';
-import EnginePipeline from '@/components/landing/EnginePipeline';
 import Features from '@/components/landing/Features';
-import Integrations from '@/components/landing/Integrations';
-import SocialProof from '@/components/landing/SocialProof';
-import InteractiveDemo from '@/components/landing/InteractiveDemo';
+import AutopilotSection from '@/components/landing/AutopilotSection';
+import ProductVisual from '@/components/landing/ProductVisual';
 import Pricing from '@/components/landing/Pricing';
 import FAQ from '@/components/landing/FAQ';
 import FinalCTA from '@/components/landing/FinalCTA';
 import Footer from '@/components/landing/Footer';
+import { headers } from 'next/headers';
+
+/**
+ * Fetches the plan catalogue server-side so it's already baked into the
+ * initial HTML instead of the Pricing section paying its own client-side
+ * round trip after hydration (see the comment on Pricing's initialData
+ * prop for the measured impact -- that round trip wasn't even starting
+ * until 7+ seconds after navigation on this page).
+ *
+ * Deliberately calls the app's OWN public /api/billing/plans route by
+ * absolute same-origin URL rather than importing getBackendPort() and
+ * talking to the NestJS app's loopback port directly. Those look
+ * equivalent but aren't: Turbopack compiles Server Components (this file)
+ * and Route Handlers (src/app/api/[...path]/route.ts) into separate server
+ * chunks, each with its OWN copy of backendPort.ts's module-level
+ * `backendPortPromise` cache -- importing it here booted a SECOND,
+ * independent NestJS application (its own Prisma client, its own DB pool)
+ * on every request instead of reusing the one the route handler already
+ * has warm. Confirmed via a temporary debug log: that second instance's
+ * Prisma client failed to reach Supabase entirely
+ * (PrismaClientInitializationError, pooler connection limit), silently
+ * falling back to null every time and wasting a full failed boot+connect
+ * attempt per request in the process. Going through the public route
+ * instead reuses the already-initialized, already-connected instance.
+ *
+ * Next's fetch cache holds the result for an hour: /billing/plans has no
+ * auth, no per-visitor data and no DB query at all (see
+ * BillingController.getPlans -- it returns the static PLAN_CONFIG /
+ * PLAN_PRICING objects directly), so there is nothing request-specific to
+ * invalidate on. One visitor pays the cost of populating the cache; every
+ * other visitor within the hour gets it for free. Falls back to null (and
+ * Pricing's own client-side fetch takes over) if this ever fails, so a
+ * backend hiccup at request time degrades gracefully instead of breaking
+ * the page.
+ */
+async function getPlansServerSide() {
+  try {
+    const h = await headers();
+    const host = h.get('host') || 'localhost:3000';
+    const protocol = host.startsWith('localhost') || host.startsWith('127.0.0.1') ? 'http' : 'https';
+    const res = await fetch(`${protocol}://${host}/api/billing/plans`, {
+      next: { revalidate: 3600 },
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Isolated in its own async component (rather than awaited at the top of
+ * Home()) specifically so a slow/cold backend can't block the rest of the
+ * page's HTML from streaming. Wrapped in <Suspense> below with the
+ * ordinary client-fetching <Pricing /> as its fallback -- worst case
+ * (server fetch is slow or fails) is exactly today's behavior; best case
+ * (the common one, since the result is cached for an hour) the numbers are
+ * already in the initial HTML and Pricing never has to fetch client-side
+ * at all.
+ */
+async function PricingSection() {
+  const initialPlansData = await getPlansServerSide();
+  return <Pricing initialData={initialPlansData} />;
+}
 
 export const metadata: Metadata = {
   // Title kept as the exact app name ("AMAI") so the browser-tab title
@@ -21,20 +85,21 @@ export const metadata: Metadata = {
   // app-review requirement (they flagged a mismatch between the two).
   title: 'AMAI',
   description:
-    'AMAI watches your media, writes captions and hashtags, scores every post, and publishes to Instagram and TikTok on schedule. Upload once, approve once, then let AMAI run your social media.',
+    'AMAI is your AI social media employee. It plans, creates, publishes and learns across Instagram and TikTok, so you don\'t have to. Start free, no credit card required.',
   keywords: [
+    'AI social media employee',
     'AI social media automation',
     'Instagram automation',
     'TikTok automation',
     'social media scheduling',
     'AI caption generator',
     'content approval workflow',
-    'social media operating system',
+    'AutoPilot social media',
     'automated publishing',
   ],
   openGraph: {
-    title: 'AMAI — AI Social Media Operating System',
-    description: 'Upload once. Approve once. Then let AMAI run your social media.',
+    title: 'AMAI: Your AI Social Media Employee',
+    description: 'Your social media. On autopilot. AMAI plans, creates, publishes and learns so you don\'t have to.',
     url: 'https://marketing-os-eight-virid.vercel.app',
     siteName: 'AMAI',
     images: [
@@ -42,7 +107,7 @@ export const metadata: Metadata = {
         url: 'https://marketing-os-eight-virid.vercel.app/app-icon.jpg',
         width: 1024,
         height: 1024,
-        alt: 'AMAI — AI Social Media Operating System',
+        alt: 'AMAI: Your AI Social Media Employee',
       },
     ],
     locale: 'en_US',
@@ -50,8 +115,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'AMAI — AI Social Media Operating System',
-    description: 'Upload once. Approve once. Then let AMAI run your social media.',
+    title: 'AMAI: Your AI Social Media Employee',
+    description: 'Your social media. On autopilot. AMAI plans, creates, publishes and learns so you don\'t have to.',
     images: ['https://marketing-os-eight-virid.vercel.app/app-icon.jpg'],
   },
   alternates: {
@@ -66,10 +131,10 @@ const jsonLd = {
   applicationCategory: 'BusinessApplication',
   operatingSystem: 'Web',
   description:
-    'AI social media operating system that generates captions and hashtags, scores content, and publishes to Instagram and TikTok on schedule after a single approval step.',
+    'AMAI is an AI social media employee that plans, creates, publishes and learns across Instagram and TikTok. Free to start, with Pro and Agency plans for more automation and capacity.',
   offers: {
     '@type': 'Offer',
-    price: '19',
+    price: '0',
     priceCurrency: 'USD',
   },
 };
@@ -86,13 +151,16 @@ export default function Home() {
         className="amai-landing relative min-h-screen"
         style={
           {
-            // Design System v2: Space Grotesk + Inter are now loaded once at
-            // the root layout (apps/web/src/app/layout.tsx) and shared by
-            // the whole app, rather than this page loading its own second
-            // copy. These aliases keep every landing component's existing
-            // var(--lp-font-heading) / var(--lp-font-body) references
-            // working unchanged, now pointed at the shared fonts.
-            '--lp-font-heading': 'var(--font-heading-var)',
+            // The body/UI face (Plus Jakarta Sans) is loaded once at the
+            // root layout (apps/web/src/app/layout.tsx) and shared by the
+            // whole app. These aliases keep every landing component's
+            // existing var(--lp-font-heading) / var(--lp-font-body)
+            // references working unchanged -- both point at the same body
+            // face, since headings use size/weight/spacing for hierarchy
+            // rather than a separate heading face. The one exception is
+            // .lp-hero-display (Hero + FinalCTA headlines), which reads
+            // --font-display directly for the Instrument Serif treatment.
+            '--lp-font-heading': 'var(--font-body-var)',
             '--lp-font-body': 'var(--font-body-var)',
           } as CSSProperties
         }
@@ -114,15 +182,39 @@ export default function Home() {
           Skip to main content
         </a>
         <Nav />
+        {/*
+          Eight sections, answering five questions in order: what is AMAI
+          (hero), why should I care (problem), how does it work (how it
+          works + features), what's the wow (autopilot + product visual),
+          what does it cost and can I try it (pricing, FAQ, CTA).
+
+          Sections removed in the structure pass, and where their content
+          went -- none of it was shrunk or hidden in an accordion, it was
+          either genuinely redundant or folded into a line elsewhere:
+            - SocialProof           -> vague filler line, cut outright
+            - TransitionSection     -> restated the hero's promise verbatim
+            - EnginePipeline        -> merged into AutopilotSection's flow
+            - BusinessBrainSection  -> Features card "Business Brain"
+            - ContentPipelineSection-> Features supporting line (Google Drive)
+            - AnalyticsSection      -> Features card "Performance"
+            - MultiPlatformSection  -> Features supporting line (channels)
+            - ApprovalControlSection-> AutopilotSection's control-modes line
+            - WhoForSection         -> Pricing's "businesses, creators and agencies"
+            - AgencySection         -> Pricing's Agency one-liner + Agency tier
+            - InteractiveDemo       -> superseded by ProductVisual
+          The component files are all still in components/landing/ and can
+          be re-added to this list if any of them is wanted back.
+        */}
         <main id="main-content">
           <Hero />
+          <ProblemSection />
           <HowItWorks />
-          <EnginePipeline />
           <Features />
-          <InteractiveDemo />
-          <Integrations />
-          <SocialProof />
-          <Pricing />
+          <AutopilotSection />
+          <ProductVisual />
+          <Suspense fallback={<Pricing initialData={null} />}>
+            <PricingSection />
+          </Suspense>
           <FAQ />
           <FinalCTA />
         </main>

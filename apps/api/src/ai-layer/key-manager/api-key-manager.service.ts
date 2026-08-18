@@ -116,7 +116,26 @@ export class ApiKeyManagerService {
     });
 
     const pool = healthy.length > 0 ? healthy : keys;
-    const idx = (this.roundRobinIndex.get(provider) ?? 0) % pool.length;
+
+    // Thundering-herd fix: roundRobinIndex lives in memory per warm
+    // serverless instance (see class doc comment), so it always used to
+    // default to 0 on first use -- meaning every fresh cold-started
+    // instance began its round robin at key #1. Under a concurrent burst
+    // (e.g. 30+ users' dashboards all opportunistically publishing within
+    // the same few seconds, each landing on a different cold instance),
+    // that made key #1 take a disproportionate share of load across
+    // instances instead of the pool being genuinely spread. Seeding the
+    // *first* index randomly per instance (instead of always 0) fixes
+    // this statistically: across many concurrent instances, starting
+    // points land roughly evenly across the pool. Each individual
+    // instance still round-robins predictably (start, start+1, start+2,
+    // ...) after that -- only the starting point is randomized, not the
+    // ongoing sequence.
+    let start = this.roundRobinIndex.get(provider);
+    if (start === undefined) {
+      start = Math.floor(Math.random() * pool.length);
+    }
+    const idx = start % pool.length;
     this.roundRobinIndex.set(provider, idx + 1);
     return pool[idx];
   }

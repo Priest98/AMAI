@@ -39,7 +39,7 @@ export default function WelcomeModal({ onGetStarted, onSkip }: WelcomeModalProps
 
             <div className="space-y-2">
               <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight" style={{ color: 'var(--text-primary)' }}>
-                👋 Welcome to AMAI!
+                Welcome to AMAI
               </h2>
               <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
                 Your AI-powered social media assistant is ready to help you automate your content from upload to publishing.

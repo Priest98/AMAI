@@ -1,0 +1,238 @@
+import { Injectable, Logger } from '@nestjs/common';
+import * as crypto from 'crypto';
+import { PlanTier } from '@prisma/client';
+import type { NormalizedSubscriptionEvent, PaymentProvider } from './payment-provider.interface';
+import type { SupportedCurrency } from '../plans.config';
+
+const API_BASE = 'https://api.paystack.co';
+
+// Paystack itself only ever charges in one of these -- it has no GBP
+// support at all (confirmed against their currency list: NGN/GHS/ZAR/KES/
+// USD only). GBP is still a real *display* currency on the pricing page
+// (UK visitors see £ prices), it just isn't a real *charge* currency here --
+// see chargeCurrency() below, which is the one place that distinction is
+// bridged.
+type PaystackCurrency = 'USD' | 'NGN';
+
+const STATUS_MAP: Record<string, NormalizedSubscriptionEvent['status']> = {
+  active: 'ACTIVE',
+  // Still active and still has access until the period ends -- mirrors how
+  // Stripe's cancel_at_period_end works (status stays ACTIVE, a separate
+  // flag says it won't renew). See EntitlementsService.effectivePlan.
+  'non-renewing': 'ACTIVE',
+  // Payment issue, will retry on the next cycle -- grace period, matches
+  // Stripe's past_due handling (EntitlementsService keeps the paid plan's
+  // entitlements during this state rather than yanking access instantly).
+  attention: 'PAST_DUE',
+  completed: 'EXPIRED',
+  cancelled: 'CANCELLED',
+};
+
+/**
+ * Paystack implementation of PaymentProvider. Test (sandbox) secret keys
+ * (sk_test_...) work identically to live keys for everything here. Get free
+ * test keys at https://dashboard.paystack.com/#/settings/developer (no real
+ * business/card details needed to start in test mode).
+ *
+ * Unlike Stripe, Paystack's checkout ("Initialize Transaction") doesn't
+ * need an existing customer id up front -- it matches/creates the customer
+ * by email automatically -- and its subscription model has no server-side
+ * "session" concept, just a plan_code passed straight into the transaction.
+ */
+@Injectable()
+export class PaystackProviderService implements PaymentProvider {
+  readonly name = 'paystack';
+  private readonly logger = new Logger(PaystackProviderService.name);
+
+  private secretKey(): string {
+    const key = process.env.PAYSTACK_SECRET_KEY;
+    if (!key) {
+      throw new Error(
+        'PAYSTACK_SECRET_KEY is not set. Billing/checkout is unavailable until it is configured in apps/web/.env.local (local dev) or Vercel env vars (production, not this branch).',
+      );
+    }
+    return key;
+  }
+
+  private async paystackFetch<T = any>(path: string, init?: RequestInit): Promise<T> {
+    const res = await fetch(`${API_BASE}${path}`, {
+      ...init,
+      headers: {
+        Authorization: `Bearer ${this.secretKey()}`,
+        'Content-Type': 'application/json',
+        ...(init?.headers || {}),
+      },
+    });
+    const body = await res.json().catch(() => null);
+    if (!res.ok || !body?.status) {
+      const message = body?.message || `Paystack API error (${res.status}) calling ${path}`;
+      throw new Error(message);
+    }
+    return body.data as T;
+  }
+
+  /**
+   * GBP has no real Paystack charge -- UK visitors see £ prices on the
+   * pricing page (marketing display, see lib/currency.ts on the frontend)
+   * but are actually charged the USD amount here. This is the one place
+   * that substitution happens; everything downstream (plan lookup, the
+   * amount Paystack actually charges, what gets persisted on the
+   * Subscription row after the webhook) uses this resolved currency, not
+   * the visitor's originally-detected one.
+   */
+  private chargeCurrency(currency: SupportedCurrency): PaystackCurrency {
+    return currency === 'NGN' ? 'NGN' : 'USD';
+  }
+
+  /**
+   * One Paystack Plan per (plan tier, charge currency) -- created ahead of
+   * time via the Paystack dashboard or the Create Plan API, not by this
+   * code. Env var naming: PAYSTACK_PLAN_{PRO|AGENCY}_MONTHLY_{USD|NGN}.
+   */
+  private planCodeForPlan(plan: Exclude<PlanTier, 'FREE'>, currency: SupportedCurrency): string {
+    const chargeCurrency = this.chargeCurrency(currency);
+    const envVar = `PAYSTACK_PLAN_${plan}_MONTHLY_${chargeCurrency}`;
+    const planCode = process.env[envVar];
+    if (!planCode) {
+      throw new Error(`${envVar} is not set. Create a monthly recurring ${chargeCurrency} Plan for ${plan} in the Paystack test dashboard and set its plan_code here.`);
+    }
+    return planCode;
+  }
+
+  /** Reverse lookup across every configured plan+currency Plan code, built fresh each call so env var changes are picked up without a restart-dependent cache. */
+  private planCodeMap(): Record<string, { plan: Exclude<PlanTier, 'FREE'>; currency: PaystackCurrency }> {
+    const map: Record<string, { plan: Exclude<PlanTier, 'FREE'>; currency: PaystackCurrency }> = {};
+    (['PRO', 'AGENCY'] as const).forEach((plan) => {
+      (['USD', 'NGN'] as const).forEach((currency) => {
+        const code = process.env[`PAYSTACK_PLAN_${plan}_MONTHLY_${currency}`];
+        if (code) map[code] = { plan: PlanTier[plan] as Exclude<PlanTier, 'FREE'>, currency };
+      });
+    });
+    return map;
+  }
+
+  async createCheckoutSession(params: {
+    organizationId: string;
+    userEmail: string;
+    plan: Exclude<PlanTier, 'FREE'>;
+    currency: SupportedCurrency;
+    existingProviderCustomerId: string | null;
+    successUrl: string;
+    cancelUrl: string;
+  }) {
+    // existingProviderCustomerId and cancelUrl are part of the shared
+    // PaymentProvider shape (Stripe needs both) but Paystack doesn't use
+    // either: it matches/creates the customer by email automatically on
+    // every Initialize Transaction call, and it has no separate
+    // cancel-redirect concept -- a visitor who backs out just never
+    // completes the hosted checkout page, no callback fires either way.
+    const chargeCurrency = this.chargeCurrency(params.currency);
+    const data = await this.paystackFetch<{ authorization_url: string; access_code: string; reference: string }>('/transaction/initialize', {
+      method: 'POST',
+      body: JSON.stringify({
+        email: params.userEmail,
+        plan: this.planCodeForPlan(params.plan, params.currency),
+        currency: chargeCurrency,
+        callback_url: params.successUrl,
+        metadata: { organizationId: params.organizationId, plan: params.plan, currency: chargeCurrency },
+      }),
+    });
+
+    if (!data?.authorization_url) throw new Error('Paystack did not return a checkout URL.');
+    return { url: data.authorization_url };
+  }
+
+  async createPortalSession(params: { providerCustomerId: string | null; providerSubscriptionId: string | null; returnUrl: string }) {
+    // Paystack's "manage subscription" link is keyed by subscription_code,
+    // not customer id -- returnUrl isn't supported by the hosted page
+    // (unlike Stripe's Billing Portal), the customer just navigates back
+    // manually when done.
+    if (!params.providerSubscriptionId) {
+      throw new Error('Paystack billing management link requires a providerSubscriptionId -- this org has no active Paystack subscription yet.');
+    }
+    const data = await this.paystackFetch<{ link: string }>(`/subscription/${params.providerSubscriptionId}/manage/link`, { method: 'GET' });
+    if (!data?.link) throw new Error('Paystack did not return a management link.');
+    return { url: data.link };
+  }
+
+  verifyWebhookSignature(rawBody: Buffer, signatureHeader: string) {
+    const secret = process.env.PAYSTACK_SECRET_KEY;
+    if (!secret) {
+      throw new Error('PAYSTACK_SECRET_KEY is not set -- cannot verify webhook authenticity, refusing to process.');
+    }
+    const expected = crypto.createHmac('sha512', secret).update(rawBody).digest('hex');
+    const expectedBuf = Buffer.from(expected, 'utf8');
+    const actualBuf = Buffer.from(signatureHeader || '', 'utf8');
+    const valid = expectedBuf.length === actualBuf.length && crypto.timingSafeEqual(expectedBuf, actualBuf);
+    if (!valid) {
+      throw new Error('Invalid Paystack webhook signature.');
+    }
+
+    const parsed = JSON.parse(rawBody.toString('utf8'));
+    // Paystack doesn't give webhook events a unique id the way Stripe does
+    // (event.id) -- a hash of the exact raw bytes is a reliable stand-in
+    // for idempotency purposes, since a genuine retry of the same event
+    // resends byte-identical payloads, while any two distinct real events
+    // (even of the same type) differ in at least a timestamp field.
+    const id = crypto.createHash('sha256').update(rawBody).digest('hex');
+    return { id, type: parsed.event, data: parsed.data };
+  }
+
+  async extractSubscriptionEvent(eventType: string, data: unknown): Promise<NormalizedSubscriptionEvent | null> {
+    const RELEVANT_EVENTS = new Set(['subscription.create', 'invoice.update', 'invoice.payment_failed', 'subscription.not_renew', 'subscription.disable']);
+    if (!RELEVANT_EVENTS.has(eventType)) {
+      // charge.success is deliberately not handled directly here --
+      // subscription.create (first charge) and invoice.update (renewals)
+      // already cover every subscription state change charge.success would
+      // otherwise duplicate, mirroring how Stripe's checkout.session.completed
+      // is treated as informational-only alongside customer.subscription.*.
+      return null;
+    }
+
+    const payload = data as any;
+    const subscriptionCode: string | undefined = payload?.subscription_code || payload?.subscription?.subscription_code;
+    if (!subscriptionCode) {
+      this.logger.warn(`Paystack ${eventType} webhook had no subscription_code in its payload -- ignoring.`);
+      return null;
+    }
+
+    // Rather than trust each event type's (inconsistent) payload shape for
+    // plan/currency/status, re-fetch the subscription's canonical current
+    // state from Paystack directly -- the Fetch Subscription endpoint
+    // always returns a fully expanded plan object (plan_code + currency),
+    // customer object, status, and next_payment_date regardless of which
+    // webhook triggered this call.
+    let sub: any;
+    try {
+      sub = await this.paystackFetch<any>(`/subscription/${subscriptionCode}`, { method: 'GET' });
+    } catch (err: any) {
+      this.logger.error(`Failed to fetch canonical Paystack subscription ${subscriptionCode} for ${eventType}: ${err.message}`);
+      return null;
+    }
+
+    const planCode: string | undefined = sub?.plan?.plan_code;
+    const planInfo = planCode ? this.planCodeMap()[planCode] : undefined;
+    if (!planInfo) {
+      this.logger.warn(`Paystack subscription ${subscriptionCode} has unrecognized plan_code "${planCode}" -- ignoring.`);
+      return null;
+    }
+
+    const status = STATUS_MAP[sub.status as string] || 'ACTIVE';
+
+    return {
+      providerCustomerId: sub.customer?.customer_code || '',
+      providerSubscriptionId: subscriptionCode,
+      plan: planInfo.plan,
+      currency: planInfo.currency,
+      status,
+      // Paystack doesn't expose an explicit "current period start" the way
+      // Stripe does (its billing model only tracks next_payment_date going
+      // forward) -- approximated as "now" at event-processing time. Not a
+      // functional risk: usage-limit periods are computed independently by
+      // UsageService, this is display-only ("your plan renews on...").
+      currentPeriodStart: new Date(),
+      currentPeriodEnd: sub.next_payment_date ? new Date(sub.next_payment_date) : new Date(),
+      cancelAtPeriodEnd: sub.status === 'non-renewing',
+    };
+  }
+}

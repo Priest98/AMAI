@@ -1,6 +1,7 @@
 import { ArgumentsHost, Catch, ExceptionFilter } from '@nestjs/common';
 import { BaseExceptionFilter } from '@nestjs/core';
 import * as Sentry from '@sentry/node';
+import { ErrorCaptureService } from './error-capture.service';
 
 /**
  * Reports every unhandled exception to Sentry, then delegates to NestJS's
@@ -11,12 +12,18 @@ import * as Sentry from '@sentry/node';
  * so only genuine 5xx-worthy failures (anything without a clean HTTP status,
  * or explicit 500s) are sent to Sentry to avoid drowning the error feed in
  * routine 401s/404s.
+ *
+ * Also feeds the same 5xx-worthy exceptions into ErrorCaptureService
+ * (ErrorGroup/ErrorEvent) so the Admin dashboard has real error data even
+ * without a Sentry API token wired up. errorCapture is optional so this
+ * filter still works (Sentry-only) if it's ever constructed without one --
+ * main.ts always passes it, this is just defensive.
  */
 @Catch()
 export class SentryExceptionFilter implements ExceptionFilter {
   private readonly base: BaseExceptionFilter;
 
-  constructor(httpAdapter: any) {
+  constructor(httpAdapter: any, private readonly errorCapture?: ErrorCaptureService) {
     this.base = new BaseExceptionFilter(httpAdapter);
   }
 
@@ -24,6 +31,12 @@ export class SentryExceptionFilter implements ExceptionFilter {
     const status = (exception as any)?.status ?? (exception as any)?.getStatus?.();
     if (!status || status >= 500) {
       Sentry.captureException(exception);
+      // Fire-and-forget -- must never delay or affect the actual error
+      // response (see ErrorCaptureService's own defensiveness too).
+      this.errorCapture?.capture(exception, {
+        request: host.switchToHttp().getRequest?.(),
+        service: 'api',
+      });
     }
     this.base.catch(exception, host);
   }

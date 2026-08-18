@@ -50,7 +50,10 @@ export class GeminiProvider implements AiProviderAdapter {
 
     const text = response.text?.trim();
     if (!text) throw new Error('Gemini returned an empty response.');
-    return { text, raw: response };
+    const tokensUsed = typeof response.usageMetadata?.totalTokenCount === 'number'
+      ? response.usageMetadata.totalTokenCount
+      : undefined;
+    return { text, raw: response, tokensUsed };
   }
 
   /**

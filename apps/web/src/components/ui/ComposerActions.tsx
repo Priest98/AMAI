@@ -51,7 +51,7 @@ export default function ComposerActions({
 
       {mode !== "AUTO_PUBLISH" && (
         <p className="text-[11px] text-center font-medium" style={{ color: "var(--text-secondary)" }}>
-          🛡️ Approval-First Active: Posts are sent to your Approval Queue for review before going live.
+          Approval-first active. Posts are sent to your Approval Queue for review before going live.
         </p>
       )}
     </div>

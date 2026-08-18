@@ -27,7 +27,7 @@ export default function GlobalError({
           <div className="max-w-md text-center space-y-4">
             <h1 className="text-xl font-bold">Something went wrong</h1>
             <p className="text-sm text-zinc-400">
-              An unexpected error occurred. It's been reported automatically — try again, and if it keeps happening, let us know.
+              An unexpected error occurred. It's been reported automatically. Try again, and if it keeps happening, let us know.
             </p>
             <button
               onClick={() => reset()}

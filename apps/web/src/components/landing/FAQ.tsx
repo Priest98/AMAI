@@ -4,36 +4,40 @@ import React from 'react';
 import { ChevronDown } from 'lucide-react';
 import { Reveal, Eyebrow } from './shared';
 
+/**
+ * Five questions, not eleven. The cut ones were either already answered
+ * elsewhere on the page (upgrade timing, approval queue, Business Brain,
+ * managing multiple businesses) or a restatement of another entry ("do I
+ * need a credit card" has the same answer as "is Free really free"). An FAQ
+ * that long reads as a manual and buries the questions that actually block
+ * a signup.
+ */
 const FAQS = [
   {
-    q: 'Do I need to write anything myself?',
-    a: 'No — AMAI generates the caption, hashtags, and content score automatically. You can edit any of it in the Approval Queue before it goes out, but nothing requires you to write from scratch.',
+    q: 'Is Free really free?',
+    a: 'Yes. Start on the Free plan without a credit card. It includes core functionality with defined usage limits.',
   },
   {
-    q: 'Which platforms does AMAI publish to?',
-    a: 'Instagram and TikTok today, with more platforms on the roadmap. Every post can target one or both platforms from a single upload.',
+    q: 'What happens when I hit my Free limit?',
+    a: 'That specific feature pauses until your usage resets or you upgrade. Your account stays active and your workspace isn’t locked.',
   },
   {
-    q: 'What happens if I don’t approve a post?',
-    a: 'Nothing gets published without your approval. Posts sit in the Approval Queue until you approve, edit, reject, or schedule them — AMAI never publishes on your behalf without that step.',
+    q: 'Can AMAI post automatically?',
+    a: 'Yes. You choose the level of automation: Manual, Approval or Automatic.',
   },
   {
-    q: 'Can I connect Google Drive instead of uploading manually?',
-    a: 'Yes. Point AMAI at a watched Drive folder and new media is picked up automatically, no manual export or re-upload needed.',
+    q: 'Can I cancel Pro?',
+    a: 'Yes, according to the applicable subscription terms. Your access may remain active until the end of your current billing period.',
   },
   {
-    q: 'Is there a free trial?',
-    a: 'Every plan starts with a free trial and no credit card required. You can cancel anytime from Settings.',
-  },
-  {
-    q: 'How does content scoring work?',
-    a: 'Each post is scored based on caption quality, hashtag relevance, and platform fit before it reaches your Approval Queue, so you can prioritize what to review first.',
+    q: 'Does AMAI work with Instagram and TikTok?',
+    a: 'Yes, where supported by your connected integrations. More platforms can be added over time.',
   },
 ];
 
 export default function FAQ() {
   return (
-    <section id="faq" className="relative py-24 sm:py-32" aria-label="Frequently asked questions">
+    <section id="faq" className="relative py-16 sm:py-20" aria-label="Frequently asked questions">
       <div className="max-w-3xl mx-auto px-5 sm:px-8">
         <Reveal className="text-center">
           <Eyebrow>FAQ</Eyebrow>
@@ -44,7 +48,7 @@ export default function FAQ() {
 
         <div className="mt-12 space-y-3">
           {FAQS.map((item, i) => (
-            <Reveal key={item.q} delay={i * 0.04}>
+            <Reveal key={item.q} delay={i * 0.03}>
               <details className="lp-card group p-0 overflow-hidden">
                 <summary
                   className="flex items-center justify-between gap-4 p-5 cursor-pointer list-none text-sm font-semibold lp-focus-ring"

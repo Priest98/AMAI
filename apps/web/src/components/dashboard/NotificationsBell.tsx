@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Bell,
@@ -10,6 +11,7 @@ import {
   Sparkles,
   Radio,
   ShieldAlert,
+  Wand2,
 } from "lucide-react";
 import { useEngineEvents, EngineEvent } from "@/lib/useEngineEvents";
 
@@ -21,6 +23,13 @@ import { useEngineEvents, EngineEvent } from "@/lib/useEngineEvents";
  * Approval Queue, an account's token expired). Driven by the same SSE stream
  * (useEngineEvents) as the AMAI Engine visualization and every other live
  * surface in the app.
+ *
+ * Each notifiable type maps to exactly one destination via LINK_FOR, so a
+ * notification is always a way to get to the thing it's about -- not just an
+ * announcement. Kept to a short allowlist (NOTIFIABLE_TYPES) on purpose: the
+ * engine emits far more event types than this (caption written, hashtags
+ * generated, media optimized...), and surfacing every one would make this
+ * noisy rather than useful.
  */
 
 const NOTIFIABLE_TYPES = new Set([
@@ -28,6 +37,7 @@ const NOTIFIABLE_TYPES = new Set([
   "PUBLISH_FAILED",
   "APPROVAL_QUEUED",
   "ACCOUNT_DISCONNECTED",
+  "POST_REJECTED",
 ]);
 
 const ICON_FOR: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -35,6 +45,7 @@ const ICON_FOR: Record<string, React.ComponentType<{ className?: string }>> = {
   PUBLISH_FAILED: XCircle,
   APPROVAL_QUEUED: Clock,
   ACCOUNT_DISCONNECTED: ShieldAlert,
+  POST_REJECTED: Wand2,
 };
 
 const COLOR_FOR: Record<string, string> = {
@@ -42,6 +53,7 @@ const COLOR_FOR: Record<string, string> = {
   PUBLISH_FAILED: "var(--accent-error)",
   APPROVAL_QUEUED: "var(--accent-warning)",
   ACCOUNT_DISCONNECTED: "var(--accent-error)",
+  POST_REJECTED: "var(--accent-warning)",
 };
 
 const DEFAULT_MESSAGE: Record<string, string> = {
@@ -49,6 +61,16 @@ const DEFAULT_MESSAGE: Record<string, string> = {
   PUBLISH_FAILED: "A post failed to publish -- check Scheduled Posts.",
   APPROVAL_QUEUED: "A new post is waiting in the Approval Queue.",
   ACCOUNT_DISCONNECTED: "A connected account was disconnected.",
+  POST_REJECTED: "A post was rejected and needs revision.",
+};
+
+/** Where clicking each notification type should take the user. */
+const LINK_FOR: Record<string, string> = {
+  PUBLISH_SUCCEEDED: "/dashboard/published",
+  PUBLISH_FAILED: "/dashboard/scheduled",
+  APPROVAL_QUEUED: "/dashboard/approval-queue",
+  ACCOUNT_DISCONNECTED: "/dashboard/integrations",
+  POST_REJECTED: "/dashboard/approval-queue",
 };
 
 interface Notification extends EngineEvent {
@@ -134,12 +156,9 @@ export default function NotificationsBell() {
                 {items.map((n) => {
                   const Icon = ICON_FOR[n.type] || Sparkles;
                   const color = COLOR_FOR[n.type] || "var(--accent-secondary)";
-                  return (
-                    <li
-                      key={n.id}
-                      className="flex items-start gap-2.5 px-2.5 py-2.5 rounded-[var(--radius-md)] transition"
-                      style={{ backgroundColor: n.read ? "transparent" : "var(--hover-surface)" }}
-                    >
+                  const href = LINK_FOR[n.type];
+                  const content = (
+                    <>
                       <span className="h-7 w-7 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: `color-mix(in srgb, ${color} 14%, transparent)`, color }}>
                         <Icon className="h-3.5 w-3.5" />
                       </span>
@@ -151,6 +170,19 @@ export default function NotificationsBell() {
                           {new Date(n.createdAt).toLocaleTimeString()}
                         </p>
                       </div>
+                    </>
+                  );
+                  const itemClass = "flex items-start gap-2.5 px-2.5 py-2.5 rounded-[var(--radius-md)] transition";
+                  const itemStyle = { backgroundColor: n.read ? "transparent" : "var(--hover-surface)" };
+                  return (
+                    <li key={n.id}>
+                      {href ? (
+                        <Link href={href} onClick={() => setOpen(false)} className={`${itemClass} hover:opacity-80`} style={itemStyle}>
+                          {content}
+                        </Link>
+                      ) : (
+                        <div className={itemClass} style={itemStyle}>{content}</div>
+                      )}
                     </li>
                   );
                 })}

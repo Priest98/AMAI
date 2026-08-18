@@ -7,25 +7,32 @@ const COLUMNS = [
   {
     title: 'Product',
     links: [
-      { label: 'How It Works', href: '#how-it-works' },
-      { label: 'AMAI Engine', href: '#engine' },
       { label: 'Features', href: '#features' },
+      { label: 'How It Works', href: '#how-it-works' },
       { label: 'Pricing', href: '#pricing' },
     ],
   },
   {
-    title: 'Account',
+    // About/Contact/Help Center don't have dedicated pages yet -- rather
+    // than link to a 404, these point at real, working destinations
+    // (home and a mailto) until those pages exist.
+    title: 'Company',
     links: [
-      { label: 'Sign In', href: '/login' },
-      { label: 'Create Account', href: '/register' },
-      { label: 'Dashboard', href: '/dashboard' },
+      { label: 'About', href: '/' },
+      { label: 'Contact', href: 'mailto:hello@amai.app' },
+    ],
+  },
+  {
+    title: 'Resources',
+    links: [
+      { label: 'FAQ', href: '#faq' },
     ],
   },
   {
     title: 'Legal',
     links: [
-      { label: 'Privacy Policy', href: '/privacy' },
-      { label: 'Terms of Service', href: '/terms' },
+      { label: 'Privacy', href: '/privacy' },
+      { label: 'Terms', href: '/terms' },
     ],
   },
 ];
@@ -34,13 +41,13 @@ export default function Footer() {
   return (
     <footer className="relative border-t" style={{ borderColor: 'var(--lp-border)' }}>
       <div className="max-w-7xl mx-auto px-5 sm:px-8 py-16">
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-10">
-          <div>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-10">
+          <div className="lg:col-span-1">
             <Link href="/" className="font-bold text-lg lp-heading tracking-tight lp-gradient-text lp-focus-ring">
               AMAI
             </Link>
             <p className="mt-4 text-sm leading-relaxed max-w-xs" style={{ color: 'var(--lp-text-secondary)' }}>
-              The AI social media operating system. Upload once, approve once, then let AMAI run your social media.
+              Your AI social media employee.
             </p>
           </div>
 
@@ -71,7 +78,11 @@ export default function Footer() {
           style={{ borderColor: 'var(--lp-border)', color: 'var(--lp-text-muted)' }}
         >
           <span>© {new Date().getFullYear()} AMAI. All rights reserved.</span>
-          <span>Built for creators who’d rather create than post.</span>
+          <div className="flex items-center gap-4">
+            <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="lp-focus-ring">Instagram</a>
+            <a href="https://tiktok.com" target="_blank" rel="noopener noreferrer" className="lp-focus-ring">TikTok</a>
+            <a href="https://x.com" target="_blank" rel="noopener noreferrer" className="lp-focus-ring">X</a>
+          </div>
         </div>
       </div>
     </footer>

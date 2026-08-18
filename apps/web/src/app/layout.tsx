@@ -1,38 +1,57 @@
 import type { Metadata } from 'next';
-import { Space_Grotesk, Inter, Bebas_Neue } from 'next/font/google';
+import { Plus_Jakarta_Sans, Instrument_Serif } from 'next/font/google';
 import './globals.css';
 import AnalyticsInit from '@/components/analytics/AnalyticsInit';
 
-// Design System v2: loaded once, app-wide, at the root so every route --
-// dashboard, auth pages, and the marketing site -- shares one typographic
-// identity. Previously the dashboard's CSS referenced a font named 'Geist'
-// that was never actually loaded anywhere as a webfont (only the landing
-// page loaded real fonts, scoped to its own --lp-font-* variables), so the
-// entire authenticated app was silently rendering in the browser's system
-// font this whole time. globals.css consumes these as --font-heading-var /
-// --font-body-var.
-const spaceGrotesk = Space_Grotesk({
+/**
+ * AMAI typography system: Plus Jakarta Sans (product/UI) + Instrument Serif
+ * (display/brand).
+ *
+ * Loaded once here at the root so every route -- dashboard, auth pages and
+ * the marketing site -- shares one typographic identity. Both are fetched
+ * via next/font/google, which downloads the files at build time and
+ * self-hosts them from our own domain (no runtime request to Google, same
+ * privacy/perf profile as self-hosting manually) while giving each a
+ * complete Latin glyph set and a real weight range.
+ *
+ * This replaces the previous Morrison + Kugile pair (audit findings, see
+ * project history):
+ *   - Kugile-Regular.ttf was licensed as a demo/trial file and, confirmed
+ *     via direct font inspection, mapped only 53 glyphs -- A-Z, a-z, space
+ *     -- with NO digits or punctuation. Any heading containing a period,
+ *     comma or number silently fell back to the body face mid-word.
+ *   - Morrison-Regular.otf was a single static weight (400 only, confirmed
+ *     via font inspection -- no fvar/variable axis). Every `font-bold` /
+ *     `font-semibold` utility in the app was therefore rendering as
+ *     browser-synthesized ("faux") bold, not a real bold weight.
+ * PLUS JAKARTA SANS drives --font-body-var across a full weight range
+ * (400-800), so bold/semibold text renders with an actual bold face instead
+ * of synthetic bolding.
+ */
+const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ['latin'],
-  weight: ['500', '600', '700'],
-  variable: '--font-heading-var',
-  display: 'swap',
-});
-const inter = Inter({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
+  weight: ['400', '500', '600', '700', '800'],
   variable: '--font-body-var',
   display: 'swap',
+  fallback: ['system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],
 });
-// Bold condensed display face, used only for hero-scale headlines
-// (globals.css's .text-display / .text-display-giant) -- synthesized from
-// the reference moodboard's dramatic oversized hero typography, kept
-// separate from Space Grotesk so regular headings stay readable at UI
-// sizes while hero copy gets the poster-style treatment.
-const bebasNeue = Bebas_Neue({
+
+/**
+ * INSTRUMENT SERIF is the display/brand face, used sparingly (hero headline
+ * and the final-CTA headline) so it stays a moment of contrast rather than
+ * the page's default voice -- a condensed editorial serif built for large
+ * sizes, which reads as premium/sophisticated without tipping into the
+ * more decorative end of the display-serif spectrum (Playfair, Bodoni).
+ * Full Latin glyph coverage (digits, punctuation) unlike Kugile, so no
+ * character-set restriction on what copy can use it.
+ */
+const instrumentSerif = Instrument_Serif({
   subsets: ['latin'],
-  weight: ['400'],
+  weight: '400',
+  style: ['normal', 'italic'],
   variable: '--font-display-var',
   display: 'swap',
+  fallback: ['var(--font-body-var)', 'system-ui', 'serif'],
 });
 
 export const metadata: Metadata = {
@@ -86,7 +105,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`antialiased ${spaceGrotesk.variable} ${inter.variable} ${bebasNeue.variable}`}>
+      <body className={`antialiased ${plusJakartaSans.variable} ${instrumentSerif.variable}`}>
         <AnalyticsInit />
         {children}
       </body>

@@ -5,6 +5,7 @@ import { EngineService } from '../engine/engine.service';
 import { Platform, ConnectionStatus, EngineEventType } from '@prisma/client';
 import * as crypto from 'crypto';
 import { getAppUrl } from '../common/app-url.util';
+import { EntitlementsService } from '../billing/entitlements.service';
 
 @Injectable()
 export class OAuthService {
@@ -16,7 +17,25 @@ export class OAuthService {
     private prisma: PrismaService,
     private encryption: EncryptionService,
     private engineService: EngineService,
+    private entitlementsService: EntitlementsService,
   ) {}
+
+  /**
+   * Only blocks brand-new connections -- reconnecting/refreshing a token
+   * for a platform account that's already linked to this brand must always
+   * be allowed, since that isn't adding a new account against the limit.
+   */
+  private async assertCanConnectNewAccount(brandId: string, platform: Platform, platformAccountId: string) {
+    const existing = await this.prisma.socialAccount.findUnique({
+      where: { platform_platformAccountId: { platform, platformAccountId } },
+    });
+    if (existing) return; // reconnect/refresh, not a new account
+
+    const result = await this.entitlementsService.canPerformAction(brandId, 'connect_social_account');
+    if (!result.allowed) {
+      throw new BadRequestException(result.reason || 'Your plan does not allow connecting another account.');
+    }
+  }
 
   // ─────────────────────────────────────────────────────────────
   // HELPERS
@@ -31,38 +50,69 @@ export class OAuthService {
     return Buffer.from(JSON.stringify({ payload, signature })).toString('base64url');
   }
 
-  /** Parse state string — supports both base64url and raw JSON */
+  /**
+   * Parse and verify the CSRF-protecting OAuth state token built by
+   * buildState(). This is the ONLY thing standing between an OAuth callback
+   * (google/instagram/tiktok callback, all unauthenticated by necessity --
+   * the provider's browser redirect can't carry our app's auth) and letting
+   * an attacker choose which brandId a freshly-connected social account
+   * gets attached to.
+   *
+   * SECURITY FIX: the previous version caught ANY failure while verifying
+   * the signed envelope -- including an explicit "Invalid OAuth state
+   * signature" throw for a signature MISMATCH -- and silently fell back to
+   * `JSON.parse(stateStr)` on the raw, unverified string. Since an OAuth
+   * "connect" is a public, browser-constructible URL (an attacker never
+   * needs to call this app's own /connect endpoint; they can build
+   * `https://api.instagram.com/oauth/authorize?client_id=<our public
+   * client_id>&redirect_uri=<our public callback>&state=<anything>` and
+   * complete consent with THEIR OWN account), an attacker could set
+   * `state={"brandId":"<victim-brand-id>"}` as plain, unsigned JSON. That
+   * string fails the base64url+signature path (falls into the catch) and
+   * is then accepted verbatim by the "legacy" fallback -- attaching the
+   * attacker's own Instagram/TikTok account, or Google Drive as a content
+   * source, to a brand they have no membership in. This is a live
+   * cross-tenant account-takeover vector, not a theoretical one -- caught
+   * during a full security audit.
+   *
+   * Fix: verify-or-reject, no unsigned fallback. A missing/malformed/
+   * mismatched signature now always throws BadRequestException.
+   */
   private parseState(stateStr: string): { brandId: string } {
+    let decoded: string;
     try {
-      // Decode base64url
-      const decoded = Buffer.from(stateStr, 'base64url').toString('utf8');
-      const parsed = JSON.parse(decoded);
-
-      // Verify signature
-      if (parsed.payload && parsed.signature) {
-        const expectedSignature = crypto.createHmac('sha256', process.env.JWT_SECRET as string)
-          .update(parsed.payload)
-          .digest('hex');
-          
-        if (parsed.signature !== expectedSignature) {
-          throw new BadRequestException('Invalid OAuth state signature. CSRF verification failed.');
-        }
-        
-        const parsedPayload = JSON.parse(parsed.payload);
-        return { brandId: parsedPayload.brandId || 'primary_brand' };
-      }
-      
-      // Fallback for legacy state (already parsed)
-      return { brandId: parsed.brandId || 'primary_brand' };
+      decoded = Buffer.from(stateStr, 'base64url').toString('utf8');
     } catch {
-      try {
-        // legacy plain JSON (URL-decoded by NestJS @Query)
-        const parsed = JSON.parse(stateStr);
-        return { brandId: parsed.brandId || 'primary_brand' };
-      } catch {
-        return { brandId: 'primary_brand' };
-      }
+      throw new BadRequestException('Invalid OAuth state. CSRF verification failed.');
     }
+
+    let parsed: any;
+    try {
+      parsed = JSON.parse(decoded);
+    } catch {
+      throw new BadRequestException('Invalid OAuth state. CSRF verification failed.');
+    }
+
+    if (!parsed || typeof parsed.payload !== 'string' || typeof parsed.signature !== 'string') {
+      throw new BadRequestException('Invalid OAuth state. CSRF verification failed.');
+    }
+
+    const expectedSignature = crypto
+      .createHmac('sha256', process.env.JWT_SECRET as string)
+      .update(parsed.payload)
+      .digest('hex');
+
+    const provided = Buffer.from(parsed.signature, 'hex');
+    const expected = Buffer.from(expectedSignature, 'hex');
+    if (provided.length !== expected.length || !crypto.timingSafeEqual(provided, expected)) {
+      throw new BadRequestException('Invalid OAuth state signature. CSRF verification failed.');
+    }
+
+    const parsedPayload = JSON.parse(parsed.payload);
+    if (!parsedPayload.brandId || typeof parsedPayload.brandId !== 'string') {
+      throw new BadRequestException('Invalid OAuth state. CSRF verification failed.');
+    }
+    return { brandId: parsedPayload.brandId };
   }
 
   /** Ensure a brand exists; create one if not */
@@ -293,7 +343,12 @@ export class OAuthService {
     const cleanCode = code ? code.split('#')[0].trim() : '';
     const redirectUri = this.getInstagramRedirectUri();
 
-    this.logger.log(`[Instagram Callback] RAW CODE: ${JSON.stringify(code)} | CLEAN CODE: ${JSON.stringify(cleanCode)} | REDIRECT URI: ${JSON.stringify(redirectUri)}`);
+    // Security audit fix: this used to log the raw OAuth authorization code
+    // in full. It's short-lived and single-use, but it's still a live
+    // credential for the few seconds before exchange -- logging only its
+    // length (not the value) is enough to debug "code missing/malformed"
+    // issues without putting a usable secret in the log stream.
+    this.logger.log(`[Instagram Callback] code present: ${!!code} (len ${code?.length ?? 0}) | clean code present: ${!!cleanCode} (len ${cleanCode.length}) | redirect URI: ${redirectUri}`);
     
     if (cleanCode && this.processedCodes.has(cleanCode)) {
       this.logger.warn(`[Instagram Callback] Duplicate code submission ignored: ${cleanCode.substring(0, 10)}...`);
@@ -329,7 +384,11 @@ export class OAuthService {
     if (instagramAppId) {
       const activeSecret = instagramAppSecret || metaAppSecret;
 
-      this.logger.log(`[Instagram Token Exchange] App ID: ${instagramAppId} | Has INSTAGRAM_CLIENT_SECRET: ${!!instagramAppSecret} | Secret Prefix: ${activeSecret ? activeSecret.substring(0, 4) : 'none'}...`);
+      // Security audit fix: this used to log the first 4 characters of the
+      // live app secret. Even a partial prefix narrows brute-force/lookup
+      // space and has no legitimate debugging use that a boolean presence
+      // check doesn't already cover.
+      this.logger.log(`[Instagram Token Exchange] App ID: ${instagramAppId} | Has INSTAGRAM_CLIENT_SECRET: ${!!instagramAppSecret} | Has active secret: ${!!activeSecret}`);
 
       const tokenRes = await fetch('https://api.instagram.com/oauth/access_token', {
         method: 'POST',
@@ -439,6 +498,8 @@ export class OAuthService {
     }
 
     const encryptedToken = this.encryption.encrypt(finalToken);
+
+    await this.assertCanConnectNewAccount(brandId, Platform.INSTAGRAM, platformAccountId);
 
     await this.prisma.socialAccount.upsert({
       where: { platform_platformAccountId: { platform: Platform.INSTAGRAM, platformAccountId } },
@@ -588,6 +649,8 @@ export class OAuthService {
     const encryptedAccess = this.encryption.encrypt(accessToken);
     const encryptedRefresh = refreshToken ? this.encryption.encrypt(refreshToken) : null;
 
+    await this.assertCanConnectNewAccount(brandId, Platform.TIKTOK, platformAccountId);
+
     await this.prisma.socialAccount.upsert({
       where: { platform_platformAccountId: { platform: Platform.TIKTOK, platformAccountId } },
       update: {
@@ -702,12 +765,16 @@ export class OAuthService {
     };
   }
 
-  async disconnectAccount(accountId: string) {
-    const deleted = await this.prisma.socialAccount.delete({ where: { id: accountId } });
-    await this.engineService.logEvent(deleted.brandId, EngineEventType.ACCOUNT_DISCONNECTED, {
-      message: `${deleted.platform} account disconnected.`,
+  /** Scoped by (id AND brandId) -- not just id -- so an authenticated user can never disconnect another brand's connected account. See OAuthController's audit comment. */
+  async disconnectAccount(brandId: string, accountId: string) {
+    const result = await this.prisma.socialAccount.deleteMany({ where: { id: accountId, brandId } });
+    if (result.count === 0) {
+      throw new NotFoundException('Account not found for this brand.');
+    }
+    await this.engineService.logEvent(brandId, EngineEventType.ACCOUNT_DISCONNECTED, {
+      message: `Account disconnected.`,
     });
-    return { success: true, id: deleted.id };
+    return { success: true, id: accountId };
   }
 
   async disconnectGoogleDrive(brandId: string) {
@@ -719,9 +786,10 @@ export class OAuthService {
     return { success: true, brandId };
   }
 
-  async renameAccount(accountId: string, newHandle: string) {
+  /** Scoped by (id AND brandId) -- see disconnectAccount's comment above. */
+  async renameAccount(brandId: string, accountId: string, newHandle: string) {
     const account = await this.prisma.socialAccount.findUnique({ where: { id: accountId } });
-    if (!account) throw new NotFoundException('Account not found');
+    if (!account || account.brandId !== brandId) throw new NotFoundException('Account not found for this brand.');
 
     let meta: any = {};
     try { meta = JSON.parse(account.metadata || '{}'); } catch {}

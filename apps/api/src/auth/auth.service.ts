@@ -4,7 +4,7 @@ import { RegisterDto, LoginDto, ForgotPasswordDto, ResetPasswordDto, VerifyEmail
 import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
 import { JwtService } from '@nestjs/jwt';
-import { Role } from '@prisma/client';
+import { Role, PlanTier, SubscriptionStatus } from '@prisma/client';
 import { getAppUrl } from '../common/app-url.util';
 import { EmailService } from '../email/email.service';
 
@@ -152,7 +152,13 @@ export class AuthService {
             email: cleanEmail,
             passwordHash,
             fullName: dto.fullName,
-            emailVerified: false,
+            // Auto-verified only in local development (NODE_ENV=development,
+            // set in apps/web/.env.local) -- SMTP isn't configured locally,
+            // so the verification email below is silently skipped and there
+            // would otherwise be no way to click the link. Production
+            // (Vercel sets NODE_ENV=production) always requires real
+            // verification -- this can never weaken that.
+            emailVerified: process.env.NODE_ENV === 'development',
             verificationToken,
             verificationTokenExpiresAt,
             role: Role.OWNER,
@@ -179,6 +185,17 @@ export class AuthService {
             name: 'My Primary Brand',
             organizationId: org.id
           }
+        });
+
+        // Every organization gets a Subscription row at signup -- Free
+        // included -- so "does this org have a subscription" is never a
+        // special case downstream (EntitlementsService always finds one).
+        await tx.subscription.create({
+          data: {
+            organizationId: org.id,
+            plan: PlanTier.FREE,
+            status: SubscriptionStatus.ACTIVE,
+          },
         });
 
         return newUser;
@@ -381,7 +398,9 @@ export class AuthService {
     } catch (e) {}
 
     const payload = { sub: user.id, email: user.email, brandId };
-    const expiresIn = rememberMe ? '30d' : '1d';
+    const expiresInDays = rememberMe ? 30 : 1;
+    const expiresIn = `${expiresInDays}d`;
+    const expiresAt = new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000);
     return {
       user: {
         id: user.id,
@@ -391,7 +410,13 @@ export class AuthService {
         brandId,
         emailVerified: user.emailVerified ?? true,
       },
+      // Security audit fix (3.5): still returned from the service (the
+      // controller needs the raw value to set the httpOnly cookie), but
+      // AuthController.login no longer echoes this back in the HTTP
+      // response body -- see that method's comment for why.
       accessToken: this.jwtService.sign(payload, { expiresIn }),
+      expiresAt,
+      maxAgeMs: expiresInDays * 24 * 60 * 60 * 1000,
     };
   }
 

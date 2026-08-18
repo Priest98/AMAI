@@ -1,8 +1,11 @@
 import { Controller, Post, Get, Delete, Body, Param, Req, UploadedFile, UseInterceptors, BadRequestException, Query, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { BrandAccessGuard } from '../auth/brand-access.guard';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { MediaService } from './media.service';
+import { EntitlementGuard, RequireEntitlement } from '../billing/entitlement.guard';
+import { RegisterAssetDto, CreateFolderDto } from './dto';
 
 @UseGuards(JwtAuthGuard, BrandAccessGuard)
 @Controller('brands/:brandId/media')
@@ -56,7 +59,7 @@ export class MediaController {
   async registerAsset(
     @Param('brandId') brandId: string,
     @Req() req: any,
-    @Body() dto: { url: string; size: number; mimeType: string; filename: string; folderId?: string },
+    @Body() dto: RegisterAssetDto,
   ) {
     return this.mediaService.registerUploadedAsset(brandId, dto, req.user?.id);
   }
@@ -70,6 +73,16 @@ export class MediaController {
    * (success or a clean, retryable MediaStatus.FAILED) well inside
    * Vercel's platform timeout.
    */
+  // Security audit fix (6.2): entitlements.recordAiGeneration() already caps
+  // total AI calls per billing period, but that check itself costs a DB
+  // round-trip on every hit, so a burst of requests within a single minute
+  // could still be used to hammer the DB / third-party AI APIs before the
+  // monthly-limit rejection kicks in. This is a looser per-minute ceiling
+  // than the auth endpoints since legitimate usage (batch carousel
+  // uploads) can burst.
+  @Throttle({ default: { limit: 15, ttl: 60_000 } })
+  @UseGuards(EntitlementGuard)
+  @RequireEntitlement('generate_ai_content')
   @Post('assets/:assetId/process')
   async processAsset(
     @Param('brandId') brandId: string,
@@ -97,7 +110,7 @@ export class MediaController {
   @Post('folders')
   async createFolder(
     @Param('brandId') brandId: string,
-    @Body() dto: { name: string; parentId?: string }
+    @Body() dto: CreateFolderDto,
   ) {
     return this.mediaService.createFolder(brandId, dto.name, dto.parentId);
   }

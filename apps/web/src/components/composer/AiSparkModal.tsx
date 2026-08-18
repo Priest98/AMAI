@@ -1,3 +1,5 @@
+import { Wand2 } from 'lucide-react';
+
 export function AiSparkModal() {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
@@ -5,7 +7,7 @@ export function AiSparkModal() {
         {/* Header */}
         <div className="px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between bg-gradient-to-r from-blue-50 to-sky-50 dark:from-blue-900/20 dark:to-sky-900/20">
           <div className="flex items-center space-x-2">
-            <span className="text-xl">✨</span>
+            <Wand2 className="h-5 w-5 text-blue-500" aria-hidden="true" />
             <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">AI Spark Assistant</h3>
           </div>
           <button className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300">

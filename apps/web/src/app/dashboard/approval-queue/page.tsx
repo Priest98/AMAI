@@ -6,7 +6,7 @@ import SectionHeader from '@/components/ui/SectionHeader';
 import Badge from '@/components/ui/Badge';
 import EmptyState from '@/components/ui/EmptyState';
 import { Reveal } from '@/components/ui/Reveal';
-import { apiFetch, brandFetch, getBrandId } from '@/lib/api';
+import { apiFetch, brandFetch } from '@/lib/api';
 import { useEngineEvents } from '@/lib/useEngineEvents';
 import {
   CheckCircle2,
@@ -33,7 +33,8 @@ interface QueuePost {
   createdAt: string;
   scheduledAt?: string | null;
   targets?: { platform: string; socialAccountId?: string }[];
-  media?: { asset: { blobUrl: string | null; mimeType: string } }[];
+  media?: { order?: number; asset: { blobUrl: string | null; mimeType: string } }[];
+  postType?: 'SINGLE' | 'CAROUSEL';
 }
 
 interface ConnectedAccount {
@@ -97,7 +98,7 @@ export default function ApprovalQueuePage() {
 
   const loadAccounts = useCallback(async () => {
     try {
-      const data = await apiFetch<{ socialAccounts: ConnectedAccount[] }>(`/oauth/accounts?brandId=${getBrandId()}`);
+      const data = await apiFetch<{ socialAccounts: ConnectedAccount[] }>('/oauth/accounts');
       setAccounts((data.socialAccounts || []).filter((a) => a.status === 'CONNECTED'));
     } catch {
       // Non-fatal — platform toggles just show as unavailable.
@@ -176,7 +177,7 @@ export default function ApprovalQueuePage() {
     setBusyId(id); setBusyAction('approve');
     try {
       await brandFetch(`/posts/${id}/approve`, { method: 'POST', body: JSON.stringify({}) });
-      flash('🎉 Post approved and scheduled for publishing!');
+      flash('Post approved and scheduled for publishing.');
     } catch (e: any) {
       setPosts(snapshot);
       flash(e.message || 'Could not approve this post.');
@@ -237,7 +238,7 @@ export default function ApprovalQueuePage() {
     setBusyId(id); setBusyAction('schedule');
     try {
       await brandFetch(`/posts/${id}/approve`, { method: 'POST', body: JSON.stringify(buildEditBody()) });
-      flash('📅 Post scheduled — check Scheduled Posts.');
+      flash('📅 Post scheduled. Check Scheduled Posts.');
     } catch (e: any) {
       setPosts(snapshot);
       flash(e.message || 'Could not schedule this post.');
@@ -277,7 +278,7 @@ export default function ApprovalQueuePage() {
 
       const reasons = (result.publishErrors || []).map((e) => `${e.platform}: ${e.error}`).join(' · ');
       if (result.status === 'PUBLISHED') {
-        flash('✅ Published — live on the connected platform(s) now.');
+        flash('✅ Published. Live on the connected platform(s) now.');
       } else if (result.status === 'FAILED') {
         // Every target exhausted its retries — a real, terminal failure.
         flash(`Publishing failed. ${reasons || 'Check the connected account and try again.'}`);
@@ -288,7 +289,7 @@ export default function ApprovalQueuePage() {
         // success message.
         flash(`Hit a temporary issue and will retry automatically. ${reasons}`);
       } else {
-        flash('Publishing — check Scheduled Posts for status.');
+        flash('Publishing. Check Scheduled Posts for status.');
       }
     } catch (e: any) {
       // A genuine request-level failure (network error, 500 before the
@@ -424,6 +425,34 @@ export default function ApprovalQueuePage() {
                       </button>
                     </div>
                   </div>
+
+                  {/* Media preview — shows every image in the order the
+                      composer/AI pipeline arranged them, so a carousel post
+                      is visibly distinct from a single-image one right in
+                      the queue, not just a caption with no way to tell how
+                      many images (or which platform-specific derivative)
+                      will actually publish. */}
+                  {post.media && post.media.length > 0 && (
+                    <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                      {[...post.media]
+                        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+                        .map((m, i) =>
+                          m.asset.blobUrl ? (
+                            m.asset.mimeType?.startsWith('video') ? (
+                              <video key={i} src={m.asset.blobUrl} muted className="h-16 w-16 rounded-lg object-cover border shrink-0" style={{ borderColor: 'var(--card-border)' }} />
+                            ) : (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img key={i} src={m.asset.blobUrl} alt={`Image ${i + 1}`} className="h-16 w-16 rounded-lg object-cover border shrink-0" style={{ borderColor: 'var(--card-border)' }} />
+                            )
+                          ) : null,
+                        )}
+                      {post.postType === 'CAROUSEL' && (
+                        <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 shrink-0">
+                          Carousel · {post.media.length} images
+                        </span>
+                      )}
+                    </div>
+                  )}
 
                   {isEditing ? (
                     <div className="space-y-4 pt-2">

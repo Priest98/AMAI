@@ -34,7 +34,13 @@ export function Monogram({ className = "h-8 w-8", ...props }: React.ComponentPro
 
 export function Logo({ className = "", variant = "full", size = "md", ...props }: LogoProps) {
   if (variant === "monogram") {
-    return <Monogram className={className || "h-8 w-8"} {...props} />;
+    // LogoProps extends ComponentProps<"div">, so `props` carries
+    // div-typed event handlers (onCopy, etc.) that are not assignable to
+    // an <svg>'s SVG-typed equivalents -- spreading them here was a real
+    // type error (TS2322), not a cosmetic one. Every call site passes only
+    // className, so the monogram variant forwards just that rather than
+    // casting div handlers onto an element that cannot receive them.
+    return <Monogram className={className || "h-8 w-8"} />;
   }
 
   return (

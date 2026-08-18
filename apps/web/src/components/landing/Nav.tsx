@@ -7,8 +7,8 @@ import { Menu, X } from 'lucide-react';
 import ThemeToggle from '@/components/ui/ThemeToggle';
 
 const NAV_LINKS = [
+  { href: '#product', label: 'Product' },
   { href: '#how-it-works', label: 'How It Works' },
-  { href: '#engine', label: 'AMAI Engine' },
   { href: '#features', label: 'Features' },
   { href: '#pricing', label: 'Pricing' },
   { href: '#faq', label: 'FAQ' },
@@ -95,7 +95,7 @@ export default function Nav() {
             <ThemeToggle />
             <button
               type="button"
-              className="lp-btn-icon-glass p-2.5 lp-focus-ring"
+              className="lp-btn-icon-glass touch-target p-2.5 lp-focus-ring"
               onClick={() => setOpen((v) => !v)}
               aria-expanded={open}
               aria-label={open ? 'Close menu' : 'Open menu'}
@@ -134,10 +134,10 @@ export default function Nav() {
                   </a>
                 ))}
                 <div className="flex gap-3 pt-2">
-                  <Link href="/login" className="flex-1 text-center px-4 py-2.5 rounded-full text-sm font-semibold lp-btn-ghost">
+                  <Link href="/login" className="touch-target flex-1 px-4 py-2.5 rounded-full text-sm font-semibold lp-btn-ghost">
                     Sign In
                   </Link>
-                  <Link href="/register" className="flex-1 text-center px-4 py-2.5 rounded-full text-sm lp-btn-primary">
+                  <Link href="/register" className="touch-target flex-1 px-4 py-2.5 rounded-full text-sm lp-btn-primary">
                     Start Free
                   </Link>
                 </div>

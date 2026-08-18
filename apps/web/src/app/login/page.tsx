@@ -8,7 +8,7 @@ import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
 import ThemeToggle from '@/components/ui/ThemeToggle';
 import { AtSign, Lock, ArrowRight, Eye, EyeOff, CheckCircle2, AlertCircle } from 'lucide-react';
-import { API_BASE, isAuthenticated, TOKEN_KEY } from '@/lib/api';
+import { API_BASE, isAuthenticated, setSession } from '@/lib/api';
 import { capture, identify } from '@/lib/posthog';
 
 
@@ -44,16 +44,22 @@ export default function LoginPage() {
     setError('');
 
     try {
+      // Security audit fix (3.5): the session cookie is httpOnly and set by
+      // the server response itself (Set-Cookie) -- `credentials: 'include'`
+      // is what makes the browser actually store it. There's no token in
+      // the response body anymore to read or persist; `data.user` is just
+      // a non-sensitive snapshot cached for synchronous UI reads.
       const res = await fetch(`${API_BASE}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ email, password, rememberMe }),
       });
 
       const data = await res.json();
 
-      if (res.ok && data.accessToken) {
-        localStorage.setItem(TOKEN_KEY, data.accessToken);
+      if (res.ok && data.user) {
+        setSession(data.user, data.expiresAt);
         identify(email, { email });
         capture('login', { email });
         router.push('/dashboard');

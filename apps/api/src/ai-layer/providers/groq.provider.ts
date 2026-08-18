@@ -81,6 +81,7 @@ export class GroqProvider implements AiProviderAdapter {
     }
     if (cleaned.length === 0) throw new Error('Groq returned an empty response after cleanup.');
 
-    return { text: cleaned, raw: data };
+    const tokensUsed = typeof data?.usage?.total_tokens === 'number' ? data.usage.total_tokens : undefined;
+    return { text: cleaned, raw: data, tokensUsed };
   }
 }

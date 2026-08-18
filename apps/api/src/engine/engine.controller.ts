@@ -1,11 +1,12 @@
-import { Controller, Get, Post, Patch, Body, Param, Sse, MessageEvent, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, Query, Sse, MessageEvent, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { BrandAccessGuard } from '../auth/brand-access.guard';
 import { Observable, map, merge, of, timer, takeUntil } from 'rxjs';
 import { EngineService } from './engine.service';
 import { EngineJobsService } from './engine-jobs.service';
 import { SupabaseRealtimeService } from './supabase-realtime.service';
-import { EngineState, ApprovalMode, ScheduleStartOption, SchedulingPlatform } from '@prisma/client';
+import { EngineState, ApprovalMode } from '@prisma/client';
+import { UpdateEngineConfigDto, UpdatePostingScheduleDto } from './dto';
 
 @UseGuards(JwtAuthGuard, BrandAccessGuard)
 @Controller('brands/:brandId/engine')
@@ -21,6 +22,27 @@ export class EngineController {
     return this.engineService.getOrCreateConfig(brandId);
   }
 
+  /**
+   * AutoPilot control centre payload: live pipeline counts plus subsystem
+   * health. Every value is read from real data -- there are no synthesised
+   * metrics here, and a subsystem AMAI cannot actually probe reports
+   * 'unknown' rather than a reassuring green tick.
+   */
+  @Get('control-center')
+  async getControlCenter(@Param('brandId') brandId: string) {
+    return this.engineService.getControlCenter(brandId);
+  }
+
+  /**
+   * Content calendar intelligence: real category/pillar balance and
+   * back-to-back repetition over the brand's actual scheduled posts. See
+   * EngineService.getCalendarInsights for what's computed and why.
+   */
+  @Get('calendar-insights')
+  async getCalendarInsights(@Param('brandId') brandId: string, @Query('days') days?: string) {
+    return this.engineService.getCalendarInsights(brandId, days ? Number(days) : undefined);
+  }
+
   @Patch('state')
   async setState(@Param('brandId') brandId: string, @Body('state') state: EngineState) {
     return this.engineService.setState(brandId, state);
@@ -32,7 +54,7 @@ export class EngineController {
   }
 
   @Patch('config')
-  async updateConfig(@Param('brandId') brandId: string, @Body() dto: { defaultTone?: string }) {
+  async updateConfig(@Param('brandId') brandId: string, @Body() dto: UpdateEngineConfigDto) {
     return this.engineService.updateConfig(brandId, dto);
   }
 
@@ -40,13 +62,7 @@ export class EngineController {
   @Patch('posting-schedule')
   async updatePostingSchedule(
     @Param('brandId') brandId: string,
-    @Body() dto: {
-      postsPerDay?: number;
-      scheduleStartFrom?: ScheduleStartOption;
-      customStartDate?: string | null;
-      timeZone?: string;
-      schedulingPlatform?: SchedulingPlatform;
-    },
+    @Body() dto: UpdatePostingScheduleDto,
   ) {
     return this.engineService.updatePostingSchedule(brandId, dto);
   }

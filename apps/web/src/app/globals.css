@@ -4,11 +4,11 @@
 /*
  * AMAI Design System v2 — Light & Dark
  *
- * Typography: Space Grotesk (display/headings) + Inter (UI/body) — the same
- * pairing already proven on the marketing site, now unified across the
- * whole product instead of the dashboard silently falling back to system
- * fonts (the CSS previously named 'Geist', which was never actually loaded
- * as a webfont anywhere outside the landing page — see layout.tsx).
+ * Typography: Plus Jakarta Sans (product/UI, ~90%) + Instrument Serif
+ * (display/brand, ~10%). Both loaded once in layout.tsx via next/font/google
+ * (self-hosted at build time, full Latin glyph coverage, real weight range
+ * 400-800 on the body face -- see layout.tsx for why this replaced the
+ * previous Morrison + Kugile pair).
  *
  * Visual language: confident, minimal, spacious. Calm in light mode, rich
  * and comfortable for long sessions in dark mode. Same tokens drive both
@@ -79,9 +79,12 @@
   --gradient-mesh-subtle: radial-gradient(60% 60% at 15% 10%, rgba(74, 127, 167, 0.08) 0%, transparent 60%),
     radial-gradient(50% 50% at 100% 0%, rgba(10, 25, 49, 0.05) 0%, transparent 60%);
 
-  --font-sans: var(--font-body-var), Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-heading: var(--font-heading-var), 'Space Grotesk', var(--font-sans);
-  --font-display: var(--font-display-var), 'Bebas Neue', var(--font-heading);
+  /* AMAI typography: Plus Jakarta Sans (product) + Instrument Serif (brand).
+     Plus Jakarta Sans drives both body and headings; Instrument Serif is
+     display only, applied selectively via --font-display. */
+  --font-sans: var(--font-body-var), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-heading: var(--font-body-var), var(--font-sans);
+  --font-display: var(--font-display-var), var(--font-body-var), var(--font-sans);
   --font-mono: 'Geist Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
 }
 
@@ -164,6 +167,56 @@
   --radius-full: 9999px;
 }
 
+/* ============================== Spacing scale ==============================
+ * The one predictable rhythm the whole product spaces against. Previously
+ * the system had radius/duration/elevation tokens but no spacing scale, so
+ * every screen invented its own gaps (p-3 next to p-5 next to p-6) and the
+ * result read as inconsistent density rather than a deliberate layout.
+ *
+ * Semantic aliases below encode the decisions rather than making each
+ * screen re-derive them, so "heading to its description" is the same
+ * distance in Settings as it is on the dashboard.
+ */
+:root {
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* Semantic spacing -- what the value means, not just how big it is. */
+  --card-padding: var(--space-6);          /* 24px desktop card interior */
+  --card-padding-mobile: var(--space-4);   /* 16px, keeps small screens usable */
+  --section-gap: var(--space-6);           /* between sibling cards/sections */
+  --heading-to-desc: var(--space-2);       /* title -> supporting line */
+  --desc-to-control: var(--space-5);       /* supporting line -> the control */
+  --grid-gap: var(--space-4);              /* card grids */
+}
+
+/* Comfortable interior for a content card. Applied alongside .exec-card so
+   padding stays consistent app-wide and responds on small screens instead
+   of every page hardcoding p-4/p-5/p-6 independently. */
+.card-pad {
+  padding: var(--card-padding-mobile);
+}
+@media (min-width: 640px) {
+  .card-pad {
+    padding: var(--card-padding);
+  }
+}
+
+/* Constrains a dashboard page's content to a comfortable reading measure on
+   large monitors. Without this, text-heavy pages (Settings, Business Brain)
+   stretch the full column width and become tiring to scan. */
+.page-shell {
+  width: 100%;
+  max-width: 960px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.001ms !important;
@@ -187,7 +240,12 @@ body {
   background-attachment: fixed;
   color: var(--text-primary);
   font-family: var(--font-sans);
-  font-feature-settings: "cv11", "ss01";
+  /* Suppress discretionary ligatures for UI text generally -- a safe
+     default regardless of which face is active, since fused letter pairs
+     read as a rendering fault in a label or error message. Opt back in
+     per-element with .allow-display-ligatures where a decorative form is
+     wanted (not currently used anywhere). */
+  font-variant-ligatures: no-discretionary-ligatures;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -212,11 +270,22 @@ input, select, textarea {
   border-radius: 4px;
 }
 
+/* 36px was below every mobile touch-target guideline (WCAG 2.5.8 asks 24px
+   minimum, Apple/Material both recommend 44px). Desktop keeps the compact
+   36px because a mouse is precise; any coarse pointer (finger) gets a real
+   44px hit area. Using a pointer media query rather than a width breakpoint
+   means a touchscreen laptop is treated correctly too. */
 .touch-target {
   min-height: 36px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+@media (pointer: coarse) {
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
 }
 
 /* =============================== Typography ================================ */
@@ -239,17 +308,20 @@ input, select, textarea {
   letter-spacing: 0.01em;
   text-transform: uppercase;
 }
+/* Headings scale fluidly rather than dropping a fixed 28px title onto a
+   320px screen, where it crowds the viewport and pushes real content below
+   the fold. clamp() keeps the desktop size unchanged at the top end. */
 .text-h1 {
   font-family: var(--font-heading);
   font-weight: 600;
-  font-size: 1.75rem;
+  font-size: clamp(1.375rem, 1.15rem + 1.1vw, 1.75rem);
   line-height: 1.2;
   letter-spacing: -0.02em;
 }
 .text-h2 {
   font-family: var(--font-heading);
   font-weight: 600;
-  font-size: 1.375rem;
+  font-size: clamp(1.125rem, 0.98rem + 0.7vw, 1.375rem);
   line-height: 1.25;
   letter-spacing: -0.015em;
 }
@@ -503,6 +575,17 @@ input, select, textarea {
   border: 1px solid rgba(74, 127, 167, 0.25) !important;
 }
 .btn-gold-cta:hover { border-color: rgba(74, 127, 167, 0.5) !important; background: var(--glass-card-bg-hover) !important; }
+
+/* Hides the scrollbar on deliberately-scrollable strips (mobile tab rows,
+   chip rails) where a visible bar would read as a rendering artifact rather
+   than an affordance. Content stays keyboard- and swipe-scrollable. */
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
 
 /* =============================== Scrollbars =================================== */
 ::-webkit-scrollbar { width: 5px; height: 5px; }

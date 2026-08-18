@@ -21,6 +21,15 @@ model User {
   fullName                   String?
   avatar                     String?
   role                       Role                 @default(OWNER)
+  // Platform-level admin access to the internal AMAI Admin dashboard --
+  // deliberately separate from `role` above (which is only ever a signup
+  // default, never actually checked against anything) and from
+  // OrganizationMember.role (which governs access to a specific org's
+  // brands, not the platform as a whole). Nothing before this field
+  // existed to answer "is this person allowed into /admin" at all.
+  // NONE is the default for every user, including the founder's own
+  // account, until explicitly granted -- this must fail closed.
+  platformRole               PlatformRole         @default(NONE)
   emailVerified              Boolean              @default(false)
   emailVerifiedAt            DateTime?            @db.Timestamptz(6)
   verificationToken          String?              @unique
@@ -34,17 +43,133 @@ model User {
   createdAt                  DateTime             @default(now()) @db.Timestamptz(6)
   updatedAt                  DateTime             @default(now()) @updatedAt @db.Timestamptz(6)
   memberships                OrganizationMember[]
+  auditLogs                  AuditLog[]
+}
+
+// Platform-wide admin permission tier, distinct from any organization's
+// membership role. v1 only actually distinguishes NONE (no admin access,
+// the default for every account) from ADMIN (full access) -- the other
+// tiers are modeled now so the permission checks in AdminModule guards
+// can be written once against the full set, per the spec's request for a
+// system that "can later support Owner/Admin/Support/Developer/Read-only"
+// without needing a second migration when that's actually built out.
+enum PlatformRole {
+  NONE
+  OWNER
+  ADMIN
+  SUPPORT
+  DEVELOPER
+  READONLY
 }
 
 model Organization {
-  id        String               @id @default(dbgenerated("(gen_random_uuid())::text"))
-  name      String
-  slug      String               @unique
-  ownerId   String
-  createdAt DateTime             @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime             @default(now()) @updatedAt @db.Timestamptz(6)
-  brands    Brand[]
-  members   OrganizationMember[]
+  id           String               @id @default(dbgenerated("(gen_random_uuid())::text"))
+  name         String
+  slug         String               @unique
+  ownerId      String
+  createdAt    DateTime             @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime             @default(now()) @updatedAt @db.Timestamptz(6)
+  brands       Brand[]
+  members      OrganizationMember[]
+  subscription Subscription?
+  usageRecords UsageRecord[]
+}
+
+enum PlanTier {
+  FREE
+  PRO
+  AGENCY
+}
+
+/// Mirrors the payment provider's own subscription lifecycle rather than
+/// inventing new states -- so PAST_DUE/CANCELLED/EXPIRED always reflect
+/// what Stripe (or whichever provider) actually reports via webhook,
+/// never a guess made client-side.
+enum SubscriptionStatus {
+  ACTIVE
+  TRIALING
+  PAST_DUE
+  CANCELLED
+  EXPIRED
+}
+
+/// One row per Organization -- the billing unit. An Organization can own
+/// multiple Brands (see Brand.organizationId), which is exactly the
+/// structure Agency needs for multi-client workspaces, so Agency reuses
+/// this instead of a parallel "workspace" model. Free organizations get a
+/// row here too (plan = FREE, provider = null) created at signup, so
+/// "does this org have an active subscription" is never a special case --
+/// every organization always has exactly one.
+model Subscription {
+  id             String             @id @default(dbgenerated("(gen_random_uuid())::text"))
+  organizationId String             @unique
+  plan           PlanTier           @default(FREE)
+  status         SubscriptionStatus @default(ACTIVE)
+  // What currency the customer is actually being charged in (USD/GBP/NGN
+  // today -- see plans.config.ts SupportedCurrency). Free plan has no
+  // charge at all, so this stays at the default until a real checkout
+  // happens; set from the Stripe Price object's own currency at webhook
+  // time, never guessed at.
+  currency       String             @default("USD")
+  // Null for Free (no payment provider involved at all).
+  provider               String?
+  providerCustomerId     String?
+  providerSubscriptionId String?
+  currentPeriodStart     DateTime?  @db.Timestamptz(6)
+  currentPeriodEnd       DateTime?  @db.Timestamptz(6)
+  // True once the user has requested cancellation but the provider's
+  // current billing period hasn't ended yet -- Pro access stays active
+  // until currentPeriodEnd, then a webhook flips this to FREE/CANCELLED.
+  cancelAtPeriodEnd Boolean  @default(false)
+  createdAt         DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  usageRecords UsageRecord[]
+
+  @@index([providerCustomerId], map: "idx_subscription_provider_customer")
+  @@index([providerSubscriptionId], map: "idx_subscription_provider_subscription")
+}
+
+enum UsageMetric {
+  AI_GENERATION
+  POST_PUBLISHED
+}
+
+/// Metered usage counters, one row per (organization, metric, period).
+/// Only for metrics that actually reset on a cadence (AI generations,
+/// posts published) -- social-account count and storage are checked live
+/// against SocialAccount/MediaAsset instead of tracked here, since those
+/// are running totals, not per-period counters.
+model UsageRecord {
+  id             String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  organizationId String
+  subscriptionId String?
+  metric         UsageMetric
+  periodStart    DateTime  @db.Timestamptz(6)
+  periodEnd      DateTime  @db.Timestamptz(6)
+  count          Int       @default(0)
+  updatedAt      DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@unique([organizationId, metric, periodStart])
+  @@index([organizationId, metric], map: "idx_usage_record_org_metric")
+}
+
+/// Idempotency guard for webhook processing -- payment providers routinely
+/// retry webhook deliveries, and double-processing a "payment succeeded"
+/// event must never double-extend a billing period or double-fire an
+/// analytics event.
+model BillingWebhookEvent {
+  id          String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  provider    String
+  eventId     String
+  type        String
+  processedAt DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([provider, eventId])
 }
 
 model OrganizationMember {
@@ -82,8 +207,86 @@ model Brand {
   posts               Post[]
   socialAccounts      SocialAccount[]
   engineEvents        EngineEvent[]
+  businessBrain       BusinessBrain?
+  memoryEntries       MemoryEntry[]
 
   @@index([organizationId], map: "idx_brand_org")
+}
+
+/// The AMAI "Business Brain" — the persistent business-context store every
+/// AI feature (Content Intelligence, Content Strategy, Autopilot 2.0,
+/// Recommendation Center) reads before generating anything, instead of
+/// generating from a generic "tone" string alone. Explicit fields are what
+/// the owner tells AMAI directly (Intelligent Onboarding + Settings).
+/// Learned fields are AMAI's own evolving summary, refined over time from
+/// performance data and corrections — see MemoryEntry for the granular,
+/// timestamped trail behind those learned values.
+///
+/// One row per Brand, created lazily on first access (see
+/// BusinessBrainService.getOrCreate) so existing brands don't need a
+/// backfill migration.
+model BusinessBrain {
+  id      String @id @default(dbgenerated("(gen_random_uuid())::text"))
+  brandId String @unique
+  brand   Brand  @relation(fields: [brandId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  // --- Explicit knowledge (owner-provided) ---
+  businessDescription String? // what the business does, in the owner's own words
+  targetAudience       String? // who they're trying to reach
+  brandVoice           String? // e.g. "Playful and bold", "Calm and expert"
+  brandPersonality     String[] @default([]) // short tags: "witty", "premium", "no-nonsense"
+  contentPillars       String[] @default([]) // recurring themes AMAI should draw content ideas from
+  goals                String[] @default([]) // e.g. "Grow followers", "Drive website traffic"
+  competitiveContext   String? // who else is in their space / how to differentiate
+  avoidTopics          String[] @default([]) // hard "never post about / never say" list
+  preferredLanguage    String   @default("en")
+  websiteUrl           String?
+
+  // Intelligent Onboarding progress — separate from User.onboardingCompleted
+  // (that one is the generic product-tour flag; this tracks completion of
+  // the business-context capture flow specifically).
+  brainSetupCompleted Boolean @default(false)
+  brainSetupStep      Int     @default(0)
+
+  // --- Learned knowledge (AMAI-populated, refined automatically) ---
+  learnedInsights Json? // structured, evolving summary AMAI maintains itself (top themes, best-performing angles, etc.)
+  lastLearnedAt   DateTime? @db.Timestamptz(6)
+
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+
+  memoryEntries MemoryEntry[]
+}
+
+enum MemoryEntryType {
+  PREFERENCE          // explicit stated preference ("always use emojis", "never post on Sundays")
+  CORRECTION          // user edited/rejected AI output in a way that implies a standing rule
+  PERFORMANCE_INSIGHT // derived from real post performance data
+}
+
+/// Individual, timestamped facts AMAI has learned about a brand — the audit
+/// trail behind BusinessBrain.learnedInsights. Kept as its own table (rather
+/// than folded into BusinessBrain) so every learned fact carries its own
+/// provenance (source post, confidence, when learned) and the AMAI Memory
+/// feature can list/expire/dismiss entries individually without touching
+/// the rest of the brain.
+model MemoryEntry {
+  id           String          @id @default(dbgenerated("(gen_random_uuid())::text"))
+  brandId      String
+  brainId      String
+  type         MemoryEntryType
+  key          String // short machine-usable label, e.g. "posting_tone"
+  value        String // the learned fact/preference, human-readable
+  confidence   Float           @default(0.5) // 0-1, raised as evidence accumulates
+  sourcePostId String? // the Post this was learned from, if any
+  active       Boolean         @default(true) // false = superseded/dismissed, kept for history
+  createdAt    DateTime        @default(now()) @db.Timestamptz(6)
+
+  brand Brand         @relation(fields: [brandId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  brain BusinessBrain @relation(fields: [brainId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([brandId, type], map: "idx_memory_entry_brand_type")
+  @@index([brandId, active], map: "idx_memory_entry_brand_active")
 }
 
 model GrowthSettings {
@@ -231,6 +434,14 @@ model Post {
   ctaText          String?
   source           ContentSource @default(MANUAL)
   status           PostStatus   @default(DRAFT)
+  // SINGLE = exactly one media item (the original, still-default behavior).
+  // CAROUSEL = 2-5 media items published/scheduled as one post with one
+  // caption/hashtag set -- see PostMedia.order for display order and
+  // EngineService.composeManualPost for the only place CAROUSEL posts are
+  // created. Never inferred from PostMedia count; always set explicitly at
+  // creation time so "5 images uploaded together" can never silently become
+  // "5 separate posts" or vice versa.
+  postType         PostType     @default(SINGLE)
   scheduledAt      DateTime?    @db.Timestamptz(6)
   optimalScore     Int?
   peakTimeDetected Boolean      @default(false)
@@ -239,6 +450,11 @@ model Post {
   // back-to-back. Nullable: posts created outside that pipeline (manual,
   // legacy) simply don't have one.
   contentCategory  String?
+  // Which BusinessBrain.contentPillars entry (if any) this post was matched
+  // to by AI Content Intelligence. Nullable: only set once that feature
+  // runs; free string rather than a relation so a pillar being renamed or
+  // removed later never breaks historical posts.
+  contentPillar    String?
   approvedAt       DateTime?    @db.Timestamptz(6)
   rejectedAt       DateTime?    @db.Timestamptz(6)
   publishedAt      DateTime?    @db.Timestamptz(6)
@@ -248,6 +464,41 @@ model Post {
   media            PostMedia[]
   targets          PostTarget[]
 
+  // Closes a real check-then-write race in SchedulingService.assignNextSlot:
+  // it checks isSlotTaken() (a separate count() query) and only later does
+  // EngineService actually INSERT the Post -- two concurrent uploads to the
+  // same brand (bulk upload, two team members uploading at once) could both
+  // see the same instant as free and both book it, double-occupying a
+  // configured posting slot / exceeding postsPerDay for that moment.
+  //
+  // UPDATE (this was originally a blanket @@unique here -- corrected after
+  // it actually blocked a real deploy): a plain @@unique([brandId,
+  // scheduledAt]) was rejected by `prisma db push`'s own data-loss check,
+  // because production already has real historical rows sharing a
+  // timestamp among PUBLISHED/FAILED/REJECTED posts -- resolved outcomes,
+  // not the race this constraint exists to close (a new row from
+  // assignNextSlot() always starts in DRAFT/NEEDS_APPROVAL/SCHEDULED/
+  // PUBLISHING, never directly in a terminal state, so those never collide
+  // with each other in practice -- confirmed via a direct query before
+  // this was applied). So the real constraint is a PARTIAL unique index,
+  // scoped to only the non-terminal statuses that can actually race:
+  //
+  //   CREATE UNIQUE INDEX "uq_post_brand_scheduled_at_active"
+  //   ON "Post" ("brandId", "scheduledAt")
+  //   WHERE status NOT IN ('PUBLISHED', 'FAILED', 'REJECTED');
+  //
+  // Prisma's stable schema syntax has no way to express a partial/filtered
+  // unique index, so it is NOT declared as a Prisma-managed @@unique/@@index
+  // here and `prisma db push` will never see or touch it -- it was applied
+  // directly against the database as a one-off migration. EngineService's
+  // P2002 retry logic (see MAX_SLOT_RETRIES there) still catches this
+  // exactly the same way it would a schema-declared constraint: Postgres
+  // reports the same unique-violation error regardless of whether Prisma's
+  // schema knows the index exists. NULL scheduledAt (drafts) is exempt
+  // automatically -- Postgres treats every NULL as distinct in a unique
+  // index. The @@index below is a normal, Prisma-managed, non-unique index
+  // over the same two columns purely for query performance.
+  @@index([brandId, scheduledAt], map: "idx_post_brand_scheduled_at")
   @@index([brandId, status], map: "idx_post_brand_status")
   @@index([scheduledAt], map: "idx_post_scheduled")
 }
@@ -259,6 +510,16 @@ model PostTarget {
   platform                 Platform
   platformSpecificMetadata String?
   status                   TargetStatus    @default(PENDING)
+  // Retry bookkeeping. Attempts were previously derived by COUNTing
+  // PublishingLog rows on every failure; storing them makes the retry state
+  // readable in one query and lets a stuck in-flight claim be reclaimed
+  // safely (see claimedAt).
+  attemptCount             Int             @default(0)
+  lastAttemptAt            DateTime?       @db.Timestamptz(6)
+  // When the current PUBLISHING claim was taken. A claim older than the
+  // reclaim window is treated as abandoned (function killed mid-publish),
+  // so a post can never be stranded in-flight forever.
+  claimedAt                DateTime?       @db.Timestamptz(6)
   post                     Post            @relation(fields: [postId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   socialAccount            SocialAccount   @relation(fields: [socialAccountId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   publishingLogs           PublishingLog[]
@@ -270,6 +531,11 @@ model PostTarget {
 model PostMedia {
   postId  String
   assetId String
+  // Display/publish order within a CAROUSEL post (0-based). Always 0 for
+  // SINGLE posts. Lets the composer/approval-queue/publisher show and
+  // publish carousel images in the order the user arranged them, rather
+  // than whatever order the join rows happen to come back in.
+  order   Int        @default(0)
   asset   MediaAsset @relation(fields: [assetId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   post    Post       @relation(fields: [postId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
@@ -372,6 +638,24 @@ model PendingCommentReply {
   updatedAt           DateTime    @default(now()) @updatedAt @db.Timestamptz(6)
   brand               Brand       @relation(fields: [brandId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
+  // Idempotency fix (found still open in the production-readiness audit):
+  // both Meta and TikTok document "at-least-once" webhook delivery and
+  // explicitly tell integrators to guard against duplicate receipts (TikTok:
+  // "Webhook endpoints might receive the same event more than once. There
+  // should be a guard against duplicated event receipts by making your
+  // event processing idempotent" --
+  // https://developers.tiktok.com/doc/webhooks-overview). Nothing enforced
+  // that here before -- a redelivered comment webhook would re-run the AI
+  // reply generation (wasted spend) and create a second row for the same
+  // comment, which a human approver would then unknowingly approve twice,
+  // posting two duplicate AI replies to one comment under the brand's real
+  // account. Unlike the Post scheduling constraint elsewhere in this file,
+  // this doesn't need a partial/filtered index (no legitimate case where
+  // the same platform+comment should ever have two rows, at any status), so
+  // it's declared as a normal Prisma-managed @@unique -- WebhooksService
+  // catches the resulting P2002 and treats it as "already queued, not an
+  // error," same pattern already proven on the scheduling-slot retry.
+  @@unique([platform, originalCommentId], map: "uq_pending_reply_platform_comment")
   @@index([brandId, status], map: "idx_pending_reply_brand_status")
 }
 
@@ -389,6 +673,108 @@ model EngineEvent {
   brand        Brand           @relation(fields: [brandId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([brandId, createdAt], map: "idx_engine_event_brand_created")
+}
+
+/// Records every privileged action taken through the Admin dashboard (and,
+/// later, the Telegram bot / any future "source"). Per spec: this is the
+/// system of record for "who did what, when, to what, with what result" --
+/// intentionally simple (no soft-delete, append-only) since an audit log
+/// that can itself be edited or deleted isn't a real audit log.
+model AuditLog {
+  id            String      @id @default(dbgenerated("(gen_random_uuid())::text"))
+  adminUserId   String
+  action        String
+  resourceType  String?
+  resourceId    String?
+  // Snapshots of before/after state for mutating actions -- null for
+  // read-only actions (e.g. "viewed customer detail") where there's no
+  // state change to record. Stored as JSON rather than typed columns since
+  // the shape genuinely varies per action type.
+  previousState Json?
+  newState      Json?
+  result        AuditResult @default(SUCCESS)
+  source        AuditSource @default(DASHBOARD)
+  ipAddress     String?
+  userAgent     String?
+  createdAt     DateTime    @default(now()) @db.Timestamptz(6)
+  adminUser     User        @relation(fields: [adminUserId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([adminUserId, createdAt], map: "idx_audit_log_admin_created")
+  @@index([resourceType, resourceId], map: "idx_audit_log_resource")
+  @@index([createdAt], map: "idx_audit_log_created")
+}
+
+enum AuditResult {
+  SUCCESS
+  FAILURE
+}
+
+enum AuditSource {
+  DASHBOARD
+  TELEGRAM
+  API
+}
+
+/// Deduplicated error groups for the Admin dashboard's Errors page. AMAI
+/// already reports exceptions to Sentry (see SentryExceptionFilter), but
+/// nothing in the app can *read* Sentry's data back out without a Sentry
+/// API token (a credential that doesn't exist yet) -- these two models are
+/// a parallel, app-owned capture path written by the same exception filter,
+/// so the admin dashboard has real grouped/queryable error data immediately
+/// without a new external dependency. Not a Sentry replacement -- Sentry
+/// stays the source of truth for alerting; this is the source of truth for
+/// "show the founder a groupable, filterable list inside AMAI itself."
+model ErrorGroup {
+  id              String        @id @default(dbgenerated("(gen_random_uuid())::text"))
+  // Stable dedupe key: a hash of (error class + normalized message with
+  // request-specific values stripped + top stack frame). Deliberately NOT
+  // the raw message -- most error messages embed IDs/values that would
+  // otherwise make every occurrence its own "unique" group instead of
+  // collapsing into one, defeating the entire point of grouping.
+  signature       String        @unique
+  title           String
+  service         String?
+  environment     String?
+  severity        ErrorSeverity @default(ERROR)
+  occurrenceCount Int           @default(1)
+  firstSeenAt     DateTime      @default(now()) @db.Timestamptz(6)
+  lastSeenAt      DateTime      @default(now()) @db.Timestamptz(6)
+  resolved        Boolean       @default(false)
+  events          ErrorEvent[]
+
+  @@index([lastSeenAt], map: "idx_error_group_last_seen")
+  @@index([resolved, lastSeenAt], map: "idx_error_group_resolved_last_seen")
+}
+
+model ErrorEvent {
+  id            String     @id @default(dbgenerated("(gen_random_uuid())::text"))
+  groupId       String
+  message       String
+  stackTrace    String?
+  service       String?
+  endpoint      String?
+  httpStatus    Int?
+  userId        String?
+  requestId     String?
+  environment   String?
+  deploymentSha String?
+  // Redaction happens BEFORE this is ever written (see the capture
+  // interceptor's redactSecrets step) -- this field must never be assumed
+  // safe to display raw without that having already run upstream.
+  context       Json?
+  createdAt     DateTime   @default(now()) @db.Timestamptz(6)
+  group         ErrorGroup @relation(fields: [groupId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([groupId, createdAt], map: "idx_error_event_group_created")
+  @@index([userId], map: "idx_error_event_user")
+}
+
+enum ErrorSeverity {
+  DEBUG
+  INFO
+  WARN
+  ERROR
+  FATAL
 }
 
 enum Role {
@@ -424,8 +810,19 @@ enum PostStatus {
   REJECTED
 }
 
+enum PostType {
+  SINGLE
+  CAROUSEL
+}
+
 enum TargetStatus {
   PENDING
+  // In-flight. Exists so a publish attempt can be *claimed* atomically:
+  // publishOne transitions PENDING -> PUBLISHING with a WHERE guard, and the
+  // database guarantees exactly one caller wins. Without a distinct in-flight
+  // state, two overlapping cron runs could both read PENDING and both publish
+  // the same post to the customer's real account.
+  PUBLISHING
   PUBLISHED
   FAILED
 }

@@ -6,6 +6,7 @@ import GlassmorphicToggle from '@/components/ui/GlassmorphicToggle';
 import EngineWorkflowVisualization from '@/components/engine/EngineWorkflowVisualization';
 import { brandFetch } from '@/lib/api';
 import { useEngineEvents, EngineEvent } from '@/lib/useEngineEvents';
+import ControlCenter from '@/components/engine/ControlCenter';
 import {
   Zap,
   Pause,
@@ -180,9 +181,14 @@ export default function AmaiEnginePage() {
       <div>
         <h1 className="text-h1" style={{ color: 'var(--text-primary)' }}>AMAI Engine</h1>
         <p className="text-body-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-          The brain of your workspace — it watches for new content and runs your publishing workflow automatically.
+          The brain of your workspace. It watches for new content and runs your publishing workflow automatically.
         </p>
       </div>
+
+      {/* Live pipeline + subsystem health. Placed directly under the
+          heading because "is AMAI working right now" is the first question
+          this page exists to answer. */}
+      <ControlCenter />
 
       <AnimatePresence>
         {message && (
@@ -305,7 +311,7 @@ export default function AmaiEnginePage() {
           <div>
             <h3 className="text-sm font-extrabold tracking-tight" style={{ color: 'var(--text-primary)' }}>Posting Schedule</h3>
             <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-              How many posts to publish per day and when — AMAI builds the full calendar automatically as you upload media.
+              How many posts to publish per day and when. AMAI builds the full calendar automatically as you upload media.
             </p>
           </div>
         </div>
@@ -409,7 +415,7 @@ export default function AmaiEnginePage() {
         </div>
         {activity.length === 0 ? (
           <p className="text-body-sm py-4 text-center" style={{ color: 'var(--text-secondary)' }}>
-            Nothing yet — upload media and the AMAI Engine will start working.
+            Nothing yet. Upload media and the AMAI Engine will start working.
           </p>
         ) : (
           <ul className="space-y-1 max-h-80 overflow-y-auto">
@@ -449,7 +455,7 @@ export default function AmaiEnginePage() {
               <div>
                 <h3 className="text-h3" style={{ color: 'var(--text-primary)' }}>Enable Auto Approval?</h3>
                 <p className="text-body-sm mt-1.5 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                  New posts will publish automatically at the AI-selected best time — no review step. You can switch back to Manual Approval anytime.
+                  New posts will publish automatically at the AI-selected best time, with no review step. You can switch back to Manual Approval anytime.
                 </p>
               </div>
               <div className="flex items-center justify-end space-x-2 pt-1">

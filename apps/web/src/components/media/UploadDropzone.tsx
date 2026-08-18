@@ -5,7 +5,7 @@ import { upload } from "@vercel/blob/client";
 import {
   UploadCloud, FolderUp, FileUp, CheckCircle, AlertCircle, Loader2, RotateCcw, X, Circle, CheckCircle2,
 } from "lucide-react";
-import { API_BASE, getBrandId, getToken } from "@/lib/api";
+import { API_BASE, getBrandId, isAuthenticated } from "@/lib/api";
 import { useEngineEvents } from "@/lib/useEngineEvents";
 
 interface UploadItem {
@@ -51,13 +51,19 @@ const STAGE_LABEL: Record<Exclude<StageKey, "idle">, string> = {
   done: "Workflow complete",
 };
 
-function isValidMediaFile(file: File): { ok: boolean; reason?: string } {
+function isValidMediaFile(file: File, imagesOnly = false): { ok: boolean; reason?: string } {
   const typeOk = file.type
     ? ALLOWED_MIME_TYPES.has(file.type.toLowerCase())
     : ALLOWED_EXTENSIONS.some((ext) => file.name.toLowerCase().endsWith(ext));
 
   if (!typeOk) {
     return { ok: false, reason: "Unsupported file type. Allowed: JPG, PNG, GIF, WEBP images and MP4, MOV, WebM, MKV videos." };
+  }
+  // Carousel/Single composer mode only accepts images -- AMAI's carousel
+  // post type is images-only (matches TikTok/Instagram's own photo-carousel
+  // support; video carousels aren't a thing either platform offers).
+  if (imagesOnly && !(file.type ? file.type.startsWith('image/') : /\.(jpg|jpeg|png|webp|gif)$/i.test(file.name))) {
+    return { ok: false, reason: "Carousel posts support images only. Switch to normal upload for videos." };
   }
   if (file.size > MAX_SIZE_BYTES) {
     return { ok: false, reason: `File is too large (max ${MAX_SIZE_BYTES / (1024 * 1024)}MB).` };
@@ -91,15 +97,19 @@ async function uploadAndRegister(
   signal: AbortSignal,
 ): Promise<any> {
   const brandId = getBrandId();
-  const token = getToken();
-  if (!token) throw new Error("You are not signed in. Please log in and try again.");
+  // Security audit fix (3.5): no client-readable token to check or attach
+  // anymore -- the httpOnly session cookie travels automatically on these
+  // same-origin requests. isAuthenticated() is still a useful early guard
+  // (fail fast with a clear message instead of a confusing 401 partway
+  // through an upload), it just checks the cached user snapshot instead of
+  // a raw token now.
+  if (!isAuthenticated()) throw new Error("You are not signed in. Please log in and try again.");
 
   const pathname = `${brandId}/${Date.now()}-${sanitizeFilename(file.name)}`;
 
   const blob = await upload(pathname, file, {
     access: "public",
     handleUploadUrl: "/api/media-upload-token",
-    headers: { Authorization: `Bearer ${token}` },
     abortSignal: signal,
     onUploadProgress: (progressEvent) => {
       onProgress(Math.round(progressEvent.percentage));
@@ -109,9 +119,9 @@ async function uploadAndRegister(
   const res = await fetch(`${API_BASE}/brands/${brandId}/media/register`, {
     method: "POST",
     signal,
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify({
       url: blob.url,
@@ -141,10 +151,10 @@ async function uploadAndRegister(
  * queue loop (so the next file can start immediately); its own resolution
  * is used purely to catch the case where the request itself never made it
  * (network drop) since the live stage checklist otherwise comes from SSE. */
-async function triggerProcessing(brandId: string, assetId: string, token: string): Promise<any> {
+async function triggerProcessing(brandId: string, assetId: string): Promise<any> {
   const res = await fetch(`${API_BASE}/brands/${brandId}/media/assets/${assetId}/process`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
+    credentials: "include",
   });
   let body: any = null;
   try { body = await res.json(); } catch {}
@@ -193,7 +203,23 @@ function StageChecklist({ item }: { item: UploadItem }) {
   );
 }
 
-export default function UploadDropzone({ onUploaded }: { onUploaded?: (asset: any) => void }) {
+interface UploadDropzoneProps {
+  onUploaded?: (asset: any) => void;
+  /**
+   * 'single' (default): unchanged behavior -- every uploaded file
+   * immediately triggers the automatic AMAI Engine pipeline and becomes its
+   * own post. 'carousel': images are uploaded and registered but NOT
+   * auto-triggered -- they're handed to onCarouselAssetReady instead, so
+   * the caller can stage them and later compose them into ONE carousel
+   * post via POST /posts/compose. This is what makes "upload 5 images at
+   * once" mean "1 post with 5 images" instead of "5 separate posts" when
+   * the user has explicitly chosen Carousel mode.
+   */
+  mode?: 'single' | 'carousel';
+  onCarouselAssetReady?: (asset: { id: string; filename: string; blobUrl: string; mimeType: string }) => void;
+}
+
+export default function UploadDropzone({ onUploaded, mode = 'single', onCarouselAssetReady }: UploadDropzoneProps) {
   const [items, setItems] = useState<UploadItem[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -229,8 +255,19 @@ export default function UploadDropzone({ onUploaded }: { onUploaded?: (asset: an
         controller.signal,
       );
 
-      setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, status: "processing", progress: 100, assetId: asset.id, stage: "uploaded" } : i)));
       onUploaded?.(asset);
+
+      if (mode === "carousel") {
+        // Deliberately skip triggerProcessing -- this asset is being staged
+        // for the manual composer, not handed to the automatic per-file
+        // pipeline. It's "done" as far as this dropzone is concerned the
+        // moment the upload is registered.
+        setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, status: "done", progress: 100, assetId: asset.id, stage: "uploaded" } : i)));
+        onCarouselAssetReady?.({ id: asset.id, filename: asset.filename, blobUrl: asset.blobUrl, mimeType: asset.mimeType });
+        return;
+      }
+
+      setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, status: "processing", progress: 100, assetId: asset.id, stage: "uploaded" } : i)));
 
       // Fire-and-track, not fire-and-forget: errors here (the request
       // itself failing to go out, e.g. network drop right after upload)
@@ -238,9 +275,8 @@ export default function UploadDropzone({ onUploaded }: { onUploaded?: (asset: an
       // Engine progress is reported live via the SSE handler above, not
       // by awaiting this — that's what lets uploads run at real
       // concurrency instead of queuing behind AI processing time.
-      const token = getToken();
-      if (token) {
-        triggerProcessing(getBrandId(), asset.id, token).catch((err) => {
+      if (isAuthenticated()) {
+        triggerProcessing(getBrandId(), asset.id).catch((err) => {
           setItems((prev) => prev.map((i) => (i.id === item.id && i.status !== "done" ? { ...i, status: "error", error: err?.message || "AMAI Engine failed to start." } : i)));
         });
       }
@@ -255,7 +291,7 @@ export default function UploadDropzone({ onUploaded }: { onUploaded?: (asset: an
     async (files: { file: File; relativePath: string }[]) => {
       const newItems: UploadItem[] = [];
       for (const f of files) {
-        const check = isValidMediaFile(f.file);
+        const check = isValidMediaFile(f.file, mode === "carousel");
         newItems.push({
           id: `${f.file.name}_${Math.random().toString(36).slice(2, 8)}`,
           file: f.file,
@@ -280,7 +316,10 @@ export default function UploadDropzone({ onUploaded }: { onUploaded?: (asset: an
       };
       await Promise.all(Array.from({ length: Math.min(UPLOAD_CONCURRENCY, queue.length) }, worker));
     },
-    [onUploaded]
+    // mode/onCarouselAssetReady included so toggling Single<->Carousel
+    // without remounting the dropzone doesn't upload against a stale
+    // closure's mode.
+    [onUploaded, mode, onCarouselAssetReady]
   );
 
   const cancelUpload = (item: UploadItem) => {
@@ -289,11 +328,10 @@ export default function UploadDropzone({ onUploaded }: { onUploaded?: (asset: an
 
   const retryProcessing = async (item: UploadItem) => {
     if (!item.assetId) return processSingleUpload(item); // never even registered — redo the whole upload
-    const token = getToken();
-    if (!token) return;
+    if (!isAuthenticated()) return;
     setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, status: "processing", error: undefined, stage: "uploaded" } : i)));
     try {
-      await triggerProcessing(getBrandId(), item.assetId, token);
+      await triggerProcessing(getBrandId(), item.assetId);
     } catch (err: any) {
       setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, status: "error", error: err?.message || "AMAI Engine failed to start." } : i)));
     }
@@ -419,7 +457,7 @@ export default function UploadDropzone({ onUploaded }: { onUploaded?: (asset: an
                 {item.status === "done" && (
                   <span className="text-emerald-500 font-bold flex items-center space-x-1">
                     <CheckCircle className="h-3.5 w-3.5" />
-                    <span>{item.terminal === "scheduled" ? "Scheduled" : "In Approval Queue"}</span>
+                    <span>{mode === "carousel" ? "Added to carousel" : item.terminal === "scheduled" ? "Scheduled" : "In Approval Queue"}</span>
                   </span>
                 )}
 

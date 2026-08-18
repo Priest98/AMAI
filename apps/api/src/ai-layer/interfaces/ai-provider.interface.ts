@@ -34,6 +34,15 @@ export interface AiCompletionResult {
   /** Raw provider response, kept only for logging/debugging -- callers
    *  should never depend on its shape. */
   raw?: unknown;
+  /**
+   * Real token count reported by the provider for this call (Groq:
+   * usage.total_tokens; Gemini: usageMetadata.totalTokenCount), normalized
+   * to one provider-agnostic field so AiUsageLog can record actual cost
+   * data rather than a guess. Undefined if the provider's response didn't
+   * include usage data -- callers should record that honestly (e.g. 0 or
+   * null) rather than substituting a made-up number.
+   */
+  tokensUsed?: number;
 }
 
 /**

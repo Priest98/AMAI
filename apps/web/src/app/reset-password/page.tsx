@@ -92,7 +92,7 @@ function ResetPasswordContent() {
               <CheckCircle2 className="h-8 w-8" />
             </div>
             <div className="space-y-2">
-              <h2 className="text-h2" style={{ color: 'var(--text-primary)' }}>Password Reset Successful! 🎉</h2>
+              <h2 className="text-h2" style={{ color: 'var(--text-primary)' }}>Password reset</h2>
               <p className="text-body-sm" style={{ color: 'var(--text-secondary)' }}>
                 Your password has been updated. You can now sign in to your AMAI account.
               </p>

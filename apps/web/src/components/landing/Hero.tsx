@@ -47,16 +47,23 @@ function FloatingPreviewCard({
         transition={{ duration: 0.9, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
         className="lp-glass relative w-[300px] sm:w-[340px] rounded-3xl p-5 lp-animate-float"
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between">
+          <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--lp-success)' }}>
+            <span className="h-1.5 w-1.5 rounded-full" style={{ background: 'var(--lp-success)' }} />
+            AutoPilot Active
+          </span>
+          <Sparkles className="h-4 w-4 shrink-0" style={{ color: 'var(--lp-cyan)' }} />
+        </div>
+
+        <div className="mt-3.5 flex items-center gap-3">
           <div
             className="h-11 w-11 rounded-xl shrink-0"
             style={{ background: 'var(--lp-gradient-brand)' }}
           />
           <div className="min-w-0">
             <p className="text-[13px] font-semibold truncate">launch-reel-final.mp4</p>
-            <p className="text-[11px]" style={{ color: 'var(--lp-text-muted)' }}>Processed by AMAI Engine</p>
+            <p className="text-[11px]" style={{ color: 'var(--lp-text-muted)' }}>Today&rsquo;s plan · 3 posts ready</p>
           </div>
-          <Sparkles className="h-4 w-4 ml-auto shrink-0" style={{ color: 'var(--lp-cyan)' }} />
         </div>
 
         <div className="mt-4 pt-4" style={{ borderTop: '1px solid var(--lp-border)' }}>
@@ -133,16 +140,31 @@ export default function Hero() {
     mvY.set(((e.clientY - rect.top) / rect.height) * 2 - 1);
   };
 
+  // Hero sizing note: top padding stays generous enough to clear the fixed
+  // floating nav, but bottom padding and min-height were roughly halved
+  // (from pb-40/48 + min-h-92vh) -- at the old values the hero left ~250px
+  // of dead space between the CTA and the next section on a laptop viewport.
   return (
     <section
+      id="product"
       ref={sectionRef}
       onMouseMove={handleMouseMove}
-      className="relative pt-40 pb-40 sm:pt-48 sm:pb-48 px-5 sm:px-8 overflow-hidden min-h-[92vh] flex items-center"
+      className="relative isolate pt-32 pb-20 sm:pt-40 sm:pb-24 px-5 sm:px-8 overflow-hidden min-h-[80vh] flex items-center"
       aria-label="Introduction"
     >
       {/* Cinematic backdrop -- AI-generated abstract light environment,
           slow continuous Ken Burns drift, dimmed + gradient-masked so
-          headline copy stays fully legible over it at every viewport. */}
+          headline copy stays fully legible over it at every viewport.
+
+          `isolate` (CSS `isolation: isolate`) is load-bearing here, not
+          decorative: without it this <section> doesn't establish its own
+          stacking context, so the backdrop's `-z-10` wrapper below resolves
+          against the page-wide .lp-ambient-bg layer (z-index -1, a sibling
+          much higher up the tree) instead of staying local to the hero --
+          and since -10 < -1, the ambient layer painted on top and hid this
+          entire image. Confirmed via DOM/stacking-context inspection: the
+          image was loading correctly (network 200, non-zero natural size)
+          but was 100% visually obscured before this fix. */}
       <div className="absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
         <div className="lp-hero-media absolute inset-0">
           <Image
@@ -173,14 +195,26 @@ export default function Hero() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
         >
-          <h1 className="lp-hero-display text-6xl sm:text-7xl lg:text-8xl font-bold" style={{ color: 'var(--lp-text-primary)' }}>
-            Upload once.
+          <p className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--lp-cyan)' }}>
+            Your AI Social Media Employee
+          </p>
+
+          {/* The one deliberate Instrument Serif moment in the hero (the
+              .lp-hero-display class carries the display-font treatment --
+              see landing.css). Font size is left on the existing responsive
+              scale so the display face inherits the same clamping and never
+              overflows small viewports. */}
+          <h1
+            className="lp-hero-display mt-5 text-6xl sm:text-7xl lg:text-8xl"
+            style={{ color: 'var(--lp-text-primary)' }}
+          >
+            Your social media.
             <br />
-            <span className="lp-gradient-text">AMAI</span> handles the rest.
+            <span className="lp-gradient-text">On autopilot.</span>
           </h1>
 
           <p className="mt-8 text-lg sm:text-xl leading-relaxed max-w-lg" style={{ color: 'var(--lp-text-secondary)' }}>
-            It writes the captions, picks the best time, and publishes to Instagram and TikTok — automatically.
+            AMAI plans, creates and publishes your content so you don&rsquo;t have to.
           </p>
 
           <div className="mt-12 flex flex-col sm:flex-row items-start sm:items-center gap-5">
@@ -189,19 +223,23 @@ export default function Hero() {
                 href="/register"
                 className="group inline-flex items-center gap-2 px-8 py-4 rounded-2xl text-sm lp-btn-primary lp-focus-ring"
               >
-                Start Automating Free
+                Start Free
                 <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
               </Link>
             </MagneticButton>
             <a
-              href="#demo"
+              href="#how-it-works"
               className="group inline-flex items-center gap-2 text-sm font-semibold lp-focus-ring"
               style={{ color: 'var(--lp-text-secondary)' }}
             >
               <PlayCircle className="h-4 w-4 transition group-hover:opacity-80" />
-              <span className="transition group-hover:opacity-80">See it in action</span>
+              <span className="transition group-hover:opacity-80">See How It Works</span>
             </a>
           </div>
+
+          <p className="mt-6 text-xs font-medium" style={{ color: 'var(--lp-text-muted)' }}>
+            No credit card required.
+          </p>
         </motion.div>
 
         <div className="relative flex justify-center lg:justify-end pb-6">

@@ -25,12 +25,13 @@ import { EngineJobsService } from '../engine/engine-jobs.service';
  * stacking two of them on one method doesn't register two routes, it just
  * lets whichever decorator TypeScript applies last (decorators run
  * bottom-to-top, so the topmost one in source) silently overwrite the
- * other's metadata. Confirmed the hard way in production: an earlier
- * version of this file had @Get and @Post stacked on a single method, and
- * Nest's own boot log (RouterExplorer) only ever showed the route mapped
- * as GET -- every POST call (from QStash) got a genuine 404, and it had
- * nothing to do with deployment or build caching, despite three separate
- * rebuilds while chasing that theory first.
+ * other's metadata. Confirmed the hard way in production on the `main`
+ * branch: an earlier version of this file (and this file's own state
+ * before this fix was ported over from `main`) had @Get and @Post stacked
+ * on a single method, and Nest's own boot log (RouterExplorer) only ever
+ * showed the route mapped as GET -- every POST call (from QStash) got a
+ * genuine 404, silently, with no error at boot. Had nothing to do with
+ * deployment or build caching, despite that being chased first.
  */
 @Controller('cron')
 export class CronController {

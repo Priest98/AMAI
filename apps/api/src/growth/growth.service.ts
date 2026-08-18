@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { GoogleGenAI } from '@google/genai';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -81,24 +81,41 @@ Provide only the rewritten caption.`;
   }
 
   /**
-   * Approves a pending reply.
+   * Approves a pending reply. Scoped by (id AND brandId) -- not just id --
+   * so a valid, guard-checked brandId can never be paired with another
+   * brand's reply id to approve/reject someone else's queue (see
+   * GrowthController's audit comment). updateMany + a zero-count check is
+   * how Prisma expresses "update only if this row also belongs to this
+   * brand" since `update` only accepts a unique-field where clause.
+   *
+   * NOTE (functionality gap, not a security issue -- flagged separately in
+   * the V2 audit): this still only flips status to APPROVED locally. It
+   * does not yet call the Instagram/TikTok API to actually post the reply
+   * -- that dispatch step was never implemented.
    */
-  async approveReply(id: string) {
-    // In a real app, this is where you'd call Instagram/TikTok APIs to post the comment.
-    // For now, we simulate dispatching by marking it APPROVED.
-    return this.prisma.pendingCommentReply.update({
-      where: { id },
-      data: { status: 'APPROVED' }
+  async approveReply(brandId: string, id: string) {
+    const result = await this.prisma.pendingCommentReply.updateMany({
+      where: { id, brandId },
+      data: { status: 'APPROVED' },
     });
+    if (result.count === 0) {
+      throw new NotFoundException('Reply not found for this brand.');
+    }
+    return this.prisma.pendingCommentReply.findUnique({ where: { id } });
   }
 
   /**
-   * Rejects a pending reply.
+   * Rejects a pending reply. See approveReply's comment for why this is
+   * scoped by (id AND brandId) rather than id alone.
    */
-  async rejectReply(id: string) {
-    return this.prisma.pendingCommentReply.update({
-      where: { id },
-      data: { status: 'REJECTED' }
+  async rejectReply(brandId: string, id: string) {
+    const result = await this.prisma.pendingCommentReply.updateMany({
+      where: { id, brandId },
+      data: { status: 'REJECTED' },
     });
+    if (result.count === 0) {
+      throw new NotFoundException('Reply not found for this brand.');
+    }
+    return this.prisma.pendingCommentReply.findUnique({ where: { id } });
   }
 }

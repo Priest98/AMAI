@@ -89,7 +89,7 @@ export default function TourOverlay({ step, stepIndex, totalSteps, onNext, onPre
               </div>
               <div className="space-y-2">
                 <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight" style={{ color: 'var(--text-primary)' }}>
-                  🎉 {step.title}
+                  {step.title}
                 </h2>
                 <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{step.body}</p>
               </div>

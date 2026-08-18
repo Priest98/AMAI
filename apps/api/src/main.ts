@@ -3,6 +3,7 @@ import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import * as Sentry from '@sentry/node';
 import { SentryExceptionFilter } from './common/sentry-exception.filter';
+import { ErrorCaptureService } from './common/error-capture.service';
 
 // No-ops entirely (Sentry.init is never called) until SENTRY_DSN is set in
 // Vercel env vars -- safe to ship ahead of having a Sentry account. DSNs are
@@ -26,7 +27,8 @@ async function bootstrap() {
   // see SentryExceptionFilter for why it wraps BaseExceptionFilter instead
   // of replacing it.
   const { httpAdapter } = app.get(HttpAdapterHost);
-  app.useGlobalFilters(new SentryExceptionFilter(httpAdapter));
+  const errorCapture = app.get(ErrorCaptureService);
+  app.useGlobalFilters(new SentryExceptionFilter(httpAdapter, errorCapture));
 
   // Add /api prefix so frontend can call /api/auth/login, /api/brands, etc.
   app.setGlobalPrefix('api');

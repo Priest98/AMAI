@@ -17,6 +17,8 @@ export interface AiGatewayResult {
   provider: string;
   keyLabel?: string;
   elapsedMs: number;
+  /** Real token count reported by the provider, when it reported one — see AiCompletionResult.tokensUsed. */
+  tokensUsed?: number;
 }
 
 const DEFAULT_TIMEOUT_MS = 10_000;
@@ -100,7 +102,7 @@ export class AiGatewayService {
         const result = await provider.complete(req.messages, { maxTokens: req.maxTokens, timeoutMs });
         this.logger.log(`[${req.label}] response received from ${providerName} in ${Date.now() - attemptStart}ms`);
         this.logger.log(`[${req.label}] request completed via ${providerName} in ${Date.now() - start}ms`);
-        return { text: result.text, provider: providerName, elapsedMs: Date.now() - start };
+        return { text: result.text, provider: providerName, elapsedMs: Date.now() - start, tokensUsed: result.tokensUsed };
       } catch (error: any) {
         const message = error?.message || `Unknown ${providerName} error`;
         this.logger.warn(`[${req.label}] failure handled: ${providerName} — ${message}`);
@@ -116,7 +118,7 @@ export class AiGatewayService {
     providerName: string,
     req: AiGatewayRequest,
     timeoutMs: number,
-  ): Promise<{ text: string; provider: string; keyLabel: string } | null> {
+  ): Promise<{ text: string; provider: string; keyLabel: string; tokensUsed?: number } | null> {
     for (let attempt = 0; attempt < MAX_KEY_ATTEMPTS_PER_PROVIDER; attempt++) {
       const key = await this.keyManager.getNextKey(providerName);
       if (!key) return null; // provider claims configured but no usable key found
@@ -127,7 +129,7 @@ export class AiGatewayService {
         const result = await provider.complete(req.messages, { maxTokens: req.maxTokens, timeoutMs }, key.value);
         this.logger.log(`[${req.label}] response received from ${providerName}:${key.label} in ${Date.now() - attemptStart}ms`);
         this.keyManager.reportSuccess(providerName, key.label);
-        return { text: result.text, provider: providerName, keyLabel: key.label };
+        return { text: result.text, provider: providerName, keyLabel: key.label, tokensUsed: result.tokensUsed };
       } catch (error: any) {
         const message = error?.message || `Unknown ${providerName} error`;
         this.keyManager.reportFailure(providerName, key.label, message);
