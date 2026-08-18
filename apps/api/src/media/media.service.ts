@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { EngineService } from '../engine/engine.service';
 import { MediaOptimizationService } from '../media-optimization/media-optimization.service';
+import { EntitlementsService } from '../billing/entitlements.service';
 import { MediaStatus, ContentSource, ConnectionStatus, PostStatus } from '@prisma/client';
 
 // Kept in sync with apps/web/src/app/api/media-upload-token/route.ts's
@@ -56,11 +57,37 @@ export class MediaService {
     private storage: StorageService,
     private engineService: EngineService,
     private mediaOptimizationService: MediaOptimizationService,
+    private entitlementsService: EntitlementsService,
   ) {}
+
+  /**
+   * checkStorageUsage() already computes used-vs-limit for the billing
+   * summary UI, but nothing called it on the write path -- a Free-plan org
+   * could upload arbitrarily far past its advertised 1GB cap (25GB Pro /
+   * 100GB Agency) with zero enforcement. Found during V2 QA. Mirrors the
+   * existing canPerformAction() pattern (reject with a clear upgrade
+   * reason) even though storage isn't one of its BillableAction cases --
+   * that switch is keyed by discrete counts, not a running byte total
+   * compared against an incoming file size, so a dedicated check is
+   * cleaner here than forcing it through canPerformAction's shape.
+   */
+  private async assertWithinStorageLimit(brandId: string, incomingBytes: number): Promise<void> {
+    const organizationId = await this.entitlementsService.getOrganizationIdForBrand(brandId);
+    const { used, limit } = await this.entitlementsService.checkStorageUsage(organizationId);
+    if (limit === -1) return; // unlimited plan
+    if (used + incomingBytes > limit) {
+      const usedMb = Math.round(used / (1024 * 1024));
+      const limitMb = Math.round(limit / (1024 * 1024));
+      throw new BadRequestException(
+        `This upload would put you over your plan's storage limit (${usedMb}MB used of ${limitMb}MB). Delete some media or upgrade your plan to free up space.`,
+      );
+    }
+  }
 
   async uploadAsset(brandId: string, file: Express.Multer.File, folderId?: string, userId?: string) {
     if (!file) throw new BadRequestException('No file provided');
     assertAllowedMimeType(file.mimetype);
+    await this.assertWithinStorageLimit(brandId, file.size || 0);
     this.logger.log(`Upload started: brand=${brandId} file="${file.originalname}" size=${file.size} type=${file.mimetype}`);
 
     const uploadedData = await this.storage.uploadFile(file, brandId);
@@ -95,6 +122,19 @@ export class MediaService {
       throw new BadRequestException('Invalid upload URL.');
     }
     assertAllowedMimeType(dto.mimeType);
+
+    // The bytes are already sitting in Blob storage by this point (the
+    // browser uploaded them directly before calling register) -- the quota
+    // check here can only refuse to create the DB record, not prevent the
+    // upload itself. Deleting the orphaned blob on rejection keeps a
+    // capped-out org from silently accumulating unbilled, unlisted storage
+    // by uploading and retrying past its limit.
+    try {
+      await this.assertWithinStorageLimit(brandId, dto.size || 0);
+    } catch (err) {
+      await this.storage.deleteFile(dto.url).catch(() => {});
+      throw err;
+    }
 
     this.logger.log(`Upload registered: brand=${brandId} file="${dto.filename}" size=${dto.size} type=${dto.mimeType}`);
     return this.createAssetRecord(brandId, dto, userId);
