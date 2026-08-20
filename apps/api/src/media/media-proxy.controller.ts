@@ -17,9 +17,11 @@ import type { Request, Response } from 'express';
  * document; it only ever responds at a blob's own exact stored pathname).
  * Every filename-convention workaround tried still failed for this reason.
  *
- * amai.codes, by contrast, IS already verified with TikTok (see the
- * separate tiktok-developers-site-verification file at its root), and per
- * TikTok's own docs, verifying a domain covers every path under it. So
+ * amai.codes, by contrast, is verified with TikTok via the DNS-record
+ * method (a tiktok-developers-site-verification=<token> TXT record at the
+ * domain's root -- not a hosted file), and per TikTok's own docs, that
+ * covers every path under the domain and its subdomains, not just an
+ * exact URL. So
  * instead of trying to verify Blob storage directly, this proxies Blob
  * content through a path on the domain that's already verified --
  * `https://amai.codes/api/media/proxy/<same-pathname-blob-was-stored-at>`
