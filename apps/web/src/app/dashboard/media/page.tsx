@@ -34,7 +34,7 @@ interface MediaAsset {
   linkedPostId?: string | null;
 }
 
-/** One image staged in the manual Single/Carousel composer, in the order the user arranged it. */
+/** One photo or video staged in the manual Single/Carousel composer, in the order the user arranged it. */
 interface CarouselItem {
   id: string;
   filename: string;
@@ -42,7 +42,7 @@ interface CarouselItem {
   mimeType: string;
 }
 
-const MAX_CAROUSEL_IMAGES = 5;
+const MAX_CAROUSEL_ITEMS = 5;
 
 const CATEGORY_LABEL: Record<string, string> = {
   promotional: 'Promotional',
@@ -414,10 +414,10 @@ export default function MediaLibraryPage() {
   // 'single' is the existing, unchanged behavior: every uploaded file
   // immediately becomes its own post via the automatic AMAI Engine
   // pipeline (1 image -> 1 caption -> 1 hashtag set -> 1 post). 'carousel'
-  // routes through the new manual composer below: images are staged, not
-  // auto-posted, until the user explicitly hits "Create Carousel Post" --
-  // that's what makes "upload 5 photos" mean ONE post with 5 images
-  // instead of 5 separate posts.
+  // routes through the new manual composer below: photos and videos (any
+  // mix) are staged, not auto-posted, until the user explicitly hits
+  // "Create Carousel Post" -- that's what makes "upload 5 files" mean ONE
+  // post with 5 items instead of 5 separate posts.
   const [composerMode, setComposerMode] = useState<'single' | 'carousel'>('single');
   const [carouselItems, setCarouselItems] = useState<CarouselItem[]>([]);
   const [composing, setComposing] = useState(false);
@@ -478,8 +478,8 @@ export default function MediaLibraryPage() {
   const handleCarouselAssetReady = (asset: CarouselItem) => {
     setCarouselItems((prev) => {
       if (prev.some((i) => i.id === asset.id)) return prev;
-      if (prev.length >= MAX_CAROUSEL_IMAGES) {
-        setComposeMessage({ text: 'You can add up to 5 images per post.', type: 'error' });
+      if (prev.length >= MAX_CAROUSEL_ITEMS) {
+        setComposeMessage({ text: 'You can add up to 5 items per post.', type: 'error' });
         return prev;
       }
       return [...prev, asset];
@@ -495,8 +495,8 @@ export default function MediaLibraryPage() {
       if (prev.some((i) => i.id === asset.id)) {
         return prev.filter((i) => i.id !== asset.id);
       }
-      if (prev.length >= MAX_CAROUSEL_IMAGES) {
-        setComposeMessage({ text: 'You can add up to 5 images per post.', type: 'error' });
+      if (prev.length >= MAX_CAROUSEL_ITEMS) {
+        setComposeMessage({ text: 'You can add up to 5 items per post.', type: 'error' });
         return prev;
       }
       return [...prev, { id: asset.id, filename: asset.filename, blobUrl: asset.blobUrl!, mimeType: asset.mimeType }];
@@ -526,7 +526,7 @@ export default function MediaLibraryPage() {
         method: 'POST',
         body: JSON.stringify({ mediaAssetIds: carouselItems.map((i) => i.id), postType: 'CAROUSEL' }),
       });
-      setComposeMessage({ text: `Carousel post created with ${carouselItems.length} images — it's ready for your review in the Approval Queue.`, type: 'success' });
+      setComposeMessage({ text: `Carousel post created with ${carouselItems.length} items — it's ready for your review in the Approval Queue.`, type: 'success' });
       setCarouselItems([]);
       fetchMediaAssets();
     } catch (e: any) {
@@ -594,7 +594,7 @@ export default function MediaLibraryPage() {
           </p>
         ) : (
           <p className="text-[11px] -mt-2" style={{ color: 'var(--text-secondary)' }}>
-            Upload 2–5 images (or select from the library below) to combine into ONE post with one caption and one hashtag set.
+            Upload 2–5 photos and/or videos, in any mix and order (or select from the library below) to combine into ONE post with one caption and one hashtag set.
           </p>
         )}
 
@@ -609,7 +609,7 @@ export default function MediaLibraryPage() {
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-bold flex items-center space-x-1.5" style={{ color: 'var(--text-primary)' }}>
                 <Images className="h-3.5 w-3.5" />
-                <span>Carousel ({carouselItems.length}/{MAX_CAROUSEL_IMAGES})</span>
+                <span>Carousel ({carouselItems.length}/{MAX_CAROUSEL_ITEMS})</span>
               </h3>
               {carouselItems.length > 0 && (
                 <button onClick={() => setCarouselItems([])} className="text-[10px] font-semibold" style={{ color: 'var(--text-muted)' }}>
@@ -638,14 +638,21 @@ export default function MediaLibraryPage() {
 
             {carouselItems.length === 0 ? (
               <p className="text-[11px] text-center py-3" style={{ color: 'var(--text-muted)' }}>
-                Upload images above or click eligible images in the library below to add them here, in order.
+                Upload photos/videos above or click eligible items in the library below to add them here, in order.
               </p>
             ) : (
               <div className="flex flex-wrap gap-2">
                 {carouselItems.map((item, i) => (
                   <div key={item.id} className="relative w-20 h-20 rounded-lg overflow-hidden border shrink-0 group" style={{ borderColor: 'var(--card-border)' }}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={item.blobUrl} alt={item.filename} className="w-full h-full object-cover" />
+                    {item.mimeType?.startsWith('video') ? (
+                      <div className="relative w-full h-full bg-zinc-900">
+                        <video src={item.blobUrl} preload="metadata" muted playsInline className="w-full h-full object-cover" />
+                        <Film className="absolute bottom-1 right-1 h-3 w-3 text-amber-400 drop-shadow" />
+                      </div>
+                    ) : (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={item.blobUrl} alt={item.filename} className="w-full h-full object-cover" />
+                    )}
                     <span className="absolute top-1 left-1 h-4 w-4 rounded-full bg-black/70 text-white text-[9px] font-bold flex items-center justify-center">{i + 1}</span>
                     <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition flex flex-col items-center justify-center gap-1">
                       <div className="flex space-x-1">
@@ -667,7 +674,7 @@ export default function MediaLibraryPage() {
 
             <div className="flex items-center justify-between pt-1">
               <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                {carouselItems.length < 2 ? 'Add at least 2 images to create a carousel post.' : 'Images publish in this order.'}
+                {carouselItems.length < 2 ? 'Add at least 2 items to create a carousel post.' : 'Items publish in this order — TikTok requires all-photo carousels or a single video.'}
               </p>
               <button
                 onClick={handleComposeCarousel}
@@ -701,11 +708,12 @@ export default function MediaLibraryPage() {
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
             {assets.map((asset) => {
               const statusInfo = STATUS_LABEL[asset.status] || STATUS_LABEL.PENDING;
-              // Carousel-mode selection: only images not already linked to
-              // another post can be picked into the batch above -- an asset
-              // that's already SCHEDULED/PUBLISHED as its own single post
-              // (or part of another carousel) can't also be reused here.
-              const isEligibleForCarousel = composerMode === 'carousel' && !asset.linkedPostId && !asset.mimeType?.startsWith('video') && !!asset.blobUrl;
+              // Carousel-mode selection: any photo or video not already
+              // linked to another post can be picked into the batch above,
+              // in any order/mix -- an asset that's already
+              // SCHEDULED/PUBLISHED as its own single post (or part of
+              // another carousel) can't also be reused here.
+              const isEligibleForCarousel = composerMode === 'carousel' && !asset.linkedPostId && !!asset.blobUrl;
               const isSelectedForCarousel = carouselItems.some((i) => i.id === asset.id);
               return (
                 <div

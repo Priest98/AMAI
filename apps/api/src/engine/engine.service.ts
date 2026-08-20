@@ -592,15 +592,20 @@ export class EngineService {
   /**
    * The manual composer's only entry point for creating a post: used for
    * both "Single Image" (exactly 1 asset) and "Carousel" (2-5 assets, one
-   * caption/hashtag set for the whole batch, one Post row, images kept in
-   * the order the user arranged them). Distinct from processMediaAsset()
-   * (the automatic per-upload AMAI pipeline, which is inherently
-   * single-asset) -- this is the path a user takes when they've already
-   * uploaded media and now want to deliberately group 1-5 of them into one
-   * post. Always lands in NEEDS_APPROVAL so it goes through the exact same
-   * Approval Queue review, edit, and publish machinery every other post
-   * uses (including the monthly-limit check in approvePost()) -- no
-   * separate/duplicate scheduling or publishing path is created here.
+   * caption/hashtag set for the whole batch, one Post row, media items kept
+   * in the order the user arranged them). Carousel assets can be any mix of
+   * images and videos, in any order -- there is no separate image-carousel
+   * vs video-carousel system; PostMedia (postId, assetId, order) is the one
+   * generic ordered-media-item join table for both, and MediaAsset.mimeType
+   * is the one source of truth for what each item actually is. Distinct
+   * from processMediaAsset() (the automatic per-upload AMAI pipeline, which
+   * is inherently single-asset) -- this is the path a user takes when
+   * they've already uploaded media and now want to deliberately group 1-5
+   * of them into one post. Always lands in NEEDS_APPROVAL so it goes
+   * through the exact same Approval Queue review, edit, and publish
+   * machinery every other post uses (including the monthly-limit check in
+   * approvePost()) -- no separate/duplicate scheduling or publishing path
+   * is created here.
    */
   async composeManualPost(
     brandId: string,
@@ -608,35 +613,45 @@ export class EngineService {
   ) {
     const ids = Array.from(new Set(dto.mediaAssetIds || []));
     if (ids.length === 0) {
-      throw new BadRequestException('Select at least one image to create a post.');
+      throw new BadRequestException('Select at least one photo or video to create a post.');
     }
     if (ids.length > 5) {
-      throw new BadRequestException('You can add up to 5 images per post.');
+      throw new BadRequestException('You can add up to 5 media items per post.');
     }
     if (dto.postType === 'SINGLE' && ids.length !== 1) {
-      throw new BadRequestException('A Single Image post must have exactly one image.');
+      throw new BadRequestException('A Single Image post must have exactly one media item.');
     }
     if (dto.postType === 'CAROUSEL' && ids.length < 2) {
-      throw new BadRequestException('A Carousel post needs at least 2 images. Choose Single Image for one photo.');
+      throw new BadRequestException('A Carousel post needs at least 2 media items. Choose Single Image for just one.');
     }
 
     const assets = await this.prisma.mediaAsset.findMany({ where: { id: { in: ids }, brandId } });
     if (assets.length !== ids.length) {
-      throw new BadRequestException('One or more selected images could not be found in this brand\'s media library.');
+      throw new BadRequestException('One or more selected media items could not be found in this brand\'s media library.');
     }
     const alreadyLinked = assets.find((a) => a.linkedPostId);
     if (alreadyLinked) {
       throw new BadRequestException(`"${alreadyLinked.filename}" is already part of another post.`);
     }
-    if (assets.some((a) => a.mimeType?.startsWith('video/'))) {
-      throw new BadRequestException('Carousel/Single composer currently supports images only. Videos are handled by the automatic upload pipeline.');
-    }
+    // Media type is derived from each asset's own stored, already-validated
+    // mimeType (checked against a MIME whitelist + magic-byte sniffing at
+    // upload time in MediaService -- see assertAllowedMimeType /
+    // claimedMimeTypeMatchesBytes) rather than trusted from anything the
+    // caller sends here. A Carousel can now freely mix image and video
+    // assets in any order -- there is no separate image/video carousel
+    // system; PostMedia.order is the one ordering mechanism for both. Actual
+    // per-platform support for a given image/video mix is enforced later, at
+    // publish time (see PublishingService.assertCarouselPlatformSupport),
+    // since that varies by platform (e.g. TikTok has no mixed-media or
+    // multi-video carousel concept at all) and shouldn't constrain what can
+    // be composed and sent for approval up front.
 
     // Preserve the order the caller submitted (the order the user arranged
     // them in the composer UI), not whatever order Prisma's findMany
     // happened to return.
     const orderedAssets = ids.map((id) => assets.find((a) => a.id === id)!);
     const primaryAsset = orderedAssets[0];
+    const primaryIsVideo = primaryAsset.mimeType?.startsWith('video/');
 
     const config = await this.getOrCreateConfig(brandId);
 
@@ -645,14 +660,18 @@ export class EngineService {
       data: { status: MediaStatus.PROCESSING },
     });
 
-    // Analyse: one vision call against the first image stands in for "the
+    // Analyse: one vision call against the first item stands in for "the
     // collection" -- carousels are near-universally one coherent subject
     // shot from multiple angles/moments (the exact case Part A's spec
     // describes: "understand the images as a single piece of content"), so
     // a single representative analysis is both accurate and avoids running
     // N separate (and N times as expensive) vision calls for what must
-    // become one caption anyway.
-    const visionTopic = primaryAsset.blobUrl
+    // become one caption anyway. Matches processMediaAsset's own isVideo
+    // gate (video content analysis isn't implemented yet): if the first
+    // item happens to be a video, this always falls back to the
+    // filename-based heuristic rather than feeding a video URL to an
+    // image-analysis call.
+    const visionTopic = !primaryIsVideo && primaryAsset.blobUrl
       ? await this.aiService.analyzeImage(primaryAsset.blobUrl, brandId, 'amai_engine')
       : null;
     const topic = visionTopic || this.deriveTopicFromFilename(primaryAsset.filename, primaryAsset.batchName);
@@ -698,7 +717,7 @@ export class EngineService {
     let post: Awaited<ReturnType<typeof this.prisma.post.create>> | undefined;
     let scheduledAt!: Date;
     for (let attempt = 1; attempt <= MAX_SLOT_RETRIES; attempt++) {
-      ({ scheduledAt } = await this.schedulingService.assignNextSlot(brandId, schedulingCfg, { mediaKind: 'image', contentCategory }));
+      ({ scheduledAt } = await this.schedulingService.assignNextSlot(brandId, schedulingCfg, { mediaKind: primaryIsVideo ? 'video' : 'image', contentCategory }));
       try {
         post = await this.prisma.post.create({
           data: {
@@ -742,8 +761,8 @@ export class EngineService {
       data: { status: MediaStatus.READY, linkedPostId: post.id },
     });
 
-    // Platform-aware media processing: every image in this post (single or
-    // carousel) gets a platform-specific optimized derivative for each
+    // Platform-aware media processing: every item in this post (single or
+    // carousel, image or video) gets a platform-specific optimized derivative for each
     // currently-connected platform, same as the automatic upload pipeline
     // does in MediaService.triggerProcessing -- the manual composer must
     // not bypass this and hand publishing a raw, un-optimized original.
@@ -760,7 +779,7 @@ export class EngineService {
     await this.logEvent(brandId, EngineEventType.APPROVAL_QUEUED, {
       postId: post.id,
       message: dto.postType === 'CAROUSEL'
-        ? `Carousel post (${ids.length} images) is ready for your review in the Approval Queue.`
+        ? `Carousel post (${ids.length} items) is ready for your review in the Approval Queue.`
         : 'Post is ready for your review in the Approval Queue.',
     }).catch(() => {});
 

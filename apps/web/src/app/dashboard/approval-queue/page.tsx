@@ -426,12 +426,12 @@ export default function ApprovalQueuePage() {
                     </div>
                   </div>
 
-                  {/* Media preview — shows every image in the order the
-                      composer/AI pipeline arranged them, so a carousel post
-                      is visibly distinct from a single-image one right in
-                      the queue, not just a caption with no way to tell how
-                      many images (or which platform-specific derivative)
-                      will actually publish. */}
+                  {/* Media preview — shows every item (photo or video, any
+                      mix) in the order the composer/AI pipeline arranged
+                      them, so a carousel post is visibly distinct from a
+                      single-media one right in the queue, not just a
+                      caption with no way to tell how many items (or which
+                      platform-specific derivative) will actually publish. */}
                   {post.media && post.media.length > 0 && (
                     <div className="flex items-center gap-2 overflow-x-auto pb-1">
                       {[...post.media]
@@ -448,7 +448,7 @@ export default function ApprovalQueuePage() {
                         )}
                       {post.postType === 'CAROUSEL' && (
                         <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 shrink-0">
-                          Carousel · {post.media.length} images
+                          Carousel · {post.media.length} items
                         </span>
                       )}
                     </div>

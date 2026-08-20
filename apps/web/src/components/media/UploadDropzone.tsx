@@ -51,7 +51,7 @@ const STAGE_LABEL: Record<Exclude<StageKey, "idle">, string> = {
   done: "Workflow complete",
 };
 
-function isValidMediaFile(file: File, imagesOnly = false): { ok: boolean; reason?: string } {
+function isValidMediaFile(file: File): { ok: boolean; reason?: string } {
   const typeOk = file.type
     ? ALLOWED_MIME_TYPES.has(file.type.toLowerCase())
     : ALLOWED_EXTENSIONS.some((ext) => file.name.toLowerCase().endsWith(ext));
@@ -59,12 +59,13 @@ function isValidMediaFile(file: File, imagesOnly = false): { ok: boolean; reason
   if (!typeOk) {
     return { ok: false, reason: "Unsupported file type. Allowed: JPG, PNG, GIF, WEBP images and MP4, MOV, WebM, MKV videos." };
   }
-  // Carousel/Single composer mode only accepts images -- AMAI's carousel
-  // post type is images-only (matches TikTok/Instagram's own photo-carousel
-  // support; video carousels aren't a thing either platform offers).
-  if (imagesOnly && !(file.type ? file.type.startsWith('image/') : /\.(jpg|jpeg|png|webp|gif)$/i.test(file.name))) {
-    return { ok: false, reason: "Carousel posts support images only. Switch to normal upload for videos." };
-  }
+  // Carousel/Single composer mode accepts both images and videos, in any
+  // mix -- a Carousel is generic ordered media items (see PostMedia in the
+  // schema), not an images-only post type. Whether a *specific* platform
+  // can actually publish a given image/video mix (TikTok can't mix or do
+  // multi-video; Instagram can mix freely) is enforced server-side at
+  // publish time, not here at upload time, since it depends on which
+  // platforms are connected -- see assertCarouselPlatformSupport.
   if (file.size > MAX_SIZE_BYTES) {
     return { ok: false, reason: `File is too large (max ${MAX_SIZE_BYTES / (1024 * 1024)}MB).` };
   }
@@ -208,12 +209,13 @@ interface UploadDropzoneProps {
   /**
    * 'single' (default): unchanged behavior -- every uploaded file
    * immediately triggers the automatic AMAI Engine pipeline and becomes its
-   * own post. 'carousel': images are uploaded and registered but NOT
-   * auto-triggered -- they're handed to onCarouselAssetReady instead, so
-   * the caller can stage them and later compose them into ONE carousel
-   * post via POST /posts/compose. This is what makes "upload 5 images at
-   * once" mean "1 post with 5 images" instead of "5 separate posts" when
-   * the user has explicitly chosen Carousel mode.
+   * own post. 'carousel': photos and videos are uploaded and registered but
+   * NOT auto-triggered -- they're handed to onCarouselAssetReady instead,
+   * so the caller can stage them (in any image/video mix) and later
+   * compose them into ONE carousel post via POST /posts/compose. This is
+   * what makes "upload 5 files at once" mean "1 post with 5 items" instead
+   * of "5 separate posts" when the user has explicitly chosen Carousel
+   * mode.
    */
   mode?: 'single' | 'carousel';
   onCarouselAssetReady?: (asset: { id: string; filename: string; blobUrl: string; mimeType: string }) => void;
@@ -291,7 +293,7 @@ export default function UploadDropzone({ onUploaded, mode = 'single', onCarousel
     async (files: { file: File; relativePath: string }[]) => {
       const newItems: UploadItem[] = [];
       for (const f of files) {
-        const check = isValidMediaFile(f.file, mode === "carousel");
+        const check = isValidMediaFile(f.file);
         newItems.push({
           id: `${f.file.name}_${Math.random().toString(36).slice(2, 8)}`,
           file: f.file,

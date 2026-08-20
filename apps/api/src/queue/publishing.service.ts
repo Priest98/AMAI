@@ -437,8 +437,21 @@ export class PublishingService {
         throw new Error('No media file is attached to this post.');
       }
       if (orderedMediaAssets.some((a) => !a.blobUrl)) {
-        throw new Error('One or more images in this carousel post are missing their media file.');
+        throw new Error('One or more items in this carousel post are missing their media file.');
       }
+
+      // Platform-aware mixed-media gate: the DB and composer are fully
+      // generic (a Carousel is just ordered PostMedia rows, any mix of
+      // image/video), but not every platform's actual API can publish
+      // every mix -- Instagram's carousel children natively support both
+      // IMAGE and VIDEO, but TikTok's Content Posting API has no mixed or
+      // multi-video carousel concept at all (photo_images is photo-only;
+      // video posts are always exactly one video via a completely separate
+      // endpoint). Checked here, before any platform API call is made, so
+      // an unsupported combination fails fast with a clear, actionable
+      // message instead of TikTok's API rejecting a video URL it received
+      // inside what it thinks is a photo array (or vice versa).
+      this.assertCarouselPlatformSupport(target.platform, orderedMediaAssets);
 
       // Pre-flight connection check.
       //
@@ -513,6 +526,7 @@ export class PublishingService {
           mediaAsset.mimeType,
           target.post.brandId,
           anyOptimized,
+          orderedMediaAssets.map((a) => a.mimeType),
         );
       } catch (publishError: any) {
         // Reactive fallback for the case a proactive refresh didn't catch:
@@ -534,6 +548,7 @@ export class PublishingService {
             mediaAsset.mimeType,
             target.post.brandId,
             anyOptimized,
+            orderedMediaAssets.map((a) => a.mimeType),
           );
         } else {
           throw publishError;
@@ -625,6 +640,39 @@ export class PublishingService {
     }
   }
 
+  /**
+   * Rejects a post/target combination the destination platform's actual API
+   * cannot represent, before any network call is made. Only TikTok has real
+   * restrictions today:
+   *   - No mixed image+video carousel (photo_images is photo-only; video
+   *     publishing is a completely separate FILE_UPLOAD endpoint that takes
+   *     exactly one video).
+   *   - No multi-video carousel/slideshow of any kind -- TikTok's API has no
+   *     concept of publishing more than one video as a single post.
+   * A pure image carousel of any length (still capped at 5 by the composer)
+   * and a single video are both unaffected and behave exactly as before.
+   * Instagram's Graph API carousel children natively support both IMAGE and
+   * VIDEO media_type, so no restriction is applied there -- see
+   * publishInstagramCarousel.
+   */
+  private assertCarouselPlatformSupport(platform: Platform, assets: { mimeType: string }[]): void {
+    if (platform !== Platform.TIKTOK) return;
+
+    const videoCount = assets.filter((a) => a.mimeType?.startsWith('video/')).length;
+    const imageCount = assets.length - videoCount;
+
+    if (videoCount > 0 && imageCount > 0) {
+      throw new Error(
+        'TikTok does not support carousels that mix photos and videos. Use an all-photo carousel or a single video post instead.',
+      );
+    }
+    if (videoCount > 1) {
+      throw new Error(
+        'TikTok does not support posting multiple videos as one post. Publish each video as its own post.',
+      );
+    }
+  }
+
   /** Marks the parent Post PUBLISHED/FAILED once every target has resolved. */
   private async finalizeIfComplete(postId: string, platform: Platform, providerPostId: string | null, _mediaAssetId?: string) {
     const remaining = await this.prisma.postTarget.count({ where: { postId, status: 'PENDING' } });
@@ -696,11 +744,22 @@ export class PublishingService {
     mimeType: string,
     brandId: string,
     alreadyOptimized: boolean = false,
+    mediaMimeTypes?: string[],
   ): Promise<string> {
     switch (platform) {
       case 'INSTAGRAM':
-        return this.publishToInstagram(platformAccountId, accessToken, caption, mediaUrls, mimeType, brandId, alreadyOptimized);
+        // mediaMimeTypes is the per-item parallel array carousels need to
+        // tell Instagram which children are photos vs videos -- falls back
+        // to a same-length array of the single mimeType for any caller that
+        // doesn't pass one (defensive; every real call site does).
+        return this.publishToInstagram(platformAccountId, accessToken, caption, mediaUrls, mimeType, brandId, alreadyOptimized, mediaMimeTypes || mediaUrls.map(() => mimeType));
       case 'TIKTOK':
+        // Unlike Instagram, TikTok never needs a per-item mimeType here:
+        // assertCarouselPlatformSupport already guarantees that by the time
+        // a TikTok post reaches this point, its media is either all-image
+        // (any count, via photo_images) or a single video -- so the one
+        // primary mimeType this call already receives is sufficient to
+        // route correctly.
         return this.publishToTikTok(accessToken, caption, mediaUrls, mimeType);
       default:
         throw new Error(`Publishing to ${platform} isn't supported yet.`);
@@ -716,11 +775,11 @@ export class PublishingService {
    * and that parent is what actually gets published -- this is Meta's
    * documented carousel flow, not a loop of independent single posts.
    */
-  private async publishToInstagram(igUserId: string, accessToken: string, caption: string, mediaUrls: string[], mimeType: string, brandId: string, alreadyOptimized: boolean = false): Promise<string> {
+  private async publishToInstagram(igUserId: string, accessToken: string, caption: string, mediaUrls: string[], mimeType: string, brandId: string, alreadyOptimized: boolean = false, mediaMimeTypes: string[] = []): Promise<string> {
     const isVideo = mimeType?.startsWith('video/');
 
     if (mediaUrls.length > 1) {
-      return this.publishInstagramCarousel(igUserId, accessToken, caption, mediaUrls, brandId, alreadyOptimized);
+      return this.publishInstagramCarousel(igUserId, accessToken, caption, mediaUrls, mediaMimeTypes, brandId, alreadyOptimized);
     }
 
     const mediaUrl = mediaUrls[0];
@@ -779,23 +838,32 @@ export class PublishingService {
 
   /**
    * Meta's documented carousel flow: 1) create one child item container per
-   * image with is_carousel_item=true (no caption -- captions only go on the
-   * parent), 2) wait for each to be ready, 3) create the parent container
-   * with media_type=CAROUSEL and children=<comma-separated child ids>, 4)
-   * publish the parent. Images already went through ensureInstagramAspectRatio
-   * at the platform-optimization stage (or, for anything without an
-   * optimized derivative yet, get the same on-the-fly check applied here,
-   * same as the single-image path) so a carousel item can't fail for the
-   * same aspect-ratio reason a lone image would.
+   * media item with is_carousel_item=true (no caption -- captions only go
+   * on the parent), 2) wait for each to be ready, 3) create the parent
+   * container with media_type=CAROUSEL and children=<comma-separated child
+   * ids>, 4) publish the parent. Mixed-media aware: each child is created
+   * as image_url or media_type=VIDEO+video_url depending on that item's own
+   * mimeType (mediaMimeTypes is the parallel array to mediaUrls, in the
+   * same PostMedia.order sequence) -- Instagram's Graph API natively
+   * supports both in the same carousel, unlike TikTok (see
+   * assertCarouselPlatformSupport). Images already went through
+   * ensureInstagramAspectRatio at the platform-optimization stage (or, for
+   * anything without an optimized derivative yet, get the same on-the-fly
+   * check applied here, same as the single-image path) so a carousel image
+   * can't fail for the same aspect-ratio reason a lone image would --
+   * videos never go through this check, matching the single-video/Reels
+   * path, since it's an image-only Instagram constraint.
    */
-  private async publishInstagramCarousel(igUserId: string, accessToken: string, caption: string, mediaUrls: string[], brandId: string, alreadyOptimized: boolean): Promise<string> {
+  private async publishInstagramCarousel(igUserId: string, accessToken: string, caption: string, mediaUrls: string[], mediaMimeTypes: string[], brandId: string, alreadyOptimized: boolean): Promise<string> {
     const childIds: string[] = [];
-    for (const url of mediaUrls) {
-      const finalUrl = alreadyOptimized ? url : await this.ensureInstagramAspectRatio(url, brandId);
+    for (let i = 0; i < mediaUrls.length; i++) {
+      const url = mediaUrls[i];
+      const isVideoItem = mediaMimeTypes[i]?.startsWith('video/');
+      const finalUrl = isVideoItem || alreadyOptimized ? url : await this.ensureInstagramAspectRatio(url, brandId);
       const childParams = new URLSearchParams({
-        image_url: finalUrl,
         is_carousel_item: 'true',
         access_token: accessToken,
+        ...(isVideoItem ? { media_type: 'VIDEO', video_url: finalUrl } : { image_url: finalUrl }),
       });
       const childRes = await fetch(`https://graph.instagram.com/v19.0/${igUserId}/media`, {
         method: 'POST',
@@ -804,7 +872,7 @@ export class PublishingService {
       });
       const childData = await childRes.json();
       if (!childRes.ok || !childData.id) {
-        throw new Error(this.formatMetaError(childData, 'Instagram rejected one of the carousel images.'));
+        throw new Error(this.formatMetaError(childData, 'Instagram rejected one of the carousel items.'));
       }
       await this.waitForInstagramContainerReady(childData.id, accessToken);
       childIds.push(childData.id);
