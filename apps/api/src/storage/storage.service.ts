@@ -92,7 +92,6 @@ export class StorageService {
       contentType,
       token: this.token,
       addRandomSuffix: false,
-      allowOverwrite: true,
     });
     return { url: blob.url };
   }
