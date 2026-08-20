@@ -61,7 +61,14 @@ export class SupabaseRealtimeService {
 
   private getClient(): SupabaseClient {
     if (!this.client) {
-      this.client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      // Explicit `<any>` generic: without it, TS tries to structurally infer
+      // supabase-js's full (Database-schema-aware) client type from this
+      // call site, which -- with the @supabase/supabase-js version this
+      // project resolves to -- blows past TypeScript's type-instantiation
+      // depth limit (TS2589) and fails the build entirely. This project
+      // never passes a typed `Database` schema generic to begin with, so
+      // there's no type-safety being given up here that existed before.
+      this.client = createClient<any>(SUPABASE_URL, SUPABASE_ANON_KEY, {
         realtime: { params: { eventsPerSecond: 10 } },
       });
     }

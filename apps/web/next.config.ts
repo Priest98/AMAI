@@ -84,6 +84,35 @@ const nextConfig: NextConfig = {
   },
   outputFileTracingRoot: path.join(__dirname, "../../"),
   serverExternalPackages: nestAndPrismaPackages,
+  webpack: (config) => {
+    // sharp's own lib/utility.js does a guarded, try/catch-wrapped
+    // require() of whichever @img/sharp-<platform>-* (or, for the wasm
+    // fallback path, @img/sharp-wasm32) optional package matches the
+    // machine it's running on, purely to read version metadata -- see
+    // sharp's source. That package is deliberately NOT installed here
+    // (npm's own cpu/os matching skips it, since Vercel's Lambda runtime
+    // is linux-x64, not wasm32/darwin/win32), which is fine at runtime
+    // since the require is inside a try/catch. It is NOT fine at build
+    // time: even with "sharp" listed in serverExternalPackages above,
+    // webpack still statically traces into this nested require chain
+    // (reached via apps/api/src/queue/publishing.service.ts's sharp
+    // import) and fails the whole build with a hard "Module not found"
+    // instead of leaving it as an external runtime require. Explicitly
+    // externalizing every @img/sharp-* platform/libvips variant name
+    // (not just the one literal package that failed here) stops webpack
+    // from resolving any of them, matching how the already-externalized
+    // "sharp" package itself is supposed to behave.
+    config.externals = config.externals || [];
+    (config.externals as unknown[]).push(
+      ({ request }: { request?: string }, callback: (err?: null, result?: string) => void) => {
+        if (request && /^@img\/sharp-/.test(request)) {
+          return callback(null, `commonjs ${request}`);
+        }
+        callback();
+      },
+    );
+    return config;
+  },
   images: {
     // Media Library thumbnails are served straight from Vercel Blob
     // storage (see apps/api/src/storage/storage.service.ts). Allow-listing
