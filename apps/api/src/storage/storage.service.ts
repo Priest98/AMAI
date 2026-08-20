@@ -73,6 +73,30 @@ export class StorageService {
     }
   }
 
+  /**
+   * Uploads content to an EXACT pathname (no random suffix, no brandId
+   * prefix) at the root of this Blob store. Only used for one-off,
+   * externally-dictated filenames -- e.g. a TikTok domain-ownership
+   * verification file, which must live at the literal path TikTok's portal
+   * specifies for `pull_by_url` (photo posting) to be verifiable at all.
+   * Every other upload path in this file deliberately keeps
+   * addRandomSuffix: true to avoid collisions; this is the one legitimate
+   * exception.
+   */
+  async uploadExact(pathname: string, content: string, contentType: string): Promise<{ url: string }> {
+    if (!this.token) {
+      throw new InternalServerErrorException('Media storage is not configured.');
+    }
+    const blob = await put(pathname, content, {
+      access: 'public',
+      contentType,
+      token: this.token,
+      addRandomSuffix: false,
+      allowOverwrite: true,
+    });
+    return { url: blob.url };
+  }
+
   async deleteFile(fileUrl: string): Promise<void> {
     if (!fileUrl || !this.token) return;
     try {
