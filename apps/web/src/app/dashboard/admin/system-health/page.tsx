@@ -116,8 +116,8 @@ export default function SystemHealthPage() {
     setSendingReport(true);
     setReportStatus(null);
     try {
-      await apiFetch('/admin/health/send-daily-report', { method: 'POST' });
-      setReportStatus('Sent -- check Telegram.');
+      const res = await apiFetch<{ success: boolean; sent: boolean; reason?: string }>('/admin/health/send-daily-report', { method: 'POST' });
+      setReportStatus(res.sent ? 'Sent -- check Telegram.' : res.reason || 'Not sent -- unknown reason.');
     } catch (e: any) {
       setReportStatus(e?.message || 'Failed to send.');
     } finally {

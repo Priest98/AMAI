@@ -320,7 +320,7 @@ export class HealthEngineService {
    * testing (Phase 4) is an explicitly deferred follow-up, not part of
    * this increment.
    */
-  async sendDailyReport(): Promise<void> {
+  async sendDailyReport(): Promise<{ sent: boolean; reason?: string }> {
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
     const [snapshot, incidentGroups, recentChecks] = await Promise.all([
@@ -353,11 +353,12 @@ export class HealthEngineService {
       : null;
 
     if (!this.telegram.isConfigured()) {
-      this.logger.warn('Skipping daily report -- Telegram not configured.');
-      return;
+      const reason = 'Telegram not configured -- TELEGRAM_BOT_TOKEN and/or TELEGRAM_ADMIN_CHAT_ID missing in this deployment\'s env vars.';
+      this.logger.warn(`Skipping daily report -- ${reason}`);
+      return { sent: false, reason };
     }
 
-    await this.telegram.send(
+    const sent = await this.telegram.send(
       this.telegram.formatDailyReport({
         overallHealthPct,
         subsystems,
@@ -367,6 +368,10 @@ export class HealthEngineService {
         avgApiResponseMs,
       }),
     );
+
+    return sent
+      ? { sent: true }
+      : { sent: false, reason: 'Telegram API call failed -- check the bot token and chat ID are correct (see server logs for the exact error).' };
   }
 
   /**

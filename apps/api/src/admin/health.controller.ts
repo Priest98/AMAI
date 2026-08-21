@@ -69,14 +69,19 @@ export class HealthController {
    */
   @Post('send-daily-report')
   async sendDailyReport(@Req() req: any) {
-    await this.healthEngine.sendDailyReport();
+    const result = await this.healthEngine.sendDailyReport();
 
     await this.auditLog.record({
       adminUserId: req.user.id,
       action: 'health_engine.send_daily_report',
       resourceType: 'HealthCheckResult',
+      newState: result,
     });
 
-    return { success: true };
+    // success reflects the HTTP call itself (this endpoint didn't throw);
+    // `sent` is whether Telegram actually delivered the message -- these
+    // are deliberately different fields so a misconfigured bot token
+    // doesn't get reported to the admin as "it worked."
+    return { success: true, sent: result.sent, reason: result.reason };
   }
 }

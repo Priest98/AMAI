@@ -115,8 +115,8 @@ export class CronController {
 
   private async runDailyReport(authHeader?: string) {
     this.assertAuthorized(authHeader);
-    await this.healthEngineService.sendDailyReport();
-    this.logger.log('daily-report: sent');
+    const result = await this.healthEngineService.sendDailyReport();
+    this.logger.log(result.sent ? 'daily-report: sent' : `daily-report: not sent (${result.reason})`);
     return { success: true };
   }
 
