@@ -13,6 +13,7 @@ import {
   X,
 } from 'lucide-react';
 import { API_BASE, apiFetch, getBrandId, isAuthenticated } from '@/lib/api';
+import { INSTAGRAM_ENABLED } from '@/lib/featureFlags';
 
 interface ConnectedAccount {
   id: string;
@@ -189,12 +190,18 @@ export default function ConnectedAccountsPage() {
   const isTikTokConnected = tiktokAccounts.length > 0 || !!localTikTok;
   const tiktokHandle = tiktokAccounts[0]?.handle || localTikTok?.handle || '@creator';
 
+  // TikTok-first launch: Instagram's connect entry point is hidden unless
+  // an account is already connected (see lib/featureFlags.ts) -- an
+  // existing connection is never hidden, only the ability to start a new
+  // one while the integration isn't part of the V1 launch.
+  const showInstagramCard = INSTAGRAM_ENABLED || isInstagramConnected;
+
   return (
     <div className="space-y-6 sm:space-y-8 max-w-7xl mx-auto">
       {/* Header */}
       <SectionHeader
-        title="Integrations Hub"
-        subtitle="Tap any platform icon below to authorize and link your accounts instantly."
+        title="TikTok Connection"
+        subtitle={showInstagramCard ? 'Tap any platform icon below to authorize and link your accounts instantly.' : 'Connect your TikTok account to let AMAI schedule and publish for you.'}
       />
 
       {/* Top Banner Block */}
@@ -221,9 +228,11 @@ export default function ConnectedAccountsPage() {
       </AnimatePresence>
 
       {/* ── Core Platform Cards Grid ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-6 max-w-3xl">
+      <div className={`grid grid-cols-1 gap-5 sm:gap-6 ${showInstagramCard ? 'sm:grid-cols-2 max-w-3xl' : 'max-w-sm'}`}>
 
-        {/* 1. Instagram Card */}
+        {/* 1. Instagram Card -- hidden for V1's TikTok-first launch unless
+            an account is already connected (see showInstagramCard above) */}
+        {showInstagramCard && (
         <motion.div
           whileHover={{ y: -4 }}
           onClick={() => {
@@ -335,6 +344,7 @@ export default function ConnectedAccountsPage() {
             )}
           </div>
         </motion.div>
+        )}
 
         {/* 2. TikTok Card */}
         <motion.div

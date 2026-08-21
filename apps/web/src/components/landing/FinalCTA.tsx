@@ -21,12 +21,12 @@ export default function FinalCTA() {
           />
           <div className="relative">
             <h2 className="lp-hero-display text-4xl sm:text-6xl">
-              Let your social media
+              Start automating your
               <br />
-              run itself.
+              TikTok content today.
             </h2>
             <p className="mt-6 text-base sm:text-lg max-w-lg mx-auto" style={{ color: 'var(--lp-text-secondary)' }}>
-              Connect your content. Set your preferences. Let AMAI handle the rest.
+              Upload your content. Set your preferences. Let AMAI handle the rest on TikTok.
             </p>
             <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
               <MagneticButton as={motion.div}>
@@ -34,7 +34,7 @@ export default function FinalCTA() {
                   href="/register"
                   className="group inline-flex items-center gap-2 px-8 py-4 rounded-2xl text-sm lp-btn-primary lp-focus-ring"
                 >
-                  Start Free
+                  Start for Free
                   <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
                 </Link>
               </MagneticButton>

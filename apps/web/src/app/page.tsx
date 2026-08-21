@@ -85,21 +85,20 @@ export const metadata: Metadata = {
   // app-review requirement (they flagged a mismatch between the two).
   title: 'AMAI',
   description:
-    'AMAI is your AI social media employee. It plans, creates, publishes and learns across Instagram and TikTok, so you don\'t have to. Start free, no credit card required.',
+    'AMAI is your TikTok content on autopilot. Upload your content and AMAI handles captions, hashtags, optimization, scheduling and publishing to TikTok. Start free, no credit card required.',
   keywords: [
-    'AI social media employee',
-    'AI social media automation',
-    'Instagram automation',
     'TikTok automation',
-    'social media scheduling',
+    'TikTok scheduling',
+    'TikTok content on autopilot',
     'AI caption generator',
+    'TikTok hashtag generator',
     'content approval workflow',
-    'AutoPilot social media',
-    'automated publishing',
+    'AutoPilot TikTok',
+    'automated TikTok publishing',
   ],
   openGraph: {
-    title: 'AMAI: Your AI Social Media Employee',
-    description: 'Your social media. On autopilot. AMAI plans, creates, publishes and learns so you don\'t have to.',
+    title: 'AMAI: Your TikTok Content on Autopilot',
+    description: 'Upload your content. AMAI handles captions, hashtags, optimization, scheduling and publishing to TikTok, so you don\'t have to.',
     url: 'https://marketing-os-eight-virid.vercel.app',
     siteName: 'AMAI',
     images: [
@@ -107,7 +106,7 @@ export const metadata: Metadata = {
         url: 'https://marketing-os-eight-virid.vercel.app/app-icon.jpg',
         width: 1024,
         height: 1024,
-        alt: 'AMAI: Your AI Social Media Employee',
+        alt: 'AMAI: Your TikTok Content on Autopilot',
       },
     ],
     locale: 'en_US',
@@ -115,8 +114,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'AMAI: Your AI Social Media Employee',
-    description: 'Your social media. On autopilot. AMAI plans, creates, publishes and learns so you don\'t have to.',
+    title: 'AMAI: Your TikTok Content on Autopilot',
+    description: 'Upload your content. AMAI handles captions, hashtags, optimization, scheduling and publishing to TikTok, so you don\'t have to.',
     images: ['https://marketing-os-eight-virid.vercel.app/app-icon.jpg'],
   },
   alternates: {
@@ -131,7 +130,7 @@ const jsonLd = {
   applicationCategory: 'BusinessApplication',
   operatingSystem: 'Web',
   description:
-    'AMAI is an AI social media employee that plans, creates, publishes and learns across Instagram and TikTok. Free to start, with Pro and Agency plans for more automation and capacity.',
+    'AMAI turns your existing content into scheduled, published TikTok posts -- AI captions, hashtags, optimization and publishing on autopilot. Free to start, with Pro and Agency plans for more automation and capacity.',
   offers: {
     '@type': 'Offer',
     price: '0',

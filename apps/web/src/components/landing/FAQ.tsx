@@ -22,16 +22,16 @@ const FAQS = [
     a: 'That specific feature pauses until your usage resets or you upgrade. Your account stays active and your workspace isn’t locked.',
   },
   {
-    q: 'Can AMAI post automatically?',
-    a: 'Yes. You choose the level of automation: Manual, Approval or Automatic.',
+    q: 'How does TikTok publishing work?',
+    a: 'Connect your TikTok account, and AMAI can publish directly through TikTok\'s own API. You choose the level of automation: Manual, Approval or Automatic.',
   },
   {
     q: 'Can I cancel Pro?',
     a: 'Yes, according to the applicable subscription terms. Your access may remain active until the end of your current billing period.',
   },
   {
-    q: 'Does AMAI work with Instagram and TikTok?',
-    a: 'Yes, where supported by your connected integrations. More platforms can be added over time.',
+    q: 'Is AMAI only for TikTok?',
+    a: 'AMAI is TikTok-first today. Other platforms are on the roadmap, but TikTok is where the product is most polished right now.',
   },
 ];
 

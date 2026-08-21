@@ -87,7 +87,7 @@ export default function Nav() {
               href="/register"
               className="px-5 py-2.5 rounded-full text-sm lp-btn-primary lp-focus-ring transition-transform duration-200 active:scale-95"
             >
-              Start Free
+              Start for Free
             </Link>
           </div>
 
@@ -138,7 +138,7 @@ export default function Nav() {
                     Sign In
                   </Link>
                   <Link href="/register" className="touch-target flex-1 px-4 py-2.5 rounded-full text-sm lp-btn-primary">
-                    Start Free
+                    Start for Free
                   </Link>
                 </div>
               </div>

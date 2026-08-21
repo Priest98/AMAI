@@ -153,7 +153,7 @@ export default function Pricing({ initialData }: { initialData?: PlansResponse |
         <Reveal className="text-center max-w-2xl mx-auto">
           <Eyebrow>Simple Pricing</Eyebrow>
           <h2 className="lp-heading mt-5 text-3xl sm:text-4xl font-bold tracking-tight">
-            Start free. Upgrade when you need more.
+            Start free. Upgrade when you need more TikTok.
           </h2>
           <p className="mt-4 text-sm" style={{ color: 'var(--lp-text-secondary)' }}>
             No complicated contracts. No hidden setup fees.

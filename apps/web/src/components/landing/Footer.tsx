@@ -47,7 +47,7 @@ export default function Footer() {
               AMAI
             </Link>
             <p className="mt-4 text-sm leading-relaxed max-w-xs" style={{ color: 'var(--lp-text-secondary)' }}>
-              Your AI social media employee.
+              Your TikTok content, on autopilot.
             </p>
           </div>
 
@@ -77,10 +77,14 @@ export default function Footer() {
           className="mt-14 pt-8 border-t flex flex-col sm:flex-row items-center justify-between gap-4 text-xs"
           style={{ borderColor: 'var(--lp-border)', color: 'var(--lp-text-muted)' }}
         >
-          <span>© {new Date().getFullYear()} AMAI. All rights reserved.</span>
+          <div className="flex flex-col sm:flex-row items-center gap-1 sm:gap-3">
+            <span>© {new Date().getFullYear()} AMAI TECHNOLOGY. All rights reserved.</span>
+            <span className="hidden sm:inline" aria-hidden="true">·</span>
+            <span>Powered by AMAI TECHNOLOGY</span>
+          </div>
           <div className="flex items-center gap-4">
-            <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="lp-focus-ring">Instagram</a>
             <a href="https://tiktok.com" target="_blank" rel="noopener noreferrer" className="lp-focus-ring">TikTok</a>
+            <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="lp-focus-ring">Instagram</a>
             <a href="https://x.com" target="_blank" rel="noopener noreferrer" className="lp-focus-ring">X</a>
           </div>
         </div>

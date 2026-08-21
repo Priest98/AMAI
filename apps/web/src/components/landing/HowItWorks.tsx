@@ -7,23 +7,23 @@ import { Reveal, Eyebrow } from './shared';
 const STEPS = [
   {
     Icon: Link2,
-    title: 'Connect your business',
-    body: 'Connect your social accounts and content library.',
+    title: 'Upload',
+    body: 'Connect your TikTok account and upload the photos and videos you already have.',
   },
   {
     Icon: Brain,
-    title: 'Teach AMAI your brand',
-    body: 'AMAI learns your products, audience, voice and content preferences.',
+    title: 'Let AI prepare your post',
+    body: 'AMAI writes the caption and hashtags and optimizes your content for TikTok.',
   },
   {
     Icon: PlayCircle,
-    title: 'Let it work',
-    body: 'AMAI plans, creates, schedules and publishes content according to your preferences.',
+    title: 'Approve or schedule',
+    body: 'Review the post, or let AutoPilot schedule it for the best time automatically.',
   },
   {
     Icon: TrendingUp,
-    title: 'It gets smarter',
-    body: 'AMAI studies performance and uses those insights to improve what comes next.',
+    title: 'AMAI publishes to TikTok',
+    body: 'Your post goes live on TikTok, and AMAI logs the result and learns for next time.',
   },
 ];
 
@@ -34,7 +34,7 @@ export default function HowItWorks() {
         <Reveal className="text-center max-w-2xl mx-auto">
           <Eyebrow>How It Works</Eyebrow>
           <h2 className="lp-heading mt-5 text-3xl sm:text-4xl font-bold tracking-tight">
-            From content to growth, automatically.
+            From content to TikTok, automatically.
           </h2>
         </Reveal>
 

@@ -8,6 +8,7 @@ import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
 import { Lock, ArrowRight, CheckCircle2, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { API_BASE } from '@/lib/api';
+import BrandAttribution from '@/components/BrandAttribution';
 
 
 function ResetPasswordContent() {
@@ -65,7 +66,7 @@ function ResetPasswordContent() {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center p-4" style={{ color: 'var(--text-primary)' }}>
+    <div className="min-h-screen w-full flex flex-col items-center justify-center gap-4 p-4" style={{ color: 'var(--text-primary)' }}>
       <motion.div
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
@@ -153,6 +154,8 @@ function ResetPasswordContent() {
           </form>
         )}
       </motion.div>
+
+      <BrandAttribution />
     </div>
   );
 }

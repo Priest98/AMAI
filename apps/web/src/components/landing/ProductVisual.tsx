@@ -1,7 +1,8 @@
 "use client";
 
 import React from 'react';
-import { Zap, CalendarClock, Sparkles, Instagram, TrendingUp } from 'lucide-react';
+import { Zap, CalendarClock, Sparkles, TrendingUp } from 'lucide-react';
+import { TikTokLogo } from '@/components/icons/platform-logos';
 import { Reveal } from './shared';
 
 /**
@@ -21,7 +22,7 @@ const STATUS_ITEMS = [
   { Icon: Zap, label: 'AutoPilot', value: 'Active', tone: 'cyan' as const, live: true },
   { Icon: CalendarClock, label: 'Scheduled', value: '3 posts', tone: 'purple' as const },
   { Icon: Sparkles, label: 'Recommendations', value: '2 new', tone: 'cyan' as const },
-  { Icon: Instagram, label: 'Instagram', value: 'Connected', tone: 'purple' as const },
+  { Icon: TikTokLogo, label: 'TikTok', value: 'Connected', tone: 'purple' as const },
   { Icon: TrendingUp, label: 'Performance', value: 'Tracking', tone: 'cyan' as const },
 ];
 
@@ -31,7 +32,7 @@ export default function ProductVisual() {
       <div className="max-w-5xl mx-auto px-5 sm:px-8">
         <Reveal className="text-center max-w-2xl mx-auto">
           <h2 className="lp-heading text-3xl sm:text-4xl font-bold tracking-tight">
-            Your social media, working in the background.
+            Your TikTok, working in the background.
           </h2>
         </Reveal>
 

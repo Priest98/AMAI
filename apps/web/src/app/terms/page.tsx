@@ -27,8 +27,8 @@ export default function TermsOfService() {
 
       <p className="text-sm text-zinc-300 leading-relaxed">
         These Terms of Service ("Terms") govern your use of AMAI, an AI-powered content
-        scheduling and publishing tool. By creating an account or otherwise using AMAI, you
-        agree to these Terms.
+        scheduling and publishing tool provided by AMAI TECHNOLOGY. By creating an account or
+        otherwise using AMAI, you agree to these Terms.
       </p>
 
       <Section title="1. Description of Service">
@@ -66,7 +66,7 @@ export default function TermsOfService() {
       </Section>
 
       <Section title="8. Disclaimer & Limitation of Liability">
-        <p>AMAI is provided "as is" without warranties of any kind, express or implied. To the maximum extent permitted by law, AMAI and its operators are not liable for any indirect, incidental, or consequential damages arising from your use of the Service, including content published to your connected accounts.</p>
+        <p>AMAI is provided "as is" without warranties of any kind, express or implied. To the maximum extent permitted by law, AMAI TECHNOLOGY and its operators are not liable for any indirect, incidental, or consequential damages arising from your use of the Service, including content published to your connected accounts.</p>
       </Section>
 
       <Section title="9. Termination">
@@ -80,6 +80,10 @@ export default function TermsOfService() {
       <Section title="11. Contact Us">
         <p>Questions about these Terms? Email <a href={`mailto:${CONTACT_EMAIL}`} className="text-blue-400 hover:underline">{CONTACT_EMAIL}</a>.</p>
       </Section>
+
+      <p className="text-xs text-zinc-600 pt-4 border-t border-zinc-800">
+        © {new Date().getFullYear()} AMAI TECHNOLOGY. All rights reserved.
+      </p>
     </div>
   );
 }

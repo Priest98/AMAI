@@ -49,7 +49,8 @@ export class AuthService {
           ${bodyHtml}
           <tr>
             <td align="center" style="padding-top: 32px; font-size: 11px; color: #475569;">
-              © ${new Date().getFullYear()} AMAI Inc. All rights reserved.<br>
+              © ${new Date().getFullYear()} AMAI TECHNOLOGY. All rights reserved.<br>
+              Powered by AMAI TECHNOLOGY<br>
               <a href="${getAppUrl()}/privacy" style="color: #8B5CF6; text-decoration: none;">Privacy Policy</a> &bull;
               <a href="${getAppUrl()}/terms" style="color: #8B5CF6; text-decoration: none;">Terms of Service</a>
             </td>

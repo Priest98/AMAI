@@ -26,11 +26,12 @@ export default function PrivacyPolicy() {
       </div>
 
       <p className="text-sm text-zinc-300 leading-relaxed">
-        AMAI ("AMAI," "we," "us," or "our") provides an AI-powered content scheduling and
-        publishing tool that lets you upload media, automatically generates captions and
-        hashtags, and publishes or schedules that content to your own connected Instagram and
-        TikTok accounts. This Privacy Policy explains what information we collect, how we use
-        it, who we share it with, and the choices you have.
+        AMAI is a product of AMAI TECHNOLOGY ("AMAI TECHNOLOGY," "we," "us," or "our"), providing
+        an AI-powered content scheduling and publishing tool that lets you upload media,
+        automatically generates captions and hashtags, and publishes or schedules that content to
+        your own connected TikTok account (and, where enabled, Instagram). This Privacy Policy
+        explains what information we collect, how we use it, who we share it with, and the
+        choices you have.
       </p>
 
       <Section title="1. Information We Collect">
@@ -96,6 +97,10 @@ export default function PrivacyPolicy() {
       <Section title="9. Contact Us">
         <p>Questions about this policy or your data? Email <a href={`mailto:${CONTACT_EMAIL}`} className="text-blue-400 hover:underline">{CONTACT_EMAIL}</a>.</p>
       </Section>
+
+      <p className="text-xs text-zinc-600 pt-4 border-t border-zinc-800">
+        © {new Date().getFullYear()} AMAI TECHNOLOGY. All rights reserved.
+      </p>
     </div>
   );
 }

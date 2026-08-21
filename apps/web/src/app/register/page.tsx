@@ -10,6 +10,7 @@ import ThemeToggle from '@/components/ui/ThemeToggle';
 import { User, AtSign, Lock, ArrowRight, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { API_BASE, isAuthenticated } from '@/lib/api';
 import { capture } from '@/lib/posthog';
+import BrandAttribution from '@/components/BrandAttribution';
 
 
 export default function RegisterPage() {
@@ -83,7 +84,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center p-4" style={{ color: 'var(--text-primary)' }}>
+    <div className="min-h-screen w-full flex flex-col items-center justify-center gap-4 p-4" style={{ color: 'var(--text-primary)' }}>
 
       <motion.div
         initial={{ opacity: 0, y: 15 }}
@@ -209,6 +210,8 @@ export default function RegisterPage() {
         </p>
 
       </motion.div>
+
+      <BrandAttribution />
     </div>
   );
 }

@@ -113,7 +113,7 @@ function PublishedToast({
         style={{ animationDelay: '0.6s' }}
       >
         <CheckCircle2 className="h-4 w-4 shrink-0" style={{ color: 'var(--lp-success)' }} />
-        <span className="text-[12px] font-semibold whitespace-nowrap">Published to Instagram &amp; TikTok</span>
+        <span className="text-[12px] font-semibold whitespace-nowrap">Published to TikTok</span>
       </motion.div>
     </motion.div>
   );
@@ -196,7 +196,7 @@ export default function Hero() {
           transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
         >
           <p className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--lp-cyan)' }}>
-            Your AI Social Media Employee
+            TikTok Content, Automated
           </p>
 
           {/* The one deliberate Instrument Serif moment in the hero (the
@@ -208,13 +208,14 @@ export default function Hero() {
             className="lp-hero-display mt-5 text-6xl sm:text-7xl lg:text-8xl"
             style={{ color: 'var(--lp-text-primary)' }}
           >
-            Your social media.
+            Your TikTok Content
             <br />
-            <span className="lp-gradient-text">On autopilot.</span>
+            <span className="lp-gradient-text">on Autopilot.</span>
           </h1>
 
           <p className="mt-8 text-lg sm:text-xl leading-relaxed max-w-lg" style={{ color: 'var(--lp-text-secondary)' }}>
-            AMAI plans, creates and publishes your content so you don&rsquo;t have to.
+            Upload your content. AMAI handles captions, hashtags, optimization, scheduling and publishing
+            &mdash; so you can stay consistent without spending hours managing TikTok.
           </p>
 
           <div className="mt-12 flex flex-col sm:flex-row items-start sm:items-center gap-5">
@@ -223,7 +224,7 @@ export default function Hero() {
                 href="/register"
                 className="group inline-flex items-center gap-2 px-8 py-4 rounded-2xl text-sm lp-btn-primary lp-focus-ring"
               >
-                Start Free
+                Start for Free
                 <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
               </Link>
             </MagneticButton>

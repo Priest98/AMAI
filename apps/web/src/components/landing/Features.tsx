@@ -23,13 +23,13 @@ const FEATURES = [
   {
     Icon: PenLine,
     title: 'AI Content',
-    body: 'Turn your photos and videos into ready-to-publish posts.',
+    body: 'Turn your photos and videos into ready-to-publish TikTok posts.',
     tone: 'purple' as const,
   },
   {
     Icon: Rocket,
     title: 'AutoPilot',
-    body: 'Plan, schedule and publish automatically.',
+    body: 'Plan, schedule and publish to TikTok automatically.',
     tone: 'cyan' as const,
   },
   {
@@ -47,7 +47,7 @@ export default function Features() {
         <Reveal className="text-center max-w-2xl mx-auto">
           <Eyebrow>What You Get</Eyebrow>
           <h2 className="lp-heading mt-5 text-3xl sm:text-4xl font-bold tracking-tight">
-            Everything your social media needs.
+            Everything your TikTok needs.
           </h2>
         </Reveal>
 
@@ -79,8 +79,8 @@ export default function Features() {
             know they're covered, not read a section about each. */}
         <Reveal delay={0.3} className="mt-10 text-center">
           <p className="text-sm max-w-2xl mx-auto" style={{ color: 'var(--lp-text-muted)' }}>
-            Publish across Instagram, TikTok and supported channels from one place, and connect Google
-            Drive to turn content you already have into posts.
+            Publish to TikTok from one place, and connect Google Drive to turn content you already have
+            into posts.
           </p>
         </Reveal>
       </div>

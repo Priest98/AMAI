@@ -31,6 +31,7 @@ import { OnboardingProvider } from '@/components/onboarding/OnboardingContext';
 import NotificationsBell from '@/components/dashboard/NotificationsBell';
 import ClientSwitcher from '@/components/dashboard/ClientSwitcher';
 import { useTheme } from '@/lib/useTheme';
+import BrandAttribution from '@/components/BrandAttribution';
 
 interface NavSubItem {
   label: string;
@@ -350,14 +351,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </nav>
               </div>
 
-              <button
-                onClick={handleLogout}
-                className="flex items-center space-x-2 px-3 py-2 rounded-[var(--radius-md)] text-xs font-bold border"
-                style={{ color: 'var(--accent-error)', backgroundColor: 'var(--accent-error-subtle)', borderColor: 'var(--accent-error)' }}
-              >
-                <LogOut className="h-4 w-4" />
-                <span>Sign Out</span>
-              </button>
+              <div className="space-y-4">
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center justify-center space-x-2 px-3 py-2 rounded-[var(--radius-md)] text-xs font-bold border"
+                  style={{ color: 'var(--accent-error)', backgroundColor: 'var(--accent-error-subtle)', borderColor: 'var(--accent-error)' }}
+                >
+                  <LogOut className="h-4 w-4" />
+                  <span>Sign Out</span>
+                </button>
+                <BrandAttribution />
+              </div>
             </motion.div>
           </>
         )}
@@ -436,6 +440,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   <span>Logout</span>
                 </button>
               </div>
+
+              {/* Company (not product) attribution -- subtle by design, see
+                  components/BrandAttribution.tsx's doc comment. */}
+              <BrandAttribution />
             </div>
           </aside>
 

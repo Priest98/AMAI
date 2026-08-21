@@ -229,7 +229,7 @@ export default function DashboardPage() {
                 {pendingPosts.slice(0, 3).map((post) => (
                   <div key={post.id} className="surface-tile p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="space-y-1.5 max-w-xl">
-                      <Badge variant="purple">{post.targets?.[0]?.platform || 'INSTAGRAM'}</Badge>
+                      <Badge variant="purple">{post.targets?.[0]?.platform || 'TIKTOK'}</Badge>
                       <p className="text-body-sm line-clamp-2 font-medium" style={{ color: 'var(--text-primary)' }}>{post.caption}</p>
                     </div>
                     <Link href="/dashboard/approval-queue" className="btn-emerald-cta px-4 py-2 rounded-[var(--radius-md)] text-xs font-bold touch-target shrink-0 text-center">
@@ -256,7 +256,7 @@ export default function DashboardPage() {
 
             {connectedAccountList.length === 0 ? (
               <p className="text-body-sm" style={{ color: 'var(--text-secondary)' }}>
-                Connect Instagram or TikTok to let AMAI publish automatically.
+                Connect TikTok to let AMAI publish automatically.
               </p>
             ) : (
               <ul className="space-y-2">

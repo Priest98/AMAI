@@ -7,6 +7,7 @@ import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
 import { AtSign, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
 import { API_BASE } from '@/lib/api';
+import BrandAttribution from '@/components/BrandAttribution';
 
 
 export default function ForgotPasswordPage() {
@@ -46,7 +47,7 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center p-4" style={{ color: 'var(--text-primary)' }}>
+    <div className="min-h-screen w-full flex flex-col items-center justify-center gap-4 p-4" style={{ color: 'var(--text-primary)' }}>
 
       <motion.div
         initial={{ opacity: 0, y: 15 }}
@@ -116,6 +117,8 @@ export default function ForgotPasswordPage() {
         )}
 
       </motion.div>
+
+      <BrandAttribution />
     </div>
   );
 }
