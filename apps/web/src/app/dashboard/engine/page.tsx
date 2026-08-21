@@ -419,18 +419,29 @@ export default function AmaiEnginePage() {
           </p>
         ) : (
           <ul className="space-y-1 max-h-80 overflow-y-auto">
-            {activity.map((e) => (
-              <li
-                key={e.id}
-                className="text-body-sm flex items-start justify-between gap-3 py-2 border-b last:border-b-0"
-                style={{ borderColor: 'var(--card-border)' }}
-              >
-                <span style={{ color: 'var(--text-primary)' }}>{e.message || e.type}</span>
-                <span className="shrink-0 text-caption font-mono" style={{ color: 'var(--text-muted)' }}>
-                  {new Date(e.createdAt).toLocaleTimeString()}
-                </span>
-              </li>
-            ))}
+            {activity.map((e) => {
+              // A failed publish is a real problem, not routine progress --
+              // it should read differently in the log than "caption
+              // generated" or "published", not blend in as the same neutral
+              // text color (see also EngineWorkflowVisualization's live
+              // widget, fixed the same way).
+              const isFailure = e.type === 'PUBLISH_FAILED';
+              return (
+                <li
+                  key={e.id}
+                  className="text-body-sm flex items-start justify-between gap-3 py-2 border-b last:border-b-0"
+                  style={{ borderColor: 'var(--card-border)' }}
+                >
+                  <span className="flex items-center gap-1.5" style={{ color: isFailure ? 'var(--accent-error)' : 'var(--text-primary)' }}>
+                    {isFailure && <AlertTriangle className="h-3.5 w-3.5 shrink-0" />}
+                    <span>{e.message || e.type}</span>
+                  </span>
+                  <span className="shrink-0 text-caption font-mono" style={{ color: 'var(--text-muted)' }}>
+                    {new Date(e.createdAt).toLocaleTimeString()}
+                  </span>
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>

@@ -11,6 +11,7 @@ import {
   CalendarClock,
   ShieldCheck,
   Send,
+  AlertTriangle,
 } from "lucide-react";
 import { useEngineEvents, EngineEvent } from "@/lib/useEngineEvents";
 
@@ -51,6 +52,11 @@ const RECENT_WINDOW_MS = 30000;
 export default function EngineWorkflowVisualization() {
   const [lastActive, setLastActive] = useState<Partial<Record<StageKey, number>>>({});
   const [latestMessage, setLatestMessage] = useState<string | null>(null);
+  // Tracks whether the latest message was a real PUBLISH_FAILED event, so
+  // the caption can read as an actual failure (red, warning icon) instead
+  // of blending in with routine progress messages in the same neutral
+  // gray -- a failed publish is not "just more pipeline activity."
+  const [latestIsFailure, setLatestIsFailure] = useState(false);
   const [, forceTick] = useState(0);
   const latestEventAtRef = useRef<number>(0);
 
@@ -60,7 +66,10 @@ export default function EngineWorkflowVisualization() {
     if (stage) {
       setLastActive((prev) => ({ ...prev, [stage.key]: now }));
     }
-    if (event.message) setLatestMessage(event.message);
+    if (event.message) {
+      setLatestMessage(event.message);
+      setLatestIsFailure(event.type === 'PUBLISH_FAILED');
+    }
     latestEventAtRef.current = now;
   });
 
@@ -150,7 +159,8 @@ export default function EngineWorkflowVisualization() {
         })}
       </div>
 
-      {/* Latest activity caption */}
+      {/* Latest activity caption -- styled distinctly when it's a real
+          publish failure, not just routine pipeline progress. */}
       <AnimatePresence mode="wait">
         {latestMessage && (
           <motion.p
@@ -159,10 +169,14 @@ export default function EngineWorkflowVisualization() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-            className="text-body-sm mt-6 pt-4 border-t"
-            style={{ color: "var(--text-secondary)", borderColor: "var(--card-border)" }}
+            className="text-body-sm mt-6 pt-4 border-t flex items-center gap-1.5"
+            style={{
+              color: latestIsFailure ? "var(--accent-error)" : "var(--text-secondary)",
+              borderColor: "var(--card-border)",
+            }}
           >
-            {latestMessage}
+            {latestIsFailure && <AlertTriangle className="h-3.5 w-3.5 shrink-0" />}
+            <span>{latestMessage}</span>
           </motion.p>
         )}
       </AnimatePresence>
