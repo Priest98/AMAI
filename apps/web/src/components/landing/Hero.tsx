@@ -176,17 +176,13 @@ export default function Hero() {
             className="object-cover"
           />
         </div>
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              'linear-gradient(to bottom, rgba(4,7,13,0.55) 0%, rgba(4,7,13,0.7) 55%, var(--lp-bg) 100%)',
-          }}
-        />
-        <div
-          className="absolute inset-0"
-          style={{ background: 'radial-gradient(ellipse 70% 55% at 30% 35%, rgba(4,7,13,0.15), rgba(4,7,13,0.75) 75%)' }}
-        />
+        {/* Theme-aware scrims (landing.css) -- previously hardcoded inline
+            rgba(4,7,13,...) here, which meant this never lightened in
+            light mode since inline styles can't be reached by the
+            `.light .amai-landing` override convention every other themed
+            surface on this page uses. */}
+        <div className="absolute inset-0 lp-hero-scrim-linear" />
+        <div className="absolute inset-0 lp-hero-scrim-radial" />
       </div>
 
       <div className="relative max-w-6xl mx-auto grid lg:grid-cols-[1.1fr_0.9fr] gap-16 lg:gap-20 items-center z-10 w-full">

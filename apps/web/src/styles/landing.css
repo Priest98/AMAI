@@ -303,6 +303,32 @@
   background: linear-gradient(to bottom, rgba(255, 255, 255, 0.35) 0%, transparent 10%, transparent 90%, rgba(255, 255, 255, 0.5) 100%);
 }
 
+/* Hero backdrop scrims -- previously two inline `style={{background:...}}`
+   divs in Hero.tsx hardcoded rgba(4,7,13,...) (near-black) with no light-mode
+   equivalent. Inline styles can't be reached by the `.light .amai-landing`
+   ancestor-selector convention every other themed surface here uses (see
+   .lp-ambient-vignette above), so the hero kept its dark scrim over the
+   backdrop image even when the rest of the page switched to light --
+   confirmed as the actual bug: the fade-to-background edge (var(--lp-bg))
+   was still reached, but the whole scrim above it stayed opaque navy
+   regardless of theme. Moved to real classes so light mode gets a real,
+   themed override instead of silently keeping the dark one. */
+.lp-hero-scrim-linear {
+  background: linear-gradient(to bottom, rgba(4, 7, 13, 0.55) 0%, rgba(4, 7, 13, 0.7) 55%, var(--lp-bg) 100%);
+}
+
+.light .amai-landing .lp-hero-scrim-linear {
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0.55) 55%, var(--lp-bg) 100%);
+}
+
+.lp-hero-scrim-radial {
+  background: radial-gradient(ellipse 70% 55% at 30% 35%, rgba(4, 7, 13, 0.15), rgba(4, 7, 13, 0.75) 75%);
+}
+
+.light .amai-landing .lp-hero-scrim-radial {
+  background: radial-gradient(ellipse 70% 55% at 30% 35%, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.55) 75%);
+}
+
 @keyframes lp-drift {
   0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
   50% { transform: translate3d(-1.5%, 1%, 0) scale(1.035); }
