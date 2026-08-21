@@ -40,9 +40,9 @@ interface CardCopy {
  */
 const CARD_COPY: Record<PlanTier, Omit<CardCopy, 'tier'>> = {
   FREE: {
-    heading: 'For businesses getting started with AI-powered social media.',
+    heading: 'For creators and businesses getting started with AI-powered TikTok content.',
     includes: [
-      'Core AI content generation',
+      'AI captions, hashtags & scheduling for TikTok',
       'Basic scheduling',
       'Basic AutoPilot',
       'Basic analytics',
@@ -53,7 +53,7 @@ const CARD_COPY: Record<PlanTier, Omit<CardCopy, 'tier'>> = {
   },
   PRO: {
     badge: 'MOST POPULAR',
-    heading: 'For businesses ready to automate more.',
+    heading: 'For businesses ready to put TikTok content on autopilot.',
     includes: [
       'Everything in Free, plus:',
       'Advanced AutoPilot',
@@ -67,7 +67,7 @@ const CARD_COPY: Record<PlanTier, Omit<CardCopy, 'tier'>> = {
     highlighted: true,
   },
   AGENCY: {
-    heading: 'For teams managing multiple businesses.',
+    heading: 'For teams managing TikTok for multiple clients.',
     includes: [
       'Everything in Pro, plus:',
       'Multiple client workspaces',

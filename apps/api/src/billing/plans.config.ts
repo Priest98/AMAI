@@ -46,7 +46,7 @@ export const PLAN_CONFIG: Record<PlanTier, PlanEntitlements> = {
   [PlanTier.FREE]: {
     tier: PlanTier.FREE,
     displayName: 'Free',
-    tagline: 'For businesses getting started with AI-powered social media.',
+    tagline: 'For creators and businesses getting started with AI-powered TikTok content.',
     maxBrands: 1,
     maxSocialAccountsPerBrand: 1,
     maxTeamMembers: 1,
@@ -65,7 +65,7 @@ export const PLAN_CONFIG: Record<PlanTier, PlanEntitlements> = {
   [PlanTier.PRO]: {
     tier: PlanTier.PRO,
     displayName: 'Pro',
-    tagline: 'For businesses ready to automate more.',
+    tagline: 'For businesses ready to put TikTok content on autopilot.',
     maxBrands: 1,
     maxSocialAccountsPerBrand: 1,
     maxTeamMembers: 1,
@@ -84,7 +84,7 @@ export const PLAN_CONFIG: Record<PlanTier, PlanEntitlements> = {
   [PlanTier.AGENCY]: {
     tier: PlanTier.AGENCY,
     displayName: 'Agency',
-    tagline: 'For teams managing multiple businesses.',
+    tagline: 'For teams managing TikTok for multiple clients.',
     maxBrands: 25,
     maxSocialAccountsPerBrand: 5,
     maxTeamMembers: 10,
