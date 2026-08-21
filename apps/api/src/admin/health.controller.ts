@@ -58,4 +58,25 @@ export class HealthController {
 
     return { success: true, results };
   }
+
+  /**
+   * Phase 18 admin control + the simplest way to verify Telegram delivery
+   * end-to-end without touching CRON_SECRET: this sends the exact same
+   * message /api/cron/daily-report would, gated by the admin session
+   * you're already logged in with instead of the cron bearer token. Same
+   * underlying HealthEngineService.sendDailyReport() either way -- this is
+   * not a second reporting path, just a second door into it.
+   */
+  @Post('send-daily-report')
+  async sendDailyReport(@Req() req: any) {
+    await this.healthEngine.sendDailyReport();
+
+    await this.auditLog.record({
+      adminUserId: req.user.id,
+      action: 'health_engine.send_daily_report',
+      resourceType: 'HealthCheckResult',
+    });
+
+    return { success: true };
+  }
 }

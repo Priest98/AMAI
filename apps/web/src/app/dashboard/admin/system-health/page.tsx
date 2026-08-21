@@ -86,6 +86,8 @@ export default function SystemHealthPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
+  const [sendingReport, setSendingReport] = useState(false);
+  const [reportStatus, setReportStatus] = useState<string | null>(null);
 
   const loadHealth = () => apiFetch<HealthSnapshot>('/admin/health').then(setHealth).catch(() => setHealth(null));
 
@@ -107,6 +109,19 @@ export default function SystemHealthPage() {
       setError(e?.message || 'Failed to run health check.');
     } finally {
       setRunning(false);
+    }
+  };
+
+  const sendDailyReport = async () => {
+    setSendingReport(true);
+    setReportStatus(null);
+    try {
+      await apiFetch('/admin/health/send-daily-report', { method: 'POST' });
+      setReportStatus('Sent -- check Telegram.');
+    } catch (e: any) {
+      setReportStatus(e?.message || 'Failed to send.');
+    } finally {
+      setSendingReport(false);
     }
   };
 
@@ -145,6 +160,15 @@ export default function SystemHealthPage() {
             <RefreshCw className={`h-3.5 w-3.5 ${running ? 'animate-spin' : ''}`} />
             Run now
           </button>
+          <button
+            onClick={sendDailyReport}
+            disabled={sendingReport}
+            className="text-caption font-semibold px-3 py-1.5 rounded-[var(--radius-md)] border disabled:opacity-50"
+            style={{ borderColor: 'var(--glass-card-border)', color: 'var(--text-primary)' }}
+            title="Sends the daily Telegram report immediately -- useful for confirming Telegram is wired up correctly"
+          >
+            {sendingReport ? 'Sending…' : 'Send Telegram test'}
+          </button>
           <div
             className="flex items-center gap-2 px-3 py-1.5 rounded-[var(--radius-md)]"
             style={{ backgroundColor: degraded ? 'color-mix(in srgb, var(--accent-warning) 14%, transparent)' : 'color-mix(in srgb, var(--accent-success) 14%, transparent)' }}
@@ -160,6 +184,10 @@ export default function SystemHealthPage() {
           </div>
         </div>
       </div>
+
+      {reportStatus && (
+        <p className="text-caption" style={{ color: 'var(--text-secondary)' }}>{reportStatus}</p>
+      )}
 
       <div className="space-y-3">
         <div className="flex items-center justify-between">
