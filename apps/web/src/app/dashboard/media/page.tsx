@@ -672,6 +672,39 @@ export default function MediaLibraryPage() {
               </div>
             )}
 
+            {/* Proactive TikTok compatibility warning: the backend only
+                enforces this at actual publish time (composeManualPost
+                deliberately allows any mix through to Approval Queue --
+                see engine.service.ts's comment on why), which meant a user
+                could build an invalid carousel, get it approved/scheduled,
+                and only find out it can't publish minutes or hours later.
+                Since TikTok is the only fully-enabled platform today
+                (INSTAGRAM_ENABLED=false), catching this before submission
+                is a real, safe improvement -- warns, doesn't block, so
+                nothing changes for a future Instagram-only or multi-
+                platform brand once that's re-enabled. */}
+            {(() => {
+              const videoCount = carouselItems.filter((i) => i.mimeType?.startsWith('video/')).length;
+              const imageCount = carouselItems.length - videoCount;
+              if (videoCount > 0 && imageCount > 0) {
+                return (
+                  <div className="p-2.5 rounded-lg text-[11px] font-semibold flex items-center gap-2 border bg-amber-500/10 text-amber-500 border-amber-500/20">
+                    <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                    <span>TikTok can&apos;t publish a carousel that mixes photos and videos. Use all photos, or a single video, instead.</span>
+                  </div>
+                );
+              }
+              if (videoCount > 1) {
+                return (
+                  <div className="p-2.5 rounded-lg text-[11px] font-semibold flex items-center gap-2 border bg-amber-500/10 text-amber-500 border-amber-500/20">
+                    <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                    <span>TikTok can&apos;t publish more than one video per post. Remove all but one video, or publish each separately.</span>
+                  </div>
+                );
+              }
+              return null;
+            })()}
+
             <div className="flex items-center justify-between pt-1">
               <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
                 {carouselItems.length < 2 ? 'Add at least 2 items to create a carousel post.' : 'Items publish in this order — TikTok requires all-photo carousels or a single video.'}
