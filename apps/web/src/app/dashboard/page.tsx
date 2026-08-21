@@ -11,6 +11,7 @@ import { apiFetch, brandFetch } from '@/lib/api';
 import { useEngineEvents } from '@/lib/useEngineEvents';
 import { getBillingSummary, BillingSummary } from '@/lib/billing';
 import UsageBar from '@/components/billing/UsageBar';
+import { TikTokLogo } from '@/components/icons/platform-logos';
 import {
   CheckCircle2,
   Clock,
@@ -23,6 +24,7 @@ import {
   Upload,
   CalendarClock,
   Crown,
+  AlertTriangle,
 } from 'lucide-react';
 
 const containerVariants = {
@@ -43,6 +45,12 @@ interface DashPost {
   targets?: { platform: string }[];
 }
 
+interface ConnectedAccountSummary {
+  platform: string;
+  handle: string;
+  status: 'CONNECTED' | 'EXPIRED' | 'DISCONNECTED' | string;
+}
+
 interface DashStats {
   needsApprovalCount: number;
   scheduledCount: number;
@@ -58,7 +66,8 @@ export default function DashboardPage() {
   const [pendingCount, setPendingCount] = useState(0);
   const [scheduledCount, setScheduledCount] = useState(0);
   const [publishedCount, setPublishedCount] = useState(0);
-  const [connectedAccountList, setConnectedAccountList] = useState<string[]>([]);
+  const [connectedAccounts, setConnectedAccounts] = useState<ConnectedAccountSummary[]>([]);
+  const [googleDriveConnected, setGoogleDriveConnected] = useState(false);
   const [mediaCount, setMediaCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [billing, setBilling] = useState<BillingSummary | null>(null);
@@ -88,12 +97,13 @@ export default function DashboardPage() {
       setPublishedCount(stats.publishedCount);
       setMediaCount(stats.mediaCount);
 
-      const labels: string[] = [];
-      if (accounts?.socialAccounts) {
-        accounts.socialAccounts.forEach((acc: any) => labels.push(`${acc.platform}: ${acc.handle}`));
-      }
-      if (accounts?.googleDrive?.status === 'CONNECTED') labels.push('Google Drive: Connected');
-      setConnectedAccountList(labels);
+      const accountSummaries: ConnectedAccountSummary[] = (accounts?.socialAccounts || []).map((acc: any) => ({
+        platform: acc.platform,
+        handle: acc.handle,
+        status: acc.status,
+      }));
+      setConnectedAccounts(accountSummaries);
+      setGoogleDriveConnected(accounts?.googleDrive?.status === 'CONNECTED');
     } catch (e) {
       console.error('Failed to fetch dashboard data', e);
     } finally {
@@ -104,6 +114,9 @@ export default function DashboardPage() {
   useEffect(() => { fetchLiveData(); }, [fetchLiveData]);
 
   useEngineEvents(() => { fetchLiveData(); });
+
+  const tiktokAccounts = connectedAccounts.filter((a) => a.platform === 'TIKTOK');
+  const otherAccounts = connectedAccounts.filter((a) => a.platform !== 'TIKTOK');
 
   return (
     <motion.div
@@ -139,14 +152,14 @@ export default function DashboardPage() {
               className="text-3xl sm:text-4xl font-bold tracking-tight"
               style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-heading)', letterSpacing: '-0.02em' }}
             >
-              Workspace overview
+              TikTok Command Center
             </h1>
             <p className="text-body-sm mt-2" style={{ color: 'var(--text-secondary)' }}>
-              Your AI social media manager, working in the background.
+              Your TikTok content on autopilot.
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Badge variant={engineState === 'ACTIVE' ? 'success' : 'neutral'}>
               <span className="flex items-center space-x-1.5">
                 {engineState === 'ACTIVE' ? <Zap className="h-3 w-3" /> : <Pause className="h-3 w-3" />}
@@ -159,6 +172,13 @@ export default function DashboardPage() {
                 <span>{approvalMode === 'AUTO' ? 'Auto Approval' : 'Manual Approval'}</span>
               </span>
             </Badge>
+            <Link
+              href="/dashboard/media"
+              className="btn-emerald-cta px-4 py-2 rounded-[var(--radius-md)] text-xs font-bold touch-target shrink-0 flex items-center gap-1.5"
+            >
+              <Upload className="h-3.5 w-3.5" />
+              <span>Upload Content</span>
+            </Link>
           </div>
         </div>
       </div>
@@ -246,27 +266,63 @@ export default function DashboardPage() {
           <div className="exec-card p-5 sm:p-6 space-y-5">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-h3" style={{ color: 'var(--text-primary)' }}>Connected Accounts</h3>
+                <h3 className="text-h3" style={{ color: 'var(--text-primary)' }}>TikTok Connection</h3>
                 <p className="text-body-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Where AMAI publishes for you</p>
               </div>
-              <Badge variant={connectedAccountList.length > 0 ? 'success' : 'neutral'}>
-                {connectedAccountList.length > 0 ? 'Connected' : 'None yet'}
-              </Badge>
             </div>
 
-            {connectedAccountList.length === 0 ? (
-              <p className="text-body-sm" style={{ color: 'var(--text-secondary)' }}>
-                Connect TikTok to let AMAI publish automatically.
-              </p>
-            ) : (
-              <ul className="space-y-2">
-                {connectedAccountList.map((label) => (
-                  <li key={label} className="text-body-sm flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-                    <Radio className="h-3.5 w-3.5" style={{ color: 'var(--accent-success)' }} />
-                    <span>{label}</span>
-                  </li>
+            {(() => {
+              if (tiktokAccounts.length === 0) {
+                return (
+                  <div className="surface-tile p-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <TikTokLogo style={{ color: 'var(--text-secondary)' }} className="h-4 w-4" />
+                      <span className="text-body-sm font-medium" style={{ color: 'var(--text-primary)' }}>Not connected</span>
+                    </div>
+                    <Link href="/dashboard/integrations" className="btn-emerald-cta inline-flex px-4 py-2 rounded-[var(--radius-md)] text-xs font-bold touch-target">
+                      Connect TikTok
+                    </Link>
+                  </div>
+                );
+              }
+
+              return (
+                <ul className="space-y-2">
+                  {tiktokAccounts.map((acc) => {
+                    const healthy = acc.status === 'CONNECTED';
+                    return (
+                      <li key={`${acc.platform}-${acc.handle}`} className="surface-tile p-3 flex items-center justify-between gap-3">
+                        <span className="text-body-sm flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                          {healthy ? (
+                            <Radio className="h-3.5 w-3.5 shrink-0" style={{ color: 'var(--accent-success)' }} />
+                          ) : (
+                            <AlertTriangle className="h-3.5 w-3.5 shrink-0" style={{ color: 'var(--accent-warning)' }} />
+                          )}
+                          <span>{acc.handle}</span>
+                        </span>
+                        {!healthy && (
+                          <Link href="/dashboard/integrations" className="link-neutral text-xs font-semibold hover:underline shrink-0">
+                            Reconnect
+                          </Link>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              );
+            })()}
+
+            {(otherAccounts.length > 0 || googleDriveConnected) && (
+              <div className="pt-3 border-t space-y-1.5" style={{ borderColor: 'var(--card-border)' }}>
+                {otherAccounts.map((acc) => (
+                  <p key={`${acc.platform}-${acc.handle}`} className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                    {acc.platform}: {acc.handle}
+                  </p>
                 ))}
-              </ul>
+                {googleDriveConnected && (
+                  <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Google Drive: Connected</p>
+                )}
+              </div>
             )}
 
             <div className="pt-4 border-t flex items-center justify-between text-body-sm" style={{ borderColor: 'var(--card-border)' }}>
