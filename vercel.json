@@ -11,6 +11,14 @@
     {
       "path": "/api/cron/sync-drive",
       "schedule": "0 13 * * *"
+    },
+    {
+      "path": "/api/cron/health-check",
+      "schedule": "0 14 * * *"
+    },
+    {
+      "path": "/api/cron/daily-report",
+      "schedule": "0 15 * * *"
     }
   ]
 }

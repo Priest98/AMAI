@@ -29,7 +29,7 @@ const NAV_ITEMS = [
   { href: '/dashboard/admin', label: 'Overview' },
   { href: '/dashboard/admin/system-health', label: 'System health' },
   { href: '/dashboard/admin/customers', label: 'Customers' },
-  { href: '/dashboard/admin/errors', label: 'Errors' },
+  { href: '/dashboard/admin/errors', label: 'Incidents' },
   { href: '/dashboard/admin/logs', label: 'Logs' },
   { href: '/dashboard/admin/audit-log', label: 'Audit log' },
 ];

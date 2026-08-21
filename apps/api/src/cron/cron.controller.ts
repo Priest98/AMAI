@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Headers, UnauthorizedException, Logger } from '@nestjs/common';
 import { PublishingService } from '../queue/publishing.service';
 import { EngineJobsService } from '../engine/engine-jobs.service';
+import { HealthEngineService } from '../health/health-engine.service';
 
 /**
  * Endpoints that trigger publishing/Drive-sync on a schedule. These replace
@@ -40,6 +41,7 @@ export class CronController {
   constructor(
     private readonly publishingService: PublishingService,
     private readonly engineJobsService: EngineJobsService,
+    private readonly healthEngineService: HealthEngineService,
   ) {}
 
   private assertAuthorized(authHeader?: string) {
@@ -81,5 +83,50 @@ export class CronController {
   @Post('sync-drive')
   async syncDrivePost(@Headers('authorization') authHeader?: string) {
     return this.runSyncDrive(authHeader);
+  }
+
+  // Phase 15/17 note: heartbeat staleness is checked FIRST, against the
+  // *previous* run's heartbeat, before this run writes its own fresh one --
+  // otherwise a heartbeat would always look fresh (this same call is about
+  // to write one) and the watchdog could never fire. See
+  // HealthEngineService.checkEngineHeartbeat's doc comment for the honest
+  // limitation this implies: if whatever triggers this endpoint (Vercel
+  // Cron / QStash) stops calling it entirely, nothing here can notice --
+  // an external uptime pinger hitting this same route is the only way to
+  // detect that case, exactly as documented in this file's top comment for
+  // publish-due/sync-drive.
+  private async runHealthCheck(authHeader?: string) {
+    this.assertAuthorized(authHeader);
+    await this.healthEngineService.checkEngineHeartbeat();
+    const results = await this.healthEngineService.runAll();
+    this.logger.log(`health-check: ${JSON.stringify(results.map((r) => ({ subsystem: r.subsystem, status: r.status })))}`);
+    return { success: true, results };
+  }
+
+  @Get('health-check')
+  async healthCheckGet(@Headers('authorization') authHeader?: string) {
+    return this.runHealthCheck(authHeader);
+  }
+
+  @Post('health-check')
+  async healthCheckPost(@Headers('authorization') authHeader?: string) {
+    return this.runHealthCheck(authHeader);
+  }
+
+  private async runDailyReport(authHeader?: string) {
+    this.assertAuthorized(authHeader);
+    await this.healthEngineService.sendDailyReport();
+    this.logger.log('daily-report: sent');
+    return { success: true };
+  }
+
+  @Get('daily-report')
+  async dailyReportGet(@Headers('authorization') authHeader?: string) {
+    return this.runDailyReport(authHeader);
+  }
+
+  @Post('daily-report')
+  async dailyReportPost(@Headers('authorization') authHeader?: string) {
+    return this.runDailyReport(authHeader);
   }
 }

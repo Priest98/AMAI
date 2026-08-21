@@ -2,7 +2,9 @@ import { Injectable, Logger } from '@nestjs/common';
 import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { redactSecrets } from './redact';
-import { ErrorSeverity } from '@prisma/client';
+import { ErrorSeverity, IncidentStatus } from '@prisma/client';
+import { TelegramService } from './telegram.service';
+import { getAppUrl } from './app-url.util';
 
 interface CaptureContext {
   request?: any;
@@ -23,7 +25,10 @@ interface CaptureContext {
 export class ErrorCaptureService {
   private readonly logger = new Logger(ErrorCaptureService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly telegram: TelegramService,
+  ) {}
 
   /** Fire-and-forget: callers should not await this on the request's hot path. */
   capture(exception: unknown, context: CaptureContext = {}): void {
@@ -98,6 +103,35 @@ export class ErrorCaptureService {
         context: contextPayload as any,
       },
     });
+
+    this.maybeNotify(group).catch((err) => {
+      this.logger.warn(`Telegram notify failed: ${err?.message || err}`);
+    });
+  }
+
+  /**
+   * Evaluates TelegramService's alerting policy against the just-upserted
+   * group and sends/records a notification if warranted. Deliberately
+   * separate from captureInternal's DB write so a Telegram outage can never
+   * affect whether the error itself gets recorded -- this runs after that
+   * write has already succeeded and is caught independently.
+   */
+  private async maybeNotify(group: { id: string; severity: ErrorSeverity; occurrenceCount: number; lastNotifiedAt: Date | null; lastNotifiedSeverity: ErrorSeverity | null; status: IncidentStatus }): Promise<void> {
+    if (!this.telegram.isConfigured()) return;
+    if (!this.telegram.shouldNotify(group)) return;
+
+    // Re-fetch the full row for formatting (upsert's return type above is
+    // narrowed to just the fields the policy check needs).
+    const full = await this.prisma.errorGroup.findUnique({ where: { id: group.id } });
+    if (!full) return;
+
+    const sent = await this.telegram.send(this.telegram.formatIncidentAlert(full, { dashboardUrl: `${getAppUrl()}/dashboard/admin/errors` }));
+    if (sent) {
+      await this.prisma.errorGroup.update({
+        where: { id: full.id },
+        data: { lastNotifiedAt: new Date(), lastNotifiedSeverity: full.severity },
+      });
+    }
   }
 
   /**

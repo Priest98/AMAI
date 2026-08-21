@@ -739,11 +739,50 @@ model ErrorGroup {
   occurrenceCount Int           @default(1)
   firstSeenAt     DateTime      @default(now()) @db.Timestamptz(6)
   lastSeenAt      DateTime      @default(now()) @db.Timestamptz(6)
-  resolved        Boolean       @default(false)
+  // `resolved` (below) is kept exactly as-is -- it's the field the existing
+  // Errors page already filters/sets on, and nothing here may break it.
+  // `status` is an additive superset for the Health Engine's Incidents page:
+  // a richer workflow (spec: OPEN/INVESTIGATING/IDENTIFIED/FIX_IN_PROGRESS/
+  // RESOLVED/IGNORED) layered on top of the same boolean rather than a
+  // second incident table. resolve()/unresolve() will be taught to keep
+  // both in sync; until then `resolved` alone remains authoritative for the
+  // existing Errors page and `status` is additive/read-mostly.
+  resolved        Boolean         @default(false)
+  status          IncidentStatus  @default(OPEN)
+  // Which subsystem this incident belongs to, for the admin dashboard's
+  // per-subsystem health cards and the Incidents page's subsystem filter --
+  // e.g. "database", "ai", "instagram", "tiktok", "google_drive", "storage",
+  // "auth", "scheduler", "autopilot", "app", "security". Nullable because
+  // pre-existing ErrorGroup rows (captured before this column existed) and
+  // some exception-path captures genuinely don't map to one subsystem.
+  subsystem       String?
+  // EXCEPTION = raised reactively by ErrorCaptureService from a thrown
+  // exception (the original path). HEALTH_CHECK = raised proactively by the
+  // Health Engine's scheduled checks finding a subsystem unhealthy before
+  // any user hit an error. Same dedup/incident store either way.
+  source          IncidentSource  @default(EXCEPTION)
+  // Telegram alerting state, persisted (not in-memory) because each cron
+  // hit is a fresh serverless invocation with no shared process state.
+  // Drives both "don't re-alert every 2 minutes for the same open
+  // incident" and "do re-alert if it got worse since the last alert."
+  lastNotifiedAt       DateTime?      @db.Timestamptz(6)
+  lastNotifiedSeverity ErrorSeverity?
+  // Set when status transitions to RESOLVED (manually or by confirmed
+  // recovery), so the resolution Telegram message and the Incidents page
+  // can show how long the incident was actually open.
+  resolvedAt      DateTime?     @db.Timestamptz(6)
+  // Which admin acknowledged this (Phase 18 admin controls) -- intentionally
+  // a plain id/timestamp pair rather than a relation, matching AuditLog's
+  // existing pattern of not hard-requiring a live FK for attribution fields.
+  acknowledgedBy  String?
+  acknowledgedAt  DateTime?     @db.Timestamptz(6)
   events          ErrorEvent[]
+  healthChecks    HealthCheckResult[]
 
   @@index([lastSeenAt], map: "idx_error_group_last_seen")
   @@index([resolved, lastSeenAt], map: "idx_error_group_resolved_last_seen")
+  @@index([status, lastSeenAt], map: "idx_error_group_status_last_seen")
+  @@index([subsystem, status], map: "idx_error_group_subsystem_status")
 }
 
 model ErrorEvent {
@@ -775,6 +814,55 @@ enum ErrorSeverity {
   WARN
   ERROR
   FATAL
+}
+
+enum IncidentStatus {
+  OPEN
+  INVESTIGATING
+  IDENTIFIED
+  FIX_IN_PROGRESS
+  RESOLVED
+  IGNORED
+}
+
+/// Whether an ErrorGroup was raised reactively (a real request threw) or
+/// proactively (a scheduled Health Engine check found a subsystem
+/// unhealthy before anything necessarily failed for a real user).
+enum IncidentSource {
+  EXCEPTION
+  HEALTH_CHECK
+}
+
+enum HealthStatus {
+  OK
+  DEGRADED
+  DOWN
+}
+
+/// Point-in-time outcome of one proactive Health Engine check (DB, AI
+/// providers, Instagram/TikTok token validity, scheduler lag, Drive sync
+/// staleness, etc). This is history/telemetry for the dashboard's
+/// per-subsystem cards and the System Audit page -- it is NOT a second
+/// incident store. A failing check finds-or-creates its incident through
+/// the same ErrorGroup/signature dedup path everything else uses
+/// (errorGroupId links back to that incident when one was raised).
+model HealthCheckResult {
+  id             String        @id @default(dbgenerated("(gen_random_uuid())::text"))
+  subsystem      String
+  status         HealthStatus
+  responseTimeMs Int?
+  // Short human-readable detail (e.g. "12 accounts, 2 expiring soon").
+  // Must never contain secrets/tokens -- same redactSecrets discipline as
+  // ErrorEvent.context.
+  message        String?
+  error          String?
+  metadata       Json?
+  checkedAt      DateTime      @default(now()) @db.Timestamptz(6)
+  errorGroupId   String?
+  errorGroup     ErrorGroup?   @relation(fields: [errorGroupId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@index([subsystem, checkedAt], map: "idx_health_check_subsystem_checked")
+  @@index([checkedAt], map: "idx_health_check_checked")
 }
 
 enum Role {

@@ -15,6 +15,9 @@ interface ErrorGroupRow {
   firstSeenAt: string;
   lastSeenAt: string;
   resolved: boolean;
+  status: 'OPEN' | 'INVESTIGATING' | 'IDENTIFIED' | 'FIX_IN_PROGRESS' | 'RESOLVED' | 'IGNORED';
+  subsystem: string | null;
+  source: 'EXCEPTION' | 'HEALTH_CHECK';
 }
 
 interface ErrorsResponse {
@@ -38,36 +41,66 @@ export default function ErrorsPage() {
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [showResolved, setShowResolved] = useState(false);
+  const [subsystem, setSubsystem] = useState('');
+  const [source, setSource] = useState('');
 
   useEffect(() => {
     setLoading(true);
     const qs = new URLSearchParams({ page: String(page), limit: '25', resolved: String(showResolved) });
+    if (subsystem) qs.set('subsystem', subsystem);
+    if (source) qs.set('source', source);
     apiFetch<ErrorsResponse>(`/admin/errors?${qs.toString()}`)
       .then(setData)
       .catch((e: any) => setError(e?.message || "Couldn't load errors."))
       .finally(() => setLoading(false));
-  }, [page, showResolved]);
+  }, [page, showResolved, subsystem, source]);
 
   return (
     <div className="page-shell space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-h1" style={{ color: 'var(--text-primary)' }}>Errors</h1>
+          <h1 className="text-h1" style={{ color: 'var(--text-primary)' }}>Incidents & errors</h1>
           <p className="text-body-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-            Deduplicated, grouped exceptions captured across the app.
+            Deduplicated exceptions and proactive Health Engine incidents, in one list.
           </p>
         </div>
-        <label className="flex items-center gap-2 text-caption" style={{ color: 'var(--text-secondary)' }}>
-          <input
-            type="checkbox"
-            checked={showResolved}
-            onChange={(e) => {
-              setPage(1);
-              setShowResolved(e.target.checked);
-            }}
-          />
-          Show resolved
-        </label>
+        <div className="flex items-center gap-3 flex-wrap">
+          <select
+            value={source}
+            onChange={(e) => { setPage(1); setSource(e.target.value); }}
+            className="text-caption px-2 py-1.5 rounded-[var(--radius-md)] border bg-transparent"
+            style={{ borderColor: 'var(--glass-card-border)', color: 'var(--text-primary)' }}
+          >
+            <option value="">All sources</option>
+            <option value="EXCEPTION">Exceptions</option>
+            <option value="HEALTH_CHECK">Health checks</option>
+          </select>
+          <select
+            value={subsystem}
+            onChange={(e) => { setPage(1); setSubsystem(e.target.value); }}
+            className="text-caption px-2 py-1.5 rounded-[var(--radius-md)] border bg-transparent"
+            style={{ borderColor: 'var(--glass-card-border)', color: 'var(--text-primary)' }}
+          >
+            <option value="">All subsystems</option>
+            <option value="database">Database</option>
+            <option value="ai">AI</option>
+            <option value="instagram">Instagram</option>
+            <option value="tiktok">TikTok</option>
+            <option value="scheduler">Scheduler</option>
+            <option value="autopilot">AutoPilot</option>
+          </select>
+          <label className="flex items-center gap-2 text-caption" style={{ color: 'var(--text-secondary)' }}>
+            <input
+              type="checkbox"
+              checked={showResolved}
+              onChange={(e) => {
+                setPage(1);
+                setShowResolved(e.target.checked);
+              }}
+            />
+            Show resolved
+          </label>
+        </div>
       </div>
 
       {loading ? (
@@ -92,13 +125,13 @@ export default function ErrorsPage() {
               <div className="min-w-0">
                 <p className="text-body-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{g.title}</p>
                 <p className="text-caption" style={{ color: 'var(--text-muted)' }}>
-                  {g.service || 'unknown service'} · last seen {new Date(g.lastSeenAt).toLocaleString()}
+                  {g.subsystem || g.service || 'unknown'} · {g.source === 'HEALTH_CHECK' ? 'health check' : 'exception'} · last seen {new Date(g.lastSeenAt).toLocaleString()}
                 </p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <Badge variant={SEVERITY_VARIANT[g.severity] || 'neutral'}>{g.severity}</Badge>
                 <span className="text-caption font-bold" style={{ color: 'var(--text-primary)' }}>×{g.occurrenceCount}</span>
-                {g.resolved && <Badge variant="success">Resolved</Badge>}
+                {g.status === 'IGNORED' ? <Badge variant="neutral">Ignored</Badge> : g.resolved && <Badge variant="success">Resolved</Badge>}
               </div>
             </Link>
           ))}

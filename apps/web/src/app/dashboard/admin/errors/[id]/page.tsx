@@ -33,6 +33,11 @@ interface ErrorGroupDetail {
     firstSeenAt: string;
     lastSeenAt: string;
     resolved: boolean;
+    status: 'OPEN' | 'INVESTIGATING' | 'IDENTIFIED' | 'FIX_IN_PROGRESS' | 'RESOLVED' | 'IGNORED';
+    subsystem: string | null;
+    source: 'EXCEPTION' | 'HEALTH_CHECK';
+    acknowledgedBy: string | null;
+    acknowledgedAt: string | null;
   };
   recentEvents: ErrorEventRow[];
 }
@@ -70,6 +75,30 @@ export default function ErrorDetailPage() {
     }
   };
 
+  const ignore = async () => {
+    setActing(true);
+    try {
+      await apiFetch(`/admin/errors/${id}/ignore`, { method: 'POST' });
+      load();
+    } catch (e: any) {
+      setError(e?.message || 'Failed to update.');
+    } finally {
+      setActing(false);
+    }
+  };
+
+  const acknowledge = async () => {
+    setActing(true);
+    try {
+      await apiFetch(`/admin/errors/${id}/acknowledge`, { method: 'POST' });
+      load();
+    } catch (e: any) {
+      setError(e?.message || 'Failed to update.');
+    } finally {
+      setActing(false);
+    }
+  };
+
   if (loading) {
     return <div className="p-10 text-center text-body-sm" style={{ color: 'var(--text-secondary)' }}>Loading…</div>;
   }
@@ -91,24 +120,47 @@ export default function ErrorDetailPage() {
         <div className="min-w-0">
           <h1 className="text-h1" style={{ color: 'var(--text-primary)' }}>{group.title}</h1>
           <p className="text-caption mt-1" style={{ color: 'var(--text-muted)' }}>
-            {group.service || 'unknown service'} · {group.environment || 'unknown env'} · {group.occurrenceCount} occurrence{group.occurrenceCount === 1 ? '' : 's'}
+            {group.subsystem || group.service || 'unknown'} · {group.source === 'HEALTH_CHECK' ? 'health check' : 'exception'} · {group.environment || 'unknown env'} · {group.occurrenceCount} occurrence{group.occurrenceCount === 1 ? '' : 's'}
           </p>
         </div>
-        <button
-          onClick={toggleResolved}
-          disabled={acting}
-          className="text-caption font-semibold px-3 py-1.5 rounded-[var(--radius-md)] border disabled:opacity-50"
-          style={{ borderColor: 'var(--glass-card-border)', color: 'var(--text-primary)' }}
-        >
-          {group.resolved ? 'Reopen' : 'Mark resolved'}
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {group.status !== 'IGNORED' && !group.acknowledgedAt && (
+            <button
+              onClick={acknowledge}
+              disabled={acting}
+              className="text-caption font-semibold px-3 py-1.5 rounded-[var(--radius-md)] border disabled:opacity-50"
+              style={{ borderColor: 'var(--glass-card-border)', color: 'var(--text-secondary)' }}
+            >
+              Acknowledge
+            </button>
+          )}
+          {group.status !== 'IGNORED' && (
+            <button
+              onClick={ignore}
+              disabled={acting}
+              className="text-caption font-semibold px-3 py-1.5 rounded-[var(--radius-md)] border disabled:opacity-50"
+              style={{ borderColor: 'var(--glass-card-border)', color: 'var(--text-secondary)' }}
+            >
+              Ignore
+            </button>
+          )}
+          <button
+            onClick={toggleResolved}
+            disabled={acting}
+            className="text-caption font-semibold px-3 py-1.5 rounded-[var(--radius-md)] border disabled:opacity-50"
+            style={{ borderColor: 'var(--glass-card-border)', color: 'var(--text-primary)' }}
+          >
+            {group.resolved ? 'Reopen' : 'Mark resolved'}
+          </button>
+        </div>
       </div>
 
       <div className="flex items-center gap-2 flex-wrap">
         <Badge variant={group.severity === 'WARN' || group.severity === 'ERROR' || group.severity === 'FATAL' ? 'warning' : 'neutral'}>
           {group.severity}
         </Badge>
-        {group.resolved && <Badge variant="success">Resolved</Badge>}
+        {group.status === 'IGNORED' ? <Badge variant="neutral">Ignored</Badge> : group.resolved && <Badge variant="success">Resolved</Badge>}
+        {group.acknowledgedAt && <Badge variant="neutral">Acknowledged</Badge>}
         <span className="text-caption" style={{ color: 'var(--text-muted)' }}>
           first seen {new Date(group.firstSeenAt).toLocaleString()} · last seen {new Date(group.lastSeenAt).toLocaleString()}
         </span>
