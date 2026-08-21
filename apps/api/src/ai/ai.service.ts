@@ -259,7 +259,7 @@ Return strictly valid JSON, no markdown, no commentary, in this exact shape:
    * back to the static niche map only when no provider is configured or
    * every provider fails.
    */
-  async generateHashtags(topic: string = 'General', platform: string = 'Instagram', niche: string = 'Content Creator', brandId?: string, userId?: string): Promise<HashtagsResult> {
+  async generateHashtags(topic: string = 'General', platform: string = 'TikTok', niche: string = 'Content Creator', brandId?: string, userId?: string): Promise<HashtagsResult> {
     const hashtagPrompt = `Generate hashtags for a ${platform} post about "${topic}" in the ${niche} niche.
 Return strictly valid JSON, no markdown, no commentary, in this exact shape:
 {"highVolume": ["#tag", ...5], "mediumCompetition": ["#tag", ...5], "nicheHashtags": ["#tag", ...5], "brandedHashtags": ["#tag", ...2]}
