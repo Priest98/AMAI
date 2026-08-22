@@ -2,33 +2,41 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useReducedMotion } from 'framer-motion';
-import { Monogram } from '@/components/logo';
 
 /**
- * Oyinca's cinematic hero portrait -- the Higgsfield-generated character
- * loop this component expects doesn't exist in this environment (no
- * video/image generation available here), so these are the exact asset
- * paths and specs a real Higgsfield export should be dropped into. Nothing
- * else needs to change -- once both files exist at these paths, the video
- * activates automatically and this comment (and the fallback below) simply
- * stop being relevant.
+ * Oyinca's hero visual.
  *
- *   /public/hero/oyinca-loop.mp4    5-8s seamless loop, muted, H.264 mp4,
- *                                   portrait 4:5 (1080x1350), Oyinca
- *                                   centered so a 9:16 mobile crop also
- *                                   stays safe. See the Higgsfield prompt
- *                                   doc for the full character brief.
- *   /public/hero/oyinca-poster.jpg  A single sharp frame from the loop
- *                                   (same 1080x1350), used as the poster
- *                                   attribute and as the first paint
- *                                   before the video downloads.
+ * Status: a real, Higgsfield-generated photoreal portrait of Oyinca is live
+ * here (see OYINCA_PORTRAIT_SRC below) -- generated via the connected
+ * Higgsfield account (model `soul_2`, job 95edf626-ebdb-4cf7-a829-
+ * 5c67b4346146), matching the locked character brief in
+ * oyinca-higgsfield-hero-prompt.md (West African heritage, late-20s,
+ * charcoal blazer, single gold ear cuff, photoreal-unretouched realism).
  *
- * Until those exist, the panel below falls back to the brand's Agent
- * Orbit mark on a solid surface -- an intentional, on-brand placeholder
- * rather than a broken video icon or empty box.
+ * The cinematic idle-motion LOOP described in that brief could not be
+ * generated: every image-to-video model on the connected Higgsfield
+ * account (kling2_6, kling3_0, seedance_2_5, veo3, grok_video,
+ * grok_video_v15) rejected the request with "Requires basic/plus plan or
+ * higher" -- video generation is gated behind a paid Higgsfield plan and
+ * this account is on the free tier. This is a plan limitation, not a
+ * credits or prompt problem (cost preflights succeeded down to ~4.5-6
+ * credits, well within balance).
+ *
+ * So for now this renders the real portrait as a static image -- genuine
+ * Oyinca, not a placeholder -- with the video wired up to activate
+ * automatically the moment either of these lands:
+ *   1. The Higgsfield account is upgraded and the loop gets generated, or
+ *   2. A local export is dropped at /public/hero/oyinca-loop.mp4 (+
+ *      /public/hero/oyinca-poster.jpg), per the technical spec in
+ *      oyinca-higgsfield-hero-prompt.md.
+ * No other code changes are needed when that happens.
  */
 const VIDEO_SRC = '/hero/oyinca-loop.mp4';
 const POSTER_SRC = '/hero/oyinca-poster.jpg';
+// Real generated portrait, hosted on Higgsfield's CDN (same external-hosting
+// pattern already used for HERO_BG_URL elsewhere in Hero.tsx).
+const OYINCA_PORTRAIT_SRC =
+  'https://d8j0ntlcm91z4.cloudfront.net/user_3HXsou9653KJM9YD320GPTi1aul/hf_20260822_134812_95edf626-ebdb-4cf7-a829-5c67b4346146.png';
 
 export default function HeroVisual({ className = '' }: { className?: string }) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -89,11 +97,16 @@ export default function HeroVisual({ className = '' }: { className?: string }) {
           <source src={VIDEO_SRC} type="video/mp4" />
         </video>
       ) : (
-        <div className="absolute inset-0 flex items-center justify-center" style={{ background: 'var(--lp-surface)' }} aria-hidden="true">
-          <div className="lp-hero-fallback-orbit">
-            <Monogram className="h-24 w-24 sm:h-32 sm:w-32" />
-          </div>
-        </div>
+        // No local video export exists yet (see comment above) -- this path
+        // is what actually renders today. Show Oyinca's real generated
+        // portrait rather than a video element pointed at nothing.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={OYINCA_PORTRAIT_SRC}
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover"
+          aria-hidden="true"
+        />
       )}
       {/* Soft bottom scrim so the floating status/toast cards (rendered by
           Hero.tsx on top of this panel) stay legible against either the
