@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, X } from 'lucide-react';
 import ThemeToggle from '@/components/ui/ThemeToggle';
+import { Monogram } from '@/components/logo';
 
 const NAV_LINKS = [
   { href: '#product', label: 'Product' },
@@ -53,8 +54,9 @@ export default function Nav() {
               : '0 6px 24px -10px rgba(0, 0, 0, 0.4), inset 0 1px 0 0 rgba(255, 255, 255, 0.04)',
           }}
         >
-          <Link href="/" className="font-bold text-lg lp-heading tracking-tight lp-gradient-text lp-focus-ring shrink-0" aria-label="Oyinca home">
-            Oyinca
+          <Link href="/" className="flex items-center gap-2 font-bold text-lg lp-heading tracking-tight lp-focus-ring shrink-0" aria-label="Oyinca home">
+            <Monogram className="h-7 w-7 rounded-lg" />
+            <span className="lp-gradient-text">Oyinca</span>
           </Link>
 
           <div className="hidden lg:flex items-center gap-9 mx-9">

@@ -14,19 +14,26 @@ export function Monogram({ className = "h-8 w-8", ...props }: React.ComponentPro
       className={className}
       {...props}
     >
-      <rect width="40" height="40" rx="12" fill="url(#monogramGrad)" />
-      <defs>
-        <linearGradient id="monogramGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#0A1931" />
-          <stop offset="100%" stopColor="#4A7FA7" />
-        </linearGradient>
-      </defs>
-      {/* Stylized 'O' Monogram (Oyinca) -- replaces the previous 'A'
-          monogram left over from the AMAI brand; a triangular "A" glyph
-          next to the word "Oyinca" would be exactly the kind of visual
-          brand mismatch the rebrand is meant to eliminate. */}
-      <circle cx="20" cy="20" r="8" fill="none" stroke="#F6FAFD" strokeWidth="4.5" />
-      <circle cx="20" cy="20" r="1.5" fill="rgba(246, 250, 253, 0.4)" />
+      {/* Agent Orbit mark (Oyinca): an open ring -- the O, the foundation --
+          with a single orbiting node sitting in its gap. No gradient, so it
+          stays recognizable in monochrome/print; the gap is deliberate, not
+          a rendering artifact -- it's where the node "enters" the ring,
+          reading as continuous motion rather than a static closed shape,
+          and it echoes the open counter of the O in the OYINCA wordmark.
+          Replaces the previous plain ring-only placeholder from the initial
+          Oyinca rebrand. */}
+      <rect width="40" height="40" rx="12" fill="#1B1330" />
+      <circle
+        cx="20"
+        cy="20"
+        r="11.2"
+        fill="none"
+        stroke="#6C4CF1"
+        strokeWidth="4"
+        strokeDasharray="63 7"
+        strokeLinecap="round"
+      />
+      <circle cx="30.6" cy="16.6" r="3.2" fill="#2FE6D8" />
     </svg>
   );
 }
@@ -45,15 +52,12 @@ export function Logo({ className = "", variant = "full", size = "md", ...props }
   return (
     <div className={`flex items-center space-x-2.5 select-none ${className}`} {...props}>
       <Monogram className="h-8 w-8 flex-shrink-0" />
-      <div className="flex items-center space-x-1.5">
-        <span className="font-extrabold tracking-[0.2em] uppercase font-sans text-xl" style={{ color: 'var(--text-primary)' }}>
-          Oyinca
-        </span>
-        <span
-          className="h-2 w-2 rounded-full flex-shrink-0"
-          style={{ backgroundColor: 'var(--accent-secondary)', boxShadow: '0 0 6px var(--accent-secondary)' }}
-        />
-      </div>
+      {/* No trailing dot here -- the orbit node already lives inside the
+          Monogram tile itself, so a second loose dot next to the wordmark
+          would just be visual noise duplicating the same idea. */}
+      <span className="font-extrabold tracking-[0.2em] uppercase font-sans text-xl" style={{ color: 'var(--text-primary)' }}>
+        Oyinca
+      </span>
     </div>
   );
 }

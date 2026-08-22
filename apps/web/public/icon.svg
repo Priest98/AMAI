@@ -1,11 +1,5 @@
 <svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="512" height="512" rx="154" fill="url(#monogramGrad)"/>
-  <defs>
-    <linearGradient id="monogramGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#0A1931"/>
-      <stop offset="100%" stop-color="#4A7FA7"/>
-    </linearGradient>
-  </defs>
-  <circle cx="256" cy="256" r="102.4" fill="none" stroke="#F6FAFD" stroke-width="57.6"/>
-  <circle cx="256" cy="256" r="19.2" fill="rgba(246, 250, 253, 0.4)"/>
+  <rect width="512" height="512" rx="154" fill="#1B1330"/>
+  <circle cx="256" cy="256" r="143" fill="none" stroke="#6C4CF1" stroke-width="51" stroke-dasharray="809 90" stroke-linecap="round"/>
+  <circle cx="392" cy="212" r="41" fill="#2FE6D8"/>
 </svg>
