@@ -47,9 +47,21 @@
   --lp-surface-raised: #FFFFFF;
   --lp-border: rgba(10, 25, 49, 0.08);
   --lp-border-strong: rgba(10, 25, 49, 0.14);
+  /* --lp-cyan (#7FB0DB) is tuned for the dark theme, where it's ~8.5:1
+     against --lp-bg. It's also used as literal text color (every section's
+     Eyebrow badge, Pricing's "New users save" line) rather than only for
+     icon fills/borders, and unmodified it measured only ~2.2:1 against the
+     light theme's near-white surfaces -- well under WCAG AA's 4.5:1 for
+     normal-size text. Darkened here (same hue family) to ~6.7:1. */
+  --lp-cyan: #2E5C82;
   --lp-text-primary: #0A1931;
   --lp-text-secondary: #3D4A5C;
-  --lp-text-muted: #8891A0;
+  /* #8891A0 measured 3.03:1 against this light bg -- fails WCAG AA (4.5:1)
+     for the normal-size text this token is actually used on (footer
+     copyright, pricing fine print, FAQ/step labels are all well under the
+     18px/bold-14px "large text" threshold that would allow 3:1). Darkened
+     to clear 4.5:1 while keeping the same hue. */
+  --lp-text-muted: #69707E;
 }
 
 .amai-landing .lp-heading {
