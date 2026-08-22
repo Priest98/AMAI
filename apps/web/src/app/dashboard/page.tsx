@@ -25,6 +25,7 @@ import {
   CalendarClock,
   Crown,
   AlertTriangle,
+  Sparkles,
 } from 'lucide-react';
 
 const containerVariants = {
@@ -59,6 +60,20 @@ interface DashStats {
   pendingPreview: DashPost[];
 }
 
+interface CalendarInsightsData {
+  totalScheduled: number;
+  uncoveredPillars: string[];
+  backToBackRepeats: { firstPostId: string; secondPostId: string; category: string; scheduledAt: string | null }[];
+}
+
+const CATEGORY_LABEL: Record<string, string> = {
+  promotional: 'Promotional',
+  educational: 'Educational',
+  behind_the_scenes: 'Behind the scenes',
+  product: 'Product',
+  general: 'General',
+};
+
 export default function DashboardPage() {
   const [engineState, setEngineState] = useState<'ACTIVE' | 'PAUSED'>('ACTIVE');
   const [approvalMode, setApprovalMode] = useState<'MANUAL' | 'AUTO'>('MANUAL');
@@ -71,9 +86,15 @@ export default function DashboardPage() {
   const [mediaCount, setMediaCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [billing, setBilling] = useState<BillingSummary | null>(null);
+  const [insights, setInsights] = useState<CalendarInsightsData | null>(null);
 
   useEffect(() => {
     getBillingSummary().then(setBilling).catch(() => {});
+    // Same real, already-built endpoint the calendar page uses
+    // (GET /engine/calendar-insights) -- every figure here comes from an
+    // actual query against scheduled posts, nothing is invented for the
+    // briefing.
+    brandFetch<CalendarInsightsData>('/engine/calendar-insights?days=30').then(setInsights).catch(() => {});
   }, []);
 
   // Previously this fired 6 separate requests on every mount and every SSE
@@ -118,6 +139,17 @@ export default function DashboardPage() {
   const tiktokAccounts = connectedAccounts.filter((a) => a.platform === 'TIKTOK');
   const otherAccounts = connectedAccounts.filter((a) => a.platform !== 'TIKTOK');
 
+  // Time-of-day greeting for the "AI manager briefing" framing (Oyinca
+  // spec: "Good morning. I've been working on your TikTok."). Computed
+  // client-side from the visitor's own clock -- no server round trip and
+  // no assumption about time zone.
+  const greeting = (() => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 18) return 'Good afternoon';
+    return 'Good evening';
+  })();
+
   return (
     <motion.div
       variants={containerVariants}
@@ -152,10 +184,10 @@ export default function DashboardPage() {
               className="text-3xl sm:text-4xl font-bold tracking-tight"
               style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-heading)', letterSpacing: '-0.02em' }}
             >
-              TikTok Command Center
+              {greeting}. I&rsquo;ve been working on your TikTok.
             </h1>
             <p className="text-body-sm mt-2" style={{ color: 'var(--text-secondary)' }}>
-              Your TikTok content on autopilot.
+              Here&rsquo;s today&rsquo;s briefing.
             </p>
           </div>
 
@@ -188,8 +220,13 @@ export default function DashboardPage() {
         <EngineWorkflowVisualization />
       </motion.div>
 
-      {/* KPI Grid — grouped on a glassy shell panel, echoing the
-          card-cluster-on-a-panel composition from the reference dashboard */}
+      {/* "Today's Briefing" -- the Oyinca-spec framing for what used to be a
+          bare KPI grid: same real numbers (approval queue, scheduled,
+          published, media), presented as the manager's status report rather
+          than an analytics widget. */}
+      <div className="flex items-center justify-between px-1">
+        <h2 className="text-h3" style={{ color: 'var(--text-primary)' }}>Today&rsquo;s Briefing</h2>
+      </div>
       <div className="glass-shell p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           icon={<Clock className="h-4 w-4 text-amber-400" />}
@@ -216,6 +253,56 @@ export default function DashboardPage() {
           helperText="In your library"
         />
       </div>
+
+      {/* "Oyinca recommends" -- built entirely on top of the real,
+          already-existing GET /engine/calendar-insights data (content
+          pillar coverage + back-to-back category repeats over what's
+          actually scheduled). No score, ranking or suggestion is invented:
+          when there isn't enough scheduled content to say anything
+          meaningful, Oyinca says so instead of guessing. */}
+      <motion.div variants={itemVariants} className="exec-card p-5 sm:p-6 space-y-3">
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-4 w-4" style={{ color: 'var(--accent-warning)' }} />
+          <h2 className="text-h3" style={{ color: 'var(--text-primary)' }}>Oyinca recommends</h2>
+        </div>
+
+        {!insights || insights.totalScheduled === 0 ? (
+          <p className="text-body-sm" style={{ color: 'var(--text-secondary)' }}>
+            I need a little more data before I can make a reliable recommendation. Schedule a few posts
+            and I&rsquo;ll start flagging gaps and repeats in your content calendar.
+          </p>
+        ) : insights.uncoveredPillars.length === 0 && insights.backToBackRepeats.length === 0 ? (
+          <p className="text-body-sm" style={{ color: 'var(--text-secondary)' }}>
+            Your content calendar looks balanced for the next 30 days &mdash; nothing to flag right now.
+          </p>
+        ) : (
+          <div className="space-y-2.5">
+            {insights.uncoveredPillars.length > 0 && (
+              <div className="surface-tile p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <p className="text-body-sm" style={{ color: 'var(--text-primary)' }}>
+                  No posts scheduled about: {insights.uncoveredPillars.join(', ')}.
+                </p>
+                <Link href="/dashboard/calendar" className="link-neutral text-body-sm font-semibold flex items-center gap-1 hover:underline shrink-0">
+                  <span>Review calendar</span>
+                  <ArrowUpRight className="h-3.5 w-3.5" />
+                </Link>
+              </div>
+            )}
+            {insights.backToBackRepeats.length > 0 && (
+              <div className="surface-tile p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <p className="text-body-sm" style={{ color: 'var(--text-primary)' }}>
+                  {insights.backToBackRepeats.length} pair{insights.backToBackRepeats.length === 1 ? '' : 's'} of consecutive posts share the same category
+                  ({Array.from(new Set(insights.backToBackRepeats.map((r) => CATEGORY_LABEL[r.category] || r.category))).join(', ')}).
+                </p>
+                <Link href="/dashboard/calendar" className="link-neutral text-body-sm font-semibold flex items-center gap-1 hover:underline shrink-0">
+                  <span>Review calendar</span>
+                  <ArrowUpRight className="h-3.5 w-3.5" />
+                </Link>
+              </div>
+            )}
+          </div>
+        )}
+      </motion.div>
 
       {/* ── 3-Column Middle Dashboard Layout ── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
