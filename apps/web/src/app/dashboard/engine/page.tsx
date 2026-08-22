@@ -7,6 +7,7 @@ import EngineWorkflowVisualization from '@/components/engine/EngineWorkflowVisua
 import { brandFetch } from '@/lib/api';
 import { useEngineEvents, EngineEvent } from '@/lib/useEngineEvents';
 import ControlCenter from '@/components/engine/ControlCenter';
+import { INSTAGRAM_ENABLED } from '@/lib/featureFlags';
 import {
   Zap,
   Pause,
@@ -114,7 +115,7 @@ export default function AmaiEnginePage() {
     setSaving(true);
     try {
       await brandFetch('/engine/approval-mode', { method: 'PATCH', body: JSON.stringify({ approvalMode: mode }) });
-      showToast(mode === 'AUTO' ? 'Auto Approval enabled.' : 'Manual Approval enabled.');
+      showToast(mode === 'AUTO' ? 'Autopilot enabled.' : 'Assisted mode enabled.');
     } catch (e: any) {
       showToast(e.message || 'Could not update approval mode.');
     } finally {
@@ -179,7 +180,7 @@ export default function AmaiEnginePage() {
   return (
     <div className="space-y-6 max-w-4xl mx-auto pb-24 sm:pb-12">
       <div>
-        <h1 className="text-h1" style={{ color: 'var(--text-primary)' }}>Oyinca</h1>
+        <h1 className="text-h1" style={{ color: 'var(--text-primary)' }}>Oyinca Autopilot</h1>
         <p className="text-body-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
           The brain of your workspace. It watches for new content and runs your publishing workflow automatically.
         </p>
@@ -234,10 +235,12 @@ export default function AmaiEnginePage() {
         />
       </div>
 
-      {/* ── Approval Mode ── */}
+      {/* ── Oyinca Autopilot: exactly two modes, matching the real
+          ApprovalMode enum (MANUAL | AUTO) -- no third "semi-auto" option
+          is implied anywhere here. ── */}
       <div data-tour="tour-engine-mode" className="exec-card p-5 sm:p-6 space-y-4">
         <div>
-          <h3 className="text-sm font-extrabold tracking-tight" style={{ color: 'var(--text-primary)' }}>Approval Mode</h3>
+          <h3 className="text-sm font-extrabold tracking-tight" style={{ color: 'var(--text-primary)' }}>Oyinca Autopilot</h3>
           <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
             Decide whether every prepared post needs your review, or publishes automatically.
           </p>
@@ -252,11 +255,11 @@ export default function AmaiEnginePage() {
             style={{ backgroundColor: config?.approvalMode === 'MANUAL' ? undefined : 'var(--bg-surface-raised)', borderColor: config?.approvalMode === 'MANUAL' ? undefined : 'var(--card-border)' }}
           >
             <div className="flex items-center justify-between mb-1.5">
-              <span className="text-xs font-extrabold" style={{ color: 'var(--text-primary)' }}>Manual Approval (Default)</span>
+              <span className="text-xs font-extrabold" style={{ color: 'var(--text-primary)' }}>Assisted (Default)</span>
               {config?.approvalMode === 'MANUAL' && <span className="h-2 w-2 rounded-full bg-emerald-400" />}
             </div>
             <p className="text-[11px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-              Every prepared post moves into the Approval Queue. Nothing publishes until you approve it.
+              I prepare your content. You approve it before publishing.
             </p>
           </button>
 
@@ -268,11 +271,11 @@ export default function AmaiEnginePage() {
             style={{ backgroundColor: config?.approvalMode === 'AUTO' ? undefined : 'var(--bg-surface-raised)', borderColor: config?.approvalMode === 'AUTO' ? undefined : 'var(--card-border)' }}
           >
             <div className="flex items-center justify-between mb-1.5">
-              <span className="text-xs font-extrabold" style={{ color: 'var(--text-primary)' }}>Auto Approval</span>
+              <span className="text-xs font-extrabold" style={{ color: 'var(--text-primary)' }}>Autopilot</span>
               {config?.approvalMode === 'AUTO' && <span className="h-2 w-2 rounded-full bg-amber-400" />}
             </div>
             <p className="text-[11px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-              Posts schedule and publish automatically at the AI-selected best time. No queue required.
+              I create, schedule and publish according to your rules.
             </p>
           </button>
         </div>
@@ -383,27 +386,39 @@ export default function AmaiEnginePage() {
           </select>
         </div>
 
-        {/* Platforms */}
+        {/* Platforms -- Instagram/Both stay out of the picker while V1 is
+            TikTok-first (see lib/featureFlags.ts). A brand whose
+            schedulingPlatform is already INSTAGRAM or BOTH from before this
+            flag existed keeps working exactly as configured; this only
+            controls what a user can newly pick. */}
         <div>
           <label className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Platforms</label>
-          <div className="grid grid-cols-3 gap-2 mt-2">
-            {(['INSTAGRAM', 'TIKTOK', 'BOTH'] as SchedulingPlatform[]).map((p) => {
-              const active = config?.schedulingPlatform === p;
-              return (
-                <button
-                  key={p}
-                  onClick={() => savePostingSchedule({ schedulingPlatform: p })}
-                  className={`py-2.5 px-2 rounded-xl border text-xs font-extrabold transition touch-target ${active ? 'border-blue-500/60 bg-blue-500/10 text-blue-400' : ''}`}
-                  style={{ backgroundColor: active ? undefined : 'var(--bg-surface-raised)', borderColor: active ? undefined : 'var(--card-border)', color: active ? undefined : 'var(--text-primary)' }}
-                >
-                  {p === 'INSTAGRAM' ? 'Instagram' : p === 'TIKTOK' ? 'TikTok' : 'Both'}
-                </button>
-              );
-            })}
-          </div>
-          <p className="text-[10px] mt-1.5 leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-            "Both" alternates between Instagram's and TikTok's best-time tables across your calendar.
-          </p>
+          {INSTAGRAM_ENABLED ? (
+            <>
+              <div className="grid grid-cols-3 gap-2 mt-2">
+                {(['INSTAGRAM', 'TIKTOK', 'BOTH'] as SchedulingPlatform[]).map((p) => {
+                  const active = config?.schedulingPlatform === p;
+                  return (
+                    <button
+                      key={p}
+                      onClick={() => savePostingSchedule({ schedulingPlatform: p })}
+                      className={`py-2.5 px-2 rounded-xl border text-xs font-extrabold transition touch-target ${active ? 'border-blue-500/60 bg-blue-500/10 text-blue-400' : ''}`}
+                      style={{ backgroundColor: active ? undefined : 'var(--bg-surface-raised)', borderColor: active ? undefined : 'var(--card-border)', color: active ? undefined : 'var(--text-primary)' }}
+                    >
+                      {p === 'INSTAGRAM' ? 'Instagram' : p === 'TIKTOK' ? 'TikTok' : 'Both'}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-[10px] mt-1.5 leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                "Both" alternates between Instagram's and TikTok's best-time tables across your calendar.
+              </p>
+            </>
+          ) : (
+            <div className="mt-2 py-2.5 px-3 rounded-xl border text-xs font-extrabold" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-primary)' }}>
+              TikTok
+            </div>
+          )}
         </div>
       </div>
 
@@ -464,9 +479,9 @@ export default function AmaiEnginePage() {
                 <AlertTriangle className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="text-h3" style={{ color: 'var(--text-primary)' }}>Enable Auto Approval?</h3>
+                <h3 className="text-h3" style={{ color: 'var(--text-primary)' }}>Enable Autopilot?</h3>
                 <p className="text-body-sm mt-1.5 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                  New posts will publish automatically at the AI-selected best time, with no review step. You can switch back to Manual Approval anytime.
+                  New posts will publish automatically at the AI-selected best time, with no review step. You can switch back to Assisted mode anytime.
                 </p>
               </div>
               <div className="flex items-center justify-end space-x-2 pt-1">
@@ -478,7 +493,7 @@ export default function AmaiEnginePage() {
                   className="px-4 py-2 rounded-[var(--radius-md)] text-xs font-bold shadow-md"
                   style={{ backgroundColor: 'var(--accent-warning)', color: '#1A1300' }}
                 >
-                  Enable Auto Approval
+                  Enable Autopilot
                 </button>
               </div>
             </motion.div>
