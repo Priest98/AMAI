@@ -71,15 +71,20 @@ const navSections: NavSection[] = [
     ],
   },
   {
-    title: 'Media Assets',
+    title: 'Create',
     items: [
-      { label: 'Media Library', href: '/dashboard/media', icon: FolderKanban },
+      { label: 'Create', href: '/dashboard/media', icon: FolderKanban },
     ],
   },
   {
-    title: 'Integrations',
+    // Only TikTok is a live, user-facing connection for V1 -- the section
+    // is named after the one platform that's actually here rather than the
+    // generic "Integrations", which would otherwise read as if there were
+    // several to browse (see lib/featureFlags.ts; Instagram's entry point
+    // inside this page is hidden, not this whole section).
+    title: 'TikTok',
     items: [
-      { label: 'Integrations', href: '/dashboard/integrations', icon: Radio },
+      { label: 'TikTok', href: '/dashboard/integrations', icon: Radio },
     ],
   },
   {
@@ -100,7 +105,7 @@ const NAV_TOUR_IDS: Record<string, string> = {
 
 const mobileTabItems = [
   { label: 'Home', href: '/dashboard', icon: LayoutDashboard },
-  { label: 'Engine', href: '/dashboard/engine', icon: Zap },
+  { label: 'Oyinca', href: '/dashboard/engine', icon: Zap },
   { label: 'Upload', href: '/dashboard/media', icon: Plus },
   { label: 'Queue', href: '/dashboard/approval-queue', icon: CheckSquare },
   { label: 'Settings', href: '/dashboard/settings', icon: Settings },

@@ -105,13 +105,17 @@ export default function ConnectedAccountsPage() {
         }
 
         setMessage({
-          text: `Successfully connected ${platform}${account ? ` (${account})` : ''}!`,
+          text: platform.toLowerCase().includes('tiktok')
+            ? 'TikTok connected ✓ Oyinca is ready to start working.'
+            : `Successfully connected ${platform}${account ? ` (${account})` : ''}!`,
           type: 'success',
         });
         window.history.replaceState({}, document.title, window.location.pathname);
       } else if (error) {
         setMessage({
-          text: `⚠️ ${error}`,
+          text: platform?.toLowerCase().includes('tiktok')
+            ? "I couldn't connect to TikTok. Check the authorization and try again."
+            : `⚠️ ${error}`,
           type: 'error',
         });
         window.history.replaceState({}, document.title, window.location.pathname);
@@ -435,7 +439,7 @@ export default function ConnectedAccountsPage() {
                   onClick={() => handleConnect('tiktok')}
                   className="px-3 py-1.5 rounded-lg text-xs font-bold transition shadow-sm btn-gold-cta touch-target"
                 >
-                  Tap to Connect
+                  Connect TikTok
                 </button>
               )}
             </div>
@@ -453,7 +457,7 @@ export default function ConnectedAccountsPage() {
               </div>
             ) : (
               <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                Tap to authorize your TikTok Creator account to schedule video uploads and track metrics.
+                Give Oyinca permission to manage your TikTok content.
               </p>
             )}
 
