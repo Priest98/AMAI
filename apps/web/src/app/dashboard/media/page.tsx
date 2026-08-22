@@ -539,9 +539,10 @@ export default function MediaLibraryPage() {
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-24 sm:pb-12">
       <div>
-        <h1 className="text-h1" style={{ color: 'var(--text-primary)' }}>Media Library</h1>
+        <h1 className="text-h1" style={{ color: 'var(--text-primary)' }}>Create with Oyinca</h1>
         <p className="text-body-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-          Upload photos and videos. Oyinca takes it from here.
+          What should I create for your TikTok? Upload photos and videos below, and I&rsquo;ll take it from there
+          &mdash; captions, hashtags and a posting plan included.
         </p>
       </div>
 
