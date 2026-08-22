@@ -1,29 +1,34 @@
 "use client";
 
 import React from 'react';
-import { Link2, Brain, PlayCircle, TrendingUp } from 'lucide-react';
+import { Link2, UploadCloud, Brain, PlayCircle, TrendingUp } from 'lucide-react';
 import { Reveal, Eyebrow } from './shared';
 
 const STEPS = [
   {
     Icon: Link2,
-    title: 'Upload',
-    body: 'Connect your TikTok account and upload the photos and videos you already have.',
+    title: 'Connect TikTok',
+    body: 'Give Oyinca permission to manage your TikTok content.',
+  },
+  {
+    Icon: UploadCloud,
+    title: 'Give Oyinca your content',
+    body: 'Upload the photos and videos you already have, or connect Google Drive.',
   },
   {
     Icon: Brain,
-    title: 'Let AI prepare your post',
-    body: 'Oyinca writes the caption and hashtags and optimizes your content for TikTok.',
+    title: 'Oyinca creates your posts',
+    body: 'Captions, hashtags and a posting plan, optimized for TikTok.',
   },
   {
     Icon: PlayCircle,
-    title: 'Approve or schedule',
-    body: 'Review the post, or let AutoPilot schedule it for the best time automatically.',
+    title: 'Review or enable Autopilot',
+    body: 'Approve each post yourself, or let Oyinca Autopilot handle it end to end.',
   },
   {
     Icon: TrendingUp,
     title: 'Oyinca publishes to TikTok',
-    body: 'Your post goes live on TikTok, and Oyinca logs the result and learns for next time.',
+    body: 'Your post goes live, and Oyinca logs the result and learns for next time.',
   },
 ];
 
@@ -38,7 +43,7 @@ export default function HowItWorks() {
           </h2>
         </Reveal>
 
-        <div className="mt-16 grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div className="mt-16 grid sm:grid-cols-2 lg:grid-cols-5 gap-5">
           {STEPS.map((step, i) => (
             <Reveal key={step.title} delay={i * 0.08}>
               <div className="lp-card h-full p-6 flex flex-col gap-4">

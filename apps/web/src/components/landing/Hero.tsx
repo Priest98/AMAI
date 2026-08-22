@@ -50,7 +50,7 @@ function FloatingPreviewCard({
         <div className="flex items-center justify-between">
           <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--lp-success)' }}>
             <span className="h-1.5 w-1.5 rounded-full" style={{ background: 'var(--lp-success)' }} />
-            AutoPilot Active
+            Oyinca Autopilot Active
           </span>
           <Sparkles className="h-4 w-4 shrink-0" style={{ color: 'var(--lp-cyan)' }} />
         </div>
@@ -192,7 +192,7 @@ export default function Hero() {
           transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
         >
           <p className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--lp-cyan)' }}>
-            TikTok Content, Automated
+            Your AI Social Media Manager
           </p>
 
           {/* The one deliberate Instrument Serif moment in the hero (the
@@ -204,14 +204,14 @@ export default function Hero() {
             className="lp-hero-display mt-5 text-6xl sm:text-7xl lg:text-8xl"
             style={{ color: 'var(--lp-text-primary)' }}
           >
-            Your TikTok Content
+            Meet Oyinca.
             <br />
-            <span className="lp-gradient-text">on Autopilot.</span>
+            <span className="lp-gradient-text">Your AI Social Media Manager.</span>
           </h1>
 
           <p className="mt-8 text-lg sm:text-xl leading-relaxed max-w-lg" style={{ color: 'var(--lp-text-secondary)' }}>
-            Upload your content. Oyinca handles captions, hashtags, optimization, scheduling and publishing
-            &mdash; so you can stay consistent without spending hours managing TikTok.
+            Give Oyinca your content. It creates, plans, schedules and publishes your TikTok content
+            while you focus on your business.
           </p>
 
           <div className="mt-12 flex flex-col sm:flex-row items-start sm:items-center gap-5">
@@ -220,7 +220,7 @@ export default function Hero() {
                 href="/register"
                 className="group inline-flex items-center gap-2 px-8 py-4 rounded-2xl text-sm lp-btn-primary lp-focus-ring"
               >
-                Start for Free
+                Start with TikTok
                 <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
               </Link>
             </MagneticButton>
@@ -230,7 +230,7 @@ export default function Hero() {
               style={{ color: 'var(--lp-text-secondary)' }}
             >
               <PlayCircle className="h-4 w-4 transition group-hover:opacity-80" />
-              <span className="transition group-hover:opacity-80">See How It Works</span>
+              <span className="transition group-hover:opacity-80">See how it works</span>
             </a>
           </div>
 

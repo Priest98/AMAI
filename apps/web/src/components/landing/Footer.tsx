@@ -19,7 +19,10 @@ const COLUMNS = [
     title: 'Company',
     links: [
       { label: 'About', href: '/' },
-      { label: 'Contact', href: 'mailto:hello@amai.app' },
+      // Same contact address used on Privacy/Terms (CONTACT_EMAIL) -- kept
+      // as a real, working destination rather than the old placeholder
+      // hello@amai.app inbox, which doesn't exist.
+      { label: 'Contact', href: 'mailto:Abdurasaqadamolayinka@gmail.com' },
     ],
   },
   {
@@ -47,7 +50,7 @@ export default function Footer() {
               Oyinca
             </Link>
             <p className="mt-4 text-sm leading-relaxed max-w-xs" style={{ color: 'var(--lp-text-secondary)' }}>
-              Your TikTok content, on autopilot.
+              Your AI Social Media Manager, starting with TikTok.
             </p>
           </div>
 
@@ -78,13 +81,13 @@ export default function Footer() {
           style={{ borderColor: 'var(--lp-border)', color: 'var(--lp-text-muted)' }}
         >
           <div className="flex flex-col sm:flex-row items-center gap-1 sm:gap-3">
-            <span>© {new Date().getFullYear()} Turaab Technology. All rights reserved.</span>
-            <span className="hidden sm:inline" aria-hidden="true">·</span>
-            <span>Powered by Turaab Technology</span>
+            <span>© {new Date().getFullYear()} Oyinca — Powered by Turaab Technology. All rights reserved.</span>
           </div>
+          {/* TikTok is the only live platform link -- Instagram is hidden
+              from every user-facing surface per the V1 TikTok-first spec,
+              even though the backend integration still exists. */}
           <div className="flex items-center gap-4">
             <a href="https://tiktok.com" target="_blank" rel="noopener noreferrer" className="lp-focus-ring">TikTok</a>
-            <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="lp-focus-ring">Instagram</a>
             <a href="https://x.com" target="_blank" rel="noopener noreferrer" className="lp-focus-ring">X</a>
           </div>
         </div>

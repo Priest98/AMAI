@@ -19,7 +19,7 @@ import { Reveal } from './shared';
  * claim Oyinca can't stand behind.
  */
 const STATUS_ITEMS = [
-  { Icon: Zap, label: 'AutoPilot', value: 'Active', tone: 'cyan' as const, live: true },
+  { Icon: Zap, label: 'Autopilot', value: 'Active', tone: 'cyan' as const, live: true },
   { Icon: CalendarClock, label: 'Scheduled', value: '3 posts', tone: 'purple' as const },
   { Icon: Sparkles, label: 'Recommendations', value: '2 new', tone: 'cyan' as const },
   { Icon: TikTokLogo, label: 'TikTok', value: 'Connected', tone: 'purple' as const },

@@ -87,7 +87,7 @@ export default function Nav() {
               href="/register"
               className="px-5 py-2.5 rounded-full text-sm lp-btn-primary lp-focus-ring transition-transform duration-200 active:scale-95"
             >
-              Start for Free
+              Start with TikTok
             </Link>
           </div>
 

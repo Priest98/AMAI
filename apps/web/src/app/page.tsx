@@ -6,10 +6,12 @@ import '@/styles/landing.css';
 import Nav from '@/components/landing/Nav';
 import Hero from '@/components/landing/Hero';
 import ProblemSection from '@/components/landing/ProblemSection';
+import TransitionSection from '@/components/landing/TransitionSection';
 import HowItWorks from '@/components/landing/HowItWorks';
 import Features from '@/components/landing/Features';
 import AutopilotSection from '@/components/landing/AutopilotSection';
 import ProductVisual from '@/components/landing/ProductVisual';
+import TikTokFirstSection from '@/components/landing/TikTokFirstSection';
 import Pricing from '@/components/landing/Pricing';
 import FAQ from '@/components/landing/FAQ';
 import FinalCTA from '@/components/landing/FinalCTA';
@@ -189,16 +191,15 @@ export default function Home() {
         </a>
         <Nav />
         {/*
-          Eight sections, answering five questions in order: what is Oyinca
-          (hero), why should I care (problem), how does it work (how it
-          works + features), what's the wow (autopilot + product visual),
-          what does it cost and can I try it (pricing, FAQ, CTA).
+          Structure follows the Oyinca product-transformation spec's section
+          17 order exactly: Hero -> Problem -> Meet Oyinca -> How It Works ->
+          What Oyinca Handles -> Autopilot/proof -> TikTok First -> Pricing ->
+          FAQ -> Final CTA.
 
-          Sections removed in the structure pass, and where their content
-          went -- none of it was shrunk or hidden in an accordion, it was
-          either genuinely redundant or folded into a line elsewhere:
+          Sections removed in the earlier structure pass, and where their
+          content went -- none of it was shrunk or hidden in an accordion, it
+          was either genuinely redundant or folded into a line elsewhere:
             - SocialProof           -> vague filler line, cut outright
-            - TransitionSection     -> restated the hero's promise verbatim
             - EnginePipeline        -> merged into AutopilotSection's flow
             - BusinessBrainSection  -> Features card "Business Brain"
             - ContentPipelineSection-> Features supporting line (Google Drive)
@@ -208,16 +209,22 @@ export default function Home() {
             - WhoForSection         -> Pricing's "businesses, creators and agencies"
             - AgencySection         -> Pricing's Agency one-liner + Agency tier
             - InteractiveDemo       -> superseded by ProductVisual
-          The component files are all still in components/landing/ and can
-          be re-added to this list if any of them is wanted back.
+          TransitionSection ("Meet Oyinca") was cut in that earlier pass as a
+          near-duplicate of the hero, but the spec calls for a dedicated
+          "Meet Oyinca" section between Problem and How It Works, so it's
+          back in with content rewritten to stop restating the hero verbatim.
+          The other component files above are still in components/landing/
+          and can be re-added to this list if any of them is wanted back.
         */}
         <main id="main-content">
           <Hero />
           <ProblemSection />
+          <TransitionSection />
           <HowItWorks />
           <Features />
           <AutopilotSection />
           <ProductVisual />
+          <TikTokFirstSection />
           <Suspense fallback={<Pricing initialData={null} />}>
             <PricingSection />
           </Suspense>

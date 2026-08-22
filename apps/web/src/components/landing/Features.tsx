@@ -15,26 +15,26 @@ import { Reveal, Eyebrow } from './shared';
  */
 const FEATURES = [
   {
-    Icon: BrainCircuit,
-    title: 'Business Brain',
-    body: 'Oyinca learns your business, brand and audience.',
-    tone: 'cyan' as const,
-  },
-  {
     Icon: PenLine,
-    title: 'AI Content',
-    body: 'Turn your photos and videos into ready-to-publish TikTok posts.',
+    title: 'Content Creation',
+    body: 'Captions, hashtags and ready-to-publish TikTok posts from your photos and videos.',
     tone: 'purple' as const,
   },
   {
     Icon: Rocket,
-    title: 'AutoPilot',
-    body: 'Plan, schedule and publish to TikTok automatically.',
+    title: 'Scheduling & Publishing',
+    body: 'Oyinca plans the best time to post and publishes to TikTok automatically.',
+    tone: 'cyan' as const,
+  },
+  {
+    Icon: BrainCircuit,
+    title: 'Recommendations',
+    body: 'Oyinca learns your business, brand and audience, and tells you what to create next.',
     tone: 'cyan' as const,
   },
   {
     Icon: LineChart,
-    title: 'Performance',
+    title: 'Performance Insights',
     body: 'See what’s working, and what to do next.',
     tone: 'purple' as const,
   },
@@ -42,10 +42,10 @@ const FEATURES = [
 
 export default function Features() {
   return (
-    <section id="features" className="relative py-16 sm:py-20" aria-label="Features">
+    <section id="features" className="relative py-16 sm:py-20" aria-label="What Oyinca Handles">
       <div className="max-w-7xl mx-auto px-5 sm:px-8">
         <Reveal className="text-center max-w-2xl mx-auto">
-          <Eyebrow>What You Get</Eyebrow>
+          <Eyebrow>What Oyinca Handles</Eyebrow>
           <h2 className="lp-heading mt-5 text-3xl sm:text-4xl font-bold tracking-tight">
             Everything your TikTok needs.
           </h2>
@@ -79,8 +79,9 @@ export default function Features() {
             know they're covered, not read a section about each. */}
         <Reveal delay={0.3} className="mt-10 text-center">
           <p className="text-sm max-w-2xl mx-auto" style={{ color: 'var(--lp-text-muted)' }}>
-            Publish to TikTok from one place, and connect Google Drive to turn content you already have
-            into posts.
+            Content creation, captions, hashtags, scheduling, publishing, recommendations and
+            performance insights &mdash; all handled. Connect Google Drive to turn content you already
+            have into posts.
           </p>
         </Reveal>
       </div>

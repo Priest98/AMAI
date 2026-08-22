@@ -18,8 +18,8 @@ export default function ProblemSection() {
       <div className="max-w-3xl mx-auto px-5 sm:px-8 text-center">
         <Reveal>
           <h2 className="lp-heading text-3xl sm:text-4xl font-bold tracking-tight">
-            You have a business to run.
-            <br className="hidden sm:block" /> Not a content calendar to babysit.
+            Social media shouldn&rsquo;t feel like
+            <br className="hidden sm:block" /> a second full-time job.
           </h2>
         </Reveal>
 
@@ -33,7 +33,7 @@ export default function ProblemSection() {
 
         <Reveal delay={0.2}>
           <p className="mt-8 text-lg sm:text-xl font-semibold lp-heading">
-            It all takes time. <span className="lp-gradient-text">Oyinca handles the repetitive work.</span>
+            It all takes time. <span className="lp-gradient-text">That&rsquo;s what you hired Oyinca for.</span>
           </p>
         </Reveal>
       </div>

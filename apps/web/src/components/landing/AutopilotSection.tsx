@@ -18,12 +18,12 @@ const FLOW = [
 /** The product's "wow" moment, so it keeps its own full-width section -- but states the workflow once, not three different ways. */
 export default function AutopilotSection() {
   return (
-    <section id="autopilot" className="relative py-16 sm:py-20" aria-label="AutoPilot">
+    <section id="autopilot" className="relative py-16 sm:py-20" aria-label="Oyinca Autopilot">
       <div className="max-w-6xl mx-auto px-5 sm:px-8">
         <Reveal className="text-center max-w-2xl mx-auto">
-          <Eyebrow>AutoPilot</Eyebrow>
+          <Eyebrow>Oyinca Autopilot</Eyebrow>
           <h2 className="lp-heading mt-5 text-3xl sm:text-4xl font-bold tracking-tight">
-            Stop managing every post.
+            Let Oyinca handle your TikTok automatically.
           </h2>
         </Reveal>
 
@@ -54,12 +54,14 @@ export default function AutopilotSection() {
 
         {/* Replaces the old standalone "Autonomous when you want it" section.
             Control level is reassurance, not a headline feature -- one line
-            here does the same job a full section was doing. */}
+            here does the same job a full section was doing. Two modes,
+            matching exactly what the backend actually supports (ApprovalMode
+            is MANUAL | AUTO) -- not three, which the previous copy implied. */}
         <Reveal delay={0.25} className="mt-8 text-center">
           <p className="text-sm font-medium" style={{ color: 'var(--lp-text-muted)' }}>
-            Choose <span style={{ color: 'var(--lp-text-secondary)' }}>Manual</span>,{' '}
-            <span style={{ color: 'var(--lp-text-secondary)' }}>Approval</span> or{' '}
-            <span style={{ color: 'var(--lp-text-secondary)' }}>Automatic</span> mode. You decide how much Oyinca does.
+            Choose <span style={{ color: 'var(--lp-text-secondary)' }}>Assisted</span> (Oyinca prepares your content,
+            you approve it) or <span style={{ color: 'var(--lp-text-secondary)' }}>Autopilot</span> (Oyinca creates,
+            schedules and publishes on its own). You decide how much Oyinca does.
           </p>
         </Reveal>
       </div>

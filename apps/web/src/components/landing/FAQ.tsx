@@ -23,7 +23,7 @@ const FAQS = [
   },
   {
     q: 'How does TikTok publishing work?',
-    a: 'Connect your TikTok account, and Oyinca can publish directly through TikTok\'s own API. You choose the level of automation: Manual, Approval or Automatic.',
+    a: 'Connect your TikTok account, and Oyinca can publish directly through TikTok\'s own API. Choose Assisted (you approve each post) or Autopilot (Oyinca publishes on its own).',
   },
   {
     q: 'Can I cancel Pro?',
@@ -31,7 +31,7 @@ const FAQS = [
   },
   {
     q: 'Is Oyinca only for TikTok?',
-    a: 'Oyinca is TikTok-first today. Other platforms are on the roadmap, but TikTok is where the product is most polished right now.',
+    a: 'No. Oyinca is an AI social media manager, not a TikTok-only tool. TikTok is where it starts, fully supported end to end, with more platforms on the roadmap.',
   },
 ];
 

@@ -21,9 +21,9 @@ export default function FinalCTA() {
           />
           <div className="relative">
             <h2 className="lp-hero-display text-4xl sm:text-6xl">
-              Start automating your
+              Let Oyinca handle
               <br />
-              TikTok content today.
+              your TikTok.
             </h2>
             <p className="mt-6 text-base sm:text-lg max-w-lg mx-auto" style={{ color: 'var(--lp-text-secondary)' }}>
               Upload your content. Set your preferences. Let Oyinca handle the rest on TikTok.
@@ -34,7 +34,7 @@ export default function FinalCTA() {
                   href="/register"
                   className="group inline-flex items-center gap-2 px-8 py-4 rounded-2xl text-sm lp-btn-primary lp-focus-ring"
                 >
-                  Start for Free
+                  Hire Oyinca
                   <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
                 </Link>
               </MagneticButton>
