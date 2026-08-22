@@ -8,6 +8,7 @@ import EmptyState from '@/components/ui/EmptyState';
 import { Reveal } from '@/components/ui/Reveal';
 import { apiFetch, brandFetch } from '@/lib/api';
 import { useEngineEvents } from '@/lib/useEngineEvents';
+import { INSTAGRAM_ENABLED } from '@/lib/featureFlags';
 import {
   CheckCircle2,
   XCircle,
@@ -44,9 +45,13 @@ interface ConnectedAccount {
   status: string;
 }
 
+// Instagram stays out of every user-facing target picker while V1 is
+// TikTok-first (see lib/featureFlags.ts) -- the backend still accepts an
+// INSTAGRAM target for any post that already has one, this only controls
+// what a user can newly select here.
 const EDITABLE_PLATFORMS: { platform: string; label: string; icon: React.ElementType }[] = [
-  { platform: 'INSTAGRAM', label: 'Instagram', icon: Instagram },
   { platform: 'TIKTOK', label: 'TikTok', icon: Video },
+  ...(INSTAGRAM_ENABLED ? [{ platform: 'INSTAGRAM', label: 'Instagram', icon: Instagram }] : []),
 ];
 
 function pad(n: number) {
@@ -306,8 +311,8 @@ export default function ApprovalQueuePage() {
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
       <SectionHeader
-        title="Approval Queue"
-        subtitle="Review, edit, and approve AI-prepared posts before they go live."
+        title="Ready for your review"
+        subtitle="I've prepared these TikToks for you. Review, edit, or approve them below."
         action={
           <div className="flex items-center space-x-2">
             <Badge variant="success">
@@ -364,13 +369,13 @@ export default function ApprovalQueuePage() {
             <div className="exec-card p-12">
               <EmptyState
                 icon={<CheckCircle2 className="h-6 w-6" />}
-                title="Approval Queue Empty"
-                description="Upload media in the Media Library and Oyinca will prepare new posts here for your review."
+                title="All caught up"
+                description="Upload media and I'll prepare new TikToks here for your review."
               />
             </div>
           ) : (
             posts.map((post) => {
-              const platform = post.targets?.[0]?.platform || 'INSTAGRAM';
+              const platform = post.targets?.[0]?.platform || 'TIKTOK';
               const scheduledLabel = post.scheduledAt
                 ? new Date(post.scheduledAt).toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' })
                 : 'AI-selected best time';
@@ -474,7 +479,7 @@ export default function ApprovalQueuePage() {
                             type="text"
                             value={editHashtags}
                             onChange={(e) => setEditHashtags(e.target.value)}
-                            placeholder="#amai #contentcreator"
+                            placeholder="#oyinca #contentcreator"
                             className="w-full rounded-xl p-2.5 text-xs font-mono border outline-none focus:border-blue-500/50 transition"
                             style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-primary)' }}
                           />
