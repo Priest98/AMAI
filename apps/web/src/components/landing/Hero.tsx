@@ -4,8 +4,11 @@ import React, { useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { motion, useMotionValue, useSpring, useTransform, useReducedMotion } from 'framer-motion';
-import { ArrowRight, PlayCircle, Sparkles, Clock3, CheckCircle2, ChevronDown } from 'lucide-react';
+import { ArrowRight, PlayCircle, Sparkles, Clock3, CheckCircle2, ChevronDown, Upload } from 'lucide-react';
 import MagneticButton from './MagneticButton';
+import HeroVisual from './HeroVisual';
+import { Monogram } from '@/components/logo';
+import { TikTokLogo } from '@/components/icons/platform-logos';
 
 /**
  * Higgsfield-generated cinematic backdrop (deep navy/steel-blue abstract
@@ -119,6 +122,60 @@ function PublishedToast({
   );
 }
 
+/**
+ * The "Content -> Oyinca -> Caption/Hashtags/Schedule -> TikTok" pipeline
+ * from the brief's ASCII diagram, rendered as real UI (not baked into the
+ * cinematic video) so it stays crisp, accessible, and editable. Mirrors the
+ * same icon-plus-arrow rail pattern AutopilotSection already uses further
+ * down the page, rather than inventing a second visual language for the
+ * same idea.
+ */
+const WORKFLOW_STEPS = [
+  { label: 'Your content', Icon: Upload },
+  { label: 'Oyinca', Icon: Monogram },
+  { label: 'Caption · hashtags · schedule', Icon: CheckCircle2 },
+  { label: 'TikTok', Icon: TikTokLogo },
+];
+
+function WorkflowRail() {
+  return (
+    <div className="lp-glass mt-6 w-full max-w-[380px] rounded-2xl px-4 py-4 overflow-x-auto">
+      <div className="flex items-center gap-2 min-w-max mx-auto justify-center">
+        {WORKFLOW_STEPS.map((step, i) => (
+          <React.Fragment key={step.label}>
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.6 + i * 0.12, ease: [0.16, 1, 0.3, 1] }}
+              whileHover={{ y: -3 }}
+              className="flex flex-col items-center gap-1.5 w-[76px] text-center cursor-default"
+            >
+              <div
+                className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0 transition-shadow"
+                style={{ background: i % 2 === 0 ? 'var(--lp-cyan-soft)' : 'var(--lp-purple-soft)' }}
+              >
+                <step.Icon className="h-4 w-4" style={{ color: i % 2 === 0 ? 'var(--lp-cyan)' : 'var(--lp-purple)' }} />
+              </div>
+              <span className="text-[10px] font-semibold leading-tight" style={{ color: 'var(--lp-text-secondary)' }}>
+                {step.label}
+              </span>
+            </motion.div>
+            {i < WORKFLOW_STEPS.length - 1 && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.4, delay: 0.7 + i * 0.12 }}
+              >
+                <ArrowRight className="h-3.5 w-3.5 shrink-0" style={{ color: 'var(--lp-text-muted)' }} />
+              </motion.div>
+            )}
+          </React.Fragment>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function Hero() {
   const sectionRef = useRef<HTMLElement>(null);
   const reduceMotion = useReducedMotion();
@@ -192,26 +249,32 @@ export default function Hero() {
           transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
         >
           <p className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--lp-cyan)' }}>
-            Your AI Social Media Manager
+            Oyinca — your social media manager
           </p>
 
           {/* The one deliberate Instrument Serif moment in the hero (the
               .lp-hero-display class carries the display-font treatment --
               see landing.css). Font size is left on the existing responsive
               scale so the display face inherits the same clamping and never
-              overflows small viewports. */}
+              overflows small viewports.
+
+              Copy deliberately drops "AI" from the headline itself -- the
+              brand brief positions Oyinca as a social media manager with a
+              personality (someone you hire), not another AI tool; "AI" still
+              appears once, lower down, where it's actually informative
+              (metadata, FAQ) rather than the first thing a visitor reads. */}
           <h1
             className="lp-hero-display mt-5 text-6xl sm:text-7xl lg:text-8xl"
             style={{ color: 'var(--lp-text-primary)' }}
           >
             Meet Oyinca.
             <br />
-            <span className="lp-gradient-text">Your AI Social Media Manager.</span>
+            <span className="lp-gradient-text">Your social media manager.</span>
           </h1>
 
           <p className="mt-8 text-lg sm:text-xl leading-relaxed max-w-lg" style={{ color: 'var(--lp-text-secondary)' }}>
-            Give Oyinca your content. It creates, plans, schedules and publishes your TikTok content
-            while you focus on your business.
+            Give Oyinca your content and she&rsquo;ll take care of the rest — from planning and captions
+            to scheduling and publishing on TikTok.
           </p>
 
           <div className="mt-12 flex flex-col sm:flex-row items-start sm:items-center gap-5">
@@ -220,7 +283,7 @@ export default function Hero() {
                 href="/register"
                 className="group inline-flex items-center gap-2 px-8 py-4 rounded-2xl text-sm lp-btn-primary lp-focus-ring"
               >
-                Start with TikTok
+                Meet Oyinca
                 <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
               </Link>
             </MagneticButton>
@@ -239,10 +302,28 @@ export default function Hero() {
           </p>
         </motion.div>
 
-        <div className="relative flex justify-center lg:justify-end pb-6">
-          <FloatingPreviewCard parallaxX={cardX} parallaxY={cardY} />
-          <PublishedToast parallaxX={toastX} parallaxY={toastY} />
-        </div>
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
+          className="flex flex-col items-center lg:items-end"
+        >
+          {/* Oyinca's cinematic portrait, with the same two floating UI
+              cards from before now anchored to it directly -- "her digital
+              workspace" -- instead of floating over empty backdrop. */}
+          <div className="relative">
+            <HeroVisual />
+            <div className="absolute -top-6 -right-4 sm:-right-8">
+              <FloatingPreviewCard parallaxX={cardX} parallaxY={cardY} />
+            </div>
+            <PublishedToast parallaxX={toastX} parallaxY={toastY} />
+          </div>
+
+          {/* Content -> Oyinca -> Caption/Hashtags/Schedule -> TikTok,
+              spelled out as real UI directly beneath her -- the whole
+              pipeline the copy just promised, made visible in ~2 seconds. */}
+          <WorkflowRail />
+        </motion.div>
       </div>
 
       {/* Scroll indicator */}

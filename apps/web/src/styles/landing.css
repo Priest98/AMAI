@@ -367,6 +367,31 @@
   line-height: 0.98;
 }
 
+/* Oyinca's cinematic hero portrait panel -- portrait aspect so a
+   person-centered video/poster reads naturally, with a rounded frame
+   matching the rest of the site's card language (see .lp-card) rather
+   than a bare rectangle. */
+.lp-hero-visual-frame {
+  aspect-ratio: 4 / 5;
+  width: 100%;
+  max-width: 380px;
+  border-radius: 28px;
+  border: 1px solid var(--lp-border);
+  background: var(--lp-surface);
+  box-shadow: 0 30px 80px -30px rgba(4, 7, 13, 0.6);
+}
+
+/* Fallback state (see HeroVisual.tsx) -- rotating the whole mark makes
+   the fixed node read as continuously orbiting the ring, the same
+   "always working" motion described in the brand guidelines, rather
+   than a static logo standing in for a missing video. */
+@keyframes lp-orbit-spin {
+  to { transform: rotate(360deg); }
+}
+.lp-hero-fallback-orbit svg {
+  animation: lp-orbit-spin 6s linear infinite;
+}
+
 @keyframes lp-scroll-hint {
   0%, 100% { transform: translateY(0); opacity: 0.5; }
   50% { transform: translateY(8px); opacity: 1; }
