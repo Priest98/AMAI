@@ -22,14 +22,21 @@ import { useReducedMotion } from 'framer-motion';
  * credits or prompt problem (cost preflights succeeded down to ~4.5-6
  * credits, well within balance).
  *
- * So for now this renders the real portrait as a static image -- genuine
- * Oyinca, not a placeholder -- with the video wired up to activate
- * automatically the moment either of these lands:
+ * No paid upgrade is planned for now, so this renders the real portrait as
+ * a static image -- genuine Oyinca, not a placeholder -- with a slow,
+ * barely-there CSS "Ken Burns" drift (.lp-hero-portrait-kenburns in
+ * landing.css) standing in for true motion at zero cost. It's deliberately
+ * subtle: a photoreal face reads as fake immediately if it moves too much
+ * without real physics behind it, so the drift is small enough to feel
+ * like a held breath, not an animation.
+ *
+ * If a paid plan or a different video source ever becomes available, the
+ * video wired up above still activates automatically the moment either of
+ * these lands, no other code changes needed:
  *   1. The Higgsfield account is upgraded and the loop gets generated, or
  *   2. A local export is dropped at /public/hero/oyinca-loop.mp4 (+
  *      /public/hero/oyinca-poster.jpg), per the technical spec in
  *      oyinca-higgsfield-hero-prompt.md.
- * No other code changes are needed when that happens.
  */
 const VIDEO_SRC = '/hero/oyinca-loop.mp4';
 const POSTER_SRC = '/hero/oyinca-poster.jpg';
@@ -104,7 +111,7 @@ export default function HeroVisual({ className = '' }: { className?: string }) {
         <img
           src={OYINCA_PORTRAIT_SRC}
           alt=""
-          className="absolute inset-0 h-full w-full object-cover"
+          className="lp-hero-portrait-kenburns absolute inset-0 h-full w-full object-cover"
           aria-hidden="true"
         />
       )}

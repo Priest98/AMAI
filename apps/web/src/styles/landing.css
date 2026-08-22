@@ -381,15 +381,21 @@
   box-shadow: 0 30px 80px -30px rgba(4, 7, 13, 0.6);
 }
 
-/* Fallback state (see HeroVisual.tsx) -- rotating the whole mark makes
-   the fixed node read as continuously orbiting the ring, the same
-   "always working" motion described in the brand guidelines, rather
-   than a static logo standing in for a missing video. */
-@keyframes lp-orbit-spin {
-  to { transform: rotate(360deg); }
+/* Static portrait state (see HeroVisual.tsx) -- no AI video loop exists yet,
+   so a slow, barely-there Ken Burns drift on the real portrait keeps the
+   panel reading as "alive" rather than a frozen photo. Much subtler than
+   the backdrop's .lp-kenburns (that's a blurred, oversized background;
+   this is a sharp foreground face, so the drift has to stay small enough
+   that the frame edges never reveal themselves). Pauses automatically
+   under prefers-reduced-motion via the blanket rule above. */
+@keyframes lp-portrait-kenburns {
+  0% { transform: scale(1) translate3d(0, 0, 0); }
+  50% { transform: scale(1.035) translate3d(-0.6%, -0.4%, 0); }
+  100% { transform: scale(1) translate3d(0, 0, 0); }
 }
-.lp-hero-fallback-orbit svg {
-  animation: lp-orbit-spin 6s linear infinite;
+.lp-hero-portrait-kenburns {
+  animation: lp-portrait-kenburns 16s ease-in-out infinite;
+  will-change: transform;
 }
 
 @keyframes lp-scroll-hint {
