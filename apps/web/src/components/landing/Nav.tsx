@@ -140,7 +140,7 @@ export default function Nav() {
                     Sign In
                   </Link>
                   <Link href="/register" className="touch-target flex-1 px-4 py-2.5 rounded-full text-sm lp-btn-primary">
-                    Start for Free
+                    Start with TikTok
                   </Link>
                 </div>
               </div>

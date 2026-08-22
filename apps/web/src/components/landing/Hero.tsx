@@ -310,8 +310,20 @@ export default function Hero() {
         >
           {/* Oyinca's cinematic portrait, with the same two floating UI
               cards from before now anchored to it directly -- "her digital
-              workspace" -- instead of floating over empty backdrop. */}
-          <div className="relative">
+              workspace" -- instead of floating over empty backdrop.
+
+              w-full max-w-[380px] is load-bearing, not decorative: this div
+              is a flex item inside a `flex flex-col items-center lg:items-end`
+              parent, which overrides the default `align-items: stretch` --
+              so without an explicit width, this wrapper (and HeroVisual's
+              own width:100%, which resolves against IT) shrink-to-fit their
+              normal-flow content. HeroVisual is the only normal-flow child
+              and is itself width:100%, a circular reference that resolved
+              to ~0 -- confirmed via computed styles: the frame rendered at
+              2x3.5px, i.e. completely invisible, on the live site. Matching
+              the max-width to .lp-hero-visual-frame's own max-width keeps
+              the two in sync by construction instead of by coincidence. */}
+          <div className="relative w-full max-w-[380px]">
             <HeroVisual />
             <div className="absolute -top-6 -right-4 sm:-right-8">
               <FloatingPreviewCard parallaxX={cardX} parallaxY={cardY} />

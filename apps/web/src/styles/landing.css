@@ -362,7 +362,15 @@
    font instead of the intended display face. Fixed to reference the actual
    display token so both headings get it from the class alone. */
 .lp-hero-display {
-  font-family: var(--font-display, var(--lp-font-heading, sans-serif));
+  /* Was var(--font-display, ...) -- --font-display was never defined
+     anywhere (next/font's Instrument Serif variable is actually named
+     --font-display-var, set in layout.tsx). That undefined-variable
+     reference silently fell through to the fallback every time, so both
+     "deliberate Instrument Serif moments" (Hero + FinalCTA headlines)
+     rendered in the plain body sans this whole time -- confirmed via
+     computed styles on the live site (h1 font-family resolved to "Plus
+     Jakarta Sans", not Instrument Serif). */
+  font-family: var(--font-display-var, var(--lp-font-heading, sans-serif));
   letter-spacing: -0.01em;
   line-height: 0.98;
 }

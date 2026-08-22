@@ -14,15 +14,15 @@ const COLUMNS = [
     ],
   },
   {
-    // About/Contact/Help Center don't have dedicated pages yet -- rather
-    // than link to a 404, these point at real, working destinations
-    // (home and a mailto) until those pages exist.
+    // "About" previously linked to "/" -- since that's the page you're
+    // already on, it was a functional no-op ("fake button": looks
+    // clickable, does nothing meaningful). Removed rather than invented,
+    // since writing a real About page is out of scope here. Contact stays:
+    // a mailto is a genuinely working destination, just using the
+    // founder's real address until a dedicated support inbox exists (same
+    // address as Privacy/Terms' CONTACT_EMAIL).
     title: 'Company',
     links: [
-      { label: 'About', href: '/' },
-      // Same contact address used on Privacy/Terms (CONTACT_EMAIL) -- kept
-      // as a real, working destination rather than the old placeholder
-      // hello@amai.app inbox, which doesn't exist.
       { label: 'Contact', href: 'mailto:Abdurasaqadamolayinka@gmail.com' },
     ],
   },
@@ -85,13 +85,12 @@ export default function Footer() {
           <div className="flex flex-col sm:flex-row items-center gap-1 sm:gap-3">
             <span>© {new Date().getFullYear()} Oyinca — Powered by Turaab Technology. All rights reserved.</span>
           </div>
-          {/* TikTok is the only live platform link -- Instagram is hidden
-              from every user-facing surface per the V1 TikTok-first spec,
-              even though the backend integration still exists. */}
-          <div className="flex items-center gap-4">
-            <a href="https://tiktok.com" target="_blank" rel="noopener noreferrer" className="lp-focus-ring">TikTok</a>
-            <a href="https://x.com" target="_blank" rel="noopener noreferrer" className="lp-focus-ring">X</a>
-          </div>
+          {/* Previously linked "TikTok"/"X" to tiktok.com and x.com -- the
+              platforms' generic homepages, not an actual Oyinca profile on
+              either. That reads as a fake/broken social link (visitor
+              expects the brand's account, lands on a generic homepage
+              instead), so removed until real Oyinca social profile URLs
+              exist to link to. */}
         </div>
       </div>
     </footer>

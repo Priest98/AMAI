@@ -145,11 +145,31 @@
     radial-gradient(50% 50% at 100% 0%, rgba(26, 61, 99, 0.14) 0%, transparent 60%);
 }
 
+/* This block previously re-declared each token as var(--same-name) --
+   e.g. --font-display: var(--font-display) -- intending to re-expose the
+   :root tokens above as Tailwind theme keys (so `font-sans`/`font-heading`/
+   `font-display`/`font-mono` utility classes get generated). In plain CSS
+   that's a genuine circular reference for that custom property, full stop
+   -- there's no "look upward in source order" fallback the way Sass
+   variables have. Confirmed on the live site: getComputedStyle(...).
+   getPropertyValue('--font-display'/'--font-heading'/'--font-sans') all
+   returned "" (empty/invalid) on both :root and every element, while
+   --font-mono was fine specifically because its own definition (a plain
+   string, not a var() into a next/font runtime variable) had no runtime
+   dependency for Tailwind's build step to fail to resolve.
+   Effect was mostly invisible sitewide (headings/body already inherit
+   Plus Jakarta Sans from further up, so an empty --font-heading/--font-sans
+   silently falls through to that same visual result) -- except the two
+   moments that specifically wanted the *different* Instrument Serif face
+   (Hero + FinalCTA's .lp-hero-display), where it was directly visible:
+   both headlines rendered in the body sans instead of the display serif.
+   Fixed by pointing each theme key at its real source value directly,
+   matching the :root block above instead of re-declaring itself. */
 @theme inline {
-  --font-sans: var(--font-sans);
-  --font-heading: var(--font-heading);
-  --font-display: var(--font-display);
-  --font-mono: var(--font-mono);
+  --font-sans: var(--font-body-var), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-heading: var(--font-body-var), var(--font-sans);
+  --font-display: var(--font-display-var), var(--font-body-var), var(--font-sans);
+  --font-mono: 'Geist Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
 }
 
 /* ============================= Motion tokens ============================= */
