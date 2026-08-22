@@ -6,37 +6,23 @@ import { useReducedMotion } from 'framer-motion';
 /**
  * Oyinca's hero visual.
  *
- * Status: a real, Higgsfield-generated photoreal portrait of Oyinca is live
- * here (see OYINCA_PORTRAIT_SRC below) -- generated via the connected
- * Higgsfield account (model `soul_2`, job 95edf626-ebdb-4cf7-a829-
- * 5c67b4346146), matching the locked character brief in
- * oyinca-higgsfield-hero-prompt.md (West African heritage, late-20s,
- * charcoal blazer, single gold ear cuff, photoreal-unretouched realism).
+ * The cinematic idle-motion loop is live: /public/hero/oyinca-loop.mp4 (+
+ * poster jpg), generated with Google Flow (Veo 3.1, 9:16, 8s) using the
+ * user's Google AI Pro plan. Higgsfield's own video models all rejected
+ * generation with "Requires basic/plus plan or higher" (free tier), so the
+ * source frame -- a photoreal Higgsfield portrait of Oyinca (model
+ * `soul_2`, job 95edf626-ebdb-4cf7-a829-5c67b4346146) matching the locked
+ * character brief in oyinca-higgsfield-hero-prompt.md (West African
+ * heritage, late-20s, charcoal blazer, single gold ear cuff,
+ * photoreal-unretouched realism) -- was fed into Flow as the starting
+ * frame for image-to-video instead, keeping the same face/wardrobe/
+ * identity across both tools.
  *
- * The cinematic idle-motion LOOP described in that brief could not be
- * generated: every image-to-video model on the connected Higgsfield
- * account (kling2_6, kling3_0, seedance_2_5, veo3, grok_video,
- * grok_video_v15) rejected the request with "Requires basic/plus plan or
- * higher" -- video generation is gated behind a paid Higgsfield plan and
- * this account is on the free tier. This is a plan limitation, not a
- * credits or prompt problem (cost preflights succeeded down to ~4.5-6
- * credits, well within balance).
- *
- * No paid upgrade is planned for now, so this renders the real portrait as
- * a static image -- genuine Oyinca, not a placeholder -- with a slow,
- * barely-there CSS "Ken Burns" drift (.lp-hero-portrait-kenburns in
- * landing.css) standing in for true motion at zero cost. It's deliberately
- * subtle: a photoreal face reads as fake immediately if it moves too much
- * without real physics behind it, so the drift is small enough to feel
- * like a held breath, not an animation.
- *
- * If a paid plan or a different video source ever becomes available, the
- * video wired up above still activates automatically the moment either of
- * these lands, no other code changes needed:
- *   1. The Higgsfield account is upgraded and the loop gets generated, or
- *   2. A local export is dropped at /public/hero/oyinca-loop.mp4 (+
- *      /public/hero/oyinca-poster.jpg), per the technical spec in
- *      oyinca-higgsfield-hero-prompt.md.
+ * OYINCA_PORTRAIT_SRC (the static Higgsfield portrait) is kept as the
+ * fallback for onError below -- if the video ever fails to load, visitors
+ * still see the real character, with the same subtle CSS "Ken Burns"
+ * drift (.lp-hero-portrait-kenburns in landing.css) standing in for
+ * motion, rather than a broken video icon or empty box.
  */
 const VIDEO_SRC = '/hero/oyinca-loop.mp4';
 const POSTER_SRC = '/hero/oyinca-poster.jpg';

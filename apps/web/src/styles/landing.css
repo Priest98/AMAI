@@ -367,12 +367,13 @@
   line-height: 0.98;
 }
 
-/* Oyinca's cinematic hero portrait panel -- portrait aspect so a
-   person-centered video/poster reads naturally, with a rounded frame
-   matching the rest of the site's card language (see .lp-card) rather
-   than a bare rectangle. */
+/* Oyinca's cinematic hero portrait panel -- matches the real generated
+   video's native 9:16 (720x1280) exactly, so object-cover never has to
+   crop the top/bottom of her face, with a rounded frame matching the
+   rest of the site's card language (see .lp-card) rather than a bare
+   rectangle. */
 .lp-hero-visual-frame {
-  aspect-ratio: 4 / 5;
+  aspect-ratio: 9 / 16;
   width: 100%;
   max-width: 380px;
   border-radius: 28px;
@@ -381,13 +382,14 @@
   box-shadow: 0 30px 80px -30px rgba(4, 7, 13, 0.6);
 }
 
-/* Static portrait state (see HeroVisual.tsx) -- no AI video loop exists yet,
-   so a slow, barely-there Ken Burns drift on the real portrait keeps the
-   panel reading as "alive" rather than a frozen photo. Much subtler than
-   the backdrop's .lp-kenburns (that's a blurred, oversized background;
-   this is a sharp foreground face, so the drift has to stay small enough
-   that the frame edges never reveal themselves). Pauses automatically
-   under prefers-reduced-motion via the blanket rule above. */
+/* Static portrait fallback (see HeroVisual.tsx, onError path) -- if the
+   video ever fails to load, a slow, barely-there Ken Burns drift on the
+   real portrait keeps the panel reading as "alive" rather than a frozen
+   photo. Much subtler than the backdrop's .lp-kenburns (that's a
+   blurred, oversized background; this is a sharp foreground face, so
+   the drift has to stay small enough that the frame edges never reveal
+   themselves). Pauses automatically under prefers-reduced-motion via
+   the blanket rule above. */
 @keyframes lp-portrait-kenburns {
   0% { transform: scale(1) translate3d(0, 0, 0); }
   50% { transform: scale(1.035) translate3d(-0.6%, -0.4%, 0); }
