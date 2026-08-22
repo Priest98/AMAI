@@ -17,8 +17,8 @@ export const TOUR_STEPS: TourStep[] = [
     step: 1,
     route: '/dashboard/integrations',
     target: 'nav-integrations',
-    title: 'Connect Your Social Accounts',
-    body: 'Connect your Instagram and TikTok accounts so Oyinca can publish content on your behalf.',
+    title: 'Connect TikTok',
+    body: 'Give Oyinca permission to manage your TikTok content. TikTok is the platform Oyinca supports today, with more on the roadmap.',
   },
   {
     step: 2,
@@ -52,8 +52,8 @@ export const TOUR_STEPS: TourStep[] = [
     step: 6,
     route: '/dashboard/engine',
     target: 'tour-engine-mode',
-    title: 'Configure Oyinca',
-    body: 'Manual Approval means every post requires your review before publishing. Automatic Approval means Oyinca schedules and publishes content on its own. We recommend starting with Manual Approval until you’re confident in the AI.',
+    title: 'Choose Assisted or Autopilot',
+    body: 'Assisted means every post requires your review before publishing. Autopilot means Oyinca schedules and publishes content on its own. We recommend starting with Assisted until you’re confident in the AI.',
   },
   {
     step: 7,

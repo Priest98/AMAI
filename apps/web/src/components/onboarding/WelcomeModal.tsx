@@ -39,13 +39,14 @@ export default function WelcomeModal({ onGetStarted, onSkip }: WelcomeModalProps
 
             <div className="space-y-2">
               <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight" style={{ color: 'var(--text-primary)' }}>
-                Welcome to Oyinca
+                Hi, I&rsquo;m Oyinca 👋
               </h2>
               <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                Your AI-powered social media assistant is ready to help you automate your content from upload to publishing.
+                I&rsquo;m your AI Social Media Manager. I&rsquo;ll help you create, plan, schedule and publish your
+                TikTok content.
               </p>
               <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                Let's get everything set up in just a few minutes.
+                Let&rsquo;s get everything set up in just a few minutes.
               </p>
             </div>
 
@@ -55,7 +56,7 @@ export default function WelcomeModal({ onGetStarted, onSkip }: WelcomeModalProps
                 className="flex-1 py-3.5 px-6 rounded-2xl text-white font-bold text-sm shadow-xl transition flex items-center justify-center space-x-2 touch-target"
                 style={{ background: 'var(--gradient-primary-cta)', boxShadow: '0 10px 25px -5px rgba(124, 58, 237, 0.4)' }}
               >
-                <span>Get Started</span>
+                <span>Let&rsquo;s get started</span>
                 <ArrowRight className="h-4 w-4" />
               </button>
               <button
