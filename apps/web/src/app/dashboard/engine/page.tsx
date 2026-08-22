@@ -426,11 +426,11 @@ export default function AmaiEnginePage() {
       <div className="exec-card p-5 sm:p-6 space-y-3">
         <div className="flex items-center space-x-2">
           <Activity className="h-4 w-4" style={{ color: 'var(--accent-success)' }} />
-          <h3 className="text-h3" style={{ color: 'var(--text-primary)' }}>Activity history</h3>
+          <h3 className="text-h3" style={{ color: 'var(--text-primary)' }}>What Oyinca has been doing</h3>
         </div>
         {activity.length === 0 ? (
           <p className="text-body-sm py-4 text-center" style={{ color: 'var(--text-secondary)' }}>
-            Nothing yet. Upload media and Oyinca will start working.
+            Nothing yet. Upload media and I&rsquo;ll start working.
           </p>
         ) : (
           <ul className="space-y-1 max-h-80 overflow-y-auto">
