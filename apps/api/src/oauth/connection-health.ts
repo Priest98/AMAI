@@ -73,7 +73,7 @@ export function deriveConnectionHealth(conn: {
   const daysUntilExpiry = Math.floor(msRemaining / (1000 * 60 * 60 * 24));
 
   if (daysUntilExpiry <= EXPIRY_WARNING_DAYS) {
-    // A refresh token means AMAI may be able to renew this without the user,
+    // A refresh token means Oyinca may be able to renew this without the user,
     // so it is a warning rather than a hard "you must reconnect".
     return {
       health: 'EXPIRING_SOON',

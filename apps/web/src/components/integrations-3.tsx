@@ -14,7 +14,7 @@ export function IntegrationsBlock() {
 						Core Publishing Platforms
 					</h2>
 					<p className="text-xs md:text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-						Instagram and TikTok power the AMAI AutoPilot engine for automated publishing. Connecting a Google Drive folder for media sync lives in the Media Library.
+						Instagram and TikTok power the Oyinca AutoPilot engine for automated publishing. Connecting a Google Drive folder for media sync lives in the Media Library.
 					</p>
 				</div>
 			</div>

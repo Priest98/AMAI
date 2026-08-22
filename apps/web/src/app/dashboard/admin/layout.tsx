@@ -7,7 +7,7 @@ import { ShieldAlert, ShieldCheck } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 
 /**
- * Shell for AMAI's internal Admin dashboard (/dashboard/admin/*) --
+ * Shell for Oyinca's internal Admin dashboard (/dashboard/admin/*) --
  * cross-organization data no customer, including an Agency owner, should
  * ever see. Deliberately not linked from the main sidebar nav: only
  * reachable by URL, and every /admin/* backend route independently
@@ -71,7 +71,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <div className="p-10 max-w-md mx-auto text-center">
         <ShieldAlert className="h-6 w-6 mx-auto mb-3" style={{ color: 'var(--accent-error)' }} />
         <p className="text-body-sm" style={{ color: 'var(--text-secondary)' }}>
-          This area is restricted to AMAI administrators.
+          This area is restricted to Oyinca administrators.
         </p>
       </div>
     );

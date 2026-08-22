@@ -16,7 +16,7 @@ import {
 import { useEngineEvents, EngineEvent } from "@/lib/useEngineEvents";
 
 /**
- * The AMAI Engine's live workflow visualization -- the product's visual
+ * Oyinca's live workflow visualization -- the product's visual
  * centerpiece. Every node here is driven by real EngineEvent rows arriving
  * over the app's existing SSE stream (see EngineEventsContext /
  * SupabaseRealtimeService), not a decorative fake timeline: a node only
@@ -97,7 +97,7 @@ export default function EngineWorkflowVisualization() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h3 className="text-h3" style={{ color: "var(--text-primary)" }}>
-            AMAI Engine
+            Oyinca
           </h3>
           <p className="text-caption mt-0.5">Live automation pipeline</p>
         </div>

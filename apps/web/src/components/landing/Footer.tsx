@@ -44,7 +44,7 @@ export default function Footer() {
         <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-10">
           <div className="lg:col-span-1">
             <Link href="/" className="font-bold text-lg lp-heading tracking-tight lp-gradient-text lp-focus-ring">
-              AMAI
+              Oyinca
             </Link>
             <p className="mt-4 text-sm leading-relaxed max-w-xs" style={{ color: 'var(--lp-text-secondary)' }}>
               Your TikTok content, on autopilot.
@@ -78,9 +78,9 @@ export default function Footer() {
           style={{ borderColor: 'var(--lp-border)', color: 'var(--lp-text-muted)' }}
         >
           <div className="flex flex-col sm:flex-row items-center gap-1 sm:gap-3">
-            <span>© {new Date().getFullYear()} AMAI TECHNOLOGY. All rights reserved.</span>
+            <span>© {new Date().getFullYear()} Turaab Technology. All rights reserved.</span>
             <span className="hidden sm:inline" aria-hidden="true">·</span>
-            <span>Powered by AMAI TECHNOLOGY</span>
+            <span>Powered by Turaab Technology</span>
           </div>
           <div className="flex items-center gap-4">
             <a href="https://tiktok.com" target="_blank" rel="noopener noreferrer" className="lp-focus-ring">TikTok</a>

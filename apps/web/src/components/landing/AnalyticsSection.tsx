@@ -15,9 +15,9 @@ export default function AnalyticsSection() {
             Don&rsquo;t just see the numbers. Know what to do next.
           </h2>
           <p className="mt-5 text-base leading-relaxed" style={{ color: 'var(--lp-text-secondary)' }}>
-            AMAI turns performance data into useful decisions. Instead of{' '}
+            Oyinca turns performance data into useful decisions. Instead of{' '}
             <span style={{ color: 'var(--lp-text-muted)' }}>&ldquo;Your engagement was 4.2%,&rdquo;</span>{' '}
-            AMAI should help answer{' '}
+            Oyinca should help answer{' '}
             <span className="font-semibold" style={{ color: 'var(--lp-text-primary)' }}>
               &ldquo;Your product videos are outperforming static posts. Here&rsquo;s what I&rsquo;d do next.&rdquo;
             </span>
@@ -28,7 +28,7 @@ export default function AnalyticsSection() {
           <div className="lp-card p-6 sm:p-8">
             <div className="flex items-center gap-2 mb-4">
               <Sparkles className="h-4 w-4" style={{ color: 'var(--lp-cyan)' }} />
-              <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--lp-cyan)' }}>AMAI Recommends</span>
+              <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--lp-cyan)' }}>Oyinca Recommends</span>
             </div>
             <p className="text-sm leading-relaxed" style={{ color: 'var(--lp-text-primary)' }}>
               Your last 5 product videos performed above your average.

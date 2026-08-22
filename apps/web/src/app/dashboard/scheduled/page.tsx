@@ -43,7 +43,7 @@ export default function ScheduledPostsPage() {
     <div className="space-y-6 max-w-6xl mx-auto pb-24 sm:pb-12">
       <SectionHeader
         title="Scheduled Posts"
-        subtitle="Everything the AMAI Engine will publish automatically, in order."
+        subtitle="Everything Oyinca will publish automatically, in order."
         action={
           <Badge variant="purple">
             <span className="flex items-center space-x-1">

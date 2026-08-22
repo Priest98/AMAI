@@ -37,7 +37,7 @@ export class BrandsService {
    * Every figure below is a real count from the database. Nothing is
    * synthesised: if an organization has no posts, the counts are genuinely
    * zero rather than seeded with plausible-looking numbers. Reach and
-   * engagement are deliberately absent because AMAI does not currently
+   * engagement are deliberately absent because Oyinca does not currently
    * ingest platform insights -- surfacing invented values there would be
    * worse than surfacing nothing.
    *
@@ -268,8 +268,8 @@ export class BrandsService {
   /**
    * Portfolio analytics.
    *
-   * IMPORTANT: these are *publishing* metrics (counts of what AMAI did),
-   * not *performance* metrics. AMAI does not currently ingest reach,
+   * IMPORTANT: these are *publishing* metrics (counts of what Oyinca did),
+   * not *performance* metrics. Oyinca does not currently ingest reach,
    * impressions, engagement or follower data from Instagram/TikTok, so
    * those are reported as unavailable rather than invented. Anything
    * returned here is a real row count.
@@ -327,9 +327,9 @@ export class BrandsService {
 
   /**
    * Internal cost-visibility foundation: "what does this customer actually
-   * cost AMAI" -- AI calls/tokens, vision calls, storage, uploads, and
+   * cost Oyinca" -- AI calls/tokens, vision calls, storage, uploads, and
    * publishing calls, all real counts for a real window. Not shown to
-   * customers; this is for AMAI's own operating visibility.
+   * customers; this is for Oyinca's own operating visibility.
    *
    * AiUsageLog.tokensUsed is genuine provider-reported usage (Groq's
    * usage.total_tokens / Gemini's usageMetadata.totalTokenCount) as of this

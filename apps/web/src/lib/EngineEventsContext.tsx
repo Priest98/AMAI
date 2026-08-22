@@ -19,7 +19,7 @@ type Listener = (event: EngineEvent) => void;
 const EngineEventsContext = createContext<{ subscribe: (fn: Listener) => () => void } | null>(null);
 
 /**
- * Opens exactly one SSE connection to the AMAI Engine's activity stream for
+ * Opens exactly one SSE connection to Oyinca's activity stream for
  * the lifetime of the dashboard, instead of every page that calls
  * useEngineEvents() opening (and tearing down) its own EventSource on every
  * navigation. Mounted once in dashboard/layout.tsx, which persists across
@@ -98,7 +98,7 @@ export function EngineEventsProvider({ children }: { children: React.ReactNode }
 }
 
 /**
- * Subscribes to the AMAI Engine's live activity stream. Reuses the single
+ * Subscribes to Oyinca's live activity stream. Reuses the single
  * shared connection from EngineEventsProvider when mounted under one
  * (every /dashboard/* page); falls back to its own standalone EventSource
  * if used outside the provider so nothing breaks if called elsewhere.

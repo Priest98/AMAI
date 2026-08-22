@@ -9,8 +9,8 @@ import { HEALTH_META, healthColor, expiryLabel, PublicConnection } from '@/lib/a
 /**
  * AutoPilot control centre.
  *
- * Shows what AMAI has in flight and whether anything is blocking it. Every
- * number is a real count from the API; subsystems AMAI cannot actually
+ * Shows what Oyinca has in flight and whether anything is blocking it. Every
+ * number is a real count from the API; subsystems Oyinca cannot actually
  * probe report "not checked" rather than a green tick, because a
  * reassurance that isn't backed by a check defeats the purpose of a trust
  * panel.

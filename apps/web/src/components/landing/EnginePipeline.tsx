@@ -20,7 +20,7 @@ const STAGES = [
 ];
 
 /**
- * The dedicated "AMAI Engine" pipeline visualization — loops through every
+ * The dedicated "Oyinca" pipeline visualization — loops through every
  * real stage of the automation (mirrors the actual backend pipeline:
  * upload -> media detection -> AI vision -> caption/hashtag generation ->
  * scoring -> approval -> scheduling -> publish) with the active stage
@@ -40,10 +40,10 @@ export default function EnginePipeline() {
   }, [paused, inView, reduceMotion]);
 
   return (
-    <section id="engine" className="relative py-24 sm:py-32" aria-label="AMAI Engine pipeline">
+    <section id="engine" className="relative py-24 sm:py-32" aria-label="Oyinca pipeline">
       <div className="max-w-7xl mx-auto px-5 sm:px-8">
         <Reveal className="text-center max-w-2xl mx-auto">
-          <Eyebrow>The AMAI Engine</Eyebrow>
+          <Eyebrow>Oyinca</Eyebrow>
           <h2 className="lp-heading mt-5 text-3xl sm:text-4xl font-bold tracking-tight">
             Watch the engine actually work
           </h2>
@@ -58,7 +58,7 @@ export default function EnginePipeline() {
           onMouseEnter={() => setPaused(true)}
           onMouseLeave={() => setPaused(false)}
           role="group"
-          aria-label="AMAI Engine automation stages, auto-advancing"
+          aria-label="Oyinca automation stages, auto-advancing"
         >
           {/* Desktop: horizontal pipeline */}
           <div className="hidden lg:block">

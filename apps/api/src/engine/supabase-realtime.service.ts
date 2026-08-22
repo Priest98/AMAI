@@ -33,7 +33,7 @@ export interface EngineEventRow {
 }
 
 /**
- * Replaces the old in-process EventEmitter2 broadcast for the AMAI Engine
+ * Replaces the old in-process EventEmitter2 broadcast for Oyinca
  * activity stream. The previous design fired 'engine.activity' into
  * NestJS's local EventEmitter2, which only reaches listeners inside the
  * SAME running process -- fatal on Vercel, where the serverless function
@@ -51,7 +51,7 @@ export interface EngineEventRow {
  * emit('engine.activity', X) already does `prisma.engineEvent.create(X)`
  * first (confirmed: zero DB-less/ephemeral emits exist in this codebase),
  * subscribing to INSERTs on EngineEvent captures 100% of what the old
- * transport carried, with no loss of the Approval Queue's live "AMAI
+ * transport carried, with no loss of the Approval Queue's live "Oyinca
  * Engine running…" progress panel or any other consumer.
  */
 @Injectable()

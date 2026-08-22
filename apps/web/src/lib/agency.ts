@@ -123,7 +123,7 @@ export interface AgencyAnalytics {
   windowDays: number;
   since: string;
   totals: { published: number; failed: number; scheduled: number; awaitingApproval: number; clients: number };
-  /** Metrics AMAI cannot measure yet. The UI must say so rather than render a misleading zero. */
+  /** Metrics Oyinca cannot measure yet. The UI must say so rather than render a misleading zero. */
   unavailableMetrics: string[];
   perClient: {
     clientId: string;

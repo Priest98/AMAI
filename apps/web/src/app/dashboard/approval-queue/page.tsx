@@ -111,7 +111,7 @@ export default function ApprovalQueuePage() {
     if (['APPROVAL_QUEUED', 'POST_APPROVED', 'POST_REJECTED', 'POST_EDITED'].includes(event.type)) {
       loadPosts();
     }
-    // Live "AMAI Engine running…" progress while a Publish Now request is
+    // Live "Oyinca running…" progress while a Publish Now request is
     // in flight — these events are broadcast by the real backend publisher
     // as it actually talks to Instagram/TikTok, not a simulated timeline.
     if (event.postId === busyId && ['PUBLISH_STARTED', 'PUBLISH_UPLOADING'].includes(event.type)) {
@@ -258,7 +258,7 @@ export default function ApprovalQueuePage() {
    * had genuinely completed, so the UI could claim success on a post that
    * was never actually posted) — that can legitimately take up to ~30-40s
    * for video, but the queue and the rest of the dashboard no longer wait
-   * on it: the "AMAI Engine running…" status below updates live from real
+   * on it: the "Oyinca running…" status below updates live from real
    * backend events as they happen, and every other page (Scheduled,
    * Published, Analytics) now hears about the outcome over the same
    * Supabase Realtime-backed SSE stream in real time regardless of how long
@@ -269,7 +269,7 @@ export default function ApprovalQueuePage() {
     setPosts((prev) => prev.filter((p) => p.id !== id));
     setEditingPostId((cur) => (cur === id ? null : cur));
     setBusyId(id); setBusyAction('publish');
-    setLiveProgress('Starting the AMAI Engine…');
+    setLiveProgress('Starting Oyinca…');
     try {
       const result = await brandFetch<{ status: string; publishErrors?: { platform: string; error: string }[] }>(
         `/posts/${id}/approve`,
@@ -365,7 +365,7 @@ export default function ApprovalQueuePage() {
               <EmptyState
                 icon={<CheckCircle2 className="h-6 w-6" />}
                 title="Approval Queue Empty"
-                description="Upload media in the Media Library and the AMAI Engine will prepare new posts here for your review."
+                description="Upload media in the Media Library and Oyinca will prepare new posts here for your review."
               />
             </div>
           ) : (

@@ -26,7 +26,7 @@ export default function FinalCTA() {
               TikTok content today.
             </h2>
             <p className="mt-6 text-base sm:text-lg max-w-lg mx-auto" style={{ color: 'var(--lp-text-secondary)' }}>
-              Upload your content. Set your preferences. Let AMAI handle the rest on TikTok.
+              Upload your content. Set your preferences. Let Oyinca handle the rest on TikTok.
             </p>
             <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
               <MagneticButton as={motion.div}>

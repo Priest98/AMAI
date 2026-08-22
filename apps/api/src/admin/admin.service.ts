@@ -4,9 +4,9 @@ import { PostStatus, PlanTier, SubscriptionStatus, ConnectionStatus } from '@pri
 import { PLAN_PRICING, SupportedCurrency, SUPPORTED_CURRENCIES } from '../billing/plans.config';
 
 /**
- * Cross-organization operating view for AMAI's own team -- explicitly not
+ * Cross-organization operating view for Oyinca's own team -- explicitly not
  * customer-facing (see PlatformAdminGuard). Every figure here is a real
- * query; anything AMAI genuinely doesn't track yet (a unified application
+ * query; anything Oyinca genuinely doesn't track yet (a unified application
  * error log, for one) is reported as unavailable rather than invented.
  */
 @Injectable()

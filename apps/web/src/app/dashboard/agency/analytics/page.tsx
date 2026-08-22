@@ -37,8 +37,8 @@ function exportAnalyticsCsv(data: AgencyAnalytics, days: number) {
 /**
  * Portfolio analytics.
  *
- * These are PUBLISHING metrics -- what AMAI did -- not PERFORMANCE metrics.
- * AMAI does not ingest reach, impressions, engagement or follower data from
+ * These are PUBLISHING metrics -- what Oyinca did -- not PERFORMANCE metrics.
+ * Oyinca does not ingest reach, impressions, engagement or follower data from
  * Instagram or TikTok, so those are named explicitly as unavailable rather
  * than rendered as zeros that would read as measured results. Every number
  * shown is a real row count from the database.
@@ -151,8 +151,8 @@ export default function AgencyAnalyticsPage() {
       >
         <Info className="h-4 w-4 shrink-0 mt-0.5" style={{ color: 'var(--text-muted)' }} />
         <p className="text-body-sm" style={{ color: 'var(--text-secondary)' }}>
-          Reach, impressions, engagement and follower growth are not shown because AMAI does not yet pull insights
-          data from Instagram or TikTok. The figures above are publishing activity recorded by AMAI.
+          Reach, impressions, engagement and follower growth are not shown because Oyinca does not yet pull insights
+          data from Instagram or TikTok. The figures above are publishing activity recorded by Oyinca.
         </p>
       </div>
 

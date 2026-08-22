@@ -25,7 +25,7 @@ export class EngineController {
   /**
    * AutoPilot control centre payload: live pipeline counts plus subsystem
    * health. Every value is read from real data -- there are no synthesised
-   * metrics here, and a subsystem AMAI cannot actually probe reports
+   * metrics here, and a subsystem Oyinca cannot actually probe reports
    * 'unknown' rather than a reassuring green tick.
    */
   @Get('control-center')
@@ -83,7 +83,7 @@ export class EngineController {
   }
 
   /**
-   * Server-Sent Events stream of everything the AMAI Engine does for this
+   * Server-Sent Events stream of everything Oyinca does for this
    * brand, so the dashboard, Media Library, Approval Queue, Scheduled Posts
    * and Published Posts pages can all update live without a page refresh.
    *

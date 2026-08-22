@@ -22,7 +22,7 @@ const STEP_LABELS: Record<DemoState, string> = {
 
 /**
  * A frontend-only simulation — no upload, no API call, nothing persisted.
- * Exists purely to show, in ~5 seconds, what the real AMAI Engine pipeline
+ * Exists purely to show, in ~5 seconds, what the real Oyinca pipeline
  * looks like from a user's chair. Clearly labeled as a simulated demo.
  */
 export default function InteractiveDemo() {
@@ -88,7 +88,7 @@ export default function InteractiveDemo() {
                   <Film className="h-7 w-7" style={{ color: 'var(--lp-cyan)' }} />
                 </div>
                 <p className="text-sm mb-6 max-w-sm" style={{ color: 'var(--lp-text-secondary)' }}>
-                  Run a sample video through the AMAI Engine to see caption generation,
+                  Run a sample video through Oyinca to see caption generation,
                   hashtags, and content scoring happen live.
                 </p>
                 <button

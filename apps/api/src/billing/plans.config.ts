@@ -103,7 +103,7 @@ export const PLAN_CONFIG: Record<PlanTier, PlanEntitlements> = {
 };
 
 /**
- * Currencies AMAI actually prices and charges in. Add a new one here, add
+ * Currencies Oyinca actually prices and charges in. Add a new one here, add
  * its row to every tier in PLAN_PRICING below, and create the matching
  * Stripe Price objects (see StripeProviderService.priceIdForPlan for the
  * env var naming convention) -- all three places have to move together.

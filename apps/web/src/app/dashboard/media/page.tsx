@@ -23,7 +23,7 @@ interface MediaAsset {
   status: 'PENDING' | 'PROCESSING' | 'READY' | 'SCHEDULED' | 'PUBLISHED' | 'FAILED';
   lastErrorMessage?: string | null;
   createdAt: string;
-  // P1 media intelligence: the AI-derived category/pillar, once the AMAI
+  // P1 media intelligence: the AI-derived category/pillar, once the Oyinca
   // Engine pipeline has run on this asset (null until then -- never guessed).
   contentCategory?: string | null;
   contentPillar?: string | null;
@@ -69,7 +69,7 @@ interface FolderOption {
 
 const STATUS_LABEL: Record<string, { label: string; className: string }> = {
   PENDING: { label: 'Uploaded', className: 'bg-slate-500/20 text-slate-300 border-slate-500/30' },
-  PROCESSING: { label: 'AMAI is preparing this…', className: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
+  PROCESSING: { label: 'Oyinca is preparing this…', className: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
   READY: { label: 'Ready for review', className: 'bg-sky-500/20 text-sky-400 border-sky-500/30' },
   SCHEDULED: { label: 'Scheduled', className: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
   PUBLISHED: { label: 'Published', className: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
@@ -325,7 +325,7 @@ function MediaSourceSection() {
             </div>
           ) : (
             <p className="text-[11px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-              Connect a folder and AMAI pulls in new files automatically, same as a direct upload.
+              Connect a folder and Oyinca pulls in new files automatically, same as a direct upload.
             </p>
           )}
         </div>
@@ -348,7 +348,7 @@ function MediaSourceSection() {
                 </div>
                 <div>
                   <h3 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>Select Google Drive folder</h3>
-                  <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Choose which folder AMAI should watch</p>
+                  <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Choose which folder Oyinca should watch</p>
                 </div>
               </div>
 
@@ -412,7 +412,7 @@ export default function MediaLibraryPage() {
 
   // ── Manual composer: Single Image / Carousel ──────────────────────────
   // 'single' is the existing, unchanged behavior: every uploaded file
-  // immediately becomes its own post via the automatic AMAI Engine
+  // immediately becomes its own post via the automatic Oyinca
   // pipeline (1 image -> 1 caption -> 1 hashtag set -> 1 post). 'carousel'
   // routes through the new manual composer below: photos and videos (any
   // mix) are staged, not auto-posted, until the user explicitly hits
@@ -437,7 +437,7 @@ export default function MediaLibraryPage() {
 
   useEffect(() => { fetchMediaAssets(); }, [fetchMediaAssets]);
 
-  // Live updates: as soon as the AMAI Engine finishes analysing/preparing an
+  // Live updates: as soon as Oyinca finishes analysing/preparing an
   // uploaded file (whether it came from a direct upload or a Drive sync),
   // this refetches so the status badge updates without a page refresh. A
   // full refetch (rather than patching just the one asset) is deliberate —
@@ -455,7 +455,7 @@ export default function MediaLibraryPage() {
     // register() now returns immediately after the DB write (it no longer
     // blocks on the AI pipeline), so this reflects the true PENDING state;
     // the SSE listener above reconciles it to PROCESSING/READY/SCHEDULED/
-    // FAILED as the AMAI Engine actually works through it.
+    // FAILED as Oyinca actually works through it.
     setAssets((prev) => (prev.some((a) => a.id === asset.id) ? prev : [asset, ...prev]));
   };
 
@@ -541,7 +541,7 @@ export default function MediaLibraryPage() {
       <div>
         <h1 className="text-h1" style={{ color: 'var(--text-primary)' }}>Media Library</h1>
         <p className="text-body-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-          Upload photos and videos. The AMAI Engine takes it from here.
+          Upload photos and videos. Oyinca takes it from here.
         </p>
       </div>
 
@@ -563,7 +563,7 @@ export default function MediaLibraryPage() {
           <h2 className="text-h3" style={{ color: 'var(--text-primary)' }}>Upload New Media</h2>
 
           {/* Explicit Single Image / Carousel choice, per-upload -- this is
-              the one place AMAI decides "1 image = 1 post" vs "up to 5
+              the one place Oyinca decides "1 image = 1 post" vs "up to 5
               images = 1 post, one caption, one hashtag set". Never inferred
               from how many files get dropped at once. */}
           <div className="inline-flex rounded-xl border p-1 gap-1" style={{ backgroundColor: 'var(--bg-surface-sunken)', borderColor: 'var(--card-border)' }}>
@@ -820,7 +820,7 @@ export default function MediaLibraryPage() {
                     </div>
                   )}
 
-                  {/* P1 media intelligence: shows once the AMAI Engine has
+                  {/* P1 media intelligence: shows once Oyinca has
                       actually classified this asset (i.e. it has a real,
                       generated caption behind it) -- absent for anything
                       still PENDING/PROCESSING, never guessed. */}

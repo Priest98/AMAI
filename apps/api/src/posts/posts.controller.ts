@@ -53,7 +53,7 @@ export class PostsController {
   }
 
   // ─────────────────────────────────────────────────────────────
-  // Approval Queue actions — every post the AMAI Engine prepares lands
+  // Approval Queue actions — every post Oyinca prepares lands
   // here first (Manual Approval), or is auto-scheduled (Auto Approval).
   // ─────────────────────────────────────────────────────────────
 

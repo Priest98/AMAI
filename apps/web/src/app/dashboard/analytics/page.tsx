@@ -59,7 +59,7 @@ export default function AnalyticsPage() {
     <div className="space-y-6 max-w-5xl mx-auto pb-24 sm:pb-12">
       <div>
         <h1 className="text-h1" style={{ color: 'var(--text-primary)' }}>Analytics</h1>
-        <p className="text-body-sm mt-1" style={{ color: 'var(--text-secondary)' }}>How your content is moving through the AMAI Engine.</p>
+        <p className="text-body-sm mt-1" style={{ color: 'var(--text-secondary)' }}>How your content is moving through Oyinca.</p>
       </div>
 
       <Reveal className="glass-shell p-4 sm:p-5 grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -72,7 +72,7 @@ export default function AnalyticsPage() {
       <Reveal delay={0.1} className="exec-card overflow-hidden">
         <div className="p-5 border-b flex items-center space-x-2" style={{ borderColor: 'var(--card-border)' }}>
           <Activity className="h-4 w-4" style={{ color: 'var(--accent-success)' }} />
-          <h2 className="text-h3" style={{ color: 'var(--text-primary)' }}>AMAI Engine Activity Log</h2>
+          <h2 className="text-h3" style={{ color: 'var(--text-primary)' }}>Oyinca Activity Log</h2>
         </div>
 
         {loading ? (
@@ -81,7 +81,7 @@ export default function AnalyticsPage() {
           <EmptyState
             icon={<Activity className="h-6 w-6" />}
             title="No activity yet"
-            description="Upload media in the Media Library and every step the AMAI Engine takes will show up here."
+            description="Upload media in the Media Library and every step Oyinca takes will show up here."
           />
         ) : (
           <div className="overflow-x-auto max-h-[32rem]">

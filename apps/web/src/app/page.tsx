@@ -80,33 +80,40 @@ async function PricingSection() {
 }
 
 export const metadata: Metadata = {
-  // Title kept as the exact app name ("AMAI") so the browser-tab title
+  // Title kept as the exact app name ("Oyinca") so the browser-tab title
   // matches the TikTok Developer Portal app name exactly, per TikTok's
-  // app-review requirement (they flagged a mismatch between the two).
-  title: 'AMAI',
+  // app-review requirement (they flagged a mismatch between the two in the
+  // past, back when this was "AMAI"). IMPORTANT: the TikTok Developer
+  // Portal app name must be updated to "Oyinca" to match -- see the final
+  // rebrand report's "Required OAuth/TikTok Developer Portal changes"
+  // section. The full "Your AI Social Media Manager" positioning lives in
+  // the visible hero/description copy instead of the tab title itself.
+  title: 'Oyinca',
   description:
-    'AMAI is your TikTok content on autopilot. Upload your content and AMAI handles captions, hashtags, optimization, scheduling and publishing to TikTok. Start free, no credit card required.',
+    'Oyinca is your AI Social Media Manager. Give it your content and Oyinca creates, plans, schedules and publishes your TikTok content -- captions, hashtags, optimization and publishing, all handled. Start free, no credit card required.',
   keywords: [
+    'AI social media manager',
     'TikTok automation',
     'TikTok scheduling',
-    'TikTok content on autopilot',
     'AI caption generator',
     'TikTok hashtag generator',
     'content approval workflow',
-    'AutoPilot TikTok',
+    'Oyinca Autopilot',
     'automated TikTok publishing',
   ],
   openGraph: {
-    title: 'AMAI: Your TikTok Content on Autopilot',
-    description: 'Upload your content. AMAI handles captions, hashtags, optimization, scheduling and publishing to TikTok, so you don\'t have to.',
-    url: 'https://marketing-os-eight-virid.vercel.app',
-    siteName: 'AMAI',
+    title: 'Oyinca — Your AI Social Media Manager',
+    description: 'Give Oyinca your content. It creates, plans, schedules and publishes your TikTok content while you focus on your business.',
+    // Old preview-deployment domain (marketing-os-eight-virid.vercel.app)
+    // replaced with the real production domain.
+    url: 'https://amai.codes',
+    siteName: 'Oyinca',
     images: [
       {
-        url: 'https://marketing-os-eight-virid.vercel.app/app-icon.jpg',
+        url: 'https://amai.codes/app-icon.jpg',
         width: 1024,
         height: 1024,
-        alt: 'AMAI: Your TikTok Content on Autopilot',
+        alt: 'Oyinca — Your AI Social Media Manager',
       },
     ],
     locale: 'en_US',
@@ -114,23 +121,23 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'AMAI: Your TikTok Content on Autopilot',
-    description: 'Upload your content. AMAI handles captions, hashtags, optimization, scheduling and publishing to TikTok, so you don\'t have to.',
-    images: ['https://marketing-os-eight-virid.vercel.app/app-icon.jpg'],
+    title: 'Oyinca — Your AI Social Media Manager',
+    description: 'Give Oyinca your content. It creates, plans, schedules and publishes your TikTok content while you focus on your business.',
+    images: ['https://amai.codes/app-icon.jpg'],
   },
   alternates: {
-    canonical: 'https://marketing-os-eight-virid.vercel.app',
+    canonical: 'https://amai.codes',
   },
 };
 
 const jsonLd = {
   '@context': 'https://schema.org',
   '@type': 'SoftwareApplication',
-  name: 'AMAI',
+  name: 'Oyinca',
   applicationCategory: 'BusinessApplication',
   operatingSystem: 'Web',
   description:
-    'AMAI turns your existing content into scheduled, published TikTok posts -- AI captions, hashtags, optimization and publishing on autopilot. Free to start, with Pro and Agency plans for more automation and capacity.',
+    'Oyinca is an AI Social Media Manager, powered by Turaab Technology. It creates, plans, schedules and publishes TikTok content on your behalf -- captions, hashtags, optimization and publishing on autopilot. Free to start, with Pro and Agency plans for more automation and capacity.',
   offers: {
     '@type': 'Offer',
     price: '0',
@@ -182,7 +189,7 @@ export default function Home() {
         </a>
         <Nav />
         {/*
-          Eight sections, answering five questions in order: what is AMAI
+          Eight sections, answering five questions in order: what is Oyinca
           (hero), why should I care (problem), how does it work (how it
           works + features), what's the wow (autopilot + product visual),
           what does it cost and can I try it (pricing, FAQ, CTA).

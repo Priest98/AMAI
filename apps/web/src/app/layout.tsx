@@ -4,7 +4,7 @@ import './globals.css';
 import AnalyticsInit from '@/components/analytics/AnalyticsInit';
 
 /**
- * AMAI typography system: Plus Jakarta Sans (product/UI) + Instrument Serif
+ * Oyinca typography system: Plus Jakarta Sans (product/UI) + Instrument Serif
  * (display/brand).
  *
  * Loaded once here at the root so every route -- dashboard, auth pages and
@@ -55,24 +55,29 @@ const instrumentSerif = Instrument_Serif({
 });
 
 export const metadata: Metadata = {
-  title: 'AMAI',
-  description: 'AMAI is an intelligent AI operating system for social media automation, content syncing from Google Drive, and automated publishing to Instagram & TikTok.',
+  title: 'Oyinca — Your AI Social Media Manager',
+  description: 'Oyinca is your AI Social Media Manager, powered by Turaab Technology. Give it your content and Oyinca creates, plans, schedules and publishes your TikTok content -- with Google Drive content sourcing built in.',
   icons: {
     icon: '/icon.svg',
     shortcut: '/icon.svg',
     apple: '/icon.svg',
   },
   openGraph: {
-    title: 'AMAI',
-    description: 'Automate your content pipeline from Google Drive to Instagram & TikTok.',
-    url: 'https://marketing-os-eight-virid.vercel.app',
-    siteName: 'AMAI',
+    title: 'Oyinca — Your AI Social Media Manager',
+    description: 'Give Oyinca your content. It creates, plans, schedules and publishes your TikTok content while you focus on your business.',
+    // Old preview-deployment domain (marketing-os-eight-virid.vercel.app)
+    // replaced with the real production domain -- an OG url pointing at a
+    // stale Vercel preview alias is exactly the kind of "old domain
+    // reference" a TikTok reviewer or link-preview crawler would notice as
+    // inconsistent with the actual submitted app.
+    url: 'https://amai.codes',
+    siteName: 'Oyinca',
     images: [
       {
-        url: 'https://marketing-os-eight-virid.vercel.app/app-icon.jpg',
+        url: 'https://amai.codes/app-icon.jpg',
         width: 1024,
         height: 1024,
-        alt: 'AMAI Icon',
+        alt: 'Oyinca Icon',
       },
     ],
     locale: 'en_US',

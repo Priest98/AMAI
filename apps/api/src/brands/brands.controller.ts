@@ -88,7 +88,7 @@ export class BrandsController {
 
   /**
    * Internal cost-visibility endpoint -- "what does this customer cost
-   * AMAI". Not linked from anywhere in the customer-facing UI; guarded the
+   * Oyinca". Not linked from anywhere in the customer-facing UI; guarded the
    * same as every other organization-scoped resource (OrganizationAccessGuard
    * proves membership), which is enough to keep it invisible to anyone
    * outside this organization. There is no cross-organization admin view

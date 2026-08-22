@@ -17,7 +17,7 @@ const FEATURES = [
   {
     Icon: BrainCircuit,
     title: 'Business Brain',
-    body: 'AMAI learns your business, brand and audience.',
+    body: 'Oyinca learns your business, brand and audience.',
     tone: 'cyan' as const,
   },
   {

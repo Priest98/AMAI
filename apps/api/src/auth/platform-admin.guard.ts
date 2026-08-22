@@ -2,14 +2,14 @@ import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@
 import { PlatformRole } from '@prisma/client';
 
 /**
- * Gates AMAI's own internal admin views (cross-organization data no
+ * Gates Oyinca's own internal admin views (cross-organization data no
  * customer, including an Agency owner, should ever see -- other orgs'
  * user counts, MRR, platform-wide failure rates, error logs, audit trail).
  * Must run after JwtAuthGuard so request.user is populated.
  *
  * Deliberately not User.role / OrganizationMember.role -- both of those
  * are scoped to "this user's role within their own organization", which is
- * a different concept entirely (an Agency OWNER is still not an AMAI
+ * a different concept entirely (an Agency OWNER is still not an Oyinca
  * platform admin). Uses the dedicated `platformRole` column instead.
  *
  * This supersedes the original env-var (ADMIN_EMAILS) allowlist approach
@@ -41,7 +41,7 @@ export class PlatformAdminGuard implements CanActivate {
     const platformRole: PlatformRole | undefined = request.user?.platformRole;
 
     if (platformRole !== PlatformRole.OWNER && platformRole !== PlatformRole.ADMIN) {
-      throw new ForbiddenException('This area is restricted to AMAI administrators.');
+      throw new ForbiddenException('This area is restricted to Oyinca administrators.');
     }
 
     return true;

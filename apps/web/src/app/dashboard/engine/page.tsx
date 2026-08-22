@@ -75,7 +75,7 @@ export default function AmaiEnginePage() {
       setConfig(cfg);
       setActivity(events);
     } catch (e: any) {
-      setMessage(e.message || 'Could not load the AMAI Engine status.');
+      setMessage(e.message || 'Could not load Oyinca status.');
     } finally {
       setLoading(false);
     }
@@ -99,9 +99,9 @@ export default function AmaiEnginePage() {
     setSaving(true);
     try {
       await brandFetch('/engine/state', { method: 'PATCH', body: JSON.stringify({ state: next }) });
-      showToast(next === 'ACTIVE' ? 'AMAI Engine is now Active.' : 'AMAI Engine is now Paused.');
+      showToast(next === 'ACTIVE' ? 'Oyinca is now Active.' : 'Oyinca is now Paused.');
     } catch (e: any) {
-      showToast(e.message || 'Could not update the AMAI Engine.');
+      showToast(e.message || 'Could not update Oyinca.');
       setConfig(config); // revert on failure
     } finally {
       setSaving(false);
@@ -171,7 +171,7 @@ export default function AmaiEnginePage() {
   };
 
   if (loading) {
-    return <div className="p-10 text-center text-xs" style={{ color: 'var(--text-secondary)' }}>Loading AMAI Engine…</div>;
+    return <div className="p-10 text-center text-xs" style={{ color: 'var(--text-secondary)' }}>Loading Oyinca…</div>;
   }
 
   const isActive = config?.state === 'ACTIVE';
@@ -179,14 +179,14 @@ export default function AmaiEnginePage() {
   return (
     <div className="space-y-6 max-w-4xl mx-auto pb-24 sm:pb-12">
       <div>
-        <h1 className="text-h1" style={{ color: 'var(--text-primary)' }}>AMAI Engine</h1>
+        <h1 className="text-h1" style={{ color: 'var(--text-primary)' }}>Oyinca</h1>
         <p className="text-body-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
           The brain of your workspace. It watches for new content and runs your publishing workflow automatically.
         </p>
       </div>
 
       {/* Live pipeline + subsystem health. Placed directly under the
-          heading because "is AMAI working right now" is the first question
+          heading because "is Oyinca working right now" is the first question
           this page exists to answer. */}
       <ControlCenter />
 
@@ -201,7 +201,7 @@ export default function AmaiEnginePage() {
         )}
       </AnimatePresence>
 
-      {/* ── AMAI Engine live workflow — the product's visual centerpiece ── */}
+      {/* ── Oyinca live workflow — the product's visual centerpiece ── */}
       <div data-tour="tour-engine-activity">
         <EngineWorkflowVisualization />
       </div>
@@ -217,12 +217,12 @@ export default function AmaiEnginePage() {
           </div>
           <div>
             <h2 className="text-base font-extrabold tracking-tight" style={{ color: 'var(--text-primary)' }}>
-              {isActive ? 'AMAI Active' : 'AMAI Paused'}
+              {isActive ? 'Oyinca Active' : 'Oyinca Paused'}
             </h2>
             <p className="text-xs mt-1 max-w-md leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
               {isActive
-                ? 'The AMAI Engine is monitoring your content and automating your publishing workflow.'
-                : 'The AMAI Engine will continue preparing your content, but nothing will be published automatically.'}
+                ? 'Oyinca is monitoring your content and automating your publishing workflow.'
+                : 'Oyinca will continue preparing your content, but nothing will be published automatically.'}
             </p>
           </div>
         </div>
@@ -230,7 +230,7 @@ export default function AmaiEnginePage() {
         <GlassmorphicToggle
           checked={isActive}
           onChange={toggleState}
-          ariaLabel="Toggle AMAI Engine"
+          ariaLabel="Toggle Oyinca"
         />
       </div>
 
@@ -283,7 +283,7 @@ export default function AmaiEnginePage() {
         <div>
           <h3 className="text-sm font-extrabold tracking-tight" style={{ color: 'var(--text-primary)' }}>Brand Persona</h3>
           <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-            Shapes the tone, vocabulary, and hashtags AMAI uses when writing your captions.
+            Shapes the tone, vocabulary, and hashtags Oyinca uses when writing your captions.
           </p>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -311,7 +311,7 @@ export default function AmaiEnginePage() {
           <div>
             <h3 className="text-sm font-extrabold tracking-tight" style={{ color: 'var(--text-primary)' }}>Posting Schedule</h3>
             <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-              How many posts to publish per day and when. AMAI builds the full calendar automatically as you upload media.
+              How many posts to publish per day and when. Oyinca builds the full calendar automatically as you upload media.
             </p>
           </div>
         </div>
@@ -415,7 +415,7 @@ export default function AmaiEnginePage() {
         </div>
         {activity.length === 0 ? (
           <p className="text-body-sm py-4 text-center" style={{ color: 'var(--text-secondary)' }}>
-            Nothing yet. Upload media and the AMAI Engine will start working.
+            Nothing yet. Upload media and Oyinca will start working.
           </p>
         ) : (
           <ul className="space-y-1 max-h-80 overflow-y-auto">

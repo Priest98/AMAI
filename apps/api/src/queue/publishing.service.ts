@@ -14,9 +14,9 @@ const MAX_PUBLISH_ATTEMPTS = 3;
 /**
  * TikTok forces every unaudited app's Content Posting API output to
  * SELF_ONLY (private) server-side, confirmed directly against TikTok's own
- * docs -- this isn't something AMAI's request can override until the app
+ * docs -- this isn't something Oyinca's request can override until the app
  * passes TikTok's content-posting audit (a manual, TikTok-side approval
- * process, not a config flag AMAI controls). TIKTOK_CONTENT_AUDITED exists
+ * process, not a config flag Oyinca controls). TIKTOK_CONTENT_AUDITED exists
  * so flipping this after that approval lands is a one-line env change
  * instead of a code change and redeploy. Defaults to SELF_ONLY (unset/any
  * value other than the literal string 'true') because that's the app's
@@ -145,7 +145,7 @@ export class PublishingService {
     const targetIds: string[] = [];
     for (const post of due) {
       // A SCHEDULED post with zero targets ever created means it was
-      // auto-scheduled by the AMAI Engine at a moment when no platform was
+      // auto-scheduled by Oyinca at a moment when no platform was
       // connected (engine.service.ts still creates the Post in that case,
       // just with an empty `targets.create` array) -- confirmed live via a
       // batch of posts that were "checked" on every publishDuePosts pass
@@ -1082,7 +1082,7 @@ export class PublishingService {
           disable_stitch: false,
           // Required by TikTok's Direct Post API (undisclosed-ad compliance) —
           // omitting these causes a generic "request post info is empty or
-          // incorrect" validation failure. AMAI-generated posts are never
+          // incorrect" validation failure. Oyinca-generated posts are never
           // paid/branded content, so both are always false.
           brand_content_toggle: false,
           brand_organic_toggle: false,
@@ -1121,10 +1121,10 @@ export class PublishingService {
    * there is no FILE_UPLOAD equivalent for photos as of TikTok's current
    * Content Posting API. That requires verifying, in the TikTok Developer
    * Portal, whatever domain the image URLs are actually on -- which turned
-   * out to be unverifiable for AMAI's raw Blob storage domain in practice
+   * out to be unverifiable for Oyinca's raw Blob storage domain in practice
    * (Blob storage has no root "index" document to serve a verification
    * file from, and DNS for vercel-storage.com belongs to Vercel, not
-   * AMAI). Fixed by routing photo URLs through media-proxy.controller.ts
+   * Oyinca). Fixed by routing photo URLs through media-proxy.controller.ts
    * instead, which proxies Blob content through amai.codes -- a domain
    * that IS verified, and whose verification covers every path beneath it
    * per TikTok's own docs. See that controller's comment for the full
@@ -1135,7 +1135,7 @@ export class PublishingService {
    * Carousel-aware: TikTok's `photo_images` field natively accepts multiple
    * URLs in one call (this is TikTok's actual "photo carousel" mechanism —
    * a single publish request that fans out to a multi-image TikTok post),
-   * so a single image and a 2-5 image AMAI carousel both go through this
+   * so a single image and a 2-5 image Oyinca carousel both go through this
    * exact same call, just with a longer/shorter array. photo_cover_index
    * is always 0 (the first image, matching PostMedia.order) so the cover
    * shown in TikTok's feed matches the first image the user arranged.

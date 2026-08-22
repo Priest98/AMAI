@@ -52,7 +52,7 @@ export class MediaController {
    * returns immediately (status PENDING) instead of blocking the response
    * on the AI pipeline. The caller (UploadDropzone) fires POST
    * .../assets/:assetId/process right after this resolves, without
-   * awaiting it, so uploads aren't serialized behind AMAI Engine
+   * awaiting it, so uploads aren't serialized behind Oyinca
    * processing and can run with real concurrency.
    */
   @Post('register')
@@ -65,7 +65,7 @@ export class MediaController {
   }
 
   /**
-   * Kicks off the AMAI Engine pipeline (vision analysis, caption/hashtag
+   * Kicks off Oyinca pipeline (vision analysis, caption/hashtag
    * generation, scheduling) for an already-registered asset. Split out from
    * register/upload so the upload response stays fast — this is its own
    * request/response cycle with its own execution budget, bounded by

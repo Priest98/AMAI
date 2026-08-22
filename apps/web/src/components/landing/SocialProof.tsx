@@ -10,7 +10,7 @@ import { Reveal } from './shared';
  */
 export default function SocialProof() {
   return (
-    <section className="relative py-14" aria-label="Who AMAI is built for">
+    <section className="relative py-14" aria-label="Who Oyinca is built for">
       <div className="max-w-3xl mx-auto px-5 sm:px-8 text-center">
         <Reveal>
           <p className="text-sm sm:text-base font-medium" style={{ color: 'var(--lp-text-muted)' }}>

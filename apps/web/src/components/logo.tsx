@@ -21,12 +21,11 @@ export function Monogram({ className = "h-8 w-8", ...props }: React.ComponentPro
           <stop offset="100%" stopColor="#4A7FA7" />
         </linearGradient>
       </defs>
-      {/* Stylized Typographic 'A' Monogram */}
-      <path
-        d="M20 9L29 29H24.5L22.5 24.5H17.5L15.5 29H11L20 9ZM20 14.8L18.7 18.5H21.3L20 14.8Z"
-        fill="#F6FAFD"
-        className="font-black tracking-tighter"
-      />
+      {/* Stylized 'O' Monogram (Oyinca) -- replaces the previous 'A'
+          monogram left over from the AMAI brand; a triangular "A" glyph
+          next to the word "Oyinca" would be exactly the kind of visual
+          brand mismatch the rebrand is meant to eliminate. */}
+      <circle cx="20" cy="20" r="8" fill="none" stroke="#F6FAFD" strokeWidth="4.5" />
       <circle cx="20" cy="20" r="1.5" fill="rgba(246, 250, 253, 0.4)" />
     </svg>
   );
@@ -48,7 +47,7 @@ export function Logo({ className = "", variant = "full", size = "md", ...props }
       <Monogram className="h-8 w-8 flex-shrink-0" />
       <div className="flex items-center space-x-1.5">
         <span className="font-extrabold tracking-[0.2em] uppercase font-sans text-xl" style={{ color: 'var(--text-primary)' }}>
-          AMAI
+          Oyinca
         </span>
         <span
           className="h-2 w-2 rounded-full flex-shrink-0"

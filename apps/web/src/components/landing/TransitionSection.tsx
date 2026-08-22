@@ -10,10 +10,10 @@ export default function TransitionSection() {
         <Reveal>
           <Eyebrow>Meet Your New Digital Employee</Eyebrow>
           <h2 className="lp-heading mt-5 text-3xl sm:text-4xl font-bold tracking-tight">
-            AMAI handles the work behind the post.
+            Oyinca handles the work behind the post.
           </h2>
           <p className="mt-5 text-base sm:text-lg leading-relaxed" style={{ color: 'var(--lp-text-secondary)' }}>
-            AMAI doesn&rsquo;t just schedule content. It learns your business, understands your content,
+            Oyinca doesn&rsquo;t just schedule content. It learns your business, understands your content,
             helps shape your strategy, publishes across your channels, watches the results and uses what
             it learns to make better decisions.
           </p>

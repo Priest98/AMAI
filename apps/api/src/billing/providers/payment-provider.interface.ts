@@ -44,7 +44,7 @@ export interface PaymentProvider {
 
   /**
    * Hosted "manage my billing" page (update card, view invoices, cancel) --
-   * avoids AMAI ever storing card details. Different providers key this off
+   * avoids Oyinca ever storing card details. Different providers key this off
    * different things (Stripe: customer id; Paystack: subscription code), so
    * both are passed through and each implementation uses whichever it
    * needs.

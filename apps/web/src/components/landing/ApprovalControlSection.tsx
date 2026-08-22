@@ -6,8 +6,8 @@ import { Reveal, Eyebrow } from './shared';
 
 const MODES = [
   { Icon: Hand, title: 'Manual', body: 'You decide what gets published.' },
-  { Icon: ShieldCheck, title: 'Approval', body: 'AMAI prepares everything. You approve before publishing.' },
-  { Icon: Zap, title: 'Automatic', body: 'AMAI handles the workflow according to your rules.' },
+  { Icon: ShieldCheck, title: 'Approval', body: 'Oyinca prepares everything. You approve before publishing.' },
+  { Icon: Zap, title: 'Automatic', body: 'Oyinca handles the workflow according to your rules.' },
 ];
 
 export default function ApprovalControlSection() {
@@ -19,7 +19,7 @@ export default function ApprovalControlSection() {
             Autonomous when you want it. Controlled when you need it.
           </h2>
           <p className="mt-4 text-base sm:text-lg" style={{ color: 'var(--lp-text-secondary)' }}>
-            You&rsquo;re always in control. Choose how much AMAI does for you.
+            You&rsquo;re always in control. Choose how much Oyinca does for you.
           </p>
         </Reveal>
 

@@ -6,9 +6,6 @@
       <stop offset="100%" stop-color="#4A7FA7"/>
     </linearGradient>
   </defs>
-  <path
-    d="M256 115.2L371.2 371.2H313.6L287.6 313.6H224.4L198.4 371.2H140.8L256 115.2ZM256 189.44L239.36 236.8H272.64L256 189.44Z"
-    fill="#F6FAFD"
-  />
+  <circle cx="256" cy="256" r="102.4" fill="none" stroke="#F6FAFD" stroke-width="57.6"/>
   <circle cx="256" cy="256" r="19.2" fill="rgba(246, 250, 253, 0.4)"/>
 </svg>

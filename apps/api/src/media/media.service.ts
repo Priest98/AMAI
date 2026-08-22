@@ -221,7 +221,7 @@ export class MediaService {
   }
 
   /**
-   * Runs the AMAI Engine pipeline for an already-registered asset. Called
+   * Runs Oyinca pipeline for an already-registered asset. Called
    * by the frontend as its own request immediately after register/upload
    * resolves (not awaited by the upload call itself) — see createAssetRecord
    * above for why that split exists.
@@ -230,9 +230,9 @@ export class MediaService {
     const asset = await this.prisma.mediaAsset.findFirst({ where: { id: assetId, brandId } });
     if (!asset) throw new NotFoundException('Media asset not found.');
 
-    this.logger.log(`AMAI Engine triggered: asset=${assetId} brand=${brandId}`);
+    this.logger.log(`Oyinca triggered: asset=${assetId} brand=${brandId}`);
 
-    // The AMAI Engine's AI pipeline (vision/caption/hashtags/scheduling)
+    // Oyinca's AI pipeline (vision/caption/hashtags/scheduling)
     // and the Media Optimization Engine are independent -- optimized
     // versions don't need a caption to exist yet, and captioning doesn't
     // need optimized media. Running them concurrently rather than one
@@ -249,7 +249,7 @@ export class MediaService {
     ]);
 
     if (pipelineResult.status === 'rejected') {
-      this.logger.error(`AMAI Engine pipeline threw for asset ${assetId}: ${pipelineResult.reason?.message || pipelineResult.reason}`);
+      this.logger.error(`Oyinca pipeline threw for asset ${assetId}: ${pipelineResult.reason?.message || pipelineResult.reason}`);
     }
     if (optimizationResult.status === 'rejected') {
       this.logger.warn(`Media Optimization Engine threw for asset ${assetId}: ${optimizationResult.reason?.message || optimizationResult.reason}`);
@@ -401,7 +401,7 @@ export class MediaService {
     });
 
     // P1 media intelligence: surface the AI-derived category/pillar once
-    // the AMAI Engine pipeline has actually run on this asset (i.e. once
+    // Oyinca pipeline has actually run on this asset (i.e. once
     // it has a linked Post -- classifyContentCategory and
     // pickBestPillar already compute these from the real vision-derived
     // topic + generated caption at that point, see engine.service.ts). No

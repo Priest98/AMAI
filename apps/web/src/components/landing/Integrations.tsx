@@ -27,7 +27,7 @@ const INTEGRATIONS = [
   {
     icon: HardDrive,
     name: 'Google Drive',
-    description: 'Point AMAI at a watched folder — new media is picked up automatically.',
+    description: 'Point Oyinca at a watched folder — new media is picked up automatically.',
     accent: 'var(--lp-cyan)',
   },
 ];
@@ -42,7 +42,7 @@ export default function Integrations() {
             Works with the platforms you already use
           </h2>
           <p className="mt-4 text-base leading-relaxed" style={{ color: 'var(--lp-text-secondary)' }}>
-            Connect once. AMAI handles the rest across every account.
+            Connect once. Oyinca handles the rest across every account.
           </p>
         </Reveal>
 

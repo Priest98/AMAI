@@ -95,7 +95,7 @@ function ResetPasswordContent() {
             <div className="space-y-2">
               <h2 className="text-h2" style={{ color: 'var(--text-primary)' }}>Password reset</h2>
               <p className="text-body-sm" style={{ color: 'var(--text-secondary)' }}>
-                Your password has been updated. You can now sign in to your AMAI account.
+                Your password has been updated. You can now sign in to your Oyinca account.
               </p>
             </div>
             <Link href="/login">

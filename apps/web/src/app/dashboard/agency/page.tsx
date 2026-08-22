@@ -23,7 +23,7 @@ import { setActiveClientId } from '@/lib/api';
  * connections are broken.
  *
  * Every figure comes from the portfolio endpoint, which counts real rows.
- * Reach/engagement are deliberately absent because AMAI does not ingest
+ * Reach/engagement are deliberately absent because Oyinca does not ingest
  * platform insights yet -- an empty portfolio shows honest zeros rather
  * than seeded numbers.
  */

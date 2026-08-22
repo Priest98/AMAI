@@ -67,7 +67,7 @@ const navSections: NavSection[] = [
       { label: 'Publishing Calendar', href: '/dashboard/calendar', icon: CalendarClock },
       { label: 'Scheduled Posts', href: '/dashboard/scheduled', icon: CalendarIcon },
       { label: 'Published Posts', href: '/dashboard/published', icon: CheckCircle2 },
-      { label: 'AMAI Engine', href: '/dashboard/engine', icon: Zap },
+      { label: 'Oyinca', href: '/dashboard/engine', icon: Zap },
     ],
   },
   {

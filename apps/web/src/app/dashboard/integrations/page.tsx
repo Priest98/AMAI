@@ -201,7 +201,7 @@ export default function ConnectedAccountsPage() {
       {/* Header */}
       <SectionHeader
         title="TikTok Connection"
-        subtitle={showInstagramCard ? 'Tap any platform icon below to authorize and link your accounts instantly.' : 'Connect your TikTok account to let AMAI schedule and publish for you.'}
+        subtitle={showInstagramCard ? 'Tap any platform icon below to authorize and link your accounts instantly.' : 'Connect your TikTok account to let Oyinca schedule and publish for you.'}
       />
 
       {/* Top Banner Block */}
@@ -463,7 +463,7 @@ export default function ConnectedAccountsPage() {
                 see publishing.service.ts's resolveTikTokPrivacyLevel() for
                 the confirmed source. Users need to be told this explicitly
                 rather than discovering it by checking their own TikTok
-                profile after AMAI reports a post as "published." Shown
+                profile after Oyinca reports a post as "published." Shown
                 regardless of connection state since it's true either way. */}
             <div
               className="flex items-start space-x-2 rounded-lg p-2.5 text-[11px] leading-relaxed"
@@ -471,7 +471,7 @@ export default function ConnectedAccountsPage() {
             >
               <Info className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" style={{ color: 'var(--accent-warning)' }} />
               <span>
-                <strong style={{ color: 'var(--text-primary)' }}>Currently private on TikTok.</strong> Until AMAI's TikTok integration completes TikTok&apos;s own content-posting review, posts published here are visible only to your account (TikTok&apos;s platform-side restriction for unreviewed apps, not an AMAI setting).
+                <strong style={{ color: 'var(--text-primary)' }}>Currently private on TikTok.</strong> Until Oyinca's TikTok integration completes TikTok&apos;s own content-posting review, posts published here are visible only to your account (TikTok&apos;s platform-side restriction for unreviewed apps, not an Oyinca setting).
               </span>
             </div>
           </div>

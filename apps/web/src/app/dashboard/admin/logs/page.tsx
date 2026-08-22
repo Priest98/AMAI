@@ -43,7 +43,7 @@ export default function LogsPage() {
       <div>
         <h1 className="text-h1" style={{ color: 'var(--text-primary)' }}>Logs</h1>
         <p className="text-body-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-          Real captured-exception events, flat and ungrouped. Not a general request log -- AMAI doesn't
+          Real captured-exception events, flat and ungrouped. Not a general request log -- Oyinca doesn't
           have a unified application logger beyond this yet, so this is scoped to real errors only.
         </p>
       </div>

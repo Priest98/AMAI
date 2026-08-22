@@ -9,7 +9,7 @@ import { ConnectionStatus, ContentSource, MediaStatus, TargetStatus } from '@pri
 
 /**
  * Google Drive sync — pulls new files from each brand's connected folder
- * and feeds them into the AMAI Engine exactly like a Direct Upload would.
+ * and feeds them into Oyinca exactly like a Direct Upload would.
  *
  * This used to run on an in-process @Cron(EVERY_10_MINUTES) timer, but
  * Vercel serverless functions don't stay alive long enough for NestJS's

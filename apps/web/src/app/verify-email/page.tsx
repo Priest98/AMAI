@@ -106,7 +106,7 @@ function VerifyEmailContent() {
             <div className="space-y-2">
               <h2 className="text-h1" style={{ color: 'var(--text-primary)' }}>Email verified</h2>
               <p className="text-body-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                Your account is active. You can now log in and access your AMAI workspace.
+                Your account is active. You can now log in and access your Oyinca workspace.
               </p>
             </div>
 

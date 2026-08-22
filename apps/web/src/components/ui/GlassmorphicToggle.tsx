@@ -11,7 +11,7 @@ interface GlassmorphicToggleProps {
 export default function GlassmorphicToggle({
   checked,
   onChange,
-  ariaLabel = "Toggle AMAI Engine",
+  ariaLabel = "Toggle Oyinca",
 }: GlassmorphicToggleProps) {
   return (
     <button

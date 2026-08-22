@@ -100,7 +100,7 @@ export default function RegisterPage() {
             </Link>
             <div>
               <h1 className="text-h1" style={{ color: 'var(--text-primary)' }}>
-                Create your AMAI Account
+                Create your Oyinca Account
               </h1>
               <p className="text-body-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
                 Start automating your content pipeline with AI intelligence.
@@ -196,7 +196,7 @@ export default function RegisterPage() {
 
           <div className="pt-2">
             <Button type="submit" variant="primary" fullWidth loading={loading} icon={<ArrowRight className="h-4 w-4" />}>
-              Create AMAI Account
+              Create Oyinca Account
             </Button>
           </div>
         </form>

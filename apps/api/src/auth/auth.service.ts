@@ -25,7 +25,7 @@ export class AuthService {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AMAI</title>
+  <title>Oyinca</title>
 </head>
 <body style="margin: 0; padding: 0; background-color: #0B0D12; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #F8FAFC;">
   <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #0B0D12; padding: 40px 20px;">
@@ -40,7 +40,7 @@ export class AuthService {
                     A
                   </td>
                   <td style="padding-left: 12px; font-size: 24px; font-weight: 800; letter-spacing: -0.03em; color: #ffffff;">
-                    AMAI
+                    Oyinca
                   </td>
                 </tr>
               </table>
@@ -49,8 +49,8 @@ export class AuthService {
           ${bodyHtml}
           <tr>
             <td align="center" style="padding-top: 32px; font-size: 11px; color: #475569;">
-              © ${new Date().getFullYear()} AMAI TECHNOLOGY. All rights reserved.<br>
-              Powered by AMAI TECHNOLOGY<br>
+              © ${new Date().getFullYear()} Turaab Technology. All rights reserved.<br>
+              Powered by Turaab Technology<br>
               <a href="${getAppUrl()}/privacy" style="color: #8B5CF6; text-decoration: none;">Privacy Policy</a> &bull;
               <a href="${getAppUrl()}/terms" style="color: #8B5CF6; text-decoration: none;">Terms of Service</a>
             </td>
@@ -69,13 +69,13 @@ export class AuthService {
           <tr>
             <td align="left" style="padding-bottom: 16px;">
               <h1 style="margin: 0; font-size: 22px; font-weight: 800; color: #ffffff; letter-spacing: -0.02em;">
-                Welcome to AMAI, ${fullName}! 🚀
+                Welcome to Oyinca, ${fullName}! 🚀
               </h1>
             </td>
           </tr>
           <tr>
             <td align="left" style="padding-bottom: 24px; font-size: 14px; line-height: 1.6; color: #94A3B8;">
-              Thank you for signing up for AMAI—the AI Operating System for Social Media Automation. You're one step away from transforming your content pipeline. Please verify your email address below to activate your account.
+              Thank you for signing up for Oyinca—the AI Operating System for Social Media Automation. You're one step away from transforming your content pipeline. Please verify your email address below to activate your account.
             </td>
           </tr>
           <tr>
@@ -87,7 +87,7 @@ export class AuthService {
           </tr>
           <tr>
             <td align="left" style="padding-top: 24px; border-top: 1px solid rgba(255, 255, 255, 0.08); font-size: 12px; line-height: 1.5; color: #64748B;">
-              If you didn't create an AMAI account, you can safely ignore this email. This link will expire in 24 hours.
+              If you didn't create an Oyinca account, you can safely ignore this email. This link will expire in 24 hours.
             </td>
           </tr>
     `);
@@ -98,13 +98,13 @@ export class AuthService {
           <tr>
             <td align="left" style="padding-bottom: 16px;">
               <h1 style="margin: 0; font-size: 22px; font-weight: 800; color: #ffffff; letter-spacing: -0.02em;">
-                Reset your AMAI password
+                Reset your Oyinca password
               </h1>
             </td>
           </tr>
           <tr>
             <td align="left" style="padding-bottom: 24px; font-size: 14px; line-height: 1.6; color: #94A3B8;">
-              We received a request to reset your AMAI account password. Click below to choose a new one. This link expires in 1 hour.
+              We received a request to reset your Oyinca account password. Click below to choose a new one. This link expires in 1 hour.
             </td>
           </tr>
           <tr>
@@ -212,11 +212,11 @@ export class AuthService {
     const verificationUrl = `${appUrl}/verify-email?token=${verificationToken}`;
 
     const emailHtml = this.generateWelcomeEmailHtml(user.fullName || 'Creator', verificationUrl);
-    await this.emailService.sendEmail(user.email, 'Welcome to AMAI 🚀 — verify your email', emailHtml);
+    await this.emailService.sendEmail(user.email, 'Welcome to Oyinca 🚀 — verify your email', emailHtml);
 
     return {
       success: true,
-      message: "Welcome to AMAI! We've sent a verification email to your inbox.",
+      message: "Welcome to Oyinca! We've sent a verification email to your inbox.",
       email: user.email,
     };
   }
@@ -254,7 +254,7 @@ export class AuthService {
 
     return {
       success: true,
-      message: 'Email address verified successfully! You can now log in to AMAI.',
+      message: 'Email address verified successfully! You can now log in to Oyinca.',
     };
   }
 
@@ -279,7 +279,7 @@ export class AuthService {
         const appUrl = getAppUrl();
         const verificationUrl = `${appUrl}/verify-email?token=${verificationToken}`;
         const emailHtml = this.generateWelcomeEmailHtml(user.fullName || 'Creator', verificationUrl);
-        await this.emailService.sendEmail(user.email, 'Verify your AMAI email address', emailHtml);
+        await this.emailService.sendEmail(user.email, 'Verify your Oyinca email address', emailHtml);
       }
     } catch (e: any) {
       this.logger.warn(`resendVerification error: ${e.message}`);
@@ -307,7 +307,7 @@ export class AuthService {
         const appUrl = getAppUrl();
         const resetUrl = `${appUrl}/reset-password?token=${passwordResetToken}`;
         const emailHtml = this.generatePasswordResetEmailHtml(resetUrl);
-        await this.emailService.sendEmail(cleanEmail, 'Reset your AMAI password', emailHtml);
+        await this.emailService.sendEmail(cleanEmail, 'Reset your Oyinca password', emailHtml);
       }
     } catch (e: any) {
       this.logger.warn(`forgotPassword lookup error: ${e.message}`);

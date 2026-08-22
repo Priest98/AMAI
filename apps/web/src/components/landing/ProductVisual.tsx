@@ -7,7 +7,7 @@ import { Reveal } from './shared';
 
 /**
  * Proof section. Deliberately almost copy-free: by this point the visitor
- * has been told what AMAI does three times over, and a fourth paragraph
+ * has been told what Oyinca does three times over, and a fourth paragraph
  * saying it again is weaker than simply showing the product doing it. This
  * replaces both the old EnginePipeline section and the InteractiveDemo
  * walkthrough, which were two separate "watch it work" sections making
@@ -16,7 +16,7 @@ import { Reveal } from './shared';
  * The figures below are an illustrative snapshot of the dashboard, not live
  * data -- kept deliberately modest and generic (no invented customer
  * metrics or growth percentages) so nothing here reads as a performance
- * claim AMAI can't stand behind.
+ * claim Oyinca can't stand behind.
  */
 const STATUS_ITEMS = [
   { Icon: Zap, label: 'AutoPilot', value: 'Active', tone: 'cyan' as const, live: true },
@@ -28,7 +28,7 @@ const STATUS_ITEMS = [
 
 export default function ProductVisual() {
   return (
-    <section className="relative py-16 sm:py-20" aria-label="AMAI at work">
+    <section className="relative py-16 sm:py-20" aria-label="Oyinca at work">
       <div className="max-w-5xl mx-auto px-5 sm:px-8">
         <Reveal className="text-center max-w-2xl mx-auto">
           <h2 className="lp-heading text-3xl sm:text-4xl font-bold tracking-tight">

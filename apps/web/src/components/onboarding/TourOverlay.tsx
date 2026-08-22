@@ -98,7 +98,7 @@ export default function TourOverlay({ step, stepIndex, totalSteps, onNext, onPre
                 className="w-full py-3.5 px-6 rounded-2xl text-white font-bold text-sm shadow-xl transition touch-target"
                 style={{ background: 'var(--gradient-primary-cta)', boxShadow: '0 10px 25px -5px rgba(124, 58, 237, 0.4)' }}
               >
-                Start Using AMAI
+                Start Using Oyinca
               </button>
             </div>
           </motion.div>

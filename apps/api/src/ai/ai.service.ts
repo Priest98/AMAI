@@ -68,7 +68,7 @@ const NICHE_HASHTAG_MAP: Record<string, { highVolume: string[]; medium: string[]
  * PublishingService.publishToPlatform) -- FACEBOOK/X/LINKEDIN exist in the
  * Platform enum for future use but aren't connectable yet, so they get a
  * neutral fallback rather than fabricated platform conventions for a
- * platform AMAI doesn't actually publish to.
+ * platform Oyinca doesn't actually publish to.
  */
 const PLATFORM_GUIDANCE: Record<string, string> = {
   Instagram: `Instagram-specific conventions: the caption can run longer and more narrative than TikTok -- line breaks between short paragraphs read better than one dense block. Hashtags conventionally sit as a block at the very end, separate from the caption body. Aesthetic, polished language fits the platform; it's fine to be a little more "written" rather than spoken.`,
@@ -77,7 +77,7 @@ const PLATFORM_GUIDANCE: Record<string, string> = {
 const DEFAULT_PLATFORM_GUIDANCE = `Keep the tone natural for a short-form social post and stay within typical character limits for this platform.`;
 
 /**
- * AMAI-Engine-facing façade over the AI Layer. This class owns *what* to
+ * Oyinca-facing façade over the AI Layer. This class owns *what* to
  * ask for (prompts, niche defaults, output cleanup, static fallback
  * templates) and always resolves to a usable string even if every
  * provider fails -- it deliberately knows nothing about Groq, Gemini, API
@@ -128,7 +128,7 @@ export class AiService {
 
   /**
    * Cost-visibility foundation: records one real AiUsageLog row per AI call
-   * so "what does one customer cost AMAI" can be answered from genuine
+   * so "what does one customer cost Oyinca" can be answered from genuine
    * data. tokensUsed comes from the provider's own response (Groq's
    * usage.total_tokens, Gemini's usageMetadata.totalTokenCount) -- this
    * used to be a hardcoded `120` on every caption call regardless of what

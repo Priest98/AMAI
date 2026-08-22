@@ -16,7 +16,7 @@ const NAV_LINKS = [
 
 /**
  * Floating "island" header -- a self-contained pill rather than a
- * full-width bar, adapted (not copied) for AMAI: it stays centered and
+ * full-width bar, adapted (not copied) for Oyinca: it stays centered and
  * sticky, tightens its padding/shadow once the page scrolls, and the
  * mobile menu drops as its own rounded glass panel just beneath the pill
  * instead of a full-width strip.
@@ -53,8 +53,8 @@ export default function Nav() {
               : '0 6px 24px -10px rgba(0, 0, 0, 0.4), inset 0 1px 0 0 rgba(255, 255, 255, 0.04)',
           }}
         >
-          <Link href="/" className="font-bold text-lg lp-heading tracking-tight lp-gradient-text lp-focus-ring shrink-0" aria-label="AMAI home">
-            AMAI
+          <Link href="/" className="font-bold text-lg lp-heading tracking-tight lp-gradient-text lp-focus-ring shrink-0" aria-label="Oyinca home">
+            Oyinca
           </Link>
 
           <div className="hidden lg:flex items-center gap-9 mx-9">

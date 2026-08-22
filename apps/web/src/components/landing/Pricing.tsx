@@ -253,7 +253,7 @@ export default function Pricing({ initialData }: { initialData?: PlansResponse |
           })}
         </div>
 
-        {/* Where the old standalone "Who AMAI is for" (three large cards)
+        {/* Where the old standalone "Who Oyinca is for" (three large cards)
             and "For Agencies" sections ended up. The plans themselves
             already communicate who each tier is for -- restating it as two
             full sections earlier in the page made a small-business visitor

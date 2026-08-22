@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Single source of truth for talking to the AMAI backend (NestJS API).
+ * Single source of truth for talking to the Oyinca backend (NestJS API).
  * Centralizes the API base URL, auth token handling, and brand-scoped
  * fetch helpers so pages stop re-implementing the same logic.
  */

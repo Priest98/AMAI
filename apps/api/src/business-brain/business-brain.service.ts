@@ -88,7 +88,7 @@ export class BusinessBrainService {
     return scored[0]?.hits > 0 ? scored[0].pillar : null;
   }
 
-  // --- AMAI Memory -------------------------------------------------------
+  // --- Oyinca Memory -------------------------------------------------------
 
   async listMemoryEntries(brandId: string, activeOnly = true) {
     return this.prisma.memoryEntry.findMany({

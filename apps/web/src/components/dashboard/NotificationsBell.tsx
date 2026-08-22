@@ -21,7 +21,7 @@ import { useEngineEvents, EngineEvent } from "@/lib/useEngineEvents";
  * something the user would actually want to know about happens (a post
  * published, a publish failed and needs attention, a post landed in the
  * Approval Queue, an account's token expired). Driven by the same SSE stream
- * (useEngineEvents) as the AMAI Engine visualization and every other live
+ * (useEngineEvents) as Oyinca visualization and every other live
  * surface in the app.
  *
  * Each notifiable type maps to exactly one destination via LINK_FOR, so a

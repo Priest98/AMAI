@@ -34,7 +34,7 @@ const MAX_KEY_ATTEMPTS_PER_PROVIDER = 3;
  * through. Owns: which providers exist and in what priority order,
  * resolving a key via ApiKeyManagerService for multi-key providers,
  * per-call timeouts, retrying across keys/providers on failure, and
- * structured logging of every stage. AiService (the AMAI-Engine-facing
+ * structured logging of every stage. AiService (the Oyinca-facing
  * façade) and anything else that needs an AI completion call this and
  * this alone -- nothing downstream ever talks to fetch()/an SDK directly.
  *

@@ -22,10 +22,10 @@ export default function BusinessBrainSection() {
         <Reveal>
           <Eyebrow>Business Brain</Eyebrow>
           <h2 className="lp-heading mt-5 text-3xl sm:text-4xl font-bold tracking-tight">
-            The more AMAI knows, the better it works.
+            The more Oyinca knows, the better it works.
           </h2>
           <p className="mt-5 text-base leading-relaxed" style={{ color: 'var(--lp-text-secondary)' }}>
-            Your business isn&rsquo;t generic. Your social media shouldn&rsquo;t be either. AMAI remembers
+            Your business isn&rsquo;t generic. Your social media shouldn&rsquo;t be either. Oyinca remembers
             the things that matter, and over time builds a smarter picture of your business.
           </p>
 
@@ -34,7 +34,7 @@ export default function BusinessBrainSection() {
               Generic AI gives you answers.
             </p>
             <p className="mt-1 lp-heading text-lg font-bold lp-gradient-text">
-              AMAI learns how your business works.
+              Oyinca learns how your business works.
             </p>
           </div>
         </Reveal>

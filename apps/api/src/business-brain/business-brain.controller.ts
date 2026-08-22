@@ -38,7 +38,7 @@ export class BusinessBrainController {
   }
 
   // Exposed mainly for manual QA locally — lets us confirm the prompt
-  // context AMAI would actually inject without digging through logs.
+  // context Oyinca would actually inject without digging through logs.
   @Get('prompt-context')
   async promptContext(@Param('brandId') brandId: string) {
     const context = await this.businessBrainService.buildPromptContext(brandId);
@@ -68,7 +68,7 @@ export class BusinessBrainController {
       return { ideas: [], reason: 'Fill in your Business Brain first so ideas are grounded in your actual business.' };
     }
     const ideas = await this.aiService.generateContentIdeas(brandId, 'amai_engine', context, brain.contentPillars);
-    // Only counted once generation actually succeeded, same as the AMAI
+    // Only counted once generation actually succeeded, same as the Oyinca
     // Engine's own caption/hashtag generation -- a failed/empty attempt
     // never burns quota.
     if (ideas.length > 0) {

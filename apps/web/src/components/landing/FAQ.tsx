@@ -23,15 +23,15 @@ const FAQS = [
   },
   {
     q: 'How does TikTok publishing work?',
-    a: 'Connect your TikTok account, and AMAI can publish directly through TikTok\'s own API. You choose the level of automation: Manual, Approval or Automatic.',
+    a: 'Connect your TikTok account, and Oyinca can publish directly through TikTok\'s own API. You choose the level of automation: Manual, Approval or Automatic.',
   },
   {
     q: 'Can I cancel Pro?',
     a: 'Yes, according to the applicable subscription terms. Your access may remain active until the end of your current billing period.',
   },
   {
-    q: 'Is AMAI only for TikTok?',
-    a: 'AMAI is TikTok-first today. Other platforms are on the roadmap, but TikTok is where the product is most polished right now.',
+    q: 'Is Oyinca only for TikTok?',
+    a: 'Oyinca is TikTok-first today. Other platforms are on the roadmap, but TikTok is where the product is most polished right now.',
   },
 ];
 

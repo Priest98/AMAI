@@ -2,7 +2,7 @@
 @import "../styles/theme-fixes.css";
 
 /*
- * AMAI Design System v2 — Light & Dark
+ * Oyinca Design System v2 — Light & Dark
  *
  * Typography: Plus Jakarta Sans (product/UI, ~90%) + Instrument Serif
  * (display/brand, ~10%). Both loaded once in layout.tsx via next/font/google
@@ -79,7 +79,7 @@
   --gradient-mesh-subtle: radial-gradient(60% 60% at 15% 10%, rgba(74, 127, 167, 0.08) 0%, transparent 60%),
     radial-gradient(50% 50% at 100% 0%, rgba(10, 25, 49, 0.05) 0%, transparent 60%);
 
-  /* AMAI typography: Plus Jakarta Sans (product) + Instrument Serif (brand).
+  /* Oyinca typography: Plus Jakarta Sans (product) + Instrument Serif (brand).
      Plus Jakarta Sans drives both body and headings; Instrument Serif is
      display only, applied selectively via --font-display. */
   --font-sans: var(--font-body-var), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;

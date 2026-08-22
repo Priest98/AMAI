@@ -13,7 +13,7 @@ const STEPS = [
   {
     Icon: Brain,
     title: 'Let AI prepare your post',
-    body: 'AMAI writes the caption and hashtags and optimizes your content for TikTok.',
+    body: 'Oyinca writes the caption and hashtags and optimizes your content for TikTok.',
   },
   {
     Icon: PlayCircle,
@@ -22,14 +22,14 @@ const STEPS = [
   },
   {
     Icon: TrendingUp,
-    title: 'AMAI publishes to TikTok',
-    body: 'Your post goes live on TikTok, and AMAI logs the result and learns for next time.',
+    title: 'Oyinca publishes to TikTok',
+    body: 'Your post goes live on TikTok, and Oyinca logs the result and learns for next time.',
   },
 ];
 
 export default function HowItWorks() {
   return (
-    <section id="how-it-works" className="relative py-16 sm:py-20" aria-label="How AMAI works">
+    <section id="how-it-works" className="relative py-16 sm:py-20" aria-label="How Oyinca works">
       <div className="max-w-7xl mx-auto px-5 sm:px-8">
         <Reveal className="text-center max-w-2xl mx-auto">
           <Eyebrow>How It Works</Eyebrow>

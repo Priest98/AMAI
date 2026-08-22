@@ -43,7 +43,7 @@ export default function PublishedPostsPage() {
     <div className="space-y-6 max-w-6xl mx-auto pb-24 sm:pb-12">
       <SectionHeader
         title="Published Posts"
-        subtitle="A record of everything AMAI has published on your behalf."
+        subtitle="A record of everything Oyinca has published on your behalf."
         action={
           <Badge variant="success">
             <span className="flex items-center space-x-1">

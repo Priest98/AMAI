@@ -150,7 +150,7 @@ export class TelegramService {
   formatWatchdogOffline(lastHeartbeatAt: Date | null, expectedIntervalMinutes: number): string {
     const last = lastHeartbeatAt ? lastHeartbeatAt.toISOString() : 'never';
     return [
-      `🚨 <b>AMAI MONITORING ENGINE OFFLINE</b>`,
+      `🚨 <b>Oyinca MONITORING ENGINE OFFLINE</b>`,
       `The Health Engine has not reported a heartbeat within the expected interval. This is critical.`,
       `Last heartbeat: ${last}`,
       `Expected interval: every ${expectedIntervalMinutes} min`,
@@ -175,7 +175,7 @@ export class TelegramService {
       .join(', ');
 
     return [
-      `📊 <b>AMAI Daily Health Report</b>`,
+      `📊 <b>Oyinca Daily Health Report</b>`,
       `Overall health: ${data.overallHealthPct.toFixed(1)}%`,
       '',
       ...subsystemLines,

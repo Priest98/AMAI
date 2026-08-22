@@ -14,7 +14,7 @@ const PAIN_POINTS = [
 
 export default function ProblemSection() {
   return (
-    <section className="relative py-16 sm:py-20" aria-label="The problem AMAI solves">
+    <section className="relative py-16 sm:py-20" aria-label="The problem Oyinca solves">
       <div className="max-w-3xl mx-auto px-5 sm:px-8 text-center">
         <Reveal>
           <h2 className="lp-heading text-3xl sm:text-4xl font-bold tracking-tight">
@@ -33,7 +33,7 @@ export default function ProblemSection() {
 
         <Reveal delay={0.2}>
           <p className="mt-8 text-lg sm:text-xl font-semibold lp-heading">
-            It all takes time. <span className="lp-gradient-text">AMAI handles the repetitive work.</span>
+            It all takes time. <span className="lp-gradient-text">Oyinca handles the repetitive work.</span>
           </p>
         </Reveal>
       </div>

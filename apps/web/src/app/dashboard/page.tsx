@@ -163,7 +163,7 @@ export default function DashboardPage() {
             <Badge variant={engineState === 'ACTIVE' ? 'success' : 'neutral'}>
               <span className="flex items-center space-x-1.5">
                 {engineState === 'ACTIVE' ? <Zap className="h-3 w-3" /> : <Pause className="h-3 w-3" />}
-                <span>{engineState === 'ACTIVE' ? 'AMAI Active' : 'AMAI Paused'}</span>
+                <span>{engineState === 'ACTIVE' ? 'Oyinca Active' : 'Oyinca Paused'}</span>
               </span>
             </Badge>
             <Badge variant={approvalMode === 'AUTO' ? 'warning' : 'purple'}>
@@ -183,7 +183,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ── AMAI Engine — live and center-stage on the flagship page ── */}
+      {/* ── Oyinca — live and center-stage on the flagship page ── */}
       <motion.div variants={itemVariants}>
         <EngineWorkflowVisualization />
       </motion.div>
@@ -240,7 +240,7 @@ export default function DashboardPage() {
               <EmptyState
                 icon={<CheckCircle2 className="h-6 w-6" />}
                 title="All caught up"
-                description="Upload new media and the AMAI Engine will generate posts here automatically."
+                description="Upload new media and Oyinca will generate posts here automatically."
                 actionLabel="Upload media"
                 onAction={() => { window.location.href = '/dashboard/media'; }}
               />
@@ -267,7 +267,7 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-h3" style={{ color: 'var(--text-primary)' }}>TikTok Connection</h3>
-                <p className="text-body-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Where AMAI publishes for you</p>
+                <p className="text-body-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Where Oyinca publishes for you</p>
               </div>
             </div>
 

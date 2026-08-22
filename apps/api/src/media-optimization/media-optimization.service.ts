@@ -6,7 +6,7 @@ import { ImageOptimizationEngine } from './engines/image-optimization.engine';
 import { VideoOptimizationEngine } from './engines/video-optimization.engine';
 
 // Bounds the whole optimize-for-every-connected-platform pass. Runs
-// concurrently with (not blocking, and not blocked by) the AMAI Engine's
+// concurrently with (not blocking, and not blocked by) Oyinca's
 // AI pipeline -- see MediaService.triggerProcessing, which awaits both via
 // Promise.allSettled so neither can leave the other's work stranded by a
 // frozen Lambda after an early HTTP response. Kept below the AI

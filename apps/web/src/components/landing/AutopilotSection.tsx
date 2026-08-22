@@ -59,7 +59,7 @@ export default function AutopilotSection() {
           <p className="text-sm font-medium" style={{ color: 'var(--lp-text-muted)' }}>
             Choose <span style={{ color: 'var(--lp-text-secondary)' }}>Manual</span>,{' '}
             <span style={{ color: 'var(--lp-text-secondary)' }}>Approval</span> or{' '}
-            <span style={{ color: 'var(--lp-text-secondary)' }}>Automatic</span> mode. You decide how much AMAI does.
+            <span style={{ color: 'var(--lp-text-secondary)' }}>Automatic</span> mode. You decide how much Oyinca does.
           </p>
         </Reveal>
       </div>

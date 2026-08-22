@@ -2,7 +2,7 @@ import { Controller, Get, NotFoundException, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
 
 /**
- * Streams AMAI's Vercel Blob storage content through amai.codes itself.
+ * Streams Oyinca's Vercel Blob storage content through amai.codes itself.
  *
  * Why this exists: TikTok's photo-post endpoint only supports
  * PULL_FROM_URL (see publishTikTokPhoto in publishing.service.ts), which
@@ -11,7 +11,7 @@ import type { Request, Response } from 'express';
  * (*.public.blob.vercel-storage.com) -- and that domain turns out to be
  * unverifiable there in practice: TikTok's "Verify domains" check expects
  * either a DNS TXT record at the domain root (impossible -- Vercel, not
- * AMAI, owns vercel-storage.com) or a file reachable at the bare domain
+ * Oyinca, owns vercel-storage.com) or a file reachable at the bare domain
  * root `https://<store>.public.blob.vercel-storage.com/` (confirmed
  * empty/unservable -- Blob storage has no concept of a root "index"
  * document; it only ever responds at a blob's own exact stored pathname).

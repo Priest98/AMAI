@@ -16,7 +16,7 @@ interface UploadItem {
   status: "queued" | "uploading" | "processing" | "done" | "error";
   error?: string;
   assetId?: string;
-  /** Latest AMAI Engine stage reached, driven by live SSE events for this asset. */
+  /** Latest Oyinca stage reached, driven by live SSE events for this asset. */
   stage: StageKey;
   terminal?: "approval" | "scheduled";
   controller?: AbortController;
@@ -33,7 +33,7 @@ const ALLOWED_MIME_TYPES = new Set([
 const MAX_SIZE_BYTES = 500 * 1024 * 1024;
 // How many files upload+register+trigger concurrently. Registration is now
 // fast (it no longer waits on the AI pipeline — see MediaService.createAssetRecord)
-// and AMAI processing runs as its own decoupled request, so there's no
+// and Oyinca processing runs as its own decoupled request, so there's no
 // reason to force every file through one at a time anymore. Capped rather
 // than fully unbounded so a 35-file batch doesn't open 35 simultaneous Blob
 // transfers on the user's connection at once.
@@ -44,7 +44,7 @@ type StageKey = typeof STAGE_ORDER[number] | "idle";
 
 const STAGE_LABEL: Record<Exclude<StageKey, "idle">, string> = {
   uploaded: "Upload complete",
-  analyzing: "AMAI Engine analyzing media…",
+  analyzing: "Oyinca analyzing media…",
   caption: "Generating caption…",
   hashtags: "Generating hashtags…",
   scheduling: "Calculating content score & best posting time…",
@@ -146,7 +146,7 @@ async function uploadAndRegister(
   return body;
 }
 
-/** Fires the AMAI Engine's processing pipeline for a just-registered asset.
+/** Fires Oyinca's processing pipeline for a just-registered asset.
  * Deliberately a separate request from register() — see MediaService's
  * createAssetRecord/triggerProcessing for why. Not awaited by the upload
  * queue loop (so the next file can start immediately); its own resolution
@@ -160,7 +160,7 @@ async function triggerProcessing(brandId: string, assetId: string): Promise<any>
   let body: any = null;
   try { body = await res.json(); } catch {}
   if (!res.ok) {
-    const message = body?.message || "AMAI Engine failed to start for this file.";
+    const message = body?.message || "Oyinca failed to start for this file.";
     throw new Error(Array.isArray(message) ? message.join(", ") : message);
   }
   return body;
@@ -208,7 +208,7 @@ interface UploadDropzoneProps {
   onUploaded?: (asset: any) => void;
   /**
    * 'single' (default): unchanged behavior -- every uploaded file
-   * immediately triggers the automatic AMAI Engine pipeline and becomes its
+   * immediately triggers the automatic Oyinca pipeline and becomes its
    * own post. 'carousel': photos and videos are uploaded and registered but
    * NOT auto-triggered -- they're handed to onCarouselAssetReady instead,
    * so the caller can stage them (in any image/video mix) and later
@@ -273,13 +273,13 @@ export default function UploadDropzone({ onUploaded, mode = 'single', onCarousel
 
       // Fire-and-track, not fire-and-forget: errors here (the request
       // itself failing to go out, e.g. network drop right after upload)
-      // still surface in the UI with a retry option. The actual AMAI
+      // still surface in the UI with a retry option. The actual Oyinca
       // Engine progress is reported live via the SSE handler above, not
       // by awaiting this — that's what lets uploads run at real
       // concurrency instead of queuing behind AI processing time.
       if (isAuthenticated()) {
         triggerProcessing(getBrandId(), asset.id).catch((err) => {
-          setItems((prev) => prev.map((i) => (i.id === item.id && i.status !== "done" ? { ...i, status: "error", error: err?.message || "AMAI Engine failed to start." } : i)));
+          setItems((prev) => prev.map((i) => (i.id === item.id && i.status !== "done" ? { ...i, status: "error", error: err?.message || "Oyinca failed to start." } : i)));
         });
       }
     } catch (err: any) {
@@ -335,7 +335,7 @@ export default function UploadDropzone({ onUploaded, mode = 'single', onCarousel
     try {
       await triggerProcessing(getBrandId(), item.assetId);
     } catch (err: any) {
-      setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, status: "error", error: err?.message || "AMAI Engine failed to start." } : i)));
+      setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, status: "error", error: err?.message || "Oyinca failed to start." } : i)));
     }
   };
 

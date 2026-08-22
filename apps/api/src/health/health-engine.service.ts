@@ -25,7 +25,7 @@ export interface CheckResult {
 }
 
 /**
- * AMAI's proactive Health Engine: the piece the 24/7 monitoring spec calls
+ * Oyinca's proactive Health Engine: the piece the 24/7 monitoring spec calls
  * for that finds problems BEFORE a customer request throws, rather than
  * waiting for ErrorCaptureService to see an exception. Deliberately built
  * as a set of plain async methods invoked from an HTTP cron endpoint

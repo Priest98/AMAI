@@ -101,7 +101,7 @@ export default function LoginPage() {
             </Link>
             <div>
               <h1 className="text-h1" style={{ color: 'var(--text-primary)' }}>
-                Welcome back to AMAI
+                Welcome back to Oyinca
               </h1>
               <p className="text-body-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
                 Sign in to manage your AI social media publishing workspace.
@@ -182,7 +182,7 @@ export default function LoginPage() {
 
         {/* Footer Link */}
         <p className="text-center text-body-sm pt-2" style={{ color: 'var(--text-secondary)' }}>
-          Don't have an AMAI account yet?{' '}
+          Don't have an Oyinca account yet?{' '}
           <Link href="/register" className="font-bold hover:underline" style={{ color: 'var(--accent-secondary)' }}>
             Sign up
           </Link>

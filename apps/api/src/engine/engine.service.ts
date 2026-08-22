@@ -88,8 +88,8 @@ export class EngineService {
   /**
    * AutoPilot control centre.
    *
-   * Answers "is AMAI actually working, and is anything blocking it" from
-   * real rows only. Where AMAI genuinely cannot determine a subsystem's
+   * Answers "is Oyinca actually working, and is anything blocking it" from
+   * real rows only. Where Oyinca genuinely cannot determine a subsystem's
    * health it reports 'unknown' -- a green tick that isn't backed by a
    * check is worse than an honest gap, because the whole point of this
    * panel is trust in the automation.
@@ -121,7 +121,7 @@ export class EngineService {
       // AI health comes from AiProviderKeyHealth, which the AI key manager
       // already maintains: a key with disabledUntil in the future has been
       // banned after repeated failures. This is a real recorded signal, not
-      // a probe -- AMAI does not ping providers just to render this panel.
+      // a probe -- Oyinca does not ping providers just to render this panel.
       this.prisma.aiProviderKeyHealth.count({
         where: { disabledUntil: { gt: now } },
       }),
@@ -144,7 +144,7 @@ export class EngineService {
         failed: failedCount,
         publishedLast24h,
       },
-      // "Next scan" is not a real scheduled tick AMAI can name -- publishing
+      // "Next scan" is not a real scheduled tick Oyinca can name -- publishing
       // is driven by Vercel Cron hitting /api/cron/publish-due, and this
       // service has no visibility into that schedule. The next scheduled
       // post is the honest equivalent.
@@ -164,7 +164,7 @@ export class EngineService {
         publishing: failedCount > 0
           ? { status: 'degraded' as const, detail: `${failedCount} post${failedCount === 1 ? '' : 's'} failed and need attention.` }
           : { status: 'ok' as const, detail: null },
-        // Deliberately not asserted: AMAI has no probe for the cron runner
+        // Deliberately not asserted: Oyinca has no probe for the cron runner
         // or blob storage from inside this request, so claiming they are
         // healthy would be fabricating a check that never ran.
         scheduler: { status: 'unknown' as const, detail: 'Runs on an external schedule; not probed from here.' },
@@ -180,8 +180,8 @@ export class EngineService {
     });
     await this.logEvent(brandId, EngineEventType.ENGINE_STATE_CHANGED, {
       message: state === EngineState.ACTIVE
-        ? 'AMAI Engine is now Active — preparing and publishing content automatically.'
-        : 'AMAI Engine is now Paused — content will still be prepared, but nothing publishes until approved.',
+        ? 'Oyinca is now Active — preparing and publishing content automatically.'
+        : 'Oyinca is now Paused — content will still be prepared, but nothing publishes until approved.',
     });
     return updated;
   }
@@ -260,7 +260,7 @@ export class EngineService {
   }
 
   // ─────────────────────────────────────────────────────────────
-  // THE WORKFLOW: New Media Uploaded -> AMAI Engine Triggered
+  // THE WORKFLOW: New Media Uploaded -> Oyinca Triggered
   // ─────────────────────────────────────────────────────────────
 
   /**
@@ -274,10 +274,10 @@ export class EngineService {
     try {
       await this.withPipelineTimeout(this.processMediaAsset(payload.mediaAssetId), payload.mediaAssetId);
     } catch (err: any) {
-      this.logger.error(`AMAI Engine failed to process media asset ${payload.mediaAssetId}: ${err?.message || err}`);
+      this.logger.error(`Oyinca failed to process media asset ${payload.mediaAssetId}: ${err?.message || err}`);
       await this.prisma.mediaAsset.update({
         where: { id: payload.mediaAssetId },
-        data: { status: MediaStatus.FAILED, lastErrorMessage: err?.message || 'AMAI Engine processing failed.' },
+        data: { status: MediaStatus.FAILED, lastErrorMessage: err?.message || 'Oyinca processing failed.' },
       }).catch(() => {});
     }
   }
@@ -285,7 +285,7 @@ export class EngineService {
   private withPipelineTimeout<T>(promise: Promise<T>, mediaAssetId: string): Promise<T> {
     return new Promise<T>((resolve, reject) => {
       const timer = setTimeout(() => {
-        this.logger.error(`AMAI Engine pipeline exceeded ${PIPELINE_TIMEOUT_MS}ms for media asset ${mediaAssetId}; failing cleanly instead of leaving it stuck in PROCESSING.`);
+        this.logger.error(`Oyinca pipeline exceeded ${PIPELINE_TIMEOUT_MS}ms for media asset ${mediaAssetId}; failing cleanly instead of leaving it stuck in PROCESSING.`);
         reject(new Error('Processing took too long. Please try again.'));
       }, PIPELINE_TIMEOUT_MS);
       promise.then(
@@ -368,7 +368,7 @@ export class EngineService {
       return;
     }
 
-    this.logger.log(`[${asset.id}] AMAI Engine pipeline started (brand=${brandId}, file="${asset.filename}")`);
+    this.logger.log(`[${asset.id}] Oyinca pipeline started (brand=${brandId}, file="${asset.filename}")`);
     const config = await this.getOrCreateConfig(brandId);
     // Activity-feed log entries are informational, not load-bearing for the
     // pipeline's actual outcome -- awaiting each one serially added several
@@ -598,7 +598,7 @@ export class EngineService {
    * vs video-carousel system; PostMedia (postId, assetId, order) is the one
    * generic ordered-media-item join table for both, and MediaAsset.mimeType
    * is the one source of truth for what each item actually is. Distinct
-   * from processMediaAsset() (the automatic per-upload AMAI pipeline, which
+   * from processMediaAsset() (the automatic per-upload Oyinca pipeline, which
    * is inherently single-asset) -- this is the path a user takes when
    * they've already uploaded media and now want to deliberately group 1-5
    * of them into one post. Always lands in NEEDS_APPROVAL so it goes
@@ -747,7 +747,7 @@ export class EngineService {
           continue;
         }
         // Creation failed entirely -- release the assets back to READY so
-        // they aren't stuck showing "AMAI is preparing this…" forever.
+        // they aren't stuck showing "Oyinca is preparing this…" forever.
         await this.prisma.mediaAsset.updateMany({ where: { id: { in: ids } }, data: { status: MediaStatus.READY } });
         throw error;
       }

@@ -13,7 +13,7 @@ const PLATFORMS = [
 ];
 
 /**
- * The hero's "AMAI Engine" visualization: social platform icons orbiting a
+ * The hero's "Oyinca" visualization: social platform icons orbiting a
  * glowing, pulsing AI core with animated connection lines. Built with CSS
  * keyframes + SVG rather than Three.js/WebGL — it reads the same as a 3D
  * orbit at a fraction of the risk (no GPU dependency, no new heavy
@@ -28,7 +28,7 @@ export default function EngineOrb() {
       className="relative mx-auto"
       style={{ width: 340, height: 340 }}
       role="img"
-      aria-label="Animated diagram: Instagram, TikTok, Facebook, YouTube and other platforms orbiting a glowing AMAI Engine core, representing AMAI automating publishing across every connected platform."
+      aria-label="Animated diagram: Instagram, TikTok, Facebook, YouTube and other platforms orbiting a glowing Oyinca core, representing Oyinca automating publishing across every connected platform."
     >
       {/* Ambient glow behind everything */}
       <div
@@ -80,7 +80,7 @@ export default function EngineOrb() {
             boxShadow: '0 0 60px rgba(127, 176, 219, 0.55), 0 0 120px rgba(26, 61, 99, 0.4)',
           }}
         >
-          <span className="text-[#04070D] font-extrabold text-sm lp-heading tracking-tight">AMAI</span>
+          <span className="text-[#04070D] font-extrabold text-sm lp-heading tracking-tight">Oyinca</span>
         </motion.div>
       </div>
 

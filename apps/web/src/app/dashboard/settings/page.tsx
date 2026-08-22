@@ -233,7 +233,7 @@ export default function SettingsPage() {
       };
       const updated = await brandFetch<BusinessBrain>('/business-brain', { method: 'PATCH', body: JSON.stringify(dto) });
       setBrain(updated);
-      flash('Changes saved. AMAI will use this for every new caption and hashtag set.');
+      flash('Changes saved. Oyinca will use this for every new caption and hashtag set.');
     } catch (e: any) {
       flash("Couldn't save changes. Try again.");
     } finally {
@@ -370,7 +370,7 @@ export default function SettingsPage() {
           <div className="exec-card card-pad space-y-5">
             <div>
               <h3 className="text-h3" style={{ color: 'var(--text-primary)' }}>Approval Mode</h3>
-              <p className="text-body-sm mt-2" style={{ color: 'var(--text-secondary)' }}>Control whether AMAI-prepared posts require your review before publishing.</p>
+              <p className="text-body-sm mt-2" style={{ color: 'var(--text-secondary)' }}>Control whether Oyinca-prepared posts require your review before publishing.</p>
             </div>
 
             {/* Two real choice cards rather than compressed rows: the title
@@ -391,7 +391,7 @@ export default function SettingsPage() {
                   mode: 'AUTO' as const,
                   title: 'Auto Approval',
                   hint: null,
-                  desc: 'AMAI publishes automatically during AI-selected peak engagement windows.',
+                  desc: 'Oyinca publishes automatically during AI-selected peak engagement windows.',
                   accent: 'var(--accent-warning)',
                   subtle: 'var(--accent-warning-subtle)',
                 },
@@ -435,7 +435,7 @@ export default function SettingsPage() {
           <div className="exec-card card-pad space-y-5">
             <div>
               <h3 className="text-h3" style={{ color: 'var(--text-primary)' }}>Brand Persona</h3>
-              <p className="text-body-sm mt-2" style={{ color: 'var(--text-secondary)' }}>Sets the tone, vocabulary, and hashtags AMAI uses when writing captions.</p>
+              <p className="text-body-sm mt-2" style={{ color: 'var(--text-secondary)' }}>Sets the tone, vocabulary, and hashtags Oyinca uses when writing captions.</p>
             </div>
 
             {/* 1 col mobile / 2 tablet / 3 desktop, each a comfortably
@@ -481,7 +481,7 @@ export default function SettingsPage() {
                   <Wand2 className="h-4 w-4 shrink-0 mt-0.5" style={{ color: 'var(--accent-secondary)' }} />
                   <p className="text-body-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
                     <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{selected.label}</span>{' '}
-                    selected. AMAI will use {selected.effect} when generating your posts.
+                    selected. Oyinca will use {selected.effect} when generating your posts.
                   </p>
                 </div>
               );
@@ -496,11 +496,11 @@ export default function SettingsPage() {
             <div>
               <h3 className="text-h3" style={{ color: 'var(--text-primary)' }}>Business Brain</h3>
               <p className="text-body-sm mt-2" style={{ color: 'var(--text-secondary)' }}>
-                Tell AMAI about your business once. It uses this context to create better content and recommendations.
+                Tell Oyinca about your business once. It uses this context to create better content and recommendations.
               </p>
             </div>
 
-            {/* NOTE -- "Let AMAI fill this in" (spec §6) is intentionally NOT
+            {/* NOTE -- "Let Oyinca fill this in" (spec §6) is intentionally NOT
                 implemented here. It needs a real backend route
                 (POST /brands/:brandId/business-brain/suggest) plus a generic
                 text-generation method on AiService, which currently only
@@ -512,7 +512,7 @@ export default function SettingsPage() {
                 exists rather than faked. */}
 
             {/* Three short groups instead of one uninterrupted column of ten
-                inputs. Only the first group is needed to make AMAI useful --
+                inputs. Only the first group is needed to make Oyinca useful --
                 everything after it is explicitly optional, so the form reads
                 as a few minutes of work rather than a questionnaire. */}
             <div className="space-y-8">
@@ -520,7 +520,7 @@ export default function SettingsPage() {
                 <BrainField
                   id="bb-description"
                   label="What does your business do?"
-                  helper="Tell AMAI what you sell and who you serve."
+                  helper="Tell Oyinca what you sell and who you serve."
                 >
                   <textarea
                     id="bb-description"
@@ -562,7 +562,7 @@ export default function SettingsPage() {
               </BrainSection>
 
               <BrainSection title="Your brand">
-                <BrainField id="bb-voice" label="Brand voice" optional helper="How should AMAI sound when writing for you?">
+                <BrainField id="bb-voice" label="Brand voice" optional helper="How should Oyinca sound when writing for you?">
                   <input
                     id="bb-voice"
                     aria-describedby="bb-voice-helper"
@@ -586,7 +586,7 @@ export default function SettingsPage() {
                   />
                 </BrainField>
 
-                <BrainField id="bb-avoid" label="Never mention" optional helper="Topics AMAI should always stay away from.">
+                <BrainField id="bb-avoid" label="Never mention" optional helper="Topics Oyinca should always stay away from.">
                   <input
                     id="bb-avoid"
                     aria-describedby="bb-avoid-helper"
@@ -600,7 +600,7 @@ export default function SettingsPage() {
               </BrainSection>
 
               <BrainSection title="Your content">
-                <BrainField id="bb-pillars" label="Content pillars" optional helper="The themes you post about. AMAI tags each post with the closest match.">
+                <BrainField id="bb-pillars" label="Content pillars" optional helper="The themes you post about. Oyinca tags each post with the closest match.">
                   <input
                     id="bb-pillars"
                     aria-describedby="bb-pillars-helper"
@@ -639,7 +639,7 @@ export default function SettingsPage() {
 
             {/* Content idea suggestions -- grounded in the Business Brain
                 context above, not generic advice. Empty by default; only
-                populated once the user asks, so this never looks like AMAI
+                populated once the user asks, so this never looks like Oyinca
                 is claiming to have already generated something. */}
             <div className="pt-2 border-t" style={{ borderColor: 'var(--card-border)' }}>
               <div className="flex flex-wrap items-center justify-between gap-3 pt-5">
@@ -865,7 +865,7 @@ export default function SettingsPage() {
         <div className="exec-card card-pad space-y-5">
           <div className="space-y-1">
             <h3 className="text-h3" style={{ color: 'var(--text-primary)' }}>Help & Support</h3>
-            <p className="text-body-sm" style={{ color: 'var(--text-secondary)' }}>New to AMAI, or just want a refresher? Replay the guided product tour any time.</p>
+            <p className="text-body-sm" style={{ color: 'var(--text-secondary)' }}>New to Oyinca, or just want a refresher? Replay the guided product tour any time.</p>
           </div>
           <button
             onClick={() => onboarding?.restartTour()}

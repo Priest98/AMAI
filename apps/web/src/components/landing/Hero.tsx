@@ -210,7 +210,7 @@ export default function Hero() {
           </h1>
 
           <p className="mt-8 text-lg sm:text-xl leading-relaxed max-w-lg" style={{ color: 'var(--lp-text-secondary)' }}>
-            Upload your content. AMAI handles captions, hashtags, optimization, scheduling and publishing
+            Upload your content. Oyinca handles captions, hashtags, optimization, scheduling and publishing
             &mdash; so you can stay consistent without spending hours managing TikTok.
           </p>
 

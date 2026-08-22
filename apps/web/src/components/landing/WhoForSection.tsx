@@ -24,7 +24,7 @@ const CARDS = [
 
 export default function WhoForSection() {
   return (
-    <section className="relative py-24 sm:py-28" aria-label="Who AMAI is for">
+    <section className="relative py-24 sm:py-28" aria-label="Who Oyinca is for">
       <div className="max-w-6xl mx-auto px-5 sm:px-8">
         <Reveal className="text-center max-w-2xl mx-auto">
           <h2 className="lp-heading text-3xl sm:text-4xl font-bold tracking-tight">

@@ -5,10 +5,10 @@ import { AlertTriangle, CheckCircle2, ShieldAlert } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 
 /**
- * AMAI's own internal operating view -- not a customer-facing page.
+ * Oyinca's own internal operating view -- not a customer-facing page.
  * Deliberately not linked from the sidebar nav: only reachable by typing
  * the URL, and the backend (PlatformAdminGuard, ADMIN_EMAILS allowlist)
- * rejects anyone not explicitly configured as an AMAI admin regardless of
+ * rejects anyone not explicitly configured as an Oyinca admin regardless of
  * whether they find this URL. Every number below is a real query -- see
  * admin.service.ts's doc comment for what's estimated (MRR) vs. exact, and
  * what's honestly reported as unavailable rather than invented.
@@ -83,7 +83,7 @@ export default function AdminOverviewPage() {
     <div className="page-shell space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
-          <h1 className="text-h1" style={{ color: 'var(--text-primary)' }}>AMAI Admin Overview</h1>
+          <h1 className="text-h1" style={{ color: 'var(--text-primary)' }}>Oyinca Admin Overview</h1>
           <p className="text-body-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
             Internal only. Generated {new Date(data.generatedAt).toLocaleString()}.
           </p>

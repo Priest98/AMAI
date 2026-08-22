@@ -6,7 +6,7 @@ import { Reveal, Eyebrow } from './shared';
 
 const FLOW = [
   { label: 'Google Drive', Icon: HardDrive },
-  { label: 'AMAI', Icon: Sparkles },
+  { label: 'Oyinca', Icon: Sparkles },
   { label: 'Analyze', Icon: ScanEye },
   { label: 'Write', Icon: PenLine },
   { label: 'Schedule', Icon: CalendarClock },
@@ -22,7 +22,7 @@ export default function ContentPipelineSection() {
             Turn your content library into a content engine.
           </h2>
           <p className="mt-4 text-base sm:text-lg" style={{ color: 'var(--lp-text-secondary)' }}>
-            Your Google Drive is probably already full of photos and videos. AMAI can turn that content
+            Your Google Drive is probably already full of photos and videos. Oyinca can turn that content
             into a structured publishing pipeline.
           </p>
         </Reveal>

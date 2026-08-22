@@ -41,7 +41,7 @@ export function identify(userId: string, properties?: Record<string, unknown>) {
 }
 
 /**
- * Maps the AMAI Engine's live activity stream (see EngineEventsContext) to
+ * Maps Oyinca's live activity stream (see EngineEventsContext) to
  * the exact activation funnel the operating manual calls out: connect →
  * caption → schedule → approve. Centralizing this here means every
  * dashboard page that already fires these engine events gets funnel
