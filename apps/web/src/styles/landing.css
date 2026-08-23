@@ -357,22 +357,37 @@
 
 /* Object-position for the full-bleed video/fallback-image layer. The
    source is a 720x1280 (9:16) portrait asset used as a landscape
-   background -- at wide/short viewports (typical desktop) object-fit:
-   cover is WIDTH-driven (her full body-width shows, zero horizontal
-   crop; the crop is entirely vertical), so only the Y value matters and
-   is tuned to keep her face/smile in the visible band instead of an
-   arbitrary top-anchored crop that would cut her off mid-forehead. At
-   tall/narrow viewports (mobile portrait) cover flips to HEIGHT-driven
-   (no vertical crop at all -- her full height shows; the crop is
-   horizontal instead), so keeping X centered is what matters there. */
+   background.
+
+   Verified live (paused the video at a fixed frame and swapped
+   object-position values against the identical frame, so this isn't
+   guesswork): at ANY viewport wider than the video's own 9:16 ratio --
+   which covers essentially every landscape/desktop/tablet viewport --
+   object-fit: cover is WIDTH-driven. Her full body-width always shows
+   with zero horizontal crop, and changing the X value has NO visible
+   effect at all (confirmed: 50% and 68% produced pixel-identical
+   screenshots of the same paused frame). The crop is entirely vertical,
+   so only Y matters there, and an initial Y of 12% cropped her at the
+   eyes -- cut off before her nose, mouth or smile, which read as an
+   accidental crop, not a cinematic close-up. Corrected to 28% (verified
+   against oyinca-poster.jpg's own face-position measurements, then
+   confirmed live): eyes, nose and her genuine smile all sit in frame.
+   ("Oyinca center/right, calm space on the left" from the brief isn't
+   achievable via object-position at these ratios -- there's no
+   horizontal slack to pan within, which is a property of using a 9:16
+   source as a landscape background, not a bug in this implementation.
+   The left-weighted gradient overlay is what actually creates the calm
+   reading zone for the copy, per the brief's own overlay section.)
+
+   Below ~640px, viewports are typically portrait (phones), where cover
+   flips to HEIGHT-driven instead -- no vertical crop, her full height
+   shows, and the crop is horizontal, so X centered is what matters
+   there; Y stays close to center since it barely affects framing. */
 .lp-hero-fullbleed-media {
-  object-position: 50% 18%;
+  object-position: 50% 22%;
 }
 @media (min-width: 640px) {
-  .lp-hero-fullbleed-media { object-position: 50% 15%; }
-}
-@media (min-width: 1024px) {
-  .lp-hero-fullbleed-media { object-position: 62% 12%; }
+  .lp-hero-fullbleed-media { object-position: 50% 28%; }
 }
 
 /* Cinematic overlay: two soft layered gradients, per the brief --
