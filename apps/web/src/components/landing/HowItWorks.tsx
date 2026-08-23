@@ -1,41 +1,57 @@
 "use client";
 
 import React from 'react';
-import { Link2, UploadCloud, Brain, PlayCircle, TrendingUp } from 'lucide-react';
+import { UploadCloud, SlidersHorizontal, TrendingUp, Zap, CalendarClock, Sparkles } from 'lucide-react';
+import { TikTokLogo } from '@/components/icons/platform-logos';
 import { Reveal, Eyebrow } from './shared';
 
+/**
+ * The one workflow section on the page -- three steps, not five. "Connect
+ * TikTok" and "Review or enable Autopilot" used to be their own cards; the
+ * former is a one-time prerequisite folded into step 1, the latter is a
+ * preference folded into step 2, not a separate ongoing action.
+ *
+ * This section now also absorbs two sections that used to sit below it and
+ * restate the same pipeline:
+ * - AutopilotSection ("Let Oyinca handle your TikTok automatically") drew
+ *   the same three steps as a five-box arrow diagram. Removed outright --
+ *   showing the identical pipeline twice in a row added length, not
+ *   information.
+ * - ProductVisual ("Your TikTok, working in the background") is genuine
+ *   product-credibility content, not a repeat of the steps above, so it
+ *   survives as a short subheading + compact status row instead of its own
+ *   full-height section.
+ */
 const STEPS = [
   {
-    Icon: Link2,
-    title: 'Connect TikTok',
-    body: 'Give Oyinca permission to manage your TikTok content.',
-  },
-  {
     Icon: UploadCloud,
-    title: 'Give Oyinca your content',
-    body: 'Upload the photos and videos you already have, or connect Google Drive.',
+    title: 'Add your content',
+    body: 'Connect TikTok, then give Oyinca the photos and videos you already have — or connect Google Drive.',
   },
   {
-    Icon: Brain,
-    title: 'Oyinca creates your posts',
-    body: 'Captions, hashtags and a posting plan, optimized for TikTok.',
-  },
-  {
-    Icon: PlayCircle,
-    title: 'Review or enable Autopilot',
-    body: 'Approve each post yourself, or let Oyinca Autopilot handle it end to end.',
+    Icon: SlidersHorizontal,
+    title: 'Set your preferences',
+    body: 'Tell Oyinca your brand voice and posting style, and choose Assisted or Autopilot.',
   },
   {
     Icon: TrendingUp,
-    title: 'Oyinca publishes to TikTok',
-    body: 'Your post goes live, and Oyinca logs the result and learns for next time.',
+    title: 'Oyinca creates and publishes',
+    body: 'Captions, hashtags and a posting plan, published straight to TikTok — then Oyinca learns from what works.',
   },
+];
+
+const STATUS_ITEMS = [
+  { Icon: Zap, label: 'Autopilot', value: 'Active', tone: 'cyan' as const, live: true },
+  { Icon: CalendarClock, label: 'Scheduled', value: '3 posts', tone: 'purple' as const },
+  { Icon: Sparkles, label: 'Recommendations', value: '2 new', tone: 'cyan' as const },
+  { Icon: TikTokLogo, label: 'TikTok', value: 'Connected', tone: 'purple' as const },
+  { Icon: TrendingUp, label: 'Performance', value: 'Tracking', tone: 'cyan' as const },
 ];
 
 export default function HowItWorks() {
   return (
-    <section id="how-it-works" className="relative py-16 sm:py-20" aria-label="How Oyinca works">
-      <div className="max-w-7xl mx-auto px-5 sm:px-8">
+    <section id="how-it-works" className="relative py-12 sm:py-16" aria-label="How Oyinca works">
+      <div className="max-w-6xl mx-auto px-5 sm:px-8">
         <Reveal className="text-center max-w-2xl mx-auto">
           <Eyebrow>How It Works</Eyebrow>
           <h2 className="lp-heading mt-5 text-3xl sm:text-4xl font-bold tracking-tight">
@@ -43,7 +59,7 @@ export default function HowItWorks() {
           </h2>
         </Reveal>
 
-        <div className="mt-16 grid sm:grid-cols-2 lg:grid-cols-5 gap-5">
+        <div className="mt-12 grid sm:grid-cols-3 gap-5">
           {STEPS.map((step, i) => (
             <Reveal key={step.title} delay={i * 0.08}>
               <div className="lp-card h-full p-6 flex flex-col gap-4">
@@ -67,10 +83,54 @@ export default function HowItWorks() {
           ))}
         </div>
 
-        <Reveal delay={0.3} className="mt-10 text-center">
+        <Reveal delay={0.25} className="mt-8 text-center">
           <p className="text-sm font-medium" style={{ color: 'var(--lp-text-muted)' }}>
             Set it up once. Keep improving over time.
           </p>
+        </Reveal>
+
+        {/* Formerly its own section ("Your TikTok, working in the
+            background."). Kept as a short subheading plus a compact status
+            row -- real product credibility, without a second full-height
+            block repeating the same automation promise. */}
+        <Reveal delay={0.3} className="mt-14 text-center">
+          <h3 className="lp-heading text-lg sm:text-xl font-bold">
+            Your TikTok, working in the background.
+          </h3>
+        </Reveal>
+
+        <Reveal delay={0.35} className="mt-6">
+          <div className="lp-card p-4 sm:p-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+              {STATUS_ITEMS.map((item) => (
+                <div key={item.label} className="flex flex-col gap-2 p-3 rounded-xl lp-glass">
+                  <div className="flex items-center justify-between">
+                    <item.Icon
+                      className="h-4 w-4"
+                      style={{ color: item.tone === 'cyan' ? 'var(--lp-cyan)' : 'var(--lp-purple)' }}
+                    />
+                    {item.live && (
+                      <span
+                        className="h-1.5 w-1.5 rounded-full animate-pulse"
+                        style={{ background: 'var(--lp-cyan)' }}
+                      />
+                    )}
+                  </div>
+                  <div>
+                    <p
+                      className="text-[10px] font-bold uppercase tracking-wider"
+                      style={{ color: 'var(--lp-text-muted)' }}
+                    >
+                      {item.label}
+                    </p>
+                    <p className="lp-heading mt-0.5 text-sm font-bold" style={{ color: 'var(--lp-text-primary)' }}>
+                      {item.value}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </Reveal>
       </div>
     </section>

@@ -14,7 +14,7 @@ const PAIN_POINTS = [
 
 export default function ProblemSection() {
   return (
-    <section className="relative py-16 sm:py-20" aria-label="The problem Oyinca solves">
+    <section className="relative py-12 sm:py-16" aria-label="The problem Oyinca solves">
       <div className="max-w-3xl mx-auto px-5 sm:px-8 text-center">
         <Reveal>
           <h2 className="lp-heading text-3xl sm:text-4xl font-bold tracking-tight">

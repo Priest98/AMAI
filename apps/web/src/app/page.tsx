@@ -8,9 +8,6 @@ import Hero from '@/components/landing/Hero';
 import ProblemSection from '@/components/landing/ProblemSection';
 import TransitionSection from '@/components/landing/TransitionSection';
 import HowItWorks from '@/components/landing/HowItWorks';
-import Features from '@/components/landing/Features';
-import AutopilotSection from '@/components/landing/AutopilotSection';
-import ProductVisual from '@/components/landing/ProductVisual';
 import TikTokFirstSection from '@/components/landing/TikTokFirstSection';
 import Pricing from '@/components/landing/Pricing';
 import FAQ from '@/components/landing/FAQ';
@@ -92,7 +89,7 @@ export const metadata: Metadata = {
   // the visible hero/description copy instead of the tab title itself.
   title: 'Oyinca',
   description:
-    'Oyinca is your AI Social Media Manager. Give it your content and Oyinca creates, plans, schedules and publishes your TikTok content -- captions, hashtags, optimization and publishing, all handled. Start free, no credit card required.',
+    'Oyinca is your AI Social Media Manager. Give it your content and Oyinca creates, plans, schedules and publishes your TikTok content: captions, hashtags, optimization and publishing, all handled. Start free, no credit card required.',
   keywords: [
     'AI social media manager',
     'TikTok automation',
@@ -139,7 +136,7 @@ const jsonLd = {
   applicationCategory: 'BusinessApplication',
   operatingSystem: 'Web',
   description:
-    'Oyinca is an AI Social Media Manager, powered by Turaab Technology. It creates, plans, schedules and publishes TikTok content on your behalf -- captions, hashtags, optimization and publishing on autopilot. Free to start, with Pro and Agency plans for more automation and capacity.',
+    'Oyinca is an AI Social Media Manager, powered by Turaab Technology. It creates, plans, schedules and publishes TikTok content on your behalf: captions, hashtags, optimization and publishing on autopilot. Free to start, with Pro and Agency plans for more automation and capacity.',
   offers: {
     '@type': 'Offer',
     price: '0',
@@ -191,39 +188,44 @@ export default function Home() {
         </a>
         <Nav />
         {/*
-          Structure follows the Oyinca product-transformation spec's section
-          17 order exactly: Hero -> Problem -> Meet Oyinca -> How It Works ->
-          What Oyinca Handles -> Autopilot/proof -> TikTok First -> Pricing ->
-          FAQ -> Final CTA.
+          Content-and-UX audit pass: the page had grown to ~10 sections that
+          largely restated one idea ("Oyinca automates TikTok in the
+          background") over and over. Final structure is now exactly:
+          Hero -> Problem -> What Oyinca Does -> How It Works -> TikTok First
+          -> Pricing -> FAQ -> Final CTA -> Footer.
 
-          Sections removed in the earlier structure pass, and where their
-          content went -- none of it was shrunk or hidden in an accordion, it
-          was either genuinely redundant or folded into a line elsewhere:
-            - SocialProof           -> vague filler line, cut outright
-            - EnginePipeline        -> merged into AutopilotSection's flow
-            - BusinessBrainSection  -> Features card "Business Brain"
-            - ContentPipelineSection-> Features supporting line (Google Drive)
-            - AnalyticsSection      -> Features card "Performance"
-            - MultiPlatformSection  -> Features supporting line (channels)
-            - ApprovalControlSection-> AutopilotSection's control-modes line
-            - WhoForSection         -> Pricing's "businesses, creators and agencies"
-            - AgencySection         -> Pricing's Agency one-liner + Agency tier
-            - InteractiveDemo       -> superseded by ProductVisual
-          TransitionSection ("Meet Oyinca") was cut in that earlier pass as a
-          near-duplicate of the hero, but the spec calls for a dedicated
-          "Meet Oyinca" section between Problem and How It Works, so it's
-          back in with content rewritten to stop restating the hero verbatim.
-          The other component files above are still in components/landing/
-          and can be re-added to this list if any of them is wanted back.
+          Removed from this list in this pass, and where their content went
+          -- nothing was hidden with CSS, each was either genuinely redundant
+          or merged into HowItWorks as real content:
+            - Features ("Everything your TikTok needs")
+                -> its four capabilities are already covered by HowItWorks'
+                   three steps and the "What Oyinca Does" paragraph; adding
+                   them again as a fourth restatement was the exact
+                   repetition this audit was meant to remove, so this one
+                   was cut rather than folded in.
+            - AutopilotSection ("Let Oyinca handle your TikTok automatically")
+                -> its 5-box flow diagram drew the same 3 steps HowItWorks
+                   already shows as cards; the Assisted/Autopilot line is
+                   now folded into HowItWorks step 2 ("Set your
+                   preferences").
+            - ProductVisual ("Your TikTok, working in the background")
+                -> real product-credibility content, not a repeat, so it
+                   survives inside HowItWorks as a short subheading +
+                   compact status row instead of its own full section.
+          Earlier removals (still valid, from the prior structure pass):
+            - SocialProof, EnginePipeline, BusinessBrainSection,
+              ContentPipelineSection, AnalyticsSection, MultiPlatformSection,
+              ApprovalControlSection, WhoForSection, AgencySection,
+              InteractiveDemo -- see git history for where each went.
+          All removed component files are left in components/landing/
+          (unused) rather than deleted, matching this codebase's existing
+          convention -- easy to re-add to this list if any is wanted back.
         */}
         <main id="main-content">
           <Hero />
           <ProblemSection />
           <TransitionSection />
           <HowItWorks />
-          <Features />
-          <AutopilotSection />
-          <ProductVisual />
           <TikTokFirstSection />
           <Suspense fallback={<Pricing initialData={null} />}>
             <PricingSection />

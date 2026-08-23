@@ -148,7 +148,7 @@ export default function Pricing({ initialData }: { initialData?: PlansResponse |
   };
 
   return (
-    <section id="pricing" className="relative py-16 sm:py-20" aria-label="Pricing">
+    <section id="pricing" className="relative py-12 sm:py-16" aria-label="Pricing">
       <div className="max-w-7xl mx-auto px-5 sm:px-8">
         <Reveal className="text-center max-w-2xl mx-auto">
           <Eyebrow>Simple Pricing</Eyebrow>
