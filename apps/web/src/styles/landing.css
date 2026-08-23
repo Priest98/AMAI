@@ -27,6 +27,10 @@
   --lp-text-primary: #F6FAFD;
   --lp-text-secondary: #B3CFE5;
   --lp-text-muted: #7E8CA3;
+  /* Dedicated solid accent for the hero headline's second line ("Your
+     social media manager.") -- see .lp-hero-accent-text below for why this
+     isn't just var(--lp-cyan) or .lp-gradient-text reused. */
+  --lp-hero-accent: #5A93C4;
 
   --lp-gradient-brand: linear-gradient(135deg, #9DC6E8 0%, #4A7FA7 100%);
   --lp-gradient-glow: radial-gradient(circle, rgba(127, 176, 219, 0.35) 0%, rgba(26, 61, 99, 0.18) 45%, transparent 70%);
@@ -54,6 +58,10 @@
      light theme's near-white surfaces -- well under WCAG AA's 4.5:1 for
      normal-size text. Darkened here (same hue family) to ~6.7:1. */
   --lp-cyan: #2E5C82;
+  /* #5A93C4 (the dark-theme value) only measures ~3.1:1 against this much
+     lighter background -- below AA even for the hero's large display type.
+     Darkened for light mode specifically; same hue family as --lp-cyan. */
+  --lp-hero-accent: #2E5C82;
   --lp-text-primary: #0A1931;
   --lp-text-secondary: #3D4A5C;
   /* #8891A0 measured 3.03:1 against this light bg -- fails WCAG AA (4.5:1)
@@ -115,6 +123,19 @@
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
+}
+
+/* Hero headline's second line only -- NOT the same class as the logo
+   wordmark (.lp-gradient-text, used in Nav/Footer) or the ProblemSection
+   accent, both of which stay a gradient on purpose. A gradient-clipped
+   fill is fine for a short logotype or inline emphasis word, but this is
+   several words of large display type, and --lp-gradient-brand's lightest
+   stop (#9DC6E8) measured ~1.7:1 against the light theme's near-white bg
+   and read as washed-out even in dark mode. Solid color instead of a
+   gradient, tuned per-theme in the --lp-hero-accent token above to clear
+   ~5-7:1 -- rich/legible "brand blue" rather than a pale wash. */
+.lp-hero-accent-text {
+  color: var(--lp-hero-accent);
 }
 
 /* Primary CTA stays a solid glossy gradient capsule -- the one button
@@ -356,13 +377,27 @@
  * prefers-reduced-motion via the existing blanket rule above.
  * ================================================================ */
 @keyframes lp-kenburns {
-  0% { transform: scale(1.06) translate3d(0, 0, 0); }
-  50% { transform: scale(1.12) translate3d(-0.8%, -0.6%, 0); }
-  100% { transform: scale(1.06) translate3d(0, 0, 0); }
+  /* Scale bumped from 1.06/1.12 to 1.16/1.22 -- extra overscan margin so
+     the blur filter below (which softens the source photo's edge pixels)
+     never samples past the image into empty space and shows a rim. */
+  0% { transform: scale(1.16) translate3d(0, 0, 0); }
+  50% { transform: scale(1.22) translate3d(-0.8%, -0.6%, 0); }
+  100% { transform: scale(1.16) translate3d(0, 0, 0); }
 }
 .lp-hero-media {
   animation: lp-kenburns 28s ease-in-out infinite;
   will-change: transform;
+  /* The source backdrop (an AI-generated abstract light environment) has
+     large, crisp diagonal light-streak lines that compete with the
+     headline/CTA/portrait for attention -- flagged directly in the hero
+     redesign brief ("avoid huge light streaks, distracting diagonal
+     beams"). Rather than replace the asset, this blurs it into soft
+     ambient color/glow (same palette, same sense of depth) and dials back
+     saturation/brightness slightly so it reads as atmosphere behind the
+     content instead of a competing graphic. The scrim layers on top
+     (lp-hero-scrim-linear/radial) still do the heavy lifting for text
+     legibility; this just removes the sharp lines underneath them. */
+  filter: blur(48px) saturate(82%) brightness(0.88);
 }
 
 /* The premium display-serif treatment (Instrument Serif) -- used on exactly
