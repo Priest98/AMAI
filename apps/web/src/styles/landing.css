@@ -336,68 +336,61 @@
   background: linear-gradient(to bottom, rgba(255, 255, 255, 0.35) 0%, transparent 10%, transparent 90%, rgba(255, 255, 255, 0.5) 100%);
 }
 
-/* Hero backdrop scrims -- previously two inline `style={{background:...}}`
-   divs in Hero.tsx hardcoded rgba(4,7,13,...) (near-black) with no light-mode
-   equivalent. Inline styles can't be reached by the `.light .amai-landing`
-   ancestor-selector convention every other themed surface here uses (see
-   .lp-ambient-vignette above), so the hero kept its dark scrim over the
-   backdrop image even when the rest of the page switched to light --
-   confirmed as the actual bug: the fade-to-background edge (var(--lp-bg))
-   was still reached, but the whole scrim above it stayed opaque navy
-   regardless of theme. Moved to real classes so light mode gets a real,
-   themed override instead of silently keeping the dark one. */
-.lp-hero-scrim-linear {
-  background: linear-gradient(to bottom, rgba(4, 7, 13, 0.55) 0%, rgba(4, 7, 13, 0.7) 55%, var(--lp-bg) 100%);
-}
-
-.light .amai-landing .lp-hero-scrim-linear {
-  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0.55) 55%, var(--lp-bg) 100%);
-}
-
-.lp-hero-scrim-radial {
-  background: radial-gradient(ellipse 70% 55% at 30% 35%, rgba(4, 7, 13, 0.15), rgba(4, 7, 13, 0.75) 75%);
-}
-
-.light .amai-landing .lp-hero-scrim-radial {
-  background: radial-gradient(ellipse 70% 55% at 30% 35%, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.55) 75%);
-}
-
 @keyframes lp-drift {
   0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
   50% { transform: translate3d(-1.5%, 1%, 0) scale(1.035); }
 }
 
 /* ==================================================================
- * Cinematic hero + editorial motion additions
+ * Cinematic full-bleed hero (v3)
  * ------------------------------------------------------------------
- * Slow continuous "Ken Burns" drift for the AI-generated hero backdrop,
- * an editorial-scale display type utility (larger + tighter tracking
- * than the existing .text-display-giant watermark treatment), and a
- * bouncing scroll indicator. All pause automatically under
- * prefers-reduced-motion via the existing blanket rule above.
+ * Replaces the old two-column "product card" hero: the AI-generated
+ * abstract-light backdrop photo + its two scrims (.lp-hero-media,
+ * .lp-hero-scrim-linear, .lp-hero-scrim-radial, all removed here) are
+ * gone entirely -- the real Oyinca video IS the backdrop now, full
+ * viewport, so there's no second background image to layer underneath
+ * it. What replaces the scrims is .lp-hero-cinematic-overlay below: a
+ * much lighter touch, tuned to make bottom-left copy readable without
+ * darkening Oyinca herself (spec explicitly calls out "the purpose is
+ * NOT to make the video dark").
  * ================================================================ */
-@keyframes lp-kenburns {
-  /* Scale bumped from 1.06/1.12 to 1.16/1.22 -- extra overscan margin so
-     the blur filter below (which softens the source photo's edge pixels)
-     never samples past the image into empty space and shows a rim. */
-  0% { transform: scale(1.16) translate3d(0, 0, 0); }
-  50% { transform: scale(1.22) translate3d(-0.8%, -0.6%, 0); }
-  100% { transform: scale(1.16) translate3d(0, 0, 0); }
+
+/* Object-position for the full-bleed video/fallback-image layer. The
+   source is a 720x1280 (9:16) portrait asset used as a landscape
+   background -- at wide/short viewports (typical desktop) object-fit:
+   cover is WIDTH-driven (her full body-width shows, zero horizontal
+   crop; the crop is entirely vertical), so only the Y value matters and
+   is tuned to keep her face/smile in the visible band instead of an
+   arbitrary top-anchored crop that would cut her off mid-forehead. At
+   tall/narrow viewports (mobile portrait) cover flips to HEIGHT-driven
+   (no vertical crop at all -- her full height shows; the crop is
+   horizontal instead), so keeping X centered is what matters there. */
+.lp-hero-fullbleed-media {
+  object-position: 50% 18%;
 }
-.lp-hero-media {
-  animation: lp-kenburns 28s ease-in-out infinite;
-  will-change: transform;
-  /* The source backdrop (an AI-generated abstract light environment) has
-     large, crisp diagonal light-streak lines that compete with the
-     headline/CTA/portrait for attention -- flagged directly in the hero
-     redesign brief ("avoid huge light streaks, distracting diagonal
-     beams"). Rather than replace the asset, this blurs it into soft
-     ambient color/glow (same palette, same sense of depth) and dials back
-     saturation/brightness slightly so it reads as atmosphere behind the
-     content instead of a competing graphic. The scrim layers on top
-     (lp-hero-scrim-linear/radial) still do the heavy lifting for text
-     legibility; this just removes the sharp lines underneath them. */
-  filter: blur(48px) saturate(82%) brightness(0.88);
+@media (min-width: 640px) {
+  .lp-hero-fullbleed-media { object-position: 50% 15%; }
+}
+@media (min-width: 1024px) {
+  .lp-hero-fullbleed-media { object-position: 62% 12%; }
+}
+
+/* Cinematic overlay: two soft layered gradients, per the brief --
+   left-to-right (stronger contrast on the left, where the copy block
+   lives; clear over Oyinca on the center/right) and a shallow
+   bottom-up gradient (just enough for the CTA row to sit on solid
+   ground). Deliberately restrained -- no blur, no color filter, no
+   glass panel behind the text; legibility comes from the gradient
+   alone, same technique the brief's own CSS sketch describes. */
+.lp-hero-cinematic-overlay {
+  background:
+    linear-gradient(90deg, rgba(4, 7, 13, 0.62) 0%, rgba(4, 7, 13, 0.32) 32%, rgba(4, 7, 13, 0.06) 58%, transparent 72%),
+    linear-gradient(0deg, rgba(4, 7, 13, 0.55) 0%, rgba(4, 7, 13, 0.18) 28%, transparent 55%);
+}
+.light .amai-landing .lp-hero-cinematic-overlay {
+  background:
+    linear-gradient(90deg, rgba(246, 250, 253, 0.72) 0%, rgba(246, 250, 253, 0.4) 32%, rgba(246, 250, 253, 0.08) 58%, transparent 72%),
+    linear-gradient(0deg, rgba(246, 250, 253, 0.65) 0%, rgba(246, 250, 253, 0.22) 28%, transparent 55%);
 }
 
 /* The premium display-serif treatment (Instrument Serif) -- used on exactly
@@ -420,21 +413,6 @@
   font-family: var(--font-display-var, var(--lp-font-heading, sans-serif));
   letter-spacing: -0.01em;
   line-height: 0.98;
-}
-
-/* Oyinca's cinematic hero portrait panel -- matches the real generated
-   video's native 9:16 (720x1280) exactly, so object-cover never has to
-   crop the top/bottom of her face, with a rounded frame matching the
-   rest of the site's card language (see .lp-card) rather than a bare
-   rectangle. */
-.lp-hero-visual-frame {
-  aspect-ratio: 9 / 16;
-  width: 100%;
-  max-width: 380px;
-  border-radius: 28px;
-  border: 1px solid var(--lp-border);
-  background: var(--lp-surface);
-  box-shadow: 0 30px 80px -30px rgba(4, 7, 13, 0.6);
 }
 
 /* Static portrait fallback (see HeroVisual.tsx, onError path) -- if the

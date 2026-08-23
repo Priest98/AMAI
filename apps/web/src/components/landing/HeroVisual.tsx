@@ -4,30 +4,41 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useReducedMotion } from 'framer-motion';
 
 /**
- * Oyinca's hero visual.
+ * Oyinca's cinematic hero background.
  *
- * The cinematic idle-motion loop is live: /public/hero/oyinca-loop.mp4 (+
- * poster jpg), generated with Google Flow (Veo 3.1, 9:16, 8s) using the
- * user's Google AI Pro plan. Higgsfield's own video models all rejected
- * generation with "Requires basic/plus plan or higher" (free tier), so the
- * source frame -- a photoreal Higgsfield portrait of Oyinca (model
- * `soul_2`, job 95edf626-ebdb-4cf7-a829-5c67b4346146) matching the locked
- * character brief in oyinca-higgsfield-hero-prompt.md (West African
- * heritage, late-20s, charcoal blazer, single gold ear cuff,
- * photoreal-unretouched realism) -- was fed into Flow as the starting
- * frame for image-to-video instead, keeping the same face/wardrobe/
- * identity across both tools.
+ * Rewritten from a small rounded 380px "product card" panel into a
+ * full-bleed background layer -- per the cinematic-hero redesign brief,
+ * Oyinca is meant to be the visual environment of the first viewport, not
+ * a screenshot sitting beside the copy. Structurally this is now a plain
+ * absolute inset-0 layer with no card chrome (no border-radius, border,
+ * or surface background) -- Hero.tsx renders it as the section's own
+ * backdrop and layers its copy/overlay on top.
  *
- * OYINCA_PORTRAIT_SRC (the static Higgsfield portrait) is kept as the
- * fallback for onError below -- if the video ever fails to load, visitors
- * still see the real character, with the same subtle CSS "Ken Burns"
- * drift (.lp-hero-portrait-kenburns in landing.css) standing in for
- * motion, rather than a broken video icon or empty box.
+ * The play/pause/fallback logic below is unchanged from the previous
+ * version: same IntersectionObserver-gated autoplay, same
+ * prefers-reduced-motion opt-out, same onError -> static-portrait fallback.
+ * None of that was specific to the old card layout, so there was no reason
+ * to rewrite it.
+ *
+ * Video source: /public/hero/oyinca-loop.mp4 (+ poster jpg), generated
+ * with Google Flow (Veo 3.1, 9:16, 8s, 720x1280) -- see the git history for
+ * the full generation notes. It's a PORTRAIT asset being used as a
+ * landscape/full-viewport background, which is a deliberate, considered
+ * choice, not an oversight: at typical wide desktop aspect ratios,
+ * object-fit: cover on a 9:16 source is width-driven (the video's full
+ * width fits with zero horizontal crop; the crop is entirely vertical), so
+ * nothing about her horizontal framing is lost -- only object-position's Y
+ * value matters, tuned in landing.css (.lp-hero-fullbleed-media) per
+ * breakpoint to keep her face/smile in the visible band instead of an
+ * arbitrary top-anchored crop. On narrow mobile viewports the math flips
+ * (portrait containers crop horizontally, not vertically), which is also
+ * handled there.
  */
 const VIDEO_SRC = '/hero/oyinca-loop.mp4';
 const POSTER_SRC = '/hero/oyinca-poster.jpg';
-// Real generated portrait, hosted on Higgsfield's CDN (same external-hosting
-// pattern already used for HERO_BG_URL elsewhere in Hero.tsx).
+// Static portrait fallback if the video element ever fails to load --
+// same asset HeroVisual has always used for this path, just now rendered
+// full-bleed instead of inside a card.
 const OYINCA_PORTRAIT_SRC =
   'https://d8j0ntlcm91z4.cloudfront.net/user_3HXsou9653KJM9YD320GPTi1aul/hf_20260822_134812_95edf626-ebdb-4cf7-a829-5c67b4346146.png';
 
@@ -38,9 +49,10 @@ export default function HeroVisual({ className = '' }: { className?: string }) {
   const [videoFailed, setVideoFailed] = useState(false);
   const [inView, setInView] = useState(false);
 
-  // Only start decoding/playing once the panel is actually on screen --
-  // it's above the fold today so this fires almost immediately, but keeps
-  // the component correct if the hero is ever reflowed lower on the page.
+  // The hero is the first thing on the page, so this fires almost
+  // immediately -- kept anyway so the component stays correct if the
+  // section is ever reflowed, and so a slow/backgrounded tab doesn't
+  // spend cycles decoding a video nobody's looking at yet.
   useEffect(() => {
     const node = wrapRef.current;
     if (!node) return;
@@ -71,14 +83,14 @@ export default function HeroVisual({ className = '' }: { className?: string }) {
   return (
     <div
       ref={wrapRef}
-      className={`lp-hero-visual-frame relative overflow-hidden ${className}`}
+      className={`absolute inset-0 overflow-hidden ${className}`}
       role="img"
       aria-label="Oyinca, your social media manager, at work in her digital workspace"
     >
       {!videoFailed ? (
         <video
           ref={videoRef}
-          className="absolute inset-0 h-full w-full object-cover"
+          className="lp-hero-fullbleed-media absolute inset-0 h-full w-full object-cover"
           muted
           loop
           playsInline
@@ -90,21 +102,18 @@ export default function HeroVisual({ className = '' }: { className?: string }) {
           <source src={VIDEO_SRC} type="video/mp4" />
         </video>
       ) : (
-        // No local video export exists yet (see comment above) -- this path
-        // is what actually renders today. Show Oyinca's real generated
-        // portrait rather than a video element pointed at nothing.
+        // No local video export exists -- this path is what actually
+        // renders today. Shows Oyinca's real generated portrait rather
+        // than a broken/empty video element, with the same slow Ken Burns
+        // drift standing in for motion the video would otherwise supply.
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={OYINCA_PORTRAIT_SRC}
           alt=""
-          className="lp-hero-portrait-kenburns absolute inset-0 h-full w-full object-cover"
+          className="lp-hero-fullbleed-media lp-hero-portrait-kenburns absolute inset-0 h-full w-full object-cover"
           aria-hidden="true"
         />
       )}
-      {/* Soft bottom scrim so the floating status/toast cards (rendered by
-          Hero.tsx on top of this panel) stay legible against either the
-          video or the fallback surface. */}
-      <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(to top, rgba(4,7,13,0.45) 0%, transparent 35%)' }} />
     </div>
   );
 }
