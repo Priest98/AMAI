@@ -2,7 +2,9 @@ import { Controller, Get, NotFoundException, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
 
 /**
- * Streams Oyinca's Vercel Blob storage content through amai.codes itself.
+ * Streams Oyinca's Vercel Blob storage content through the app's own
+ * primary domain (whatever APP_URL is set to -- oyinca.com in production;
+ * see app-url.util.ts) itself.
  *
  * Why this exists: TikTok's photo-post endpoint only supports
  * PULL_FROM_URL (see publishTikTokPhoto in publishing.service.ts), which
@@ -17,16 +19,22 @@ import type { Request, Response } from 'express';
  * document; it only ever responds at a blob's own exact stored pathname).
  * Every filename-convention workaround tried still failed for this reason.
  *
- * amai.codes, by contrast, is verified with TikTok via the DNS-record
- * method (a tiktok-developers-site-verification=<token> TXT record at the
- * domain's root -- not a hosted file), and per TikTok's own docs, that
- * covers every path under the domain and its subdomains, not just an
- * exact URL. So
- * instead of trying to verify Blob storage directly, this proxies Blob
- * content through a path on the domain that's already verified --
- * `https://amai.codes/api/media/proxy/<same-pathname-blob-was-stored-at>`
- * fetches and streams back the matching blob. publishTikTokPhoto rewrites
- * photo URLs to this form before calling TikTok's API.
+ * The app's own domain, by contrast, is verified with TikTok via the
+ * DNS-record method (a tiktok-developers-site-verification=<token> TXT
+ * record at the domain's root -- not a hosted file), and per TikTok's own
+ * docs, that covers every path under the domain and its subdomains, not
+ * just an exact URL. So instead of trying to verify Blob storage directly,
+ * this proxies Blob content through a path on the domain that's already
+ * verified -- `${getAppUrl()}/api/media/proxy/<same-pathname-blob-was-
+ * stored-at>` fetches and streams back the matching blob.
+ * publishTikTokPhoto rewrites photo URLs to this form before calling
+ * TikTok's API.
+ *
+ * NOTE: this domain verification is tied to whatever host APP_URL points
+ * at. If APP_URL is ever repointed to a new domain (e.g. a rebrand), that
+ * new domain must be re-verified in the TikTok Developer Portal (DNS TXT
+ * record) before photo publishing will work again -- verification does
+ * NOT carry over automatically from the old domain.
  *
  * Deliberately generic (matches any pathname) rather than validating
  * against known MediaAsset rows, so it keeps working for any current or

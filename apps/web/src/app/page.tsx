@@ -103,13 +103,15 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Oyinca — Your AI Social Media Manager',
     description: 'Give Oyinca your content. It creates, plans, schedules and publishes your TikTok content while you focus on your business.',
-    // Old preview-deployment domain (marketing-os-eight-virid.vercel.app)
-    // replaced with the real production domain.
-    url: 'https://amai.codes',
+    // Production domain migrated from amai.codes to oyinca.com (the
+    // brand-matching domain). amai.codes stays configured as a redirect in
+    // Vercel's project domain settings, but every URL this app generates
+    // points at oyinca.com.
+    url: 'https://oyinca.com',
     siteName: 'Oyinca',
     images: [
       {
-        url: 'https://amai.codes/app-icon.jpg',
+        url: 'https://oyinca.com/app-icon.jpg',
         width: 1024,
         height: 1024,
         alt: 'Oyinca — Your AI Social Media Manager',
@@ -122,10 +124,10 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Oyinca — Your AI Social Media Manager',
     description: 'Give Oyinca your content. It creates, plans, schedules and publishes your TikTok content while you focus on your business.',
-    images: ['https://amai.codes/app-icon.jpg'],
+    images: ['https://oyinca.com/app-icon.jpg'],
   },
   alternates: {
-    canonical: 'https://amai.codes',
+    canonical: 'https://oyinca.com',
   },
 };
 

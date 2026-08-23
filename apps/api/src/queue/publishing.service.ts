@@ -1125,12 +1125,15 @@ export class PublishingService {
    * (Blob storage has no root "index" document to serve a verification
    * file from, and DNS for vercel-storage.com belongs to Vercel, not
    * Oyinca). Fixed by routing photo URLs through media-proxy.controller.ts
-   * instead, which proxies Blob content through amai.codes -- a domain
-   * that IS verified, and whose verification covers every path beneath it
-   * per TikTok's own docs. See that controller's comment for the full
-   * story. If this still fails with "url_ownership_unverified", it means
-   * amai.codes's own verification has lapsed or was never completed, not
-   * that Blob storage needs re-verifying.
+   * instead, which proxies Blob content through the app's own primary
+   * domain (getAppUrl(), i.e. whatever APP_URL is set to -- oyinca.com in
+   * production) -- a domain that IS verified, and whose verification
+   * covers every path beneath it per TikTok's own docs. See that
+   * controller's comment for the full story. If this still fails with
+   * "url_ownership_unverified", it means that domain's own verification
+   * has lapsed, was never completed, or (after a domain change) hasn't
+   * been redone yet for the new domain -- not that Blob storage needs
+   * re-verifying.
    *
    * Carousel-aware: TikTok's `photo_images` field natively accepts multiple
    * URLs in one call (this is TikTok's actual "photo carousel" mechanism —
@@ -1147,16 +1150,17 @@ export class PublishingService {
     // instead, which has the same 4000-rune ceiling video captions get.
     const title = caption.length > 90 ? `${caption.slice(0, 87)}...` : caption;
 
-    // Rewrite Blob storage URLs to route through amai.codes's own proxy
-    // (media-proxy.controller.ts) instead of TikTok fetching Blob storage
-    // directly. TikTok's PULL_FROM_URL requires verifying whatever domain
-    // the URL is actually on, and Vercel Blob storage's domain turned out
-    // to be unverifiable there in practice (no root document to serve a
-    // verification file from, and DNS is Vercel's, not ours) -- see
-    // media-proxy.controller.ts's comment for the full story. amai.codes
-    // is already verified, and verification covers every path under a
-    // domain, so proxying through it sidesteps the problem entirely
-    // without needing TikTok's portal to ever see the Blob domain at all.
+    // Rewrite Blob storage URLs to route through the app's own domain's
+    // proxy (media-proxy.controller.ts) instead of TikTok fetching Blob
+    // storage directly. TikTok's PULL_FROM_URL requires verifying whatever
+    // domain the URL is actually on, and Vercel Blob storage's domain
+    // turned out to be unverifiable there in practice (no root document to
+    // serve a verification file from, and DNS is Vercel's, not ours) --
+    // see media-proxy.controller.ts's comment for the full story. The
+    // app's own domain (getAppUrl()) is already verified, and verification
+    // covers every path under a domain, so proxying through it sidesteps
+    // the problem entirely without needing TikTok's portal to ever see the
+    // Blob domain at all.
     const proxiedImageUrls = imageUrls.map((url) => {
       const blobHost = 'nngbo9dlq90oakni.public.blob.vercel-storage.com';
       if (!url.includes(blobHost)) return url; // not our Blob store -- leave as-is
@@ -1187,14 +1191,18 @@ export class PublishingService {
     if (!res.ok || data.error?.code !== 'ok' || !data.data?.publish_id) {
       // url_ownership_unverified is the specific, actionable case: TikTok's
       // photo endpoint only accepts PULL_FROM_URL, which requires the
-      // domain photo_images points at (amai.codes, via the proxy above) to
-      // be verified in the TikTok Developer Portal (a one-time, external
-      // setup step -- not a bug in this code, and not something a retry
-      // fixes). Surfaced distinctly so it isn't confused with a genuine
-      // processing/format failure.
+      // domain photo_images points at (the app's own domain, via the proxy
+      // above) to be verified in the TikTok Developer Portal (a one-time,
+      // external setup step -- not a bug in this code, and not something a
+      // retry fixes). The domain name is read from getAppUrl() rather than
+      // hardcoded so this error stays accurate across any future domain
+      // change instead of silently naming a stale domain. Surfaced
+      // distinctly so it isn't confused with a genuine processing/format
+      // failure.
       if (data?.error?.code === 'url_ownership_unverified') {
+        const appHost = new URL(getAppUrl()).hostname;
         throw new Error(
-          `TikTok couldn't retrieve the image because amai.codes isn't verified in the TikTok Developer Portal yet (code: url_ownership_unverified, log_id: ${data?.error?.log_id || 'n/a'}). This needs to be verified once in TikTok's developer settings before photo posts can publish -- reconnecting or retrying won't fix it on its own.`,
+          `TikTok couldn't retrieve the image because ${appHost} isn't verified in the TikTok Developer Portal yet (code: url_ownership_unverified, log_id: ${data?.error?.log_id || 'n/a'}). This needs to be verified once in TikTok's developer settings before photo posts can publish -- reconnecting or retrying won't fix it on its own.`,
         );
       }
       throw new Error(this.formatTikTokError(data, 'TikTok photo publish initiation failed.'));

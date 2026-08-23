@@ -65,16 +65,18 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Oyinca — Your AI Social Media Manager',
     description: 'Give Oyinca your content. It creates, plans, schedules and publishes your TikTok content while you focus on your business.',
-    // Old preview-deployment domain (marketing-os-eight-virid.vercel.app)
-    // replaced with the real production domain -- an OG url pointing at a
-    // stale Vercel preview alias is exactly the kind of "old domain
-    // reference" a TikTok reviewer or link-preview crawler would notice as
-    // inconsistent with the actual submitted app.
-    url: 'https://amai.codes',
+    // Production domain migrated from amai.codes to oyinca.com (the
+    // brand-matching domain, purchased after the Oyinca rebrand). amai.codes
+    // is kept configured as a redirect to this domain in Vercel's project
+    // domain settings rather than removed, so old links/bookmarks still
+    // resolve -- but every URL Oyinca itself generates should point at
+    // oyinca.com, since a stale or inconsistent domain reference is exactly
+    // what a TikTok reviewer or link-preview crawler would flag.
+    url: 'https://oyinca.com',
     siteName: 'Oyinca',
     images: [
       {
-        url: 'https://amai.codes/app-icon.jpg',
+        url: 'https://oyinca.com/app-icon.jpg',
         width: 1024,
         height: 1024,
         alt: 'Oyinca Icon',
