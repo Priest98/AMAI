@@ -5,7 +5,7 @@ import { Reveal, Eyebrow } from './shared';
 
 export default function TransitionSection() {
   return (
-    <section id="meet-oyinca" className="relative py-12 sm:py-16" aria-label="Meet Oyinca">
+    <section id="meet-oyinca" className="relative py-16 sm:py-12" aria-label="Meet Oyinca">
       <div className="max-w-3xl mx-auto px-5 sm:px-8 text-center">
         <Reveal>
           <Eyebrow>Meet Oyinca</Eyebrow>

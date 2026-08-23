@@ -43,7 +43,7 @@ export default function FAQ() {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   return (
-    <section id="faq" className="relative py-12 sm:py-16" aria-label="Frequently asked questions">
+    <section id="faq" className="relative py-16 sm:py-12" aria-label="Frequently asked questions">
       <div className="max-w-3xl mx-auto px-5 sm:px-8">
         <Reveal className="text-center">
           <Eyebrow>FAQ</Eyebrow>
@@ -66,7 +66,7 @@ export default function FAQ() {
                     aria-expanded={isOpen}
                     aria-controls={panelId}
                     onClick={() => setOpenIndex(isOpen ? null : i)}
-                    className="w-full flex items-center justify-between gap-4 px-5 py-4 text-left text-sm font-semibold lp-focus-ring"
+                    className="w-full flex items-center justify-between gap-4 px-5 py-4 text-left text-[15px] font-semibold lp-focus-ring"
                   >
                     {item.q}
                     <ChevronDown

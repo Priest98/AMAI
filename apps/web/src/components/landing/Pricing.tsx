@@ -148,7 +148,7 @@ export default function Pricing({ initialData }: { initialData?: PlansResponse |
   };
 
   return (
-    <section id="pricing" className="relative py-12 sm:py-16" aria-label="Pricing">
+    <section id="pricing" className="relative py-16 sm:py-12" aria-label="Pricing">
       <div className="max-w-7xl mx-auto px-5 sm:px-8">
         <Reveal className="text-center max-w-2xl mx-auto">
           <Eyebrow>Simple Pricing</Eyebrow>
@@ -214,7 +214,18 @@ export default function Pricing({ initialData }: { initialData?: PlansResponse |
                     )}
                   </div>
 
-                  <ul className="mt-6 space-y-2.5">
+                  {/* Mobile-audit fix: with 10-12 bullet lines per card,
+                      the original space-y-2.5 (10px) between every single
+                      line read as a "wall of tiny bullets" on a phone.
+                      Bullet count and copy are unchanged -- still the same
+                      real entitlements, nothing added or removed -- only
+                      the rhythm changes: a touch more room between
+                      individual lines, and a clearer gap between the
+                      dynamic (numeric limits) block and the static
+                      (qualitative features) block below it, so the card
+                      reads as two grouped sections instead of one long
+                      undifferentiated list. */}
+                  <ul className="mt-6 space-y-3">
                     {dynamicBullets(tier).map((f) => (
                       <li key={f} className="flex items-start gap-2.5 text-sm">
                         <Check className="h-4 w-4 shrink-0 mt-0.5" style={{ color: 'var(--lp-cyan)' }} />
@@ -223,7 +234,7 @@ export default function Pricing({ initialData }: { initialData?: PlansResponse |
                     ))}
                   </ul>
 
-                  <ul className="mt-3 space-y-2.5 flex-1">
+                  <ul className="mt-6 space-y-3 flex-1">
                     {copy.includes.map((f) => (
                       <li key={f} className="flex items-start gap-2.5 text-sm">
                         {f.startsWith('Everything in') ? (
@@ -238,9 +249,12 @@ export default function Pricing({ initialData }: { initialData?: PlansResponse |
                     ))}
                   </ul>
 
+                  {/* py-3 -> py-4: the old height (~38px with text-sm) fell
+                      short of the 44-52px comfortable tap-target range on a
+                      touchscreen. */}
                   <Link
                     href="/register"
-                    className={`mt-8 text-center px-5 py-3 rounded-xl text-sm lp-focus-ring ${copy.highlighted ? 'lp-btn-primary' : 'lp-btn-ghost font-semibold'}`}
+                    className={`mt-8 text-center px-5 py-4 rounded-xl text-sm lp-focus-ring ${copy.highlighted ? 'lp-btn-primary' : 'lp-btn-ghost font-semibold'}`}
                   >
                     {copy.cta}
                   </Link>

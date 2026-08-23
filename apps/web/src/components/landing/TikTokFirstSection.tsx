@@ -14,7 +14,7 @@ import { Reveal, Eyebrow } from './shared';
  */
 export default function TikTokFirstSection() {
   return (
-    <section id="tiktok-first" className="relative py-12 sm:py-16" aria-label="TikTok first">
+    <section id="tiktok-first" className="relative py-20 sm:py-14" aria-label="TikTok first">
       <div className="max-w-3xl mx-auto px-5 sm:px-8 text-center">
         <Reveal>
           <Eyebrow>TikTok First</Eyebrow>

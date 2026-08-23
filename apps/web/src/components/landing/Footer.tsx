@@ -57,7 +57,7 @@ export default function Footer() {
 
           {COLUMNS.map((col) => (
             <div key={col.title}>
-              <h4 className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--lp-text-muted)' }}>
+              <h4 className="text-[13px] font-bold uppercase tracking-wider" style={{ color: 'var(--lp-text-muted)' }}>
                 {col.title}
               </h4>
               <ul className="mt-4 space-y-3">
@@ -78,7 +78,7 @@ export default function Footer() {
         </div>
 
         <div
-          className="mt-14 pt-8 border-t flex flex-col sm:flex-row items-center justify-between gap-4 text-xs"
+          className="mt-14 pt-8 border-t flex flex-col sm:flex-row items-center justify-between gap-4 text-[13px]"
           style={{ borderColor: 'var(--lp-border)', color: 'var(--lp-text-muted)' }}
         >
           <div className="flex flex-col sm:flex-row items-center gap-1 sm:gap-3">

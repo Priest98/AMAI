@@ -50,7 +50,7 @@ const STATUS_ITEMS = [
 
 export default function HowItWorks() {
   return (
-    <section id="how-it-works" className="relative py-12 sm:py-16" aria-label="How Oyinca works">
+    <section id="how-it-works" className="relative py-16 sm:py-12" aria-label="How Oyinca works">
       <div className="max-w-6xl mx-auto px-5 sm:px-8">
         <Reveal className="text-center max-w-2xl mx-auto">
           <Eyebrow>How It Works</Eyebrow>
@@ -74,7 +74,7 @@ export default function HowItWorks() {
                     STEP {String(i + 1).padStart(2, '0')}
                   </span>
                 </div>
-                <h3 className="lp-heading font-bold text-[15px]">{step.title}</h3>
+                <h3 className="lp-heading font-bold text-base">{step.title}</h3>
                 <p className="text-sm leading-relaxed" style={{ color: 'var(--lp-text-secondary)' }}>
                   {step.body}
                 </p>
@@ -101,9 +101,15 @@ export default function HowItWorks() {
 
         <Reveal delay={0.35} className="mt-6">
           <div className="lp-card p-4 sm:p-6">
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            {/* Mobile-audit fix: 2-up on a phone squeezed each stat into
+                a tile too small to read comfortably ("too miniature to
+                communicate anything"). One column on mobile gives every
+                stat its full row width instead of shrinking the whole
+                grid down to fit -- same 5 items, no fabricated new
+                mobile-only numbers, just more room per item. */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-3">
               {STATUS_ITEMS.map((item) => (
-                <div key={item.label} className="flex flex-col gap-2 p-3 rounded-xl lp-glass">
+                <div key={item.label} className="flex flex-col gap-2 p-3.5 rounded-xl lp-glass sm:p-3">
                   <div className="flex items-center justify-between">
                     <item.Icon
                       className="h-4 w-4"
@@ -118,7 +124,7 @@ export default function HowItWorks() {
                   </div>
                   <div>
                     <p
-                      className="text-[10px] font-bold uppercase tracking-wider"
+                      className="text-[11px] font-bold uppercase tracking-wider"
                       style={{ color: 'var(--lp-text-muted)' }}
                     >
                       {item.label}

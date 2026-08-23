@@ -53,7 +53,16 @@ export default function Hero() {
   return (
     <section
       id="product"
-      className="relative isolate flex h-[100svh] min-h-[560px] w-full flex-col overflow-hidden"
+      // Mobile-audit fix: a literal 100svh here forces the nav, headline,
+      // support copy and CTA to all physically fit inside one phone
+      // screen, which is exactly what was reading as "cramped" -- there's
+      // no way to give any of them breathing room when the container itself
+      // has zero slack. 88svh leaves a visible sliver of the next section,
+      // which both frees up room for larger mobile spacing below and gives
+      // an implicit "there's more, scroll" cue. Unchanged (100svh) at sm+
+      // where the original full-bleed cinematic composition has room to
+      // work.
+      className="relative isolate flex h-[88svh] min-h-[560px] w-full flex-col overflow-hidden sm:h-[100svh]"
       aria-label="Meet Oyinca, your social media manager"
     >
       {/* Full-bleed cinematic video background. Absolutely positioned and

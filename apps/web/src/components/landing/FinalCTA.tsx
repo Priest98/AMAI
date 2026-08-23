@@ -9,7 +9,7 @@ import MagneticButton from './MagneticButton';
 
 export default function FinalCTA() {
   return (
-    <section className="relative py-12 sm:py-16 px-5 sm:px-8" aria-label="Get started">
+    <section className="relative py-16 sm:py-12 px-5 sm:px-8" aria-label="Get started">
       <Reveal className="max-w-4xl mx-auto">
         <div
           className="relative overflow-hidden rounded-[28px] p-10 sm:p-16 text-center"

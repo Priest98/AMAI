@@ -14,7 +14,7 @@ const PAIN_POINTS = [
 
 export default function ProblemSection() {
   return (
-    <section className="relative py-12 sm:py-16" aria-label="The problem Oyinca solves">
+    <section className="relative py-16 sm:py-12" aria-label="The problem Oyinca solves">
       <div className="max-w-3xl mx-auto px-5 sm:px-8 text-center">
         <Reveal>
           <h2 className="lp-heading text-3xl sm:text-4xl font-bold tracking-tight">
@@ -23,7 +23,12 @@ export default function ProblemSection() {
           </h2>
         </Reveal>
 
-        <Reveal delay={0.1} className="mt-8 flex flex-wrap justify-center gap-x-6 gap-y-2">
+        {/* Mobile-audit fix: these read as a cramped wrapped row on a phone
+            (four short items fighting for space on 2 tight lines). Stacked
+            with real gaps on mobile so each gets its own breathing room;
+            reverts to the original single wrapped row at sm+ where there's
+            width to spare. */}
+        <Reveal delay={0.1} className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:flex-wrap sm:justify-center sm:gap-x-6 sm:gap-y-2">
           {PAIN_POINTS.map((point) => (
             <span key={point} className="text-sm sm:text-base font-medium" style={{ color: 'var(--lp-text-muted)' }}>
               {point}
