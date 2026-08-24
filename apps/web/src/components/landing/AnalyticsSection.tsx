@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Sparkles, ArrowRight } from 'lucide-react';
+import { Gem, ArrowRight } from 'lucide-react';
 import { Reveal, Eyebrow } from './shared';
 
 export default function AnalyticsSection() {
@@ -27,7 +27,7 @@ export default function AnalyticsSection() {
         <Reveal delay={0.1}>
           <div className="lp-card p-6 sm:p-8">
             <div className="flex items-center gap-2 mb-4">
-              <Sparkles className="h-4 w-4" style={{ color: 'var(--lp-cyan)' }} />
+              <Gem className="h-4 w-4" style={{ color: 'var(--lp-cyan)' }} />
               <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--lp-cyan)' }}>Oyinca Recommends</span>
             </div>
             <p className="text-sm leading-relaxed" style={{ color: 'var(--lp-text-primary)' }}>

@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { Store, Sparkles, Users } from 'lucide-react';
+import { Store, Gem, Users } from 'lucide-react';
 import { Reveal, Eyebrow } from './shared';
 
 const CARDS = [
@@ -11,7 +11,7 @@ const CARDS = [
     body: 'Spend less time managing social media and more time running your business.',
   },
   {
-    Icon: Sparkles,
+    Icon: Gem,
     title: 'Creators & Personal Brands',
     body: 'Keep your content pipeline moving without living inside your content calendar.',
   },

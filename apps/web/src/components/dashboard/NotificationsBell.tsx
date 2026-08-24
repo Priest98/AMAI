@@ -8,7 +8,7 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
-  Sparkles,
+  Gem,
   Radio,
   ShieldAlert,
   Wand2,
@@ -146,7 +146,7 @@ export default function NotificationsBell() {
 
             {items.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
-                <Sparkles className="h-5 w-5 mb-2" style={{ color: "var(--text-muted)" }} />
+                <Gem className="h-5 w-5 mb-2" style={{ color: "var(--text-muted)" }} />
                 <p className="text-caption" style={{ color: "var(--text-muted)" }}>
                   Nothing yet. Automation events will show up here as they happen.
                 </p>
@@ -154,7 +154,7 @@ export default function NotificationsBell() {
             ) : (
               <ul className="space-y-0.5">
                 {items.map((n) => {
-                  const Icon = ICON_FOR[n.type] || Sparkles;
+                  const Icon = ICON_FOR[n.type] || Gem;
                   const color = COLOR_FOR[n.type] || "var(--accent-secondary)";
                   const href = LINK_FOR[n.type];
                   const content = (

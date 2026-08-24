@@ -2,7 +2,7 @@
 
 import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Film, Sparkles, Hash, Gauge, CheckCircle2, RotateCcw, Play } from 'lucide-react';
+import { Film, Gem, Hash, Gauge, CheckCircle2, RotateCcw, Play } from 'lucide-react';
 import { Reveal, Eyebrow } from './shared';
 
 type DemoState = 'idle' | 'uploading' | 'analyzing' | 'writing' | 'scoring' | 'done';
@@ -146,7 +146,7 @@ export default function InteractiveDemo() {
 
                 {(state === 'analyzing' || state === 'writing' || state === 'scoring' || state === 'done') && (
                   <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--lp-text-muted)' }}>
-                    <Sparkles className="h-3.5 w-3.5" style={{ color: 'var(--lp-purple)' }} />
+                    <Gem className="h-3.5 w-3.5" style={{ color: 'var(--lp-purple)' }} />
                     AI Vision detected: outdoor product shot, upbeat pacing, product-launch tone.
                   </div>
                 )}

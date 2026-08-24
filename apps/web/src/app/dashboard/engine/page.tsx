@@ -13,7 +13,6 @@ import {
   Pause,
   CheckCircle2,
   Users,
-  Sparkles,
   AlertTriangle,
   Activity,
   CalendarClock,
@@ -207,25 +206,23 @@ export default function AmaiEnginePage() {
         <EngineWorkflowVisualization />
       </div>
 
-      {/* ── Main Engine State Card ── */}
-      <div className="exec-card p-6 sm:p-8 flex flex-col sm:flex-row items-center sm:items-start justify-between gap-6">
-        <div className="flex items-start space-x-4">
+      {/* ── Main Engine State Card ──
+          Kept intentionally compact: ControlCenter directly above this
+          already states "AutoPilot running/paused" plus what that means
+          for the approval queue, so a second full paragraph here was just
+          restating the same idea. This card's actual job is the one thing
+          ControlCenter can't do -- the toggle itself. */}
+      <div className="exec-card p-5 sm:p-6 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
           <div
-            className="h-11 w-11 rounded-2xl flex items-center justify-center shrink-0"
+            className="h-10 w-10 rounded-2xl flex items-center justify-center shrink-0"
             style={{ backgroundColor: isActive ? 'rgba(0,230,118,0.12)' : 'rgba(255,255,255,0.06)' }}
           >
             {isActive ? <Zap className="h-5 w-5 text-emerald-400" /> : <Pause className="h-5 w-5 text-slate-400" />}
           </div>
-          <div>
-            <h2 className="text-base font-extrabold tracking-tight" style={{ color: 'var(--text-primary)' }}>
-              {isActive ? 'Oyinca Active' : 'Oyinca Paused'}
-            </h2>
-            <p className="text-xs mt-1 max-w-md leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-              {isActive
-                ? 'Oyinca is monitoring your content and automating your publishing workflow.'
-                : 'Oyinca will continue preparing your content, but nothing will be published automatically.'}
-            </p>
-          </div>
+          <h2 className="text-base font-extrabold tracking-tight" style={{ color: 'var(--text-primary)' }}>
+            {isActive ? 'Oyinca Active' : 'Oyinca Paused'}
+          </h2>
         </div>
 
         <GlassmorphicToggle
@@ -249,14 +246,14 @@ export default function AmaiEnginePage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <button
             onClick={() => setApprovalMode('MANUAL')}
-            className={`p-4 rounded-xl border text-left transition touch-target ${
+            className={`flex flex-col p-4 rounded-xl border text-left transition touch-target ${
               config?.approvalMode === 'MANUAL' ? 'border-emerald-500/60 bg-emerald-500/10' : ''
             }`}
             style={{ backgroundColor: config?.approvalMode === 'MANUAL' ? undefined : 'var(--bg-surface-raised)', borderColor: config?.approvalMode === 'MANUAL' ? undefined : 'var(--card-border)' }}
           >
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-xs font-extrabold" style={{ color: 'var(--text-primary)' }}>Assisted (Default)</span>
-              {config?.approvalMode === 'MANUAL' && <span className="h-2 w-2 rounded-full bg-emerald-400" />}
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <span className="text-xs font-extrabold leading-snug" style={{ color: 'var(--text-primary)' }}>Assisted (Default)</span>
+              {config?.approvalMode === 'MANUAL' && <span className="h-2 w-2 rounded-full bg-emerald-400 shrink-0" />}
             </div>
             <p className="text-[11px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
               I prepare your content. You approve it before publishing.
@@ -265,14 +262,14 @@ export default function AmaiEnginePage() {
 
           <button
             onClick={() => setApprovalMode('AUTO')}
-            className={`p-4 rounded-xl border text-left transition touch-target ${
+            className={`flex flex-col p-4 rounded-xl border text-left transition touch-target ${
               config?.approvalMode === 'AUTO' ? 'border-amber-500/60 bg-amber-500/10' : ''
             }`}
             style={{ backgroundColor: config?.approvalMode === 'AUTO' ? undefined : 'var(--bg-surface-raised)', borderColor: config?.approvalMode === 'AUTO' ? undefined : 'var(--card-border)' }}
           >
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-xs font-extrabold" style={{ color: 'var(--text-primary)' }}>Autopilot</span>
-              {config?.approvalMode === 'AUTO' && <span className="h-2 w-2 rounded-full bg-amber-400" />}
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <span className="text-xs font-extrabold leading-snug" style={{ color: 'var(--text-primary)' }}>Autopilot</span>
+              {config?.approvalMode === 'AUTO' && <span className="h-2 w-2 rounded-full bg-amber-400 shrink-0" />}
             </div>
             <p className="text-[11px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
               I create, schedule and publish according to your rules.

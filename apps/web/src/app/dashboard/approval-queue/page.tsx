@@ -15,7 +15,7 @@ import {
   Clock,
   Instagram,
   Video,
-  Sparkles,
+  Gem,
   Edit3,
   Trash2,
   Send,
@@ -352,7 +352,7 @@ export default function ApprovalQueuePage() {
             ? { backgroundColor: 'var(--accent-warning-subtle)', color: 'var(--accent-warning)', border: '1px solid var(--accent-warning)' }
             : { color: 'var(--text-muted)', border: '1px solid transparent' }}
         >
-          <Sparkles className="h-3.5 w-3.5" />
+          <Gem className="h-3.5 w-3.5" />
           <span>AI Comment Replies</span>
         </button>
       </div>
@@ -390,17 +390,10 @@ export default function ApprovalQueuePage() {
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2.5">
-                      {platform === 'TIKTOK' ? (
-                        <span className="p-1.5 rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 text-xs font-bold flex items-center space-x-1">
-                          <Video className="h-3.5 w-3.5" />
-                          <span>TikTok</span>
-                        </span>
-                      ) : (
-                        <span className="p-1.5 rounded-lg bg-red-500/10 text-red-500 border border-red-500/20 text-xs font-bold flex items-center space-x-1">
-                          <Instagram className="h-3.5 w-3.5" />
-                          <span>Instagram</span>
-                        </span>
-                      )}
+                      <span className="p-1.5 rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 text-xs font-bold flex items-center space-x-1">
+                        <Video className="h-3.5 w-3.5" />
+                        <span>TikTok</span>
+                      </span>
 
                       <span className="text-xs font-semibold flex items-center space-x-1" style={{ color: 'var(--text-secondary)' }}>
                         <Calendar className="h-3 w-3" />

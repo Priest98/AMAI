@@ -20,16 +20,21 @@
 :root,
 .light {
   /* ---- Surfaces & elevation ----
-   * Neutral base drawn from the platinum/French gray/gunmetal palette,
-   * with the navy/steel-blue palette carrying all brand accent duty. */
-  --bg-base: #F6FAFD;
-  --bg-surface: #FFFFFF;
-  --bg-surface-raised: #FBFCFE;
-  --bg-surface-sunken: #EDF0F5;
-  --hover-surface: #E7ECF3;
-  --card-bg: #FFFFFF;
-  --card-border: #DCE1EA;
-  --card-hover-border: #C7CEDB;
+   * Neutral base drawn from a warm ivory/parchment palette rather than a
+   * cool blue-white -- the previous #F6FAFD/#FFFFFF pairing measured as
+   * genuinely harsh/glare-y on long sessions (a near-pure white base with
+   * a blue cast reads colder and brighter than the same luminance in a
+   * warm tone). Shifted every surface a few points toward cream while
+   * keeping the navy/steel-blue palette carrying all brand accent duty
+   * unchanged, so the identity doesn't change, just the base's warmth. */
+  --bg-base: #FAF6EF;
+  --bg-surface: #FDFBF6;
+  --bg-surface-raised: #FFFDF8;
+  --bg-surface-sunken: #F1EADD;
+  --hover-surface: #EFE6D6;
+  --card-bg: #FDFBF6;
+  --card-border: #E6DDC9;
+  --card-hover-border: #D8CBAE;
 
   --elevation-1: 0 1px 2px 0 rgba(10, 25, 49, 0.05);
   --elevation-2: 0 1px 2px 0 rgba(10, 25, 49, 0.05), 0 4px 10px -4px rgba(10, 25, 49, 0.08);
@@ -38,22 +43,22 @@
   --elevation-5: 0 8px 16px -4px rgba(10, 25, 49, 0.09), 0 28px 56px -16px rgba(10, 25, 49, 0.22);
   --card-shadow: var(--elevation-2);
 
-  --glass-bg: rgba(255, 255, 255, 0.72);
-  --glass-border: rgba(255, 255, 255, 0.5);
+  --glass-bg: rgba(250, 246, 239, 0.72);
+  --glass-border: rgba(250, 246, 239, 0.5);
 
   /* ---- Glass Design System ----
    * Card/input/button surfaces get real translucency + blur instead of a
-   * flat opaque fill. Light mode stays bright, airy and soft (higher
-   * opacity, warm white highlight) rather than a dark-mode glass panel
-   * with the colors merely inverted. */
+   * flat opaque fill. Light mode stays airy and soft, now with a warm
+   * ivory highlight instead of stark white, rather than a dark-mode glass
+   * panel with the colors merely inverted. */
   --glass-blur: 20px;
   --glass-blur-sm: 12px;
-  --glass-card-bg: rgba(255, 255, 255, 0.64);
-  --glass-card-bg-hover: rgba(255, 255, 255, 0.8);
+  --glass-card-bg: rgba(250, 246, 239, 0.64);
+  --glass-card-bg-hover: rgba(250, 246, 239, 0.8);
   --glass-card-border: rgba(10, 25, 49, 0.10);
-  --glass-highlight: rgba(255, 255, 255, 0.6);
+  --glass-highlight: rgba(250, 246, 239, 0.6);
   --glass-glow: rgba(74, 127, 167, 0.28);
-  --glass-input-bg: rgba(255, 255, 255, 0.55);
+  --glass-input-bg: rgba(250, 246, 239, 0.55);
 
   /* ---- Brand & accents: navy blue carries the identity, gunmetal
      anchors dark elements, steel blue is the primary interactive accent ---- */
@@ -72,7 +77,7 @@
   --text-primary: #0A1931;
   --text-secondary: #3D4A5C;
   --text-muted: #8891A0;
-  --text-on-accent: #F6FAFD;
+  --text-on-accent: #FAF6EF;
 
   --gradient-primary-cta: linear-gradient(135deg, #0A1931 0%, #4A7FA7 100%);
   --gradient-gold-cta: linear-gradient(135deg, #0A1931 0%, #4A7FA7 100%);

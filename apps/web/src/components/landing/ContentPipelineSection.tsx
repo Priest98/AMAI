@@ -1,12 +1,12 @@
 "use client";
 
 import React from 'react';
-import { HardDrive, Sparkles, ScanEye, PenLine, CalendarClock, Rocket, ArrowRight } from 'lucide-react';
+import { HardDrive, Gem, ScanEye, PenLine, CalendarClock, Rocket, ArrowRight } from 'lucide-react';
 import { Reveal, Eyebrow } from './shared';
 
 const FLOW = [
   { label: 'Google Drive', Icon: HardDrive },
-  { label: 'Oyinca', Icon: Sparkles },
+  { label: 'Oyinca', Icon: Gem },
   { label: 'Analyze', Icon: ScanEye },
   { label: 'Write', Icon: PenLine },
   { label: 'Schedule', Icon: CalendarClock },

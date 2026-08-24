@@ -21,11 +21,10 @@ import {
   Pause,
   Radio,
   Folder,
-  Upload,
   CalendarClock,
   Crown,
   AlertTriangle,
-  Sparkles,
+  Gem,
 } from 'lucide-react';
 
 const containerVariants = {
@@ -204,13 +203,6 @@ export default function DashboardPage() {
                 <span>{approvalMode === 'AUTO' ? 'Auto Approval' : 'Manual Approval'}</span>
               </span>
             </Badge>
-            <Link
-              href="/dashboard/media"
-              className="btn-emerald-cta px-4 py-2 rounded-[var(--radius-md)] text-xs font-bold touch-target shrink-0 flex items-center gap-1.5"
-            >
-              <Upload className="h-3.5 w-3.5" />
-              <span>Upload Content</span>
-            </Link>
           </div>
         </div>
       </div>
@@ -262,7 +254,7 @@ export default function DashboardPage() {
           meaningful, Oyinca says so instead of guessing. */}
       <motion.div variants={itemVariants} className="exec-card p-5 sm:p-6 space-y-3">
         <div className="flex items-center gap-2">
-          <Sparkles className="h-4 w-4" style={{ color: 'var(--accent-warning)' }} />
+          <Gem className="h-4 w-4" style={{ color: 'var(--accent-warning)' }} />
           <h2 className="text-h3" style={{ color: 'var(--text-primary)' }}>Oyinca recommends</h2>
         </div>
 

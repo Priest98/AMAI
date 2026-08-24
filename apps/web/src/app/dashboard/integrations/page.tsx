@@ -251,11 +251,11 @@ export default function ConnectedAccountsPage() {
   const isTikTokConnected = tiktokAccounts.length > 0 || !!localTikTok;
   const tiktokHandle = tiktokAccounts[0]?.handle || localTikTok?.handle || '@creator';
 
-  // TikTok-first launch: Instagram's connect entry point is hidden unless
-  // an account is already connected (see lib/featureFlags.ts) -- an
-  // existing connection is never hidden, only the ability to start a new
-  // one while the integration isn't part of the V1 launch.
-  const showInstagramCard = INSTAGRAM_ENABLED || isInstagramConnected;
+  // Hiding everything related to Instagram for now, including already-
+  // connected accounts (see lib/featureFlags.ts) -- a stricter hide than
+  // the previous "unless already connected" carve-out. Nothing server-side
+  // changes: flipping INSTAGRAM_ENABLED back on needs zero backend work.
+  const showInstagramCard = INSTAGRAM_ENABLED;
 
   return (
     <div className="space-y-6 sm:space-y-8 max-w-7xl mx-auto">

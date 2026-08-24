@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, ArrowRight } from 'lucide-react';
+import { Gem, ArrowRight } from 'lucide-react';
 
 interface WelcomeModalProps {
   onGetStarted: () => void;
@@ -34,7 +34,7 @@ export default function WelcomeModal({ onGetStarted, onSkip }: WelcomeModalProps
 
           <div className="relative space-y-5">
             <div className="h-14 w-14 rounded-2xl flex items-center justify-center text-white shadow-lg" style={{ background: 'var(--gradient-primary-cta)' }}>
-              <Sparkles className="h-7 w-7" />
+              <Gem className="h-7 w-7" />
             </div>
 
             <div className="space-y-2">

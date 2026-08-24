@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { Zap, CalendarClock, Sparkles, TrendingUp } from 'lucide-react';
+import { Zap, CalendarClock, Gem, TrendingUp } from 'lucide-react';
 import { TikTokLogo } from '@/components/icons/platform-logos';
 import { Reveal } from './shared';
 
@@ -21,7 +21,7 @@ import { Reveal } from './shared';
 const STATUS_ITEMS = [
   { Icon: Zap, label: 'Autopilot', value: 'Active', tone: 'cyan' as const, live: true },
   { Icon: CalendarClock, label: 'Scheduled', value: '3 posts', tone: 'purple' as const },
-  { Icon: Sparkles, label: 'Recommendations', value: '2 new', tone: 'cyan' as const },
+  { Icon: Gem, label: 'Recommendations', value: '2 new', tone: 'cyan' as const },
   { Icon: TikTokLogo, label: 'TikTok', value: 'Connected', tone: 'purple' as const },
   { Icon: TrendingUp, label: 'Performance', value: 'Tracking', tone: 'cyan' as const },
 ];

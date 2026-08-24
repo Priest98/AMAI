@@ -8,7 +8,7 @@ import { SkeletonListRows } from '@/components/ui/Skeleton';
 import { Reveal } from '@/components/ui/Reveal';
 import { brandFetch } from '@/lib/api';
 import { useEngineEvents } from '@/lib/useEngineEvents';
-import { CheckCircle2, Instagram, Video, Loader2 } from 'lucide-react';
+import { CheckCircle2, Video, Loader2 } from 'lucide-react';
 
 interface PublishedPost {
   id: string;
@@ -74,7 +74,11 @@ export default function PublishedPostsPage() {
             .slice()
             .sort((a, b) => new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime())
             .map((post, i) => {
-              const platform = post.targets?.[0]?.platform || 'INSTAGRAM';
+              // TikTok-first launch: Instagram entry points are hidden (see
+              // lib/featureFlags.ts), so any post missing a target here
+              // defaults to TikTok rather than a platform we're not
+              // currently surfacing anywhere else in the product.
+              const platform = post.targets?.[0]?.platform || 'TIKTOK';
               return (
                 <Reveal
                   key={post.id}
@@ -83,7 +87,7 @@ export default function PublishedPostsPage() {
                   className="exec-card exec-card-interactive p-4 flex items-start gap-4"
                 >
                   <div className="h-9 w-9 rounded-[var(--radius-lg)] flex items-center justify-center shrink-0" style={{ backgroundColor: 'var(--accent-success-subtle)', color: 'var(--accent-success)' }}>
-                    {platform === 'TIKTOK' ? <Video className="h-4 w-4" /> : <Instagram className="h-4 w-4" />}
+                    <Video className="h-4 w-4" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">

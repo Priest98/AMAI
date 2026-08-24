@@ -16,7 +16,6 @@ import {
   RotateCcw,
   Brain,
   CreditCard,
-  Sparkles,
   Wand2,
   Zap as ZapIcon,
   Building2,

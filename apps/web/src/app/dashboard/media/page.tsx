@@ -10,7 +10,7 @@ import { apiFetch, brandFetch, getBrandId, isAuthenticated, API_BASE } from '@/l
 import { useEngineEvents } from '@/lib/useEngineEvents';
 import { GoogleDriveLogo } from '@/components/icons/platform-logos';
 import {
-  Trash2, Film, Loader2, Sparkles, AlertCircle, CheckCircle2, MoreVertical,
+  Trash2, Film, Loader2, Gem, AlertCircle, CheckCircle2, MoreVertical,
   RefreshCw, FolderSync, LogOut, X, Upload, Images, Image as ImageIcon,
   ArrowUp, ArrowDown, CheckSquare, Square, Wand2,
 } from 'lucide-react';
@@ -802,7 +802,7 @@ export default function MediaLibraryPage() {
                     )
                   ) : (
                     <div className="w-full h-full flex flex-col items-center justify-center p-3 text-center bg-emerald-500/10">
-                      <Sparkles className="h-6 w-6 text-emerald-400 mb-1" />
+                      <Gem className="h-6 w-6 text-emerald-400 mb-1" />
                       <span className="text-[10px] font-bold text-emerald-400">PUBLISHED</span>
                       <span className="text-[9px] text-slate-400 truncate w-full mt-0.5">{asset.filename}</span>
                     </div>
