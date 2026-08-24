@@ -4,7 +4,7 @@ import React, { useRef, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { Eyebrow } from './shared';
 import GsapReveal from './GsapReveal';
-import { ensureGsapPlugins, gsap, prefersReducedMotion } from './gsap-setup';
+import { prefersReducedMotion } from './reduced-motion';
 
 /**
  * Four questions, not five. "How does TikTok publishing work?" is cut --
@@ -45,11 +45,18 @@ export default function FAQ() {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   const panelRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-  const animatePanel = (el: HTMLDivElement, opening: boolean) => {
+  // Dynamically imported on first actual use (a click), not eagerly --
+  // GSAP never has to load at all for a visitor who never opens an FAQ
+  // item, which is the truly-lazy end of the spectrum compared to the
+  // other GSAP usages on this page (those load on mount-if-not-reduced-
+  // motion; this one loads on interact-if-not-reduced-motion).
+  const animatePanel = async (el: HTMLDivElement, opening: boolean) => {
     if (prefersReducedMotion()) {
-      gsap.set(el, opening ? { height: 'auto', opacity: 1 } : { height: 0, opacity: 0 });
+      el.style.height = opening ? 'auto' : '0px';
+      el.style.opacity = opening ? '1' : '0';
       return;
     }
+    const { ensureGsapPlugins, gsap } = await import('./gsap-setup');
     ensureGsapPlugins();
     if (opening) {
       gsap.set(el, { height: 0, opacity: 0 });

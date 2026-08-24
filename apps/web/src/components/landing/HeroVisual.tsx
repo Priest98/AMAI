@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useReducedMotion } from 'framer-motion';
-import { ensureGsapPlugins, gsap, ScrollTrigger, prefersReducedMotion } from './gsap-setup';
+import { prefersReducedMotion } from './reduced-motion';
 
 /**
  * Oyinca's cinematic hero background.
@@ -93,26 +93,38 @@ export default function HeroVisual({ className = '' }: { className?: string }) {
     const el = wrapRef.current;
     if (!el) return;
 
-    ensureGsapPlugins();
-    const tween = gsap.fromTo(
-      el,
-      { yPercent: 0, scale: 1 },
-      {
-        yPercent: 14,
-        scale: 1.08,
-        ease: 'none',
-        scrollTrigger: {
-          trigger: el,
-          start: 'top top',
-          end: 'bottom top',
-          scrub: true,
+    // Dynamically imported (not a top-level import) so GSAP's bytes never
+    // sit on the hero's own critical rendering path -- this is the single
+    // most LCP-sensitive component on the page, and the parallax it adds
+    // is a scroll-driven embellishment, not something the initial paint
+    // depends on.
+    let cancelled = false;
+    let tween: { kill: () => void; scrollTrigger?: { kill: () => void } } | undefined;
+
+    import('./gsap-setup').then(({ ensureGsapPlugins, gsap }) => {
+      if (cancelled || !wrapRef.current) return;
+      ensureGsapPlugins();
+      tween = gsap.fromTo(
+        wrapRef.current,
+        { yPercent: 0, scale: 1 },
+        {
+          yPercent: 14,
+          scale: 1.08,
+          ease: 'none',
+          scrollTrigger: {
+            trigger: wrapRef.current,
+            start: 'top top',
+            end: 'bottom top',
+            scrub: true,
+          },
         },
-      },
-    );
+      );
+    });
 
     return () => {
-      tween.scrollTrigger?.kill();
-      tween.kill();
+      cancelled = true;
+      tween?.scrollTrigger?.kill();
+      tween?.kill();
     };
   }, []);
 

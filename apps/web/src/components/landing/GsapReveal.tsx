@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef } from 'react';
-import { ensureGsapPlugins, gsap, ScrollTrigger, prefersReducedMotion } from './gsap-setup';
+import { prefersReducedMotion } from './reduced-motion';
 
 /**
  * GSAP ScrollTrigger-driven fade-in-up, for a single block (a heading, a
@@ -42,23 +42,32 @@ export default function GsapReveal({
     if (!el) return;
 
     if (prefersReducedMotion()) {
-      gsap.set(el, { opacity: 1, y: 0 });
+      el.style.opacity = '1';
+      el.style.transform = 'none';
       return;
     }
 
-    ensureGsapPlugins();
-    gsap.set(el, { opacity: 0, y });
+    let cancelled = false;
+    let trigger: { kill: () => void } | undefined;
 
-    const trigger = ScrollTrigger.create({
-      trigger: el,
-      start,
-      once: true,
-      onEnter: () => {
-        gsap.to(el, { opacity: 1, y: 0, duration, delay, ease: 'power3.out' });
-      },
+    import('./gsap-setup').then(({ ensureGsapPlugins, gsap, ScrollTrigger }) => {
+      if (cancelled || !ref.current) return;
+      ensureGsapPlugins();
+      gsap.set(el, { opacity: 0, y });
+      trigger = ScrollTrigger.create({
+        trigger: el,
+        start,
+        once: true,
+        onEnter: () => {
+          gsap.to(el, { opacity: 1, y: 0, duration, delay, ease: 'power3.out' });
+        },
+      });
     });
 
-    return () => trigger.kill();
+    return () => {
+      cancelled = true;
+      trigger?.kill();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

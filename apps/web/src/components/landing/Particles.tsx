@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef } from 'react';
-import { ensureGsapPlugins, gsap, prefersReducedMotion } from './gsap-setup';
+import { prefersReducedMotion } from './reduced-motion';
 
 /**
  * Slow, ambient floating gold particles for the Final CTA panel -- the
@@ -24,39 +24,46 @@ export default function Particles({ className = '' }: { className?: string }) {
 
   useEffect(() => {
     if (prefersReducedMotion()) return;
-    ensureGsapPlugins();
-
     const container = containerRef.current;
     if (!container) return;
 
-    const nodes = Array.from(container.querySelectorAll<HTMLElement>('.lp-particle'));
-    const tweens = nodes.map((node) => {
-      const size = gsap.utils.random(2, 5);
-      const startX = gsap.utils.random(4, 96);
-      const startY = gsap.utils.random(8, 92);
-      const drift = gsap.utils.random(20, 60);
-      const duration = gsap.utils.random(6, 12);
+    let cancelled = false;
+    let tweens: { kill: () => void }[] = [];
 
-      gsap.set(node, {
-        width: size,
-        height: size,
-        left: `${startX}%`,
-        top: `${startY}%`,
-        opacity: 0,
-      });
+    import('./gsap-setup').then(({ ensureGsapPlugins, gsap }) => {
+      if (cancelled) return;
+      ensureGsapPlugins();
 
-      return gsap.to(node, {
-        y: `-=${drift}`,
-        opacity: gsap.utils.random(0.25, 0.6),
-        duration,
-        delay: gsap.utils.random(0, 4),
-        repeat: -1,
-        yoyo: true,
-        ease: 'sine.inOut',
+      const nodes = Array.from(container.querySelectorAll<HTMLElement>('.lp-particle'));
+      tweens = nodes.map((node) => {
+        const size = gsap.utils.random(2, 5);
+        const startX = gsap.utils.random(4, 96);
+        const startY = gsap.utils.random(8, 92);
+        const drift = gsap.utils.random(20, 60);
+        const duration = gsap.utils.random(6, 12);
+
+        gsap.set(node, {
+          width: size,
+          height: size,
+          left: `${startX}%`,
+          top: `${startY}%`,
+          opacity: 0,
+        });
+
+        return gsap.to(node, {
+          y: `-=${drift}`,
+          opacity: gsap.utils.random(0.25, 0.6),
+          duration,
+          delay: gsap.utils.random(0, 4),
+          repeat: -1,
+          yoyo: true,
+          ease: 'sine.inOut',
+        });
       });
     });
 
     return () => {
+      cancelled = true;
       tweens.forEach((t) => t.kill());
     };
   }, []);

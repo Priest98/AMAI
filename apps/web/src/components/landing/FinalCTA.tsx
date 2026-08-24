@@ -7,7 +7,7 @@ import { ArrowRight } from 'lucide-react';
 import GsapReveal from './GsapReveal';
 import MagneticButton from './MagneticButton';
 import Particles from './Particles';
-import { ensureGsapPlugins, gsap, prefersReducedMotion } from './gsap-setup';
+import { prefersReducedMotion } from './reduced-motion';
 
 export default function FinalCTA() {
   return (
@@ -71,16 +71,25 @@ function AmbientGlow() {
   React.useEffect(() => {
     const el = ref.current;
     if (!el || prefersReducedMotion()) return;
-    ensureGsapPlugins();
-    const tween = gsap.to(el, {
-      opacity: 0.85,
-      duration: 4.5,
-      repeat: -1,
-      yoyo: true,
-      ease: 'sine.inOut',
+
+    let cancelled = false;
+    let tween: { kill: () => void } | undefined;
+
+    import('./gsap-setup').then(({ ensureGsapPlugins, gsap }) => {
+      if (cancelled) return;
+      ensureGsapPlugins();
+      tween = gsap.to(el, {
+        opacity: 0.85,
+        duration: 4.5,
+        repeat: -1,
+        yoyo: true,
+        ease: 'sine.inOut',
+      });
     });
+
     return () => {
-      tween.kill();
+      cancelled = true;
+      tween?.kill();
     };
   }, []);
 

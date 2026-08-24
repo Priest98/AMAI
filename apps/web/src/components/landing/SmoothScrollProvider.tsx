@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from 'react';
-import { ensureGsapPlugins, ScrollSmoother, prefersReducedMotion } from './gsap-setup';
+import { prefersReducedMotion } from './reduced-motion';
 
 /**
  * Wraps the scrollable body of the landing page (everything except Nav --
@@ -27,19 +27,25 @@ export default function SmoothScrollProvider({ children }: { children: React.Rea
   useEffect(() => {
     if (prefersReducedMotion() || !wrapperRef.current || !contentRef.current) return;
 
-    ensureGsapPlugins();
-    setSmoothActive(true);
+    let cancelled = false;
+    let smoother: { kill: () => void } | undefined;
 
-    const smoother = ScrollSmoother.create({
-      wrapper: wrapperRef.current,
-      content: contentRef.current,
-      smooth: 1.1,
-      effects: true,
-      normalizeScroll: true,
+    import('./gsap-setup').then(({ ensureGsapPlugins, ScrollSmoother }) => {
+      if (cancelled || !wrapperRef.current || !contentRef.current) return;
+      ensureGsapPlugins();
+      setSmoothActive(true);
+      smoother = ScrollSmoother.create({
+        wrapper: wrapperRef.current,
+        content: contentRef.current,
+        smooth: 1.1,
+        effects: true,
+        normalizeScroll: true,
+      });
     });
 
     return () => {
-      smoother.kill();
+      cancelled = true;
+      smoother?.kill();
     };
   }, []);
 

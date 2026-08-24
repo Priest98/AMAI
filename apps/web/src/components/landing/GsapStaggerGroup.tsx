@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef } from 'react';
-import { ensureGsapPlugins, gsap, ScrollTrigger, prefersReducedMotion } from './gsap-setup';
+import { prefersReducedMotion } from './reduced-motion';
 
 /**
  * Staggers the entrance of its direct children (a row of cards, a list of
@@ -39,23 +39,31 @@ export default function GsapStaggerGroup({
     if (items.length === 0) return;
 
     if (prefersReducedMotion()) {
-      gsap.set(items, { opacity: 1, y: 0 });
+      items.forEach((el) => { el.style.opacity = '1'; el.style.transform = 'none'; });
       return;
     }
 
-    ensureGsapPlugins();
-    gsap.set(items, { opacity: 0, y });
+    let cancelled = false;
+    let trigger: { kill: () => void } | undefined;
 
-    const trigger = ScrollTrigger.create({
-      trigger: container,
-      start,
-      once: true,
-      onEnter: () => {
-        gsap.to(items, { opacity: 1, y: 0, duration, stagger, ease: 'power3.out' });
-      },
+    import('./gsap-setup').then(({ ensureGsapPlugins, gsap, ScrollTrigger }) => {
+      if (cancelled) return;
+      ensureGsapPlugins();
+      gsap.set(items, { opacity: 0, y });
+      trigger = ScrollTrigger.create({
+        trigger: container,
+        start,
+        once: true,
+        onEnter: () => {
+          gsap.to(items, { opacity: 1, y: 0, duration, stagger, ease: 'power3.out' });
+        },
+      });
     });
 
-    return () => trigger.kill();
+    return () => {
+      cancelled = true;
+      trigger?.kill();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
