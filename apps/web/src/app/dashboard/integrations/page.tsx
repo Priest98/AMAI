@@ -11,9 +11,37 @@ import {
   LogOut,
   Info,
   X,
+  Users,
+  UserPlus,
+  Heart,
+  Video,
+  PlayCircle,
 } from 'lucide-react';
 import { API_BASE, apiFetch, getBrandId, isAuthenticated } from '@/lib/api';
 import { INSTAGRAM_ENABLED } from '@/lib/featureFlags';
+import StatCard from '@/components/ui/StatCard';
+import EmptyState from '@/components/ui/EmptyState';
+import { SkeletonListRows } from '@/components/ui/Skeleton';
+
+interface TikTokStats {
+  followerCount: number | null;
+  followingCount: number | null;
+  likesCount: number | null;
+  videoCount: number | null;
+  fetchedAt: string;
+}
+
+interface TikTokVideo {
+  id: string;
+  title: string;
+  coverImageUrl: string | null;
+  shareUrl: string | null;
+  viewCount: number;
+  likeCount: number;
+  commentCount: number;
+  shareCount: number;
+  createTime: string | null;
+}
 
 interface ConnectedAccount {
   id: string;
@@ -24,6 +52,10 @@ interface ConnectedAccount {
   status: 'CONNECTED' | 'EXPIRED' | 'DISCONNECTED';
   tokenExpiresAt?: string;
   createdAt: string;
+  // Only populated for TikTok accounts (user.info.stats scope). Null until
+  // a stats fetch has completed at least once (connect time or the details
+  // modal's on-demand refresh).
+  stats?: TikTokStats | null;
 }
 
 export default function ConnectedAccountsPage() {
@@ -45,7 +77,32 @@ export default function ConnectedAccountsPage() {
     status: string;
     type: string;
     lastSynced: string;
+    // Set only when viewing a TikTok account, so the modal knows to fetch
+    // and render the stats/recent-videos panels (user.info.stats + video.list).
+    accountId?: string;
+    stats?: TikTokStats | null;
   } | null>(null);
+
+  // Recent-videos panel state, lazily fetched when the TikTok details modal
+  // opens rather than on every page load -- this is a review/inspection
+  // view, not something shown on the main integrations grid.
+  const [tiktokVideos, setTiktokVideos] = useState<TikTokVideo[]>([]);
+  const [videosLoading, setVideosLoading] = useState(false);
+  const [videosError, setVideosError] = useState<string | null>(null);
+
+  const loadTikTokVideos = async (accountId: string) => {
+    setVideosLoading(true);
+    setVideosError(null);
+    setTiktokVideos([]);
+    try {
+      const data = await apiFetch<{ videos?: TikTokVideo[] }>(`/oauth/tiktok/${accountId}/videos`);
+      setTiktokVideos(data.videos || []);
+    } catch (err) {
+      setVideosError(err instanceof Error ? err.message : 'Failed to load recent videos.');
+    } finally {
+      setVideosLoading(false);
+    }
+  };
 
   const loadLocalConnections = () => {
     if (typeof window !== 'undefined') {
@@ -407,13 +464,19 @@ export default function ConnectedAccountsPage() {
                         <button
                           onClick={() => {
                             setActiveMenu(null);
+                            const account = tiktokAccounts[0];
                             setDetailsModal({
                               title: 'TikTok Account',
                               handle: tiktokHandle,
                               status: 'Connected',
                               type: 'TikTok Creator',
                               lastSynced: 'Just now',
+                              accountId: account?.id,
+                              stats: account?.stats || null,
                             });
+                            if (account?.id) {
+                              loadTikTokVideos(account.id);
+                            }
                           }}
                           className="w-full text-left px-3 py-2 rounded-lg flex items-center space-x-2 touch-target"
                           style={{ color: 'var(--text-primary)' }}
@@ -522,8 +585,92 @@ export default function ConnectedAccountsPage() {
                 </div>
               </div>
 
+              {/* TikTok stats + recent videos -- only present when the
+                  modal was opened for a TikTok account (accountId set).
+                  Backs the user.info.stats and video.list scopes: both are
+                  requested in the OAuth consent screen and now genuinely
+                  used here, not just declared. */}
+              {detailsModal.accountId && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <StatCard
+                      icon={<Users className="h-4 w-4" style={{ color: 'var(--text-secondary)' }} />}
+                      label="Followers"
+                      value={String(detailsModal.stats?.followerCount ?? 0)}
+                      helperText="TikTok profile"
+                    />
+                    <StatCard
+                      icon={<UserPlus className="h-4 w-4" style={{ color: 'var(--text-secondary)' }} />}
+                      label="Following"
+                      value={String(detailsModal.stats?.followingCount ?? 0)}
+                      helperText="TikTok profile"
+                    />
+                    <StatCard
+                      icon={<Heart className="h-4 w-4" style={{ color: 'var(--text-secondary)' }} />}
+                      label="Total Likes"
+                      value={String(detailsModal.stats?.likesCount ?? 0)}
+                      helperText="Across all videos"
+                    />
+                    <StatCard
+                      icon={<Video className="h-4 w-4" style={{ color: 'var(--text-secondary)' }} />}
+                      label="Videos"
+                      value={String(detailsModal.stats?.videoCount ?? 0)}
+                      helperText="Published on TikTok"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>Recent Videos</h4>
+                    {videosLoading ? (
+                      <SkeletonListRows count={3} />
+                    ) : videosError ? (
+                      <p className="text-[11px]" style={{ color: 'var(--accent-error)' }}>{videosError}</p>
+                    ) : tiktokVideos.length === 0 ? (
+                      <EmptyState
+                        icon={<PlayCircle className="h-6 w-6" style={{ color: 'var(--text-secondary)' }} />}
+                        title="No videos yet"
+                        description="Videos published to this TikTok account will show up here."
+                      />
+                    ) : (
+                      <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                        {tiktokVideos.map((v) => (
+                          <a
+                            key={v.id}
+                            href={v.shareUrl || undefined}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="surface-tile p-2.5 flex items-center space-x-3 hover:opacity-90 transition"
+                          >
+                            {v.coverImageUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={v.coverImageUrl} alt="" className="h-12 w-9 rounded-md object-cover flex-shrink-0" />
+                            ) : (
+                              <div className="h-12 w-9 rounded-md flex-shrink-0 flex items-center justify-center" style={{ backgroundColor: 'var(--bg-surface-sunken)' }}>
+                                <Video className="h-4 w-4" style={{ color: 'var(--text-secondary)' }} />
+                              </div>
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <p className="text-[11px] font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
+                                {v.title || 'Untitled video'}
+                              </p>
+                              <p className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>
+                                {v.viewCount.toLocaleString()} views • {v.likeCount.toLocaleString()} likes
+                              </p>
+                            </div>
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <button
-                onClick={() => setDetailsModal(null)}
+                onClick={() => {
+                  setDetailsModal(null);
+                  setTiktokVideos([]);
+                  setVideosError(null);
+                }}
                 className="w-full py-3 text-xs font-bold rounded-xl transition touch-target btn-emerald-cta"
               >
                 Close

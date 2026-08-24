@@ -263,6 +263,30 @@ export class OAuthController {
     return this.oauthService.refreshTikTokToken(body.accountId);
   }
 
+  // Backs the "Followers / Following / Likes / Videos" stats shown in the
+  // integrations detail view (user.info.stats scope). Same
+  // assertAccountAccess pattern as refreshTikTok above: the accountId alone
+  // is never trusted, membership is re-verified server-side.
+  @UseGuards(JwtAuthGuard)
+  @Get('tiktok/:accountId/stats')
+  async getTikTokStats(@Req() req: any, @Param('accountId') accountId: string) {
+    const brandId = await this.assertAccountAccess(req.user.id, accountId);
+    return this.oauthService.getTikTokStats(accountId, brandId);
+  }
+
+  // Backs the "Recent Videos" panel in the integrations detail view
+  // (video.list scope).
+  @UseGuards(JwtAuthGuard)
+  @Get('tiktok/:accountId/videos')
+  async getTikTokVideos(
+    @Req() req: any,
+    @Param('accountId') accountId: string,
+    @Query('cursor') cursor?: string,
+  ) {
+    const brandId = await this.assertAccountAccess(req.user.id, accountId);
+    return this.oauthService.getTikTokVideos(accountId, brandId, cursor ? Number(cursor) : undefined);
+  }
+
   // ─────────────────────────────────────────────────────────────
   // MULTI-ACCOUNT MANAGEMENT ENDPOINTS
   // ─────────────────────────────────────────────────────────────

@@ -576,8 +576,12 @@ export class OAuthService {
     }
 
     const redirectUri = encodeURIComponent(`${getAppUrl()}/api/oauth/tiktok/callback`);
-    // TikTok scopes are comma-separated with NO spaces
-    const scope = encodeURIComponent('user.info.basic,user.info.profile,video.list,video.publish,video.upload');
+    // TikTok scopes are comma-separated with NO spaces. user.info.stats was
+    // added alongside the follower/like/video-count stats surfaced in the
+    // dashboard (getTikTokStats below) -- previously requested via the
+    // /user/info/ fields param without ever declaring the matching scope,
+    // which is what TikTok's app-review flagged as a scope/usage mismatch.
+    const scope = encodeURIComponent('user.info.basic,user.info.profile,user.info.stats,video.list,video.publish,video.upload');
     const state = encodeURIComponent(this.buildState(brandId));
 
     // TikTok uses https://www.tiktok.com/v2/auth/authorize/ (not open.tiktokapis.com)
@@ -629,13 +633,24 @@ export class OAuthService {
     const expiresIn: number = tokenData.expires_in || 86400;
     const expiresAt = new Date(Date.now() + expiresIn * 1000);
 
-    // Step 2: Get TikTok user info
+    // Step 2: Get TikTok user info -- fields now include the follower/
+    // following/likes/video counts (user.info.stats scope) alongside the
+    // existing profile fields, so a stats snapshot is captured at connect
+    // time in addition to being refreshable on demand via getTikTokStats.
     let handle = `@tiktok_user`;
     let platformAccountId = openId || `tk_${Date.now()}`;
+    let stats: {
+      followerCount: number | null;
+      followingCount: number | null;
+      likesCount: number | null;
+      videoCount: number | null;
+      fetchedAt: string;
+    } | null = null;
 
-    const userRes = await fetch('https://open.tiktokapis.com/v2/user/info/?fields=open_id,display_name,username', {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
+    const userRes = await fetch(
+      'https://open.tiktokapis.com/v2/user/info/?fields=open_id,display_name,username,follower_count,following_count,likes_count,video_count',
+      { headers: { Authorization: `Bearer ${accessToken}` } },
+    );
 
     if (userRes.ok) {
       const userData = await userRes.json();
@@ -643,6 +658,13 @@ export class OAuthService {
       if (user) {
         platformAccountId = user.open_id || platformAccountId;
         handle = `@${user.username || user.display_name || 'tiktok_user'}`;
+        stats = {
+          followerCount: user.follower_count ?? null,
+          followingCount: user.following_count ?? null,
+          likesCount: user.likes_count ?? null,
+          videoCount: user.video_count ?? null,
+          fetchedAt: new Date().toISOString(),
+        };
       }
     }
 
@@ -658,7 +680,7 @@ export class OAuthService {
         refreshToken: encryptedRefresh,
         tokenExpiresAt: expiresAt,
         status: ConnectionStatus.CONNECTED,
-        metadata: JSON.stringify({ handle, accountType: 'CREATOR', connectedAt: new Date().toISOString() }),
+        metadata: JSON.stringify({ handle, accountType: 'CREATOR', connectedAt: new Date().toISOString(), stats }),
       },
       create: {
         brandId,
@@ -668,7 +690,7 @@ export class OAuthService {
         refreshToken: encryptedRefresh,
         tokenExpiresAt: expiresAt,
         status: ConnectionStatus.CONNECTED,
-        metadata: JSON.stringify({ handle, accountType: 'CREATOR', connectedAt: new Date().toISOString() }),
+        metadata: JSON.stringify({ handle, accountType: 'CREATOR', connectedAt: new Date().toISOString(), stats }),
       },
     });
 
@@ -719,6 +741,110 @@ export class OAuthService {
     return { success: true, message: 'TikTok token refreshed successfully.' };
   }
 
+  /**
+   * Fetches current follower/following/likes/video counts from TikTok's
+   * /v2/user/info/ endpoint (user.info.stats scope) and persists them into
+   * the account's metadata blob, so the dashboard can show real numbers
+   * instead of stats only ever being captured once at connect time.
+   *
+   * Caller (OAuthController) has already run assertAccountAccess, so
+   * brandId here is trusted -- this just re-checks the account actually
+   * belongs to it, matching every other method in this class.
+   */
+  async getTikTokStats(accountId: string, brandId: string) {
+    const account = await this.prisma.socialAccount.findUnique({ where: { id: accountId } });
+    if (!account || account.brandId !== brandId) {
+      throw new NotFoundException('Account not found for this brand.');
+    }
+    if (account.platform !== Platform.TIKTOK) {
+      throw new BadRequestException('This account is not a TikTok account.');
+    }
+
+    const accessToken = this.encryption.decrypt(account.accessToken);
+    const res = await fetch(
+      'https://open.tiktokapis.com/v2/user/info/?fields=open_id,display_name,username,follower_count,following_count,likes_count,video_count',
+      { headers: { Authorization: `Bearer ${accessToken}` } },
+    );
+
+    if (!res.ok) {
+      const err = await res.text();
+      this.logger.error(`TikTok stats fetch failed for ${accountId}: ${err}`);
+      throw new BadRequestException('Failed to fetch TikTok stats. The connection may need to be refreshed.');
+    }
+
+    const data = await res.json();
+    const user = data?.data?.user;
+    if (!user) {
+      throw new BadRequestException('TikTok did not return profile stats.');
+    }
+
+    const stats = {
+      followerCount: user.follower_count ?? null,
+      followingCount: user.following_count ?? null,
+      likesCount: user.likes_count ?? null,
+      videoCount: user.video_count ?? null,
+      fetchedAt: new Date().toISOString(),
+    };
+
+    let meta: any = {};
+    try { meta = JSON.parse(account.metadata || '{}'); } catch {}
+    meta.stats = stats;
+    await this.prisma.socialAccount.update({ where: { id: accountId }, data: { metadata: JSON.stringify(meta) } });
+
+    return { success: true, stats };
+  }
+
+  /**
+   * Fetches the account's recent published videos from TikTok's
+   * /v2/video/list/ endpoint (video.list scope). This is the endpoint that
+   * scope was requested for but never actually called -- see the app-review
+   * scope/usage mismatch this closes.
+   */
+  async getTikTokVideos(accountId: string, brandId: string, cursor?: number) {
+    const account = await this.prisma.socialAccount.findUnique({ where: { id: accountId } });
+    if (!account || account.brandId !== brandId) {
+      throw new NotFoundException('Account not found for this brand.');
+    }
+    if (account.platform !== Platform.TIKTOK) {
+      throw new BadRequestException('This account is not a TikTok account.');
+    }
+
+    const accessToken = this.encryption.decrypt(account.accessToken);
+    const res = await fetch(
+      'https://open.tiktokapis.com/v2/video/list/?fields=id,title,cover_image_url,share_url,view_count,like_count,comment_count,share_count,create_time',
+      {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ max_count: 10, ...(cursor ? { cursor } : {}) }),
+      },
+    );
+
+    if (!res.ok) {
+      const err = await res.text();
+      this.logger.error(`TikTok video list fetch failed for ${accountId}: ${err}`);
+      throw new BadRequestException('Failed to fetch recent TikTok videos. The connection may need to be refreshed.');
+    }
+
+    const data = await res.json();
+    const videos = (data?.data?.videos || []).map((v: any) => ({
+      id: v.id,
+      title: v.title || '',
+      coverImageUrl: v.cover_image_url || null,
+      shareUrl: v.share_url || null,
+      viewCount: v.view_count ?? 0,
+      likeCount: v.like_count ?? 0,
+      commentCount: v.comment_count ?? 0,
+      shareCount: v.share_count ?? 0,
+      createTime: v.create_time ? new Date(v.create_time * 1000).toISOString() : null,
+    }));
+
+    return {
+      videos,
+      cursor: data?.data?.cursor ?? null,
+      hasMore: !!data?.data?.has_more,
+    };
+  }
+
   // ─────────────────────────────────────────────────────────────
   // MULTI-ACCOUNT & MANAGEMENT API
   // ─────────────────────────────────────────────────────────────
@@ -744,6 +870,11 @@ export class OAuthService {
           accountType: meta.accountType || 'BUSINESS',
           tokenExpiresAt: acc.tokenExpiresAt,
           createdAt: acc.createdAt,
+          // Last-fetched TikTok follower/following/likes/video counts, if
+          // any -- captured at connect time and refreshed on demand via
+          // GET /oauth/tiktok/:accountId/stats. Null for non-TikTok
+          // accounts and for TikTok accounts connected before this existed.
+          stats: meta.stats || null,
         };
       }),
       googleDrive: engineConfig && engineConfig.googleRefreshToken
