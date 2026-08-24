@@ -9,6 +9,7 @@ import { SkeletonCardGrid } from "@/components/ui/Skeleton";
 import { apiFetch, brandFetch, getBrandId, isAuthenticated, API_BASE } from '@/lib/api';
 import { useEngineEvents } from '@/lib/useEngineEvents';
 import { GoogleDriveLogo } from '@/components/icons/platform-logos';
+import { pickGoogleDriveFolder } from '@/lib/googleDrivePicker';
 import {
   Trash2, Film, Loader2, Gem, AlertCircle, CheckCircle2, MoreVertical,
   RefreshCw, FolderSync, LogOut, X, Upload, Images, Image as ImageIcon,
@@ -61,12 +62,6 @@ interface GoogleDriveConfig {
   updatedAt: string;
 }
 
-interface FolderOption {
-  id: string;
-  name: string;
-  isSelected?: boolean;
-}
-
 const STATUS_LABEL: Record<string, { label: string; className: string }> = {
   PENDING: { label: 'Uploaded', className: 'bg-slate-500/20 text-slate-300 border-slate-500/30' },
   PROCESSING: { label: 'Oyinca is preparing this…', className: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
@@ -83,10 +78,6 @@ function MediaSourceSection() {
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
-
-  const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
-  const [availableFolders, setAvailableFolders] = useState<FolderOption[]>([]);
-  const [selectedFolderId, setSelectedFolderId] = useState('');
   const [updatingFolder, setUpdatingFolder] = useState(false);
 
   const fetchDriveStatus = useCallback(async () => {
@@ -174,29 +165,29 @@ function MediaSourceSection() {
     }
   };
 
-  const openFolderModal = async () => {
+  /**
+   * Opens Google's own Picker UI (drive.file-scoped, see
+   * lib/googleDrivePicker.ts) instead of the old dropdown backed by a
+   * backend `files.list` call across the user's entire Drive -- that
+   * approach needed the drive.readonly scope, which is why it's gone.
+   * Picking a folder here is also what grants the app drive.file access to
+   * it, so the existing POST /oauth/google/select-folder call below (and
+   * the backend's later per-folder file listing) needs no changes.
+   */
+  const handleChooseFolder = async () => {
     setMenuOpen(false);
-    setIsFolderModalOpen(true);
-    try {
-      const folders = await apiFetch<FolderOption[]>(`/oauth/google/folders?brandId=${getBrandId()}`);
-      setAvailableFolders(folders);
-      const current = folders.find((f) => f.isSelected);
-      if (current) setSelectedFolderId(current.id);
-    } catch {
-      setMessage({ text: 'Could not load your Drive folders.', type: 'error' });
-    }
-  };
-
-  const handleSaveFolder = async () => {
     setUpdatingFolder(true);
     try {
-      const chosen = availableFolders.find((f) => f.id === selectedFolderId);
+      const chosen = await pickGoogleDriveFolder();
+      if (!chosen) {
+        setUpdatingFolder(false);
+        return;
+      }
       await apiFetch('/oauth/google/select-folder', {
         method: 'POST',
-        body: JSON.stringify({ brandId: getBrandId(), folderId: selectedFolderId, folderName: chosen?.name }),
+        body: JSON.stringify({ brandId: getBrandId(), folderId: chosen.id, folderName: chosen.name }),
       });
-      setMessage({ text: `Watching folder "${chosen?.name || selectedFolderId}".`, type: 'success' });
-      setIsFolderModalOpen(false);
+      setMessage({ text: `Watching folder "${chosen.name}".`, type: 'success' });
       fetchDriveStatus();
     } catch (e: any) {
       setMessage({ text: e.message || 'Could not update the folder.', type: 'error' });
@@ -284,12 +275,13 @@ function MediaSourceSection() {
                         <span>{syncing ? 'Syncing…' : 'Sync Now'}</span>
                       </button>
                       <button
-                        onClick={openFolderModal}
-                        className="w-full text-left px-3 py-2 rounded-lg flex items-center space-x-2 touch-target"
+                        onClick={handleChooseFolder}
+                        disabled={updatingFolder}
+                        className="w-full text-left px-3 py-2 rounded-lg flex items-center space-x-2 touch-target disabled:opacity-50"
                         style={{ color: 'var(--text-primary)' }}
                       >
                         <FolderSync className="h-3.5 w-3.5 text-blue-500" />
-                        <span>Change Folder</span>
+                        <span>{updatingFolder ? 'Opening picker…' : 'Change Folder'}</span>
                       </button>
                       <button
                         onClick={handleDisconnect}
@@ -330,77 +322,6 @@ function MediaSourceSection() {
           )}
         </div>
       </div>
-
-      {/* Folder Picker Modal */}
-      <AnimatePresence>
-        {isFolderModalOpen && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="rounded-xl border max-w-md w-full p-6 space-y-6 shadow-2xl"
-              style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}
-            >
-              <div className="flex items-center space-x-3">
-                <div className="h-10 w-10 rounded-xl border flex items-center justify-center p-2 flex-shrink-0" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
-                  <GoogleDriveLogo className="h-6 w-6" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>Select Google Drive folder</h3>
-                  <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Choose which folder Oyinca should watch</p>
-                </div>
-              </div>
-
-              <div className="space-y-2 max-h-60 overflow-y-auto">
-                {availableFolders.length === 0 ? (
-                  <p className="text-sm text-center py-4" style={{ color: 'var(--text-secondary)' }}>Loading folders…</p>
-                ) : (
-                  availableFolders.map((f) => (
-                    <label
-                      key={f.id}
-                      className="flex items-center justify-between p-3.5 rounded-xl border cursor-pointer transition touch-target"
-                      style={{
-                        backgroundColor: selectedFolderId === f.id ? 'var(--bg-surface-raised)' : 'transparent',
-                        borderColor: 'var(--card-border)',
-                        color: 'var(--text-primary)',
-                      }}
-                    >
-                      <div className="flex items-center space-x-3 text-xs">
-                        <input
-                          type="radio"
-                          name="folder_select"
-                          checked={selectedFolderId === f.id}
-                          onChange={() => setSelectedFolderId(f.id)}
-                          className="text-blue-600 h-4 w-4"
-                        />
-                        <span>{f.name}</span>
-                      </div>
-                    </label>
-                  ))
-                )}
-              </div>
-
-              <div className="flex justify-end space-x-3 pt-4 border-t" style={{ borderColor: 'var(--card-border)' }}>
-                <button
-                  onClick={() => setIsFolderModalOpen(false)}
-                  className="px-4 py-2.5 text-xs font-semibold touch-target"
-                  style={{ color: 'var(--text-secondary)' }}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSaveFolder}
-                  disabled={updatingFolder || !selectedFolderId}
-                  className="px-4 py-2.5 text-xs font-bold rounded-xl shadow-md transition disabled:opacity-50 touch-target btn-emerald-cta"
-                >
-                  {updatingFolder ? 'Saving…' : 'Save Selection'}
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }

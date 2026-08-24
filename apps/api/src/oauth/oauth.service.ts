@@ -141,8 +141,19 @@ export class OAuthService {
     }
 
     const redirectUri = encodeURIComponent(`${getAppUrl()}/api/oauth/google/callback`);
+    // drive.file, not drive.readonly: Google classifies drive.readonly as a
+    // "restricted" scope (same tier as full Gmail access), which requires an
+    // annual CASA security assessment -- a paid third-party audit -- on top
+    // of standard OAuth verification. drive.file is non-restricted and only
+    // grants access to files/folders the user explicitly opens through a
+    // Google-provided picker UI, which is exactly the "let me choose one
+    // folder to sync" flow this feature needs (see
+    // apps/web/src/lib/googleDrivePicker.ts for the picker itself, and
+    // GoogleDriveService.listNewFilesInFolder for why this doesn't change
+    // anything about how files are listed/downloaded once a folder is
+    // picked -- drive.file access extends to a picked folder's contents).
     const scope = encodeURIComponent(
-      'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile',
+      'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile',
     );
     const state = encodeURIComponent(this.buildState(brandId));
 
