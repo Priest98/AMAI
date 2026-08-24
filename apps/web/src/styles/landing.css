@@ -422,15 +422,17 @@
    ground). Deliberately restrained -- no blur, no color filter, no
    glass panel behind the text; legibility comes from the gradient
    alone, same technique the brief's own CSS sketch describes. */
+/* Deliberately theme-invariant: the hero is the one section on the site
+   where the video itself is the visual, in both themes -- there used to
+   be a light-theme override here that washed the video in a near-white
+   gradient (rgba(246, 250, 253, ...) at up to 0.72 opacity), which read
+   as a white overlay sitting on top of the video rather than "the video,
+   lightly graded for text legibility." Removed; light and dark theme now
+   share this single dark, restrained gradient. */
 .lp-hero-cinematic-overlay {
   background:
     linear-gradient(90deg, rgba(4, 7, 13, 0.62) 0%, rgba(4, 7, 13, 0.32) 32%, rgba(4, 7, 13, 0.06) 58%, transparent 72%),
     linear-gradient(0deg, rgba(4, 7, 13, 0.55) 0%, rgba(4, 7, 13, 0.18) 28%, transparent 55%);
-}
-.light .amai-landing .lp-hero-cinematic-overlay {
-  background:
-    linear-gradient(90deg, rgba(246, 250, 253, 0.72) 0%, rgba(246, 250, 253, 0.4) 32%, rgba(246, 250, 253, 0.08) 58%, transparent 72%),
-    linear-gradient(0deg, rgba(246, 250, 253, 0.65) 0%, rgba(246, 250, 253, 0.22) 28%, transparent 55%);
 }
 
 /* The premium display-serif treatment (Instrument Serif) -- used on exactly
