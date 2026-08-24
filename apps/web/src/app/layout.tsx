@@ -55,15 +55,15 @@ const instrumentSerif = Instrument_Serif({
 });
 
 export const metadata: Metadata = {
-  title: 'Oyinca — Your AI Social Media Manager',
-  description: 'Oyinca is your AI Social Media Manager, powered by Turaab Technology. Give it your content and Oyinca creates, plans, schedules and publishes your TikTok content -- with Google Drive content sourcing built in.',
+  title: 'Oyinca: Your AI Social Media Manager',
+  description: 'Oyinca is your AI Social Media Manager, powered by Turaab Technology. Give it your content and Oyinca creates, plans, schedules and publishes your TikTok content, with Google Drive content sourcing built in.',
   icons: {
     icon: '/icon.svg',
     shortcut: '/icon.svg',
     apple: '/icon.svg',
   },
   openGraph: {
-    title: 'Oyinca — Your AI Social Media Manager',
+    title: 'Oyinca: Your AI Social Media Manager',
     description: 'Give Oyinca your content. It creates, plans, schedules and publishes your TikTok content while you focus on your business.',
     // Production domain migrated from amai.codes to oyinca.com (the
     // brand-matching domain, purchased after the Oyinca rebrand). amai.codes

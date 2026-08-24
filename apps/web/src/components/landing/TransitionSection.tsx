@@ -13,7 +13,7 @@ export default function TransitionSection() {
             Oyinca handles the work behind the post.
           </h2>
           <p className="mt-5 text-base sm:text-lg leading-relaxed" style={{ color: 'var(--lp-text-secondary)' }}>
-            Oyinca isn&rsquo;t another scheduling dashboard &mdash; it&rsquo;s an AI social media manager.
+            Oyinca isn&rsquo;t another scheduling dashboard. It&rsquo;s an AI social media manager.
             It learns your business, understands your content, helps shape your strategy, publishes to
             TikTok, watches the results and uses what it learns to make better decisions next time.
           </p>

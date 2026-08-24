@@ -82,7 +82,7 @@ export default function Footer() {
           style={{ borderColor: 'var(--lp-border)', color: 'var(--lp-text-muted)' }}
         >
           <div className="flex flex-col sm:flex-row items-center gap-1 sm:gap-3">
-            <span>© {new Date().getFullYear()} Oyinca — Powered by Turaab Technology. All rights reserved.</span>
+            <span>© {new Date().getFullYear()} Oyinca. Powered by Turaab Technology. All rights reserved.</span>
           </div>
           {/* Previously linked "TikTok"/"X" to tiktok.com and x.com -- the
               platforms' generic homepages, not an actual Oyinca profile on

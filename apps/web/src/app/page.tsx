@@ -101,7 +101,7 @@ export const metadata: Metadata = {
     'automated TikTok publishing',
   ],
   openGraph: {
-    title: 'Oyinca — Your AI Social Media Manager',
+    title: 'Oyinca: Your AI Social Media Manager',
     description: 'Give Oyinca your content. It creates, plans, schedules and publishes your TikTok content while you focus on your business.',
     // Production domain migrated from amai.codes to oyinca.com (the
     // brand-matching domain). amai.codes stays configured as a redirect in
@@ -114,7 +114,7 @@ export const metadata: Metadata = {
         url: 'https://oyinca.com/app-icon.jpg',
         width: 1024,
         height: 1024,
-        alt: 'Oyinca — Your AI Social Media Manager',
+        alt: 'Oyinca: Your AI Social Media Manager',
       },
     ],
     locale: 'en_US',
@@ -122,7 +122,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Oyinca — Your AI Social Media Manager',
+    title: 'Oyinca: Your AI Social Media Manager',
     description: 'Give Oyinca your content. It creates, plans, schedules and publishes your TikTok content while you focus on your business.',
     images: ['https://oyinca.com/app-icon.jpg'],
   },

@@ -50,7 +50,7 @@ export default function TermsOfService() {
       </Section>
 
       <Section title="4. Your Content">
-        <p>You retain all ownership rights to the media you upload and any resulting posts. By uploading content, you grant Oyinca a limited license to store, process, analyze, and transmit that content solely for the purpose of providing the Service — including sending it to Google's Gemini API for AI analysis and to Instagram's/TikTok's APIs for publishing. You are solely responsible for ensuring your content complies with applicable law and with Instagram's and TikTok's own platform policies and community guidelines.</p>
+        <p>You retain all ownership rights to the media you upload and any resulting posts. By uploading content, you grant Oyinca a limited license to store, process, analyze, and transmit that content solely for the purpose of providing the Service, including sending it to Google's Gemini API for AI analysis and to Instagram's/TikTok's APIs for publishing. You are solely responsible for ensuring your content complies with applicable law and with Instagram's and TikTok's own platform policies and community guidelines.</p>
       </Section>
 
       <Section title="5. AI-Generated Content">

@@ -26,7 +26,7 @@ const STEPS = [
   {
     Icon: UploadCloud,
     title: 'Add your content',
-    body: 'Connect TikTok, then give Oyinca the photos and videos you already have — or connect Google Drive.',
+    body: 'Connect TikTok, then give Oyinca the photos and videos you already have, or connect Google Drive.',
   },
   {
     Icon: SlidersHorizontal,
@@ -36,7 +36,7 @@ const STEPS = [
   {
     Icon: TrendingUp,
     title: 'Oyinca creates and publishes',
-    body: 'Captions, hashtags and a posting plan, published straight to TikTok — then Oyinca learns from what works.',
+    body: 'Captions, hashtags and a posting plan, published straight to TikTok, then Oyinca learns from what works.',
   },
 ];
 

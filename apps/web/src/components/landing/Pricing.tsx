@@ -277,7 +277,7 @@ export default function Pricing({ initialData }: { initialData?: PlansResponse |
             Built for businesses, creators and agencies.
           </p>
           <p className="mt-1 text-sm" style={{ color: 'var(--lp-text-muted)' }}>
-            Agency — manage multiple brands and client workspaces from one place.
+            Agency: manage multiple brands and client workspaces from one place.
           </p>
         </Reveal>
 
