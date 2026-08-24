@@ -1,6 +1,7 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { MemoryEntryType } from '@prisma/client';
+import { AiService } from '../ai/ai.service';
 
 export interface UpdateBusinessBrainDto {
   businessDescription?: string | null;
@@ -33,7 +34,10 @@ export interface UpdateBusinessBrainDto {
 export class BusinessBrainService {
   private readonly logger = new Logger(BusinessBrainService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly aiService: AiService,
+  ) {}
 
   /** Lazily creates an empty brain on first access — no backfill migration needed. */
   async getOrCreate(brandId: string) {
@@ -45,10 +49,35 @@ export class BusinessBrainService {
   }
 
   async update(brandId: string, dto: UpdateBusinessBrainDto) {
-    await this.getOrCreate(brandId);
-    return this.prisma.businessBrain.update({
+    const before = await this.getOrCreate(brandId);
+    const updated = await this.prisma.businessBrain.update({
       where: { brandId },
       data: dto,
+    });
+
+    // Only re-summarize when writingSamples actually changed content --
+    // comparing arrays by JSON string is a cheap, order-sensitive-but-fine
+    // check here (a reorder is a real edit too, worth a fresh summary).
+    // Fire-and-forget: this is a real LLM call, and the caller (Settings
+    // "Save changes") shouldn't have to wait on it -- buildPromptContext
+    // just keeps using whatever voiceSummary already exists until this
+    // finishes, same "eventually consistent" pattern as everything else
+    // AI-derived in this brain.
+    if (dto.writingSamples && JSON.stringify(dto.writingSamples) !== JSON.stringify(before.writingSamples)) {
+      this.resummarizeVoice(brandId, dto.writingSamples).catch((e) =>
+        this.logger.error(`Voice summary generation failed for brand ${brandId}: ${e?.message || e}`),
+      );
+    }
+
+    return updated;
+  }
+
+  private async resummarizeVoice(brandId: string, samples: string[]): Promise<void> {
+    const summary = await this.aiService.summarizeWritingVoice(samples, brandId, 'amai_engine');
+    if (!summary) return;
+    await this.prisma.businessBrain.update({
+      where: { brandId },
+      data: { voiceSummary: summary, voiceSummaryUpdatedAt: new Date() },
     });
   }
 
@@ -73,11 +102,11 @@ export class BusinessBrainService {
 
     if (brain.brandVoice) lines.push(`Brand voice: ${brain.brandVoice}`);
     if (brain.brandPersonality.length) lines.push(`Brand personality: ${brain.brandPersonality.join(', ')}`);
-    if (brain.writingSamples.length) {
-      lines.push(
-        `Examples of this business's own past posts -- match this voice, pacing, and sentence rhythm as closely as the topic allows:\n${brain.writingSamples.map((s) => `  "${s}"`).join('\n')}`,
-      );
-    }
+    // Deliberately NOT injecting brain.writingSamples raw here -- see
+    // voiceSummary's schema comment. This is the summarized, compact
+    // version of those same samples (see resummarizeVoice), regenerated
+    // once per edit instead of resent in full on every single generation.
+    if (brain.voiceSummary) lines.push(`Writing voice profile (derived from this business's own real past posts):\n${brain.voiceSummary}`);
 
     if (brain.contentPillars.length) lines.push(`Core content pillars to draw from: ${brain.contentPillars.join(', ')}`);
     if (brain.goals.length) lines.push(`Current goals: ${brain.goals.join(', ')}`);

@@ -8,14 +8,38 @@ import { SkeletonListRows } from '@/components/ui/Skeleton';
 import { Reveal } from '@/components/ui/Reveal';
 import { brandFetch } from '@/lib/api';
 import { useEngineEvents } from '@/lib/useEngineEvents';
-import { CheckCircle2, Video, Loader2 } from 'lucide-react';
+import { CheckCircle2, Video, Loader2, Eye, Heart, MessageCircle, Share2 } from 'lucide-react';
+
+interface PerformanceSnapshot {
+  views: number;
+  likes: number;
+  comments: number;
+  shares: number;
+  capturedAt: string;
+}
 
 interface PublishedPost {
   id: string;
   caption: string;
   hashtags: string[];
   publishedAt: string | null;
-  targets?: { platform: string; status: string }[];
+  targets?: { platform: string; status: string; performanceSnapshots?: PerformanceSnapshot[] }[];
+}
+
+/**
+ * Compact inline stat -- used for the views/likes/comments/shares row below
+ * a published post's caption. Only rendered once a PostPerformance snapshot
+ * exists (see MetricsService's daily sync-post-metrics cron): a post can sit
+ * published for up to a day before its first snapshot lands, so this row is
+ * genuinely absent until then rather than showing fake zeros.
+ */
+function StatChip({ icon, value }: { icon: React.ReactNode; value: number }) {
+  return (
+    <span className="flex items-center gap-1 text-caption font-semibold" style={{ color: 'var(--text-muted)' }}>
+      {icon}
+      {value.toLocaleString()}
+    </span>
+  );
 }
 
 export default function PublishedPostsPage() {
@@ -79,6 +103,7 @@ export default function PublishedPostsPage() {
               // defaults to TikTok rather than a platform we're not
               // currently surfacing anywhere else in the product.
               const platform = post.targets?.[0]?.platform || 'TIKTOK';
+              const snapshot = post.targets?.[0]?.performanceSnapshots?.[0];
               return (
                 <Reveal
                   key={post.id}
@@ -97,6 +122,14 @@ export default function PublishedPostsPage() {
                       <span className="text-caption font-mono uppercase" style={{ color: 'var(--text-muted)' }}>{platform}</span>
                     </div>
                     <p className="text-body-sm mt-1 line-clamp-2" style={{ color: 'var(--text-secondary)' }}>{post.caption}</p>
+                    {snapshot && (
+                      <div className="flex items-center gap-3 mt-2">
+                        <StatChip icon={<Eye className="h-3 w-3" />} value={snapshot.views} />
+                        <StatChip icon={<Heart className="h-3 w-3" />} value={snapshot.likes} />
+                        <StatChip icon={<MessageCircle className="h-3 w-3" />} value={snapshot.comments} />
+                        <StatChip icon={<Share2 className="h-3 w-3" />} value={snapshot.shares} />
+                      </div>
+                    )}
                   </div>
                 </Reveal>
               );

@@ -112,7 +112,17 @@ export class PostsService {
         ...(status ? { status } : {})
       },
       include: {
-        targets: { select: { platform: true, status: true, socialAccountId: true } },
+        // performanceSnapshots: most recent PostPerformance row only (see
+        // MetricsService) -- a full history exists per target, but the
+        // list view only ever needs "here's how it's doing right now".
+        targets: {
+          select: {
+            platform: true,
+            status: true,
+            socialAccountId: true,
+            performanceSnapshots: { orderBy: { capturedAt: 'desc' }, take: 1 },
+          },
+        },
         media: { include: { asset: { select: { blobUrl: true, mimeType: true, filename: true } } } },
       },
       orderBy: { createdAt: 'desc' },

@@ -13,9 +13,10 @@ import { BusinessBrainModule } from '../business-brain/business-brain.module';
 import { BillingModule } from '../billing/billing.module';
 import { MediaOptimizationModule } from '../media-optimization/media-optimization.module';
 import { HealthModule } from '../health/health.module';
+import { MetricsModule } from '../metrics/metrics.module';
 
 @Module({
-  imports: [AiModule, QueueModule, EncryptionModule, BusinessBrainModule, BillingModule, MediaOptimizationModule, HealthModule],
+  imports: [AiModule, QueueModule, EncryptionModule, BusinessBrainModule, BillingModule, MediaOptimizationModule, HealthModule, MetricsModule],
   controllers: [EngineController, CronController],
   providers: [EngineService, EngineJobsService, GoogleDriveService, SchedulingService, SupabaseRealtimeService],
   exports: [EngineService],

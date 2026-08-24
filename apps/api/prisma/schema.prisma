@@ -238,6 +238,16 @@ model BusinessBrain {
   brandVoice           String? // e.g. "Playful and bold", "Calm and expert"
   brandPersonality     String[] @default([]) // short tags: "witty", "premium", "no-nonsense"
   writingSamples       String[] @default([]) // 2-3 real past captions/posts, pasted verbatim, so AMAI can match actual voice/pacing instead of inferring it from a description alone
+  // AI-generated structured summary of writingSamples (tone, sentence
+  // length, humor, slang, emoji use, CTA style, vocabulary, avoid patterns)
+  // -- see AiService.summarizeWritingVoice. This, not the raw samples
+  // above, is what buildPromptContext actually injects into every caption
+  // prompt: re-sending every raw sample on every single generation call
+  // was pure token waste and exactly the anti-pattern the personalization
+  // brief warns against. Regenerated only when writingSamples changes (see
+  // BusinessBrainService.update), not on every generation.
+  voiceSummary          String?
+  voiceSummaryUpdatedAt DateTime? @db.Timestamptz(6)
   contentPillars       String[] @default([]) // recurring themes AMAI should draw content ideas from
   goals                String[] @default([]) // e.g. "Grow followers", "Drive website traffic"
   competitiveContext   String? // free-text: who else is in their space / how to differentiate
@@ -524,12 +534,23 @@ model PostTarget {
   // reclaim window is treated as abandoned (function killed mid-publish),
   // so a post can never be stranded in-flight forever.
   claimedAt                DateTime?       @db.Timestamptz(6)
-  post                     Post            @relation(fields: [postId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  socialAccount            SocialAccount   @relation(fields: [socialAccountId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  // The platform's own id for the resulting post (e.g. a TikTok video id).
+  // Set once, at successful publish (see PublishingService.publishOne).
+  // This is the authoritative per-target copy -- PublishingLog.apiResponse
+  // also carries it buried in a JSON blob, and MediaAsset.providerPostId
+  // gets overwritten by whichever target finishes last on a multi-platform
+  // post, so neither of those is safe to key performance sync off of.
+  // MetricsService matches this against TikTok's video.list response to
+  // know which returned video belongs to which post.
+  providerPostId           String?
+  post                     Post              @relation(fields: [postId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  socialAccount            SocialAccount     @relation(fields: [socialAccountId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   publishingLogs           PublishingLog[]
+  performanceSnapshots     PostPerformance[]
 
   @@unique([postId, socialAccountId])
   @@index([socialAccountId], map: "idx_post_target_social_account")
+  @@index([platform, providerPostId], map: "idx_post_target_provider_post")
 }
 
 model PostMedia {
@@ -570,6 +591,32 @@ model PublishingLog {
   postTarget   PostTarget   @relation(fields: [postTargetId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([postTargetId], map: "idx_publishing_log_post_target")
+}
+
+/// Time-series engagement snapshots for a published post, one row per sync
+/// run (see MetricsService/cron 'sync-post-metrics') -- deliberately NOT a
+/// single mutable "current stats" row on PostTarget, so a full history is
+/// kept and later analysis (Phase 10-14 of the personalization work: what
+/// works, winning hooks, performance-based strategy updates) has a real
+/// trend to read instead of only ever seeing the latest number. Only stores
+/// metrics actually returned by the platform API in use (TikTok's
+/// video.list today: view/like/comment/share counts) -- no watch-time or
+/// completion-rate fields, since those aren't available through that
+/// endpoint and this system does not fabricate metrics it cannot observe.
+model PostPerformance {
+  id           String     @id @default(dbgenerated("(gen_random_uuid())::text"))
+  postTargetId String
+  capturedAt   DateTime   @default(now()) @db.Timestamptz(6)
+  views        Int        @default(0)
+  likes        Int        @default(0)
+  comments     Int        @default(0)
+  shares       Int        @default(0)
+  // Full raw API response for this snapshot, for future fields this model
+  // doesn't have a column for yet -- same pattern as PublishingLog.apiResponse.
+  raw          Json?
+  postTarget   PostTarget @relation(fields: [postTargetId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([postTargetId, capturedAt], map: "idx_post_performance_target_time")
 }
 
 /// The AMAI Engine's per-brand configuration: whether it is Active/Paused,

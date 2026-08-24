@@ -204,6 +204,42 @@ CRITICAL OUTPUT FORMAT: Reply with ONLY the finished caption text, exactly as it
   }
 
   /**
+   * Turns 2-3+ raw writing samples (real past captions/posts, pasted
+   * verbatim by the owner) into a compact, structured voice profile --
+   * NOT re-sent into every caption prompt as raw text. This is the one
+   * place those samples are ever read by an LLM; the output of this call
+   * is what buildPromptContext actually carries on every subsequent
+   * generation. Called once per change to writingSamples (see
+   * BusinessBrainService.update), not once per generation.
+   */
+  async summarizeWritingVoice(samples: string[], brandId: string, userId: string): Promise<string | null> {
+    if (!samples.length) return null;
+
+    const prompt = `Analyze these real examples of a business's own writing (captions/posts they've actually published) and summarize their voice as a compact profile an AI could follow to sound like them -- describe the STYLE, not the content/topics.
+
+Examples:
+${samples.map((s, i) => `${i + 1}. "${s}"`).join('\n')}
+
+Return a compact plain-text profile in exactly this format (omit a line only if genuinely not inferable from the examples -- do not guess):
+Tone: <2-4 words>
+Sentence length: <short/medium/long, plus a one-clause note>
+Humor: <none/light/moderate/heavy>
+Slang: <none/occasional/frequent>
+Emoji use: <none/low/moderate/heavy>
+CTA style: <how they close out a post>
+Vocabulary: <e.g. simple, casual, technical -- one short phrase>
+Avoid: <patterns notably absent from their real writing, e.g. "corporate language", "generic motivational phrases">
+
+No commentary, no markdown, just those lines.`;
+
+    const result = await this.aiGateway.generate({ label: 'voice summary', maxTokens: 220, messages: [{ role: 'user', content: prompt }] });
+    if (!result?.text) return null;
+
+    this.logUsage(brandId, userId, prompt, result.text, result.tokensUsed);
+    return result.text.trim();
+  }
+
+  /**
    * P1 AI content intelligence: concrete content ideas grounded in this
    * brand's actual Business Brain context, not generic "post more!"
    * suggestions. Falls back to an empty list (not fabricated ideas) if no

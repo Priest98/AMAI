@@ -2,6 +2,7 @@ import { Controller, Get, Post, Headers, UnauthorizedException, Logger } from '@
 import { PublishingService } from '../queue/publishing.service';
 import { EngineJobsService } from '../engine/engine-jobs.service';
 import { HealthEngineService } from '../health/health-engine.service';
+import { MetricsService } from '../metrics/metrics.service';
 
 /**
  * Endpoints that trigger publishing/Drive-sync on a schedule. These replace
@@ -42,6 +43,7 @@ export class CronController {
     private readonly publishingService: PublishingService,
     private readonly engineJobsService: EngineJobsService,
     private readonly healthEngineService: HealthEngineService,
+    private readonly metricsService: MetricsService,
   ) {}
 
   private assertAuthorized(authHeader?: string) {
@@ -128,5 +130,26 @@ export class CronController {
   @Post('daily-report')
   async dailyReportPost(@Headers('authorization') authHeader?: string) {
     return this.runDailyReport(authHeader);
+  }
+
+  // Pulls fresh view/like/comment/share counts for recently-published
+  // TikTok posts and stores them as PostPerformance snapshots -- see
+  // MetricsService for why this exists and why it can't just reuse
+  // OAuthService.getTikTokVideos directly (circular module dependency).
+  private async runSyncPostMetrics(authHeader?: string) {
+    this.assertAuthorized(authHeader);
+    const result = await this.metricsService.syncTikTokMetrics();
+    this.logger.log(`sync-post-metrics: ${JSON.stringify(result)}`);
+    return { success: true, ...result };
+  }
+
+  @Get('sync-post-metrics')
+  async syncPostMetricsGet(@Headers('authorization') authHeader?: string) {
+    return this.runSyncPostMetrics(authHeader);
+  }
+
+  @Post('sync-post-metrics')
+  async syncPostMetricsPost(@Headers('authorization') authHeader?: string) {
+    return this.runSyncPostMetrics(authHeader);
   }
 }

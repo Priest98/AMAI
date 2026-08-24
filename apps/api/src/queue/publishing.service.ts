@@ -556,7 +556,7 @@ export class PublishingService {
       }
 
       await this.prisma.$transaction([
-        this.prisma.postTarget.update({ where: { id: target.id }, data: { status: TargetStatus.PUBLISHED, claimedAt: null } }),
+        this.prisma.postTarget.update({ where: { id: target.id }, data: { status: TargetStatus.PUBLISHED, claimedAt: null, providerPostId } }),
         this.prisma.publishingLog.create({
           data: { postTargetId: target.id, status: TargetStatus.PUBLISHED, apiResponse: JSON.stringify({ providerPostId }) },
         }),
