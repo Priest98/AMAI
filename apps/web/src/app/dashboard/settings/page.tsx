@@ -41,26 +41,47 @@ const PERSONAS = [
 interface BusinessBrain {
   businessDescription: string | null;
   targetAudience: string | null;
+  audienceAgeRange: string | null;
+  audienceLocation: string | null;
   brandVoice: string | null;
   brandPersonality: string[];
+  writingSamples: string[];
   contentPillars: string[];
   goals: string[];
   competitiveContext: string | null;
+  competitorHandles: string[];
   avoidTopics: string[];
+  bannedPhrases: string[];
   websiteUrl: string | null;
+  hashtagCount: number;
+  useEmojis: boolean;
+  ctaStyle: string | null;
 }
 
 const EMPTY_BRAIN: BusinessBrain = {
   businessDescription: '',
   targetAudience: '',
+  audienceAgeRange: '',
+  audienceLocation: '',
   brandVoice: '',
   brandPersonality: [],
+  writingSamples: [],
   contentPillars: [],
   goals: [],
   competitiveContext: '',
+  competitorHandles: [],
   avoidTopics: [],
+  bannedPhrases: [],
   websiteUrl: '',
+  hashtagCount: 5,
+  useEmojis: true,
+  ctaStyle: '',
 };
+
+/** Free-text "paste your past captions" -> array, split on blank lines so multi-line captions survive intact. */
+function parseSampleList(value: string): string[] {
+  return value.split(/\n\s*\n/).map((s) => s.trim()).filter(Boolean);
+}
 
 /** "a, b,  c" -> ["a", "b", "c"] -- trims, drops empties, keeps input forgiving. */
 function parseTagList(value: string): string[] {
@@ -185,9 +206,12 @@ export default function SettingsPage() {
   // Tag-list fields are edited as free text and only parsed into arrays on
   // save/blur, so typing "fitness, nutrit" doesn't fight the user mid-word.
   const [personalityText, setPersonalityText] = useState('');
+  const [writingSamplesText, setWritingSamplesText] = useState('');
   const [pillarsText, setPillarsText] = useState('');
   const [goalsText, setGoalsText] = useState('');
   const [avoidText, setAvoidText] = useState('');
+  const [bannedPhrasesText, setBannedPhrasesText] = useState('');
+  const [competitorHandlesText, setCompetitorHandlesText] = useState('');
 
   const [contentIdeas, setContentIdeas] = useState<{ pillar: string | null; idea: string; why: string }[] | null>(null);
   const [ideasLoading, setIdeasLoading] = useState(false);
@@ -207,9 +231,12 @@ export default function SettingsPage() {
 
         setBrain(brainData);
         setPersonalityText((brainData.brandPersonality || []).join(', '));
+        setWritingSamplesText((brainData.writingSamples || []).join('\n\n'));
         setPillarsText((brainData.contentPillars || []).join(', '));
         setGoalsText((brainData.goals || []).join(', '));
         setAvoidText((brainData.avoidTopics || []).join(', '));
+        setBannedPhrasesText((brainData.bannedPhrases || []).join(', '));
+        setCompetitorHandlesText((brainData.competitorHandles || []).join(', '));
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -221,14 +248,21 @@ export default function SettingsPage() {
       const dto = {
         businessDescription: brain.businessDescription || null,
         targetAudience: brain.targetAudience || null,
+        audienceAgeRange: brain.audienceAgeRange || null,
+        audienceLocation: brain.audienceLocation || null,
         brandVoice: brain.brandVoice || null,
         competitiveContext: brain.competitiveContext || null,
         websiteUrl: brain.websiteUrl || null,
+        hashtagCount: brain.hashtagCount,
+        useEmojis: brain.useEmojis,
+        ctaStyle: brain.ctaStyle || null,
         brandPersonality: parseTagList(personalityText),
+        writingSamples: parseSampleList(writingSamplesText),
         contentPillars: parseTagList(pillarsText),
         goals: parseTagList(goalsText),
         avoidTopics: parseTagList(avoidText),
-        brainSetupCompleted: true,
+        bannedPhrases: parseTagList(bannedPhrasesText),
+        competitorHandles: parseTagList(competitorHandlesText),
       };
       const updated = await brandFetch<BusinessBrain>('/business-brain', { method: 'PATCH', body: JSON.stringify(dto) });
       setBrain(updated);
@@ -546,6 +580,27 @@ export default function SettingsPage() {
                   />
                 </BrainField>
 
+                <BrainField id="bb-audience-details" label="Audience details" optional helper="Age range and location, if you know them. Sharper targeting than the description above.">
+                  <div className="flex gap-3">
+                    <input
+                      id="bb-audience-details"
+                      aria-describedby="bb-audience-details-helper"
+                      type="text"
+                      className="input-field w-full h-11 px-3.5"
+                      placeholder="e.g. 18-24"
+                      value={brain.audienceAgeRange || ''}
+                      onChange={(e) => setBrain({ ...brain, audienceAgeRange: e.target.value })}
+                    />
+                    <input
+                      type="text"
+                      className="input-field w-full h-11 px-3.5"
+                      placeholder="e.g. US, urban"
+                      value={brain.audienceLocation || ''}
+                      onChange={(e) => setBrain({ ...brain, audienceLocation: e.target.value })}
+                    />
+                  </div>
+                </BrainField>
+
                 <BrainField id="bb-website" label="Website URL" optional helper="Used for extra context. Leave blank if you don't have one.">
                   <input
                     id="bb-website"
@@ -585,6 +640,17 @@ export default function SettingsPage() {
                   />
                 </BrainField>
 
+                <BrainField id="bb-writing-samples" label="Sample posts" optional helper="Paste 2-3 of your best past captions, separated by a blank line. Oyinca matches this voice more closely than any description can.">
+                  <textarea
+                    id="bb-writing-samples"
+                    aria-describedby="bb-writing-samples-helper"
+                    className="input-field w-full min-h-[96px] px-3.5 py-2.5"
+                    placeholder={'e.g. New drop just landed 👀 Handmade, limited run, gone by Friday.\n\n(blank line between each sample)'}
+                    value={writingSamplesText}
+                    onChange={(e) => setWritingSamplesText(e.target.value)}
+                  />
+                </BrainField>
+
                 <BrainField id="bb-avoid" label="Never mention" optional helper="Topics Oyinca should always stay away from.">
                   <input
                     id="bb-avoid"
@@ -594,6 +660,18 @@ export default function SettingsPage() {
                     placeholder="e.g. Competitor names, pricing"
                     value={avoidText}
                     onChange={(e) => setAvoidText(e.target.value)}
+                  />
+                </BrainField>
+
+                <BrainField id="bb-banned-phrases" label="Never use these words or phrases" optional helper="Exact wording to avoid — different from topics above, which are subjects, not specific words.">
+                  <input
+                    id="bb-banned-phrases"
+                    aria-describedby="bb-banned-phrases-helper"
+                    type="text"
+                    className="input-field w-full h-11 px-3.5"
+                    placeholder="e.g. cheap, guaranteed, best in the world"
+                    value={bannedPhrasesText}
+                    onChange={(e) => setBannedPhrasesText(e.target.value)}
                   />
                 </BrainField>
               </BrainSection>
@@ -631,6 +709,58 @@ export default function SettingsPage() {
                     placeholder="e.g. We're the only local brand doing custom fits."
                     value={brain.competitiveContext || ''}
                     onChange={(e) => setBrain({ ...brain, competitiveContext: e.target.value })}
+                  />
+                </BrainField>
+
+                <BrainField id="bb-competitors" label="Competitors" optional helper="Names or handles Oyinca should recognize (won't name-drop them unless the post is explicitly a comparison).">
+                  <input
+                    id="bb-competitors"
+                    aria-describedby="bb-competitors-helper"
+                    type="text"
+                    className="input-field w-full h-11 px-3.5"
+                    placeholder="e.g. @otherbrand, Acme Co"
+                    value={competitorHandlesText}
+                    onChange={(e) => setCompetitorHandlesText(e.target.value)}
+                  />
+                </BrainField>
+              </BrainSection>
+
+              <BrainSection title="Content preferences">
+                <BrainField id="bb-hashtag-count" label="Hashtag count" optional helper="How many hashtags Oyinca should include per caption.">
+                  <input
+                    id="bb-hashtag-count"
+                    aria-describedby="bb-hashtag-count-helper"
+                    type="number"
+                    min={0}
+                    max={15}
+                    className="input-field w-24 h-11 px-3.5"
+                    value={brain.hashtagCount}
+                    onChange={(e) => setBrain({ ...brain, hashtagCount: Math.max(0, Math.min(15, Number(e.target.value) || 0)) })}
+                  />
+                </BrainField>
+
+                <BrainField id="bb-emojis" label="Emojis" optional helper="Whether Oyinca should use emojis in captions.">
+                  <label className="flex items-center gap-2.5 text-body-sm" style={{ color: 'var(--text-primary)' }}>
+                    <input
+                      id="bb-emojis"
+                      type="checkbox"
+                      className="h-4 w-4"
+                      checked={brain.useEmojis}
+                      onChange={(e) => setBrain({ ...brain, useEmojis: e.target.checked })}
+                    />
+                    Use emojis where they fit naturally
+                  </label>
+                </BrainField>
+
+                <BrainField id="bb-cta-style" label="Call-to-action style" optional helper="How Oyinca should close out a caption.">
+                  <input
+                    id="bb-cta-style"
+                    aria-describedby="bb-cta-style-helper"
+                    type="text"
+                    className="input-field w-full h-11 px-3.5"
+                    placeholder="e.g. Question to spark comments, soft no-pressure ask"
+                    value={brain.ctaStyle || ''}
+                    onChange={(e) => setBrain({ ...brain, ctaStyle: e.target.value })}
                   />
                 </BrainField>
               </BrainSection>

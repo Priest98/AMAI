@@ -5,16 +5,21 @@ import { MemoryEntryType } from '@prisma/client';
 export interface UpdateBusinessBrainDto {
   businessDescription?: string | null;
   targetAudience?: string | null;
+  audienceAgeRange?: string | null;
+  audienceLocation?: string | null;
   brandVoice?: string | null;
   brandPersonality?: string[];
+  writingSamples?: string[];
   contentPillars?: string[];
   goals?: string[];
   competitiveContext?: string | null;
+  competitorHandles?: string[];
   avoidTopics?: string[];
-  preferredLanguage?: string;
+  bannedPhrases?: string[];
   websiteUrl?: string | null;
-  brainSetupStep?: number;
-  brainSetupCompleted?: boolean;
+  hashtagCount?: number;
+  useEmojis?: boolean;
+  ctaStyle?: string | null;
 }
 
 /**
@@ -59,16 +64,42 @@ export class BusinessBrainService {
 
     const lines: string[] = [];
     if (brain.businessDescription) lines.push(`Business: ${brain.businessDescription}`);
-    if (brain.targetAudience) lines.push(`Target audience: ${brain.targetAudience}`);
+    if (brain.websiteUrl) lines.push(`Business website: ${brain.websiteUrl} (context only -- do not invent specific claims, prices, or details you weren't given elsewhere in this context)`);
+
+    if (brain.targetAudience || brain.audienceAgeRange || brain.audienceLocation) {
+      const audienceParts = [brain.targetAudience, brain.audienceAgeRange && `ages ${brain.audienceAgeRange}`, brain.audienceLocation].filter(Boolean);
+      lines.push(`Target audience: ${audienceParts.join(', ')}`);
+    }
+
     if (brain.brandVoice) lines.push(`Brand voice: ${brain.brandVoice}`);
     if (brain.brandPersonality.length) lines.push(`Brand personality: ${brain.brandPersonality.join(', ')}`);
+    if (brain.writingSamples.length) {
+      lines.push(
+        `Examples of this business's own past posts -- match this voice, pacing, and sentence rhythm as closely as the topic allows:\n${brain.writingSamples.map((s) => `  "${s}"`).join('\n')}`,
+      );
+    }
+
     if (brain.contentPillars.length) lines.push(`Core content pillars to draw from: ${brain.contentPillars.join(', ')}`);
     if (brain.goals.length) lines.push(`Current goals: ${brain.goals.join(', ')}`);
     if (brain.competitiveContext) lines.push(`Competitive context: ${brain.competitiveContext}`);
-    if (brain.avoidTopics.length) lines.push(`Never mention or reference: ${brain.avoidTopics.join(', ')}`);
+    if (brain.competitorHandles.length) lines.push(`Known competitors (do not mention them by name unless the topic is explicitly a comparison): ${brain.competitorHandles.join(', ')}`);
+    if (brain.avoidTopics.length) lines.push(`Never mention or reference these topics: ${brain.avoidTopics.join(', ')}`);
+    if (brain.bannedPhrases.length) lines.push(`Never use these specific words or phrases, under any circumstances: ${brain.bannedPhrases.join(', ')}`);
 
     const insights = brain.learnedInsights as unknown as { summary?: string } | null;
     if (insights?.summary) lines.push(`Learned from past performance: ${insights.summary}`);
+
+    // Generation preferences -- explicit overrides for things the caption
+    // prompt otherwise hardcodes (see ai.service.ts generateCaption). Only
+    // surfaced once the brain has *some* real content -- otherwise these
+    // (hashtagCount/useEmojis always have a value, even unset) would make
+    // this function never return '', breaking the "fill in your Business
+    // Brain first" empty-state gate callers rely on (e.g. content-ideas).
+    if (lines.length) {
+      lines.push(`Use exactly ${brain.hashtagCount} hashtags in total (this overrides any other hashtag-count guidance).`);
+      lines.push(brain.useEmojis ? 'Emojis are welcome where they fit naturally.' : 'Do not use any emojis.');
+      if (brain.ctaStyle) lines.push(`Preferred call-to-action style: ${brain.ctaStyle}.`);
+    }
 
     if (!lines.length) return '';
     return `Business context (use this to make the content specific and on-brand, not generic):\n${lines.map((l) => `- ${l}`).join('\n')}`;

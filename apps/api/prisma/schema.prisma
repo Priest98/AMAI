@@ -233,20 +233,24 @@ model BusinessBrain {
   // --- Explicit knowledge (owner-provided) ---
   businessDescription String? // what the business does, in the owner's own words
   targetAudience       String? // who they're trying to reach
+  audienceAgeRange     String? // e.g. "18-24", "25-40" -- narrows targetAudience's free text into something a prompt can act on directly
+  audienceLocation     String? // e.g. "US, urban", "Lagos, Nigeria" -- same reasoning as audienceAgeRange
   brandVoice           String? // e.g. "Playful and bold", "Calm and expert"
   brandPersonality     String[] @default([]) // short tags: "witty", "premium", "no-nonsense"
+  writingSamples       String[] @default([]) // 2-3 real past captions/posts, pasted verbatim, so AMAI can match actual voice/pacing instead of inferring it from a description alone
   contentPillars       String[] @default([]) // recurring themes AMAI should draw content ideas from
   goals                String[] @default([]) // e.g. "Grow followers", "Drive website traffic"
-  competitiveContext   String? // who else is in their space / how to differentiate
-  avoidTopics          String[] @default([]) // hard "never post about / never say" list
-  preferredLanguage    String   @default("en")
+  competitiveContext   String? // free-text: who else is in their space / how to differentiate
+  competitorHandles    String[] @default([]) // structured competitor names/@handles, distinct from the competitiveContext paragraph above
+  avoidTopics          String[] @default([]) // hard "never post about / never say" subjects
+  bannedPhrases        String[] @default([]) // specific words/phrases/claims to never use verbatim -- distinct from avoidTopics, which is subjects not wording
   websiteUrl           String?
 
-  // Intelligent Onboarding progress — separate from User.onboardingCompleted
-  // (that one is the generic product-tour flag; this tracks completion of
-  // the business-context capture flow specifically).
-  brainSetupCompleted Boolean @default(false)
-  brainSetupStep      Int     @default(0)
+  // Generation preferences -- move things the AI prompt used to hardcode
+  // (hashtag count, emoji use) into per-brand settings.
+  hashtagCount Int     @default(5) // overrides the caption prompt's generic hashtag-count guidance
+  useEmojis    Boolean @default(true)
+  ctaStyle     String? // e.g. "Direct ask", "Question to spark comments", "Soft, no pressure"
 
   // --- Learned knowledge (AMAI-populated, refined automatically) ---
   learnedInsights Json? // structured, evolving summary AMAI maintains itself (top themes, best-performing angles, etc.)

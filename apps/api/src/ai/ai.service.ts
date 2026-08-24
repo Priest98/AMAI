@@ -168,7 +168,7 @@ Requirements:
 1. Hook the audience in the first sentence.
 2. Include engaging body content with clear value.
 3. End with a strong Call-To-Action (CTA).
-4. Include 4-6 highly relevant hashtags specifically for ${niche}.
+4. Include 4-6 highly relevant hashtags specifically for ${niche} (unless the business context below specifies an exact hashtag count, in which case follow that instead).
 5. ${isAiTopic ? '' : 'CRITICAL REQUIREMENT: Do NOT include generic AI hashtags like #AI, #ArtificialIntelligence, or #MachineLearning unless the content is explicitly about AI technology.'}
 ${brandContext ? '6. Stay consistent with the business context above — voice, audience, pillars, and things to avoid all matter more than generic best practices.' : ''}
 ${platformGuidance}
