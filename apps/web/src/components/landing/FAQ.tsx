@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Reveal, Eyebrow } from './shared';
+import { Eyebrow } from './shared';
+import GsapReveal from './GsapReveal';
+import { ensureGsapPlugins, gsap, prefersReducedMotion } from './gsap-setup';
 
 /**
  * Four questions, not five. "How does TikTok publishing work?" is cut --
@@ -12,13 +13,14 @@ import { Reveal, Eyebrow } from './shared';
  * the ones that can block a signup: cost, limits, cancellation, platform
  * scope.
  *
- * Single-open accordion driven by React state instead of native
- * <details>/<summary>, specifically so open/close can animate smoothly
- * (framer-motion's height: 'auto' animation) -- <details> toggles
- * instantly with no transition. Still fully keyboard accessible: each
- * question is a real <button> with aria-expanded/aria-controls, reachable
- * and operable via Tab + Enter/Space, and the answer panel is an
- * aria-labelledby region.
+ * Single-open accordion driven by React state. Open/close height is
+ * animated with GSAP directly (gsap.to(panel, { height: ... })) per the
+ * luxury-motion brief's explicit "smooth GSAP height transitions"
+ * requirement -- GSAP's core CSS plugin natively supports animating to/
+ * from `height: 'auto'`, so no extra measurement code is needed. Still
+ * fully keyboard accessible: each question is a real <button> with
+ * aria-expanded/aria-controls, reachable and operable via Tab +
+ * Enter/Space, and the answer panel is an aria-labelledby region.
  */
 const FAQS = [
   {
@@ -41,59 +43,85 @@ const FAQS = [
 
 export default function FAQ() {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
+  const panelRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  const animatePanel = (el: HTMLDivElement, opening: boolean) => {
+    if (prefersReducedMotion()) {
+      gsap.set(el, opening ? { height: 'auto', opacity: 1 } : { height: 0, opacity: 0 });
+      return;
+    }
+    ensureGsapPlugins();
+    if (opening) {
+      gsap.set(el, { height: 0, opacity: 0 });
+      gsap.to(el, { height: 'auto', opacity: 1, duration: 0.42, ease: 'power2.inOut' });
+    } else {
+      gsap.to(el, { height: 0, opacity: 0, duration: 0.32, ease: 'power2.inOut' });
+    }
+  };
+
+  const toggle = (i: number) => {
+    const wasOpen = openIndex === i;
+    const prevIndex = openIndex;
+
+    // Close whichever panel was open before (single-open accordion).
+    if (prevIndex !== null && prevIndex !== i) {
+      const prevEl = panelRefs.current[prevIndex];
+      if (prevEl) animatePanel(prevEl, false);
+    }
+
+    const el = panelRefs.current[i];
+    if (el) animatePanel(el, !wasOpen);
+
+    setOpenIndex(wasOpen ? null : i);
+  };
 
   return (
-    <section id="faq" className="relative py-16 sm:py-12" aria-label="Frequently asked questions">
-      <div className="max-w-3xl mx-auto px-5 sm:px-8">
-        <Reveal className="text-center">
+    <section id="faq" className="relative py-24 sm:py-32 lg:py-40" aria-label="Frequently asked questions">
+      <div className="max-w-2xl mx-auto px-5 sm:px-8">
+        <GsapReveal className="text-center">
           <Eyebrow>FAQ</Eyebrow>
-          <h2 className="lp-heading mt-5 text-3xl sm:text-4xl font-bold tracking-tight">
+          <h2 className="lp-heading-display mt-6 text-3xl sm:text-4xl lg:text-5xl">
             Questions, answered
           </h2>
-        </Reveal>
+        </GsapReveal>
 
-        <div className="mt-10 space-y-2">
+        {/* space-y-2 -> space-y-4: a comfortable margin between items, per
+            the luxury-motion brief, instead of cards nearly touching. */}
+        <div className="mt-14 space-y-4">
           {FAQS.map((item, i) => {
             const isOpen = openIndex === i;
             const buttonId = `faq-button-${i}`;
             const panelId = `faq-panel-${i}`;
             return (
-              <Reveal key={item.q} delay={i * 0.03}>
-                <div className="lp-card overflow-hidden">
-                  <button
-                    id={buttonId}
-                    type="button"
-                    aria-expanded={isOpen}
-                    aria-controls={panelId}
-                    onClick={() => setOpenIndex(isOpen ? null : i)}
-                    className="w-full flex items-center justify-between gap-4 px-5 py-4 text-left text-[15px] font-semibold lp-focus-ring"
-                  >
-                    {item.q}
-                    <ChevronDown
-                      className="h-4 w-4 shrink-0 transition-transform duration-200"
-                      style={{ color: 'var(--lp-cyan)', transform: isOpen ? 'rotate(180deg)' : 'none' }}
-                    />
-                  </button>
-                  <AnimatePresence initial={false}>
-                    {isOpen && (
-                      <motion.div
-                        id={panelId}
-                        role="region"
-                        aria-labelledby={buttonId}
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-                        style={{ overflow: 'hidden' }}
-                      >
-                        <div className="px-5 pb-4 text-sm leading-relaxed" style={{ color: 'var(--lp-text-secondary)' }}>
-                          {item.a}
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+              <GsapReveal key={item.q} delay={i * 0.04} className="lp-card overflow-hidden">
+                {/* px-5 py-4 -> px-8 py-6: expanded padding inside the
+                    accordion trigger, per the brief. */}
+                <button
+                  id={buttonId}
+                  type="button"
+                  aria-expanded={isOpen}
+                  aria-controls={panelId}
+                  onClick={() => toggle(i)}
+                  className="w-full flex items-center justify-between gap-4 px-8 py-6 text-left text-[15px] font-semibold lp-focus-ring"
+                >
+                  {item.q}
+                  <ChevronDown
+                    className="h-4 w-4 shrink-0 transition-transform duration-200"
+                    style={{ color: isOpen ? 'var(--lp-gold)' : 'var(--lp-cyan)', transform: isOpen ? 'rotate(180deg)' : 'none' }}
+                  />
+                </button>
+                <div
+                  ref={(el) => { panelRefs.current[i] = el; }}
+                  id={panelId}
+                  role="region"
+                  aria-labelledby={buttonId}
+                  style={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                >
+                  <div className="px-8 pb-6 text-sm leading-relaxed" style={{ color: 'var(--lp-text-secondary)' }}>
+                    {item.a}
+                  </div>
                 </div>
-              </Reveal>
+              </GsapReveal>
             );
           })}
         </div>

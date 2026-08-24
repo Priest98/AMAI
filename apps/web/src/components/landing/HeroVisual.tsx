@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useReducedMotion } from 'framer-motion';
+import { ensureGsapPlugins, gsap, ScrollTrigger, prefersReducedMotion } from './gsap-setup';
 
 /**
  * Oyinca's cinematic hero background.
@@ -79,6 +80,41 @@ export default function HeroVisual({ className = '' }: { className?: string }) {
       video.pause();
     }
   }, [inView, reduceMotion, videoFailed]);
+
+  // Luxury-motion brief: "a subtle GSAP parallax effect to the video
+  // container as the user scrolls away." Scrubbed (tied directly to scroll
+  // position, not time-based) so it never fights ScrollSmoother's own
+  // eased scroll -- both read from the same scroll position on every
+  // frame. A slight scale-up (1 -> 1.08) accompanies the vertical drift so
+  // the edges of the video never reveal themselves as it shifts inside its
+  // overflow-hidden wrapper.
+  useEffect(() => {
+    if (prefersReducedMotion()) return;
+    const el = wrapRef.current;
+    if (!el) return;
+
+    ensureGsapPlugins();
+    const tween = gsap.fromTo(
+      el,
+      { yPercent: 0, scale: 1 },
+      {
+        yPercent: 14,
+        scale: 1.08,
+        ease: 'none',
+        scrollTrigger: {
+          trigger: el,
+          start: 'top top',
+          end: 'bottom top',
+          scrub: true,
+        },
+      },
+    );
+
+    return () => {
+      tween.scrollTrigger?.kill();
+      tween.kill();
+    };
+  }, []);
 
   return (
     <div

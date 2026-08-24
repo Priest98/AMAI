@@ -13,6 +13,7 @@ import Pricing from '@/components/landing/Pricing';
 import FAQ from '@/components/landing/FAQ';
 import FinalCTA from '@/components/landing/FinalCTA';
 import Footer from '@/components/landing/Footer';
+import SmoothScrollProvider from '@/components/landing/SmoothScrollProvider';
 import { headers } from 'next/headers';
 
 /**
@@ -158,37 +159,54 @@ export default function Home() {
         className="amai-landing relative min-h-screen"
         style={
           {
-            // The body/UI face (Plus Jakarta Sans) is loaded once at the
-            // root layout (apps/web/src/app/layout.tsx) and shared by the
-            // whole app. These aliases keep every landing component's
-            // existing var(--lp-font-heading) / var(--lp-font-body)
-            // references working unchanged -- both point at the same body
-            // face, since headings use size/weight/spacing for hierarchy
-            // rather than a separate heading face. The one exception is
-            // .lp-hero-display (Hero + FinalCTA headlines), which reads
-            // --font-display directly for the Instrument Serif treatment.
+            // The body/UI face (Inter) is loaded once at the root layout
+            // (apps/web/src/app/layout.tsx) and shared by the whole app.
+            // These aliases keep every landing component's existing
+            // var(--lp-font-heading) / var(--lp-font-body) references
+            // working unchanged -- both point at the same body face here,
+            // since most headings use size/weight/spacing for hierarchy
+            // rather than the display face. The luxury rebrand's Playfair
+            // Display serif is reserved for major headlines via
+            // .lp-hero-display and .lp-heading-display (--font-display-var
+            // directly), not the whole page's default heading voice.
             '--lp-font-heading': 'var(--font-body-var)',
             '--lp-font-body': 'var(--font-body-var)',
           } as CSSProperties
         }
       >
-        {/* Single continuous background asset (glow blooms + grain +
-            vignette) spanning the full page height behind every section,
-            so the backdrop flows seamlessly from hero to footer instead of
-            resetting section to section. See landing.css for the layers. */}
-        <div className="lp-ambient-bg" aria-hidden="true">
-          <div className="lp-ambient-blooms" />
-          <div className="lp-ambient-grain" />
-          <div className="lp-ambient-vignette" />
-        </div>
-
         <a
           href="#main-content"
           className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:rounded-lg lp-btn-primary"
         >
           Skip to main content
         </a>
+
+        {/* Nav deliberately renders OUTSIDE SmoothScrollProvider. GSAP's
+            ScrollSmoother applies a CSS transform to #smooth-content to
+            produce its eased-scroll effect, and a transformed ancestor
+            creates a new containing block for any `position: fixed`
+            descendant -- Nav's fixed pill would silently stop tracking the
+            viewport and scroll away with the page if it lived inside that
+            transformed subtree. Staying a sibling avoids the failure mode
+            entirely (see SmoothScrollProvider.tsx and landing.css's
+            #smooth-wrapper/#smooth-content comment for the full mechanics). */}
         <Nav />
+
+        {/* Single continuous background asset (glow blooms + grain +
+            vignette) now lives INSIDE SmoothScrollProvider (first child, see
+            below) rather than here -- it needs to size itself against the
+            page's full scrollable content height via `inset: 0`, and once
+            ScrollSmoother pins #smooth-wrapper to the viewport (position:
+            fixed), anything positioned outside #smooth-content would only
+            ever cover one viewport-height instead of the whole page. Inside
+            #smooth-content it scrolls at the same eased rate as everything
+            else and spans the real full height, exactly like before. */}
+        <SmoothScrollProvider>
+        <div className="lp-ambient-bg" aria-hidden="true">
+          <div className="lp-ambient-blooms" />
+          <div className="lp-ambient-grain" />
+          <div className="lp-ambient-vignette" />
+        </div>
         {/*
           Content-and-UX audit pass: the page had grown to ~10 sections that
           largely restated one idea ("Oyinca automates TikTok in the
@@ -236,6 +254,7 @@ export default function Home() {
           <FinalCTA />
         </main>
         <Footer />
+        </SmoothScrollProvider>
       </div>
     </>
   );

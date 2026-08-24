@@ -43,8 +43,8 @@ const COLUMNS = [
 export default function Footer() {
   return (
     <footer className="relative border-t" style={{ borderColor: 'var(--lp-border)' }}>
-      <div className="max-w-7xl mx-auto px-5 sm:px-8 py-16">
-        <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-10">
+      <div className="max-w-7xl mx-auto px-5 sm:px-8 py-20 sm:py-24">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-12">
           <div className="lg:col-span-1">
             <Link href="/" className="flex items-center gap-2 font-bold text-lg lp-heading tracking-tight lp-focus-ring">
               <Monogram className="h-7 w-7 rounded-lg" />

@@ -1,34 +1,29 @@
 import type { Metadata } from 'next';
-import { Plus_Jakarta_Sans, Instrument_Serif } from 'next/font/google';
+import { Inter, Playfair_Display } from 'next/font/google';
 import './globals.css';
 import AnalyticsInit from '@/components/analytics/AnalyticsInit';
 
 /**
- * Oyinca typography system: Plus Jakarta Sans (product/UI) + Instrument Serif
- * (display/brand).
+ * Oyinca typography system (luxury rebrand): Inter (product/UI/body) +
+ * Playfair Display (display/brand headlines).
  *
  * Loaded once here at the root so every route -- dashboard, auth pages and
  * the marketing site -- shares one typographic identity. Both are fetched
  * via next/font/google, which downloads the files at build time and
- * self-hosts them from our own domain (no runtime request to Google, same
- * privacy/perf profile as self-hosting manually) while giving each a
- * complete Latin glyph set and a real weight range.
+ * self-hosts them from our own domain (no runtime request to Google) while
+ * giving each a complete Latin glyph set and a real weight range.
  *
- * This replaces the previous Morrison + Kugile pair (audit findings, see
- * project history):
- *   - Kugile-Regular.ttf was licensed as a demo/trial file and, confirmed
- *     via direct font inspection, mapped only 53 glyphs -- A-Z, a-z, space
- *     -- with NO digits or punctuation. Any heading containing a period,
- *     comma or number silently fell back to the body face mid-word.
- *   - Morrison-Regular.otf was a single static weight (400 only, confirmed
- *     via font inspection -- no fvar/variable axis). Every `font-bold` /
- *     `font-semibold` utility in the app was therefore rendering as
- *     browser-synthesized ("faux") bold, not a real bold weight.
- * PLUS JAKARTA SANS drives --font-body-var across a full weight range
- * (400-800), so bold/semibold text renders with an actual bold face instead
- * of synthetic bolding.
+ * Replaces the previous Plus Jakarta Sans + Instrument Serif pairing as
+ * part of the "premium/luxurious" landing-page rebrand: Inter reads as a
+ * cleaner, more neutral workhorse sans at body sizes (leading-relaxed
+ * paragraphs), and Playfair Display's high-contrast serif strokes read as
+ * editorial/high-end at large display sizes in a way a geometric sans
+ * can't. Variable names (--font-body-var / --font-display-var) are
+ * unchanged from the prior pair so every existing var(--font-body-var) /
+ * var(--font-display-var) reference across landing.css and the app keeps
+ * working without a find-and-replace.
  */
-const plusJakartaSans = Plus_Jakarta_Sans({
+const inter = Inter({
   subsets: ['latin'],
   weight: ['400', '500', '600', '700', '800'],
   variable: '--font-body-var',
@@ -37,17 +32,16 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 });
 
 /**
- * INSTRUMENT SERIF is the display/brand face, used sparingly (hero headline
- * and the final-CTA headline) so it stays a moment of contrast rather than
- * the page's default voice -- a condensed editorial serif built for large
- * sizes, which reads as premium/sophisticated without tipping into the
- * more decorative end of the display-serif spectrum (Playfair, Bodoni).
- * Full Latin glyph coverage (digits, punctuation) unlike Kugile, so no
- * character-set restriction on what copy can use it.
+ * PLAYFAIR DISPLAY is the display/brand face -- used for every major
+ * landing-page headline (Hero, section headings, Final CTA) per the
+ * luxury-rebrand brief, not just two isolated moments like the previous
+ * Instrument Serif treatment. High-contrast serif strokes and a full
+ * weight range (400-800) give it real presence at 5xl-7xl sizes without
+ * tipping into a purely decorative display face.
  */
-const instrumentSerif = Instrument_Serif({
+const playfairDisplay = Playfair_Display({
   subsets: ['latin'],
-  weight: '400',
+  weight: ['400', '500', '600', '700', '800', '900'],
   style: ['normal', 'italic'],
   variable: '--font-display-var',
   display: 'swap',
@@ -112,7 +106,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`antialiased ${plusJakartaSans.variable} ${instrumentSerif.variable}`}>
+      <body className={`antialiased ${inter.variable} ${playfairDisplay.variable}`}>
         <AnalyticsInit />
         {children}
       </body>

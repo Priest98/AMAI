@@ -2,8 +2,10 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { motion } from 'framer-motion';
 import { Check } from 'lucide-react';
-import { Reveal, Eyebrow } from './shared';
+import { Eyebrow } from './shared';
+import GsapReveal from './GsapReveal';
 // PlanEntitlements/PlanPricing/PlanTier are types only -- imported with an
 // explicit `import type` because Turbopack's per-file transform can't always
 // prove type-only-ness on its own and will emit a runtime import for an
@@ -82,6 +84,28 @@ const CARD_COPY: Record<PlanTier, Omit<CardCopy, 'tier'>> = {
   },
 };
 
+/**
+ * Framer Motion drives Pricing's entrance specifically (rather than the
+ * GSAP ScrollTrigger stagger used elsewhere) per the luxury-motion brief's
+ * explicit call for "a dynamic Framer Motion entrance" on the Popular
+ * card -- whileInView + staggerChildren on the row, with the highlighted
+ * card getting its own slightly larger scale target so it visibly "pops"
+ * into place a beat after its neighbors rather than just fading up
+ * identically.
+ */
+const GRID_VARIANTS = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.15, delayChildren: 0.05 } },
+};
+const CARD_VARIANTS = {
+  hidden: { opacity: 0, y: 48, scale: 0.97 },
+  show: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.7, ease: [0.16, 1, 0.3, 1] } },
+};
+const POPULAR_CARD_VARIANTS = {
+  hidden: { opacity: 0, y: 48, scale: 0.92 },
+  show: { opacity: 1, y: 0, scale: 1.05, transition: { duration: 0.75, ease: [0.16, 1, 0.3, 1], delay: 0.1 } },
+};
+
 function formatStorage(bytes: number): string {
   const gb = bytes / (1024 * 1024 * 1024);
   return gb >= 1 ? `${gb} GB` : `${Math.round(bytes / (1024 * 1024))} MB`;
@@ -148,146 +172,147 @@ export default function Pricing({ initialData }: { initialData?: PlansResponse |
   };
 
   return (
-    <section id="pricing" className="relative py-16 sm:py-12" aria-label="Pricing">
+    // Highest-priority section per the luxury-motion brief: this was "the
+    // most congested area." py-32/40 breathing room, gap-10 between
+    // columns (was gap-6), p-10/p-12 internal card padding (was p-8),
+    // space-y-5 feature lists (was space-y-3), and the Popular card gets
+    // its own scale-105 + gold glow + dynamic Framer Motion entrance.
+    <section id="pricing" className="relative py-24 sm:py-32 lg:py-40" aria-label="Pricing">
       <div className="max-w-7xl mx-auto px-5 sm:px-8">
-        <Reveal className="text-center max-w-2xl mx-auto">
+        <GsapReveal className="text-center max-w-2xl mx-auto">
           <Eyebrow>Simple Pricing</Eyebrow>
-          <h2 className="lp-heading mt-5 text-3xl sm:text-4xl font-bold tracking-tight">
+          <h2 className="lp-heading-display mt-6 text-3xl sm:text-4xl lg:text-5xl">
             Start free. Upgrade when you need more TikTok.
           </h2>
-          <p className="mt-4 text-sm" style={{ color: 'var(--lp-text-secondary)' }}>
+          <p className="mt-5 text-sm leading-relaxed" style={{ color: 'var(--lp-text-secondary)' }}>
             No complicated contracts. No hidden setup fees.
           </p>
-        </Reveal>
+        </GsapReveal>
 
-        <div className="mt-16 grid md:grid-cols-3 gap-6 items-start">
-          {(['FREE', 'PRO', 'AGENCY'] as PlanTier[]).map((tier, i) => {
+        <motion.div
+          variants={GRID_VARIANTS}
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true, margin: '-100px' }}
+          className="mt-20 grid md:grid-cols-3 gap-8 lg:gap-10 items-start"
+        >
+          {(['FREE', 'PRO', 'AGENCY'] as PlanTier[]).map((tier) => {
             const copy = CARD_COPY[tier];
             const price = pricing?.[tier]?.[currency];
             return (
-              <Reveal key={tier} delay={i * 0.08}>
-                <div
-                  className="lp-card h-full p-8 flex flex-col relative"
-                  style={
-                    copy.highlighted
-                      ? { borderColor: 'var(--lp-cyan)', boxShadow: '0 0 0 1px var(--lp-cyan), 0 20px 60px -20px rgba(57,231,255,0.35)' }
-                      : undefined
-                  }
-                >
-                  {copy.badge && (
-                    <span
-                      className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider"
-                      style={{ background: 'var(--lp-gradient-brand)', color: '#04070D' }}
-                    >
-                      {copy.badge}
-                    </span>
-                  )}
-                  <h3 className="lp-heading font-bold text-lg">{plans?.[tier]?.displayName || tier}</h3>
-                  <p className="mt-2 text-sm leading-relaxed" style={{ color: 'var(--lp-text-secondary)' }}>
-                    {copy.heading}
-                  </p>
+              <motion.div
+                key={tier}
+                variants={copy.highlighted ? POPULAR_CARD_VARIANTS : CARD_VARIANTS}
+                className={`lp-card lp-card-sheen h-full p-10 sm:p-12 flex flex-col relative ${copy.highlighted ? 'lp-glow-border-gold' : ''}`}
+                style={copy.highlighted ? { borderColor: 'var(--lp-gold)' } : undefined}
+              >
+                {copy.badge && (
+                  <span
+                    className="absolute -top-3 left-1/2 -translate-x-1/2 px-3.5 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
+                    style={{ background: 'var(--lp-gradient-gold)', color: '#241A08' }}
+                  >
+                    {copy.badge}
+                  </span>
+                )}
+                <h3 className="lp-heading-display text-xl">{plans?.[tier]?.displayName || tier}</h3>
+                <p className="mt-3 text-sm leading-relaxed" style={{ color: 'var(--lp-text-secondary)' }}>
+                  {copy.heading}
+                </p>
 
-                  <div className="mt-6">
-                    {tier === 'FREE' ? (
-                      <div className="flex items-baseline gap-1">
-                        <span className="lp-heading text-4xl font-bold">{formatPrice(0, currency)}</span>
-                        <span className="text-sm" style={{ color: 'var(--lp-text-muted)' }}>forever</span>
+                <div className="mt-8">
+                  {tier === 'FREE' ? (
+                    <div className="flex items-baseline gap-1">
+                      <span className="lp-heading text-4xl font-bold">{formatPrice(0, currency)}</span>
+                      <span className="text-sm" style={{ color: 'var(--lp-text-muted)' }}>forever</span>
+                    </div>
+                  ) : price?.newUserMonthly != null ? (
+                    <div>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-sm line-through" style={{ color: 'var(--lp-text-muted)' }}>{formatPrice(price.regularMonthly || 0, currency)}/month</span>
                       </div>
-                    ) : price?.newUserMonthly != null ? (
-                      <div>
-                        <div className="flex items-baseline gap-2">
-                          <span className="text-sm line-through" style={{ color: 'var(--lp-text-muted)' }}>{formatPrice(price.regularMonthly || 0, currency)}/month</span>
-                        </div>
-                        <div className="flex items-baseline gap-1">
-                          <span className="lp-heading text-4xl font-bold">{formatPrice(price.newUserMonthly, currency)}</span>
-                          <span className="text-sm" style={{ color: 'var(--lp-text-muted)' }}>/month</span>
-                        </div>
-                        <p className="mt-1 text-xs font-semibold" style={{ color: 'var(--lp-cyan)' }}>
-                          New users save {formatPrice((price.regularMonthly || 0) - price.newUserMonthly, currency)}/month.
-                        </p>
-                      </div>
-                    ) : (
                       <div className="flex items-baseline gap-1">
-                        <span className="lp-heading text-4xl font-bold">{price?.regularMonthly != null ? formatPrice(price.regularMonthly, currency) : '—'}</span>
+                        <span className="lp-heading text-4xl font-bold">{formatPrice(price.newUserMonthly, currency)}</span>
                         <span className="text-sm" style={{ color: 'var(--lp-text-muted)' }}>/month</span>
                       </div>
-                    )}
-                  </div>
-
-                  {/* Mobile-audit fix: with 10-12 bullet lines per card,
-                      the original space-y-2.5 (10px) between every single
-                      line read as a "wall of tiny bullets" on a phone.
-                      Bullet count and copy are unchanged -- still the same
-                      real entitlements, nothing added or removed -- only
-                      the rhythm changes: a touch more room between
-                      individual lines, and a clearer gap between the
-                      dynamic (numeric limits) block and the static
-                      (qualitative features) block below it, so the card
-                      reads as two grouped sections instead of one long
-                      undifferentiated list. */}
-                  <ul className="mt-6 space-y-3">
-                    {dynamicBullets(tier).map((f) => (
-                      <li key={f} className="flex items-start gap-2.5 text-sm">
-                        <Check className="h-4 w-4 shrink-0 mt-0.5" style={{ color: 'var(--lp-cyan)' }} />
-                        <span className="font-semibold" style={{ color: 'var(--lp-text-primary)' }}>{f}</span>
-                      </li>
-                    ))}
-                  </ul>
-
-                  <ul className="mt-6 space-y-3 flex-1">
-                    {copy.includes.map((f) => (
-                      <li key={f} className="flex items-start gap-2.5 text-sm">
-                        {f.startsWith('Everything in') ? (
-                          <span className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--lp-text-muted)' }}>{f}</span>
-                        ) : (
-                          <>
-                            <Check className="h-4 w-4 shrink-0 mt-0.5" style={{ color: 'var(--lp-cyan)' }} />
-                            <span style={{ color: 'var(--lp-text-secondary)' }}>{f}</span>
-                          </>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-
-                  {/* py-3 -> py-4: the old height (~38px with text-sm) fell
-                      short of the 44-52px comfortable tap-target range on a
-                      touchscreen. */}
-                  <Link
-                    href="/register"
-                    className={`mt-8 text-center px-5 py-4 rounded-xl text-sm lp-focus-ring ${copy.highlighted ? 'lp-btn-primary' : 'lp-btn-ghost font-semibold'}`}
-                  >
-                    {copy.cta}
-                  </Link>
-                  <p className="mt-3 text-[11px] text-center" style={{ color: 'var(--lp-text-muted)' }}>
-                    {tier === 'FREE' ? 'No credit card required.' : 'New-user pricing applies to eligible new customers.'}
-                  </p>
+                      <p className="mt-2 text-xs font-semibold" style={{ color: 'var(--lp-gold)' }}>
+                        New users save {formatPrice((price.regularMonthly || 0) - price.newUserMonthly, currency)}/month.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="flex items-baseline gap-1">
+                      <span className="lp-heading text-4xl font-bold">{price?.regularMonthly != null ? formatPrice(price.regularMonthly, currency) : '—'}</span>
+                      <span className="text-sm" style={{ color: 'var(--lp-text-muted)' }}>/month</span>
+                    </div>
+                  )}
                 </div>
-              </Reveal>
+
+                {/* space-y-3 -> space-y-5, and the gap before the static
+                    features list widened (mt-6 -> mt-10) so the card reads
+                    as two clearly separated, generously-spaced groups
+                    rather than one dense list. */}
+                <ul className="mt-8 space-y-5">
+                  {dynamicBullets(tier).map((f) => (
+                    <li key={f} className="flex items-start gap-3 text-sm">
+                      <Check className="h-4 w-4 shrink-0 mt-0.5" style={{ color: copy.highlighted ? 'var(--lp-gold)' : 'var(--lp-cyan)' }} />
+                      <span className="font-semibold leading-relaxed" style={{ color: 'var(--lp-text-primary)' }}>{f}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                <ul className="mt-10 space-y-5 flex-1">
+                  {copy.includes.map((f) => (
+                    <li key={f} className="flex items-start gap-3 text-sm">
+                      {f.startsWith('Everything in') ? (
+                        <span className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--lp-text-muted)' }}>{f}</span>
+                      ) : (
+                        <>
+                          <Check className="h-4 w-4 shrink-0 mt-0.5" style={{ color: copy.highlighted ? 'var(--lp-gold)' : 'var(--lp-cyan)' }} />
+                          <span className="leading-relaxed" style={{ color: 'var(--lp-text-secondary)' }}>{f}</span>
+                        </>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+
+                {/* Larger buttons (py-4 -> py-5) with generous room from the
+                    card's bottom edge (mt-8 -> mt-12, plus the card's own
+                    p-10/p-12 bottom padding) -- the brief's explicit
+                    "plenty of room from the bottom edge" requirement. */}
+                <Link
+                  href="/register"
+                  className={`mt-12 text-center px-6 py-5 rounded-xl text-sm lp-focus-ring ${copy.highlighted ? 'lp-btn-primary' : 'lp-btn-ghost font-semibold'}`}
+                >
+                  {copy.cta}
+                </Link>
+                <p className="mt-4 text-[11px] text-center" style={{ color: 'var(--lp-text-muted)' }}>
+                  {tier === 'FREE' ? 'No credit card required.' : 'New-user pricing applies to eligible new customers.'}
+                </p>
+              </motion.div>
             );
           })}
-        </div>
+        </motion.div>
 
         {/* Where the old standalone "Who Oyinca is for" (three large cards)
             and "For Agencies" sections ended up. The plans themselves
             already communicate who each tier is for -- restating it as two
             full sections earlier in the page made a small-business visitor
             scroll through an agency pitch before reaching a price. */}
-        <Reveal delay={0.2} className="mt-10 text-center">
-          <p className="text-sm font-medium" style={{ color: 'var(--lp-text-secondary)' }}>
+        <GsapReveal delay={0.1} className="mt-14 text-center">
+          <p className="text-sm font-medium leading-relaxed" style={{ color: 'var(--lp-text-secondary)' }}>
             Built for businesses, creators and agencies.
           </p>
-          <p className="mt-1 text-sm" style={{ color: 'var(--lp-text-muted)' }}>
+          <p className="mt-2 text-sm leading-relaxed" style={{ color: 'var(--lp-text-muted)' }}>
             Agency: manage multiple brands and client workspaces from one place.
           </p>
-        </Reveal>
+        </GsapReveal>
 
-        <Reveal delay={0.25} className="mt-8 text-center">
-          <p className="text-xs max-w-2xl mx-auto" style={{ color: 'var(--lp-text-muted)' }}>
+        <GsapReveal delay={0.15} className="mt-10 text-center">
+          <p className="text-xs leading-relaxed max-w-2xl mx-auto" style={{ color: 'var(--lp-text-muted)' }}>
             All plans can be changed or cancelled according to the applicable billing terms. Usage limits
             and feature availability may vary by plan. Introductory pricing is available to eligible new
             customers for the stated promotional period.
           </p>
-        </Reveal>
+        </GsapReveal>
       </div>
     </section>
   );

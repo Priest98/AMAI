@@ -35,6 +35,19 @@
   --lp-gradient-brand: linear-gradient(135deg, #9DC6E8 0%, #4A7FA7 100%);
   --lp-gradient-glow: radial-gradient(circle, rgba(127, 176, 219, 0.35) 0%, rgba(26, 61, 99, 0.18) 45%, transparent 70%);
 
+  /* Luxury-rebrand accent: soft metallic gold, used deliberately sparingly
+     -- the "Popular" pricing badge, FAQ's open-state icon, the Final CTA's
+     ambient particles, and glowing-border moments that want to read as a
+     premium highlight rather than the page's everyday accent (which stays
+     --lp-cyan, the steel blue). Never a full background fill by itself;
+     always a text color, a thin border, or a low-opacity glow, matching
+     how real metallic gold reads in premium print/product design (a
+     highlight, not a wash). */
+  --lp-gold: #D8B571;
+  --lp-gold-soft: rgba(216, 181, 113, 0.16);
+  --lp-gold-strong: rgba(216, 181, 113, 0.45);
+  --lp-gradient-gold: linear-gradient(135deg, #F0DBA6 0%, #B98D46 100%);
+
   background: var(--lp-bg);
   color: var(--lp-text-primary);
   font-family: var(--lp-font-body, 'Inter', -apple-system, BlinkMacSystemFont, sans-serif);
@@ -75,6 +88,18 @@
 .amai-landing .lp-heading {
   font-family: var(--lp-font-heading, var(--font-sans, sans-serif));
   letter-spacing: -0.02em;
+}
+
+/* Luxury rebrand: every section heading (not just Hero/Final CTA) now
+   reads in Playfair Display, per the brief's "sophisticated pairing"
+   requirement -- an elegant serif for headlines, Inter for everything
+   else. Lighter letter-spacing than .lp-heading (serif display faces read
+   as cramped with a sans-tuned -0.02em tracking) and a slightly loosened
+   line-height for multi-line section headings. */
+.amai-landing .lp-heading-display {
+  font-family: var(--font-display-var, var(--lp-font-heading, serif));
+  letter-spacing: -0.01em;
+  line-height: 1.1;
 }
 
 .amai-landing .lp-mono {
@@ -473,4 +498,97 @@
 .lp-hover-glow:hover {
   border-color: var(--lp-cyan);
   box-shadow: 0 0 0 1px var(--lp-cyan-soft), 0 20px 50px -20px rgba(127, 176, 219, 0.35);
+}
+
+/* ==================================================================
+ * GSAP ScrollSmoother wrapper
+ * ------------------------------------------------------------------
+ * Standard ScrollSmoother structure: #smooth-wrapper is pinned to the
+ * viewport (fixed + overflow hidden) and ScrollSmoother.create() applies
+ * its own transform to #smooth-content to produce the eased-scroll effect,
+ * while transparently keeping the browser's real scrollbar/scroll height
+ * in sync with the content's natural height -- nothing here needs to
+ * calculate that manually.
+ *
+ * Nav.tsx is deliberately rendered OUTSIDE this wrapper (see page.tsx) --
+ * ScrollSmoother applies a CSS transform to #smooth-content, and a
+ * transformed ancestor creates a new containing block for any
+ * `position: fixed` descendant, which would silently turn Nav's fixed
+ * pill into something that scrolls away with the page instead of staying
+ * pinned. Keeping Nav a sibling of the wrapper (not a child of the
+ * transformed content) avoids that failure mode entirely rather than
+ * working around it with ScrollTrigger pinning.
+ * ================================================================ */
+/* Only pinned to the viewport once SmoothScrollProvider's effect has
+   actually confirmed (a) we're client-side and (b) the visitor hasn't
+   asked for reduced motion, and applied this class + initialized
+   ScrollSmoother. Before that (first paint, SSR, or reduced-motion
+   visitors permanently) the wrapper stays a normal in-flow element so the
+   page scrolls natively with zero dependency on JS having run. */
+#smooth-wrapper.lp-smooth-active {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+}
+#smooth-content {
+  overflow: visible;
+  width: 100%;
+}
+
+/* ==================================================================
+ * Luxury rebrand: glowing borders, metallic surfaces, ambient particles
+ * ================================================================ */
+
+/* A step up from .lp-card for moments that should read as the premium
+   highlight in a group (the Pricing "Popular" tier, the Final CTA
+   panel) -- a slow-breathing gold-tinted glow ring rather than the
+   standard hover-only cyan glow. */
+.lp-glow-border-gold {
+  box-shadow: 0 0 0 1px var(--lp-gold-strong), 0 30px 80px -30px rgba(216, 181, 113, 0.35);
+}
+
+.lp-gold-text {
+  color: var(--lp-gold);
+}
+
+/* Card hover: a soft radial gradient sheen that sweeps in on hover,
+   layered above .lp-card's existing lift/border-glow rather than
+   replacing it -- the "cards reveal a glowing gradient on hover"
+   requirement from the luxury-motion brief. Sits on a pseudo-element so
+   it never intercepts pointer events or forces every card to carry an
+   extra wrapper div. */
+.lp-card-sheen {
+  position: relative;
+  isolation: isolate;
+}
+.lp-card-sheen::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: radial-gradient(480px circle at var(--lp-sheen-x, 50%) var(--lp-sheen-y, 0%), rgba(216, 181, 113, 0.14), transparent 65%);
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+}
+.lp-card-sheen:hover::before {
+  opacity: 1;
+}
+
+/* Ambient ink-black -> gold radial used behind the Final CTA panel,
+   pulsing slowly via GSAP (see Particles.tsx) rather than a static
+   gradient, so the panel reads as alive without competing with the
+   headline for attention. */
+.lp-cta-glow {
+  background: radial-gradient(ellipse 70% 60% at 50% 30%, rgba(216, 181, 113, 0.16) 0%, rgba(127, 176, 219, 0.10) 45%, transparent 75%);
+}
+
+.lp-particle {
+  position: absolute;
+  border-radius: 9999px;
+  background: var(--lp-gold);
+  opacity: 0;
+  pointer-events: none;
+  will-change: transform, opacity;
 }

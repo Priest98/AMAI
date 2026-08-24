@@ -1,7 +1,8 @@
 "use client";
 
 import React from 'react';
-import { Reveal, Eyebrow } from './shared';
+import { Eyebrow } from './shared';
+import GsapReveal from './GsapReveal';
 
 /**
  * Spec section 17 requires this as its own named section ("TikTok First"),
@@ -14,20 +15,20 @@ import { Reveal, Eyebrow } from './shared';
  */
 export default function TikTokFirstSection() {
   return (
-    <section id="tiktok-first" className="relative py-20 sm:py-14" aria-label="TikTok first">
-      <div className="max-w-3xl mx-auto px-5 sm:px-8 text-center">
-        <Reveal>
+    <section id="tiktok-first" className="relative py-24 sm:py-32 lg:py-40" aria-label="TikTok first">
+      <div className="max-w-2xl mx-auto px-5 sm:px-8 text-center">
+        <GsapReveal>
           <Eyebrow>TikTok First</Eyebrow>
-          <h2 className="lp-heading mt-5 text-3xl sm:text-4xl font-bold tracking-tight">
+          <h2 className="lp-heading-display mt-6 text-3xl sm:text-4xl lg:text-5xl">
             Built for TikTok today.
             <br />
             Built for your entire social presence tomorrow.
           </h2>
-          <p className="mt-5 text-base sm:text-lg leading-relaxed" style={{ color: 'var(--lp-text-secondary)' }}>
+          <p className="mt-6 text-base sm:text-lg leading-loose" style={{ color: 'var(--lp-text-secondary)' }}>
             Oyinca is an AI social media manager, not a TikTok-only tool. TikTok is where it starts,
             with more platforms on the roadmap.
           </p>
-        </Reveal>
+        </GsapReveal>
       </div>
     </section>
   );

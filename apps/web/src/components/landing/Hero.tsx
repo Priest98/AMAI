@@ -89,8 +89,12 @@ export default function Hero() {
         <motion.h1
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-          className="lp-hero-display text-5xl sm:text-6xl lg:text-7xl"
+          transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
+          // Luxury rebrand: massive, elegant Playfair Display headline --
+          // pushed a step larger at every breakpoint than the prior sizing
+          // (5xl/6xl/7xl -> 6xl/7xl/8xl) so it reads as a deliberate
+          // statement rather than a slightly-oversized label.
+          className="lp-hero-display text-6xl sm:text-7xl lg:text-8xl"
           style={{ color: 'var(--lp-text-primary)' }}
         >
           Meet Oyinca.
@@ -102,22 +106,25 @@ export default function Hero() {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
-          className="mt-5 max-w-sm text-base sm:text-lg"
+          className="mt-6 max-w-sm text-base leading-relaxed sm:text-lg"
           style={{ color: 'var(--lp-text-secondary)' }}
         >
           Give Oyinca your content. She handles the rest.
         </motion.p>
 
+        {/* Substantial breathing room below the CTA, per the luxury-motion
+            brief -- mt-8 -> mt-12, plus pb-14/pb-16 on the copy block's own
+            wrapper above (unchanged) already reserves room beneath this. */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
-          className="mt-8"
+          className="mt-12"
         >
           <MagneticButton as={motion.div}>
             <Link
               href="/register"
-              className="group inline-flex items-center gap-2 rounded-2xl px-8 py-4 text-sm lp-btn-primary lp-focus-ring"
+              className="group inline-flex items-center gap-2 rounded-2xl px-9 py-4.5 text-sm lp-btn-primary lp-focus-ring"
             >
               Let Oyinca handle it
               <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
