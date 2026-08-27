@@ -28,6 +28,12 @@ interface MediaAsset {
   // Engine pipeline has run on this asset (null until then -- never guessed).
   contentCategory?: string | null;
   contentPillar?: string | null;
+  // Content-library intelligence: the real Gemini vision description of
+  // what's actually in this specific file (null for videos, or for assets
+  // whose topic came from the filename-heuristic fallback rather than a
+  // real vision call). Powers the search box below so the library is
+  // searchable by what's actually depicted, not just filename.
+  visionTopic?: string | null;
   // Whether this asset already belongs to a post (single or carousel).
   // Only assets with no linkedPostId are eligible to be picked into a new
   // Carousel/Single composer selection -- everything else is already
@@ -330,6 +336,16 @@ export default function MediaLibraryPage() {
   const [assets, setAssets] = useState<MediaAsset[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  // Content-library search: filters the grid client-side by filename or
+  // vision-derived description (all assets are already fetched in one
+  // capped request, so no separate search endpoint is needed for this).
+  const [librarySearch, setLibrarySearch] = useState('');
+  const filteredAssets = librarySearch.trim()
+    ? assets.filter((a) => {
+        const q = librarySearch.trim().toLowerCase();
+        return a.filename?.toLowerCase().includes(q) || a.visionTopic?.toLowerCase().includes(q);
+      })
+    : assets;
 
   // ── Manual composer: Single Image / Carousel ──────────────────────────
   // 'single' is the existing, unchanged behavior: every uploaded file
@@ -646,9 +662,23 @@ export default function MediaLibraryPage() {
 
       {/* Media Gallery */}
       <div className="exec-card p-5 sm:p-6 space-y-5">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
           <h2 className="text-h3" style={{ color: 'var(--text-primary)' }}>Uploaded Assets</h2>
-          <span className="text-caption" style={{ color: 'var(--text-muted)' }}>{assets.length} assets</span>
+          <div className="flex items-center gap-3">
+            {assets.length > 0 && (
+              <input
+                type="text"
+                value={librarySearch}
+                onChange={(e) => setLibrarySearch(e.target.value)}
+                placeholder="Search by filename or what's in the photo…"
+                className="w-56 sm:w-72 rounded-[var(--radius-md)] border px-3 py-1.5 text-xs"
+                style={{ borderColor: 'var(--card-border)', backgroundColor: 'var(--bg-surface-sunken)', color: 'var(--text-primary)' }}
+              />
+            )}
+            <span className="text-caption whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>
+              {librarySearch.trim() ? `${filteredAssets.length} of ${assets.length}` : `${assets.length} assets`}
+            </span>
+          </div>
         </div>
 
         {loading ? (
@@ -659,9 +689,15 @@ export default function MediaLibraryPage() {
             title="No media yet"
             description="Drag and drop files above to see them appear here instantly."
           />
+        ) : filteredAssets.length === 0 ? (
+          <EmptyState
+            icon={<Upload className="h-6 w-6" />}
+            title="No matches"
+            description="Nothing in your library matches that search yet."
+          />
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-            {assets.map((asset) => {
+            {filteredAssets.map((asset) => {
               const statusInfo = STATUS_LABEL[asset.status] || STATUS_LABEL.PENDING;
               // Carousel-mode selection: any photo or video not already
               // linked to another post can be picked into the batch above,
@@ -674,6 +710,7 @@ export default function MediaLibraryPage() {
                 <div
                   key={asset.id}
                   onClick={isEligibleForCarousel ? () => toggleAssetForCarousel(asset) : undefined}
+                  title={asset.visionTopic || asset.filename}
                   className={`group relative aspect-square rounded-[var(--radius-lg)] border overflow-hidden transition-all duration-200 ${isEligibleForCarousel ? 'cursor-pointer' : ''} ${
                     composerMode === 'carousel' && !isEligibleForCarousel ? 'opacity-40' : ''
                   }`}

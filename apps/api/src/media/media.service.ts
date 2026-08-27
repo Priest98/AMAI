@@ -375,7 +375,7 @@ export class MediaService {
     this.sweepStaleProcessing(brandId).catch(() => {});
 
     // Projected + capped: the Media Library grid only ever renders these
-    // seven fields (not batchId/batchName/relativePath/userId/platform/
+    // fields (not batchId/batchName/relativePath/userId/platform/
     // providerPostId/publishedAt/updatedAt), and an unbounded findMany()
     // would eventually pull the brand's entire upload history on every
     // page load as the library grows. 300 is a generous ceiling for the
@@ -395,6 +395,7 @@ export class MediaService {
         lastErrorMessage: true,
         createdAt: true,
         linkedPostId: true,
+        visionTopic: true,
       },
       orderBy: { createdAt: 'desc' },
       take: 300,

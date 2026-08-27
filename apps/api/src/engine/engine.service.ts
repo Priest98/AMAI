@@ -391,6 +391,17 @@ export class EngineService {
     if (!isVideo && asset.blobUrl) {
       const visionTopic = await this.aiService.analyzeImage(asset.blobUrl, brandId, 'amai_engine');
       topic = visionTopic || this.deriveTopicFromFilename(asset.filename, asset.batchName);
+      // Content-library intelligence: persist the real vision output onto
+      // the asset itself, decoupled from whatever happens later in this
+      // pipeline run (slot retries, entitlement downgrades, etc.) -- the
+      // analysis genuinely happened and is worth keeping even if something
+      // downstream fails. Never persists the filename-derived fallback --
+      // only a real Gemini vision result counts as "vision analysis".
+      if (visionTopic) {
+        this.prisma.mediaAsset
+          .update({ where: { id: asset.id }, data: { visionTopic, visionAnalyzedAt: new Date() } })
+          .catch((e) => this.logger.warn(`[${asset.id}] Failed to persist vision analysis: ${e?.message || e}`));
+      }
     } else {
       topic = this.deriveTopicFromFilename(asset.filename, asset.batchName);
     }
@@ -675,6 +686,16 @@ export class EngineService {
       ? await this.aiService.analyzeImage(primaryAsset.blobUrl, brandId, 'amai_engine')
       : null;
     const topic = visionTopic || this.deriveTopicFromFilename(primaryAsset.filename, primaryAsset.batchName);
+    // Content-library intelligence: only the primary asset was actually
+    // vision-analyzed (see the comment above on why one call stands in for
+    // the whole collection), so only its row gets a visionTopic -- the
+    // other carousel items correctly stay null rather than being credited
+    // with an analysis that was never run on them specifically.
+    if (visionTopic) {
+      this.prisma.mediaAsset
+        .update({ where: { id: primaryAsset.id }, data: { visionTopic, visionAnalyzedAt: new Date() } })
+        .catch((e) => this.logger.warn(`[${primaryAsset.id}] Failed to persist vision analysis: ${e?.message || e}`));
+    }
 
     const allConnectedAccounts = await this.prisma.socialAccount.findMany({
       where: { brandId, status: ConnectionStatus.CONNECTED },
