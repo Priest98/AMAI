@@ -46,7 +46,7 @@ export const PLAN_CONFIG: Record<PlanTier, PlanEntitlements> = {
   [PlanTier.FREE]: {
     tier: PlanTier.FREE,
     displayName: 'Free',
-    tagline: 'For creators and businesses getting started with AI-powered TikTok content.',
+    tagline: 'Experience Oyinca: create content, explore the platform, and see how AI-powered social media management works.',
     maxBrands: 1,
     maxSocialAccountsPerBrand: 1,
     maxTeamMembers: 1,
@@ -65,7 +65,7 @@ export const PLAN_CONFIG: Record<PlanTier, PlanEntitlements> = {
   [PlanTier.PRO]: {
     tier: PlanTier.PRO,
     displayName: 'Pro',
-    tagline: 'For businesses ready to put TikTok content on autopilot.',
+    tagline: 'Let Oyinca run your social media: one managed account, up to 150 posts a month, advanced intelligence and automation.',
     maxBrands: 1,
     maxSocialAccountsPerBrand: 1,
     maxTeamMembers: 1,
@@ -84,8 +84,14 @@ export const PLAN_CONFIG: Record<PlanTier, PlanEntitlements> = {
   [PlanTier.AGENCY]: {
     tier: PlanTier.AGENCY,
     displayName: 'Agency',
-    tagline: 'For teams managing TikTok for multiple clients.',
-    maxBrands: 25,
+    tagline: "Run your clients' social media: up to 5 managed accounts, up to 500 posts a month, multi-brand management and agency workflows.",
+    // 5, not 25: Agency is "run up to 5 client businesses," a fundamentally
+    // different environment from Pro, not just a bigger number of the same
+    // thing. canCreateBrand() already blocks new-brand creation once an
+    // org is at/over this ceiling -- any org that already has more than 5
+    // brands keeps every one of them (nothing is deleted or disconnected),
+    // it just can't add a 6th until back under the limit.
+    maxBrands: 5,
     maxSocialAccountsPerBrand: 5,
     maxTeamMembers: 10,
     maxMonthlyPosts: 500,
