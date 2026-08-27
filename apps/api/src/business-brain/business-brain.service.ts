@@ -2,6 +2,7 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { MemoryEntryType } from '@prisma/client';
 import { AiService } from '../ai/ai.service';
+import { EntitlementsService } from '../billing/entitlements.service';
 
 export interface UpdateBusinessBrainDto {
   businessDescription?: string | null;
@@ -37,7 +38,26 @@ export class BusinessBrainService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly aiService: AiService,
+    private readonly entitlementsService: EntitlementsService,
   ) {}
+
+  /**
+   * The four fields behind PlanEntitlements.businessBrainLevel: 'advanced'.
+   * These are the deeper strategic/personalization inputs (competitive
+   * positioning, business goals, and AI voice-learning from real past
+   * posts) rather than the baseline "tell Oyinca about your business"
+   * fields every plan needs for on-brand content generation to work at
+   * all -- gating those away from Free would make Free's core value prop
+   * (AI content creation) actively worse, which is exactly what spec #19
+   * warns against. This split is the real thing behind an otherwise inert
+   * config flag.
+   */
+  private static readonly ADVANCED_ONLY_FIELDS: (keyof UpdateBusinessBrainDto)[] = [
+    'writingSamples',
+    'goals',
+    'competitiveContext',
+    'competitorHandles',
+  ];
 
   /** Lazily creates an empty brain on first access — no backfill migration needed. */
   async getOrCreate(brandId: string) {
@@ -48,11 +68,28 @@ export class BusinessBrainService {
     return this.prisma.businessBrain.create({ data: { brandId } });
   }
 
+  /**
+   * Free (businessBrainLevel: 'basic') can read and keep whatever advanced
+   * fields it already has (e.g. set while on a since-lapsed Pro
+   * subscription -- downgrading never deletes existing data, same
+   * principle as Agency's maxBrands), but can't submit new edits to them.
+   * Silently dropped rather than rejecting the whole request: a single
+   * Settings "Save changes" click can legitimately mix basic and advanced
+   * fields in one PATCH, and a stale/locked field shouldn't block the
+   * plan's core (basic) fields from saving.
+   */
   async update(brandId: string, dto: UpdateBusinessBrainDto) {
     const before = await this.getOrCreate(brandId);
+    const entitlements = await this.entitlementsService.getEntitlementsForBrand(brandId);
+    const effectiveDto = { ...dto };
+    if (entitlements.businessBrainLevel !== 'advanced') {
+      for (const field of BusinessBrainService.ADVANCED_ONLY_FIELDS) {
+        delete effectiveDto[field];
+      }
+    }
     const updated = await this.prisma.businessBrain.update({
       where: { brandId },
-      data: dto,
+      data: effectiveDto,
     });
 
     // Only re-summarize when writingSamples actually changed content --
@@ -63,8 +100,8 @@ export class BusinessBrainService {
     // just keeps using whatever voiceSummary already exists until this
     // finishes, same "eventually consistent" pattern as everything else
     // AI-derived in this brain.
-    if (dto.writingSamples && JSON.stringify(dto.writingSamples) !== JSON.stringify(before.writingSamples)) {
-      this.resummarizeVoice(brandId, dto.writingSamples).catch((e) =>
+    if (effectiveDto.writingSamples && JSON.stringify(effectiveDto.writingSamples) !== JSON.stringify(before.writingSamples)) {
+      this.resummarizeVoice(brandId, effectiveDto.writingSamples).catch((e) =>
         this.logger.error(`Voice summary generation failed for brand ${brandId}: ${e?.message || e}`),
       );
     }

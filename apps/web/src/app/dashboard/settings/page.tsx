@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { brandFetch, getCurrentUser } from '@/lib/api';
@@ -21,6 +22,7 @@ import {
   Wand2,
   Zap as ZapIcon,
   Building2,
+  Lock,
 } from 'lucide-react';
 
 type ApprovalMode = 'MANUAL' | 'AUTO';
@@ -103,25 +105,41 @@ function BrainField({
   label,
   helper,
   optional,
+  locked,
   children,
 }: {
   id: string;
   label: string;
   helper?: string;
   optional?: boolean;
+  /** Pro/Agency-only field (businessBrainLevel: 'advanced') -- dims the field and swaps the helper for an upgrade nudge. The input itself still needs its own disabled prop passed at the call site; this just handles the surrounding chrome. */
+  locked?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <div>
+    <div className={locked ? 'opacity-70' : undefined}>
       <div className="flex items-baseline gap-2">
         <label htmlFor={id} className="text-body-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
           {label}
         </label>
-        {optional && (
+        {optional && !locked && (
           <span className="text-caption" style={{ color: 'var(--text-muted)' }}>Optional</span>
         )}
+        {locked && (
+          <span
+            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider"
+            style={{ backgroundColor: 'var(--accent-warning-subtle)', color: 'var(--accent-warning)' }}
+          >
+            <Lock className="h-2.5 w-2.5" />
+            Pro
+          </span>
+        )}
       </div>
-      {helper && (
+      {locked ? (
+        <p id={`${id}-helper`} className="text-body-sm mt-1" style={{ color: 'var(--text-muted)' }}>
+          <Link href="/dashboard/settings?tab=billing" className="underline font-semibold">Upgrade to Pro</Link> to unlock this.
+        </p>
+      ) : helper && (
         <p id={`${id}-helper`} className="text-body-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
           {helper}
         </p>
@@ -154,6 +172,14 @@ export default function SettingsPage() {
   const [checkoutLoading, setCheckoutLoading] = useState<'PRO' | 'AGENCY' | null>(null);
   const [portalLoading, setPortalLoading] = useState(false);
   const [devPlanLoading, setDevPlanLoading] = useState(false);
+
+  // The real functional difference behind PlanEntitlements.businessBrainLevel
+  // -- mirrors BusinessBrainService.ADVANCED_ONLY_FIELDS server-side, which
+  // silently strips these same four fields from a Free org's PATCH. This
+  // just lets the UI show the lock up front instead of a save that quietly
+  // didn't apply. Defaults to unlocked (false) while billing hasn't loaded
+  // yet, so the fields don't flash locked-then-unlocked on every page load.
+  const businessBrainLocked = billing ? billing.entitlements.businessBrainLevel !== 'advanced' : false;
 
   // Which currency an upgrade will actually be charged in. Defaults to the
   // browser-detected guess (timezone/locale, see lib/currency.ts) but is
@@ -674,11 +700,12 @@ export default function SettingsPage() {
                   />
                 </BrainField>
 
-                <BrainField id="bb-writing-samples" label="Sample posts" optional helper="Paste 2-3 of your best past captions, separated by a blank line. Oyinca matches this voice more closely than any description can.">
+                <BrainField id="bb-writing-samples" label="Sample posts" optional locked={businessBrainLocked} helper="Paste 2-3 of your best past captions, separated by a blank line. Oyinca matches this voice more closely than any description can.">
                   <textarea
                     id="bb-writing-samples"
                     aria-describedby="bb-writing-samples-helper"
-                    className="input-field w-full min-h-[96px] px-3.5 py-2.5"
+                    disabled={businessBrainLocked}
+                    className="input-field w-full min-h-[96px] px-3.5 py-2.5 disabled:cursor-not-allowed"
                     placeholder={'e.g. New drop just landed 👀 Handmade, limited run, gone by Friday.\n\n(blank line between each sample)'}
                     value={writingSamplesText}
                     onChange={(e) => setWritingSamplesText(e.target.value)}
@@ -723,35 +750,38 @@ export default function SettingsPage() {
                   />
                 </BrainField>
 
-                <BrainField id="bb-goals" label="Current goals" optional helper="What you want your content to achieve right now.">
+                <BrainField id="bb-goals" label="Current goals" optional locked={businessBrainLocked} helper="What you want your content to achieve right now.">
                   <input
                     id="bb-goals"
                     aria-describedby="bb-goals-helper"
                     type="text"
-                    className="input-field w-full h-11 px-3.5"
+                    disabled={businessBrainLocked}
+                    className="input-field w-full h-11 px-3.5 disabled:cursor-not-allowed"
                     placeholder="e.g. Grow followers, drive sales"
                     value={goalsText}
                     onChange={(e) => setGoalsText(e.target.value)}
                   />
                 </BrainField>
 
-                <BrainField id="bb-competitive" label="Competitive context" optional helper="What makes you different from others in your space.">
+                <BrainField id="bb-competitive" label="Competitive context" optional locked={businessBrainLocked} helper="What makes you different from others in your space.">
                   <textarea
                     id="bb-competitive"
                     aria-describedby="bb-competitive-helper"
-                    className="input-field w-full min-h-[64px] px-3.5 py-2.5"
+                    disabled={businessBrainLocked}
+                    className="input-field w-full min-h-[64px] px-3.5 py-2.5 disabled:cursor-not-allowed"
                     placeholder="e.g. We're the only local brand doing custom fits."
                     value={brain.competitiveContext || ''}
                     onChange={(e) => setBrain({ ...brain, competitiveContext: e.target.value })}
                   />
                 </BrainField>
 
-                <BrainField id="bb-competitors" label="Competitors" optional helper="Names or handles Oyinca should recognize (won't name-drop them unless the post is explicitly a comparison).">
+                <BrainField id="bb-competitors" label="Competitors" optional locked={businessBrainLocked} helper="Names or handles Oyinca should recognize (won't name-drop them unless the post is explicitly a comparison).">
                   <input
                     id="bb-competitors"
                     aria-describedby="bb-competitors-helper"
                     type="text"
-                    className="input-field w-full h-11 px-3.5"
+                    disabled={businessBrainLocked}
+                    className="input-field w-full h-11 px-3.5 disabled:cursor-not-allowed"
                     placeholder="e.g. @otherbrand, Acme Co"
                     value={competitorHandlesText}
                     onChange={(e) => setCompetitorHandlesText(e.target.value)}

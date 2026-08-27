@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { OnEvent, EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
 import { AiService } from '../ai/ai.service';
@@ -245,7 +245,25 @@ export class EngineService {
     return updated;
   }
 
+  /**
+   * Free is capped at Manual Approval (autopilotLevel: 'basic') -- every
+   * post waits in the Approval Queue for a human before it publishes. Auto
+   * Approval (hands-off, AI-timed auto-publish) is a Pro/Agency
+   * entitlement ('advanced'); this is the actual functional difference
+   * behind PlanEntitlements.autopilotLevel, enforced here rather than left
+   * as an inert config flag. Checked server-side so a Free org can never
+   * flip this on via a direct API call even if the frontend toggle were
+   * bypassed.
+   */
   async setApprovalMode(brandId: string, approvalMode: ApprovalMode) {
+    if (approvalMode === ApprovalMode.AUTO) {
+      const entitlements = await this.entitlementsService.getEntitlementsForBrand(brandId);
+      if (entitlements.autopilotLevel !== 'advanced') {
+        throw new ForbiddenException(
+          `Auto Approval is a Pro feature. Your ${entitlements.displayName} plan is limited to Manual Approval, so every post waits in the Approval Queue for you to review before it publishes. Upgrade to Pro to let Oyinca auto-publish at the AI-selected best time.`,
+        );
+      }
+    }
     const config = await this.getOrCreateConfig(brandId);
     const updated = await this.prisma.amaiEngineConfig.update({
       where: { id: config.id },
@@ -467,7 +485,16 @@ export class EngineService {
 
     // 5. Check Approval Mode (Paused always forces the approval queue, even
     // if Auto Approval is selected — publishing is what Pause blocks).
-    let willAutoPublish = config.state === EngineState.ACTIVE && config.approvalMode === ApprovalMode.AUTO;
+    // Also re-checked against the live plan here, not just at the moment the
+    // toggle was flipped in setApprovalMode: a brand that had AUTO enabled
+    // while on Pro and then lapsed/downgraded to Free must not keep silently
+    // auto-publishing off a stale config row -- Free is capped at Manual
+    // Approval (autopilotLevel: 'basic') no matter what's stored.
+    const engineEntitlements = await this.entitlementsService.getEntitlementsForBrand(brandId);
+    let willAutoPublish =
+      config.state === EngineState.ACTIVE &&
+      config.approvalMode === ApprovalMode.AUTO &&
+      engineEntitlements.autopilotLevel === 'advanced';
     const postStatus = willAutoPublish ? PostStatus.SCHEDULED : PostStatus.NEEDS_APPROVAL;
 
     // AI Content Intelligence (foundation): tag this post with whichever

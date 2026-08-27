@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from 'react';
+import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import GlassmorphicToggle from '@/components/ui/GlassmorphicToggle';
 import EngineWorkflowVisualization from '@/components/engine/EngineWorkflowVisualization';
@@ -8,6 +9,7 @@ import { brandFetch } from '@/lib/api';
 import { useEngineEvents, EngineEvent } from '@/lib/useEngineEvents';
 import ControlCenter from '@/components/engine/ControlCenter';
 import { INSTAGRAM_ENABLED } from '@/lib/featureFlags';
+import { getBillingSummary, type BillingSummary } from '@/lib/billing';
 import {
   Zap,
   Pause,
@@ -17,6 +19,7 @@ import {
   Activity,
   CalendarClock,
   Globe2,
+  Lock,
 } from 'lucide-react';
 
 type EngineState = 'ACTIVE' | 'PAUSED';
@@ -65,21 +68,30 @@ export default function AmaiEnginePage() {
   const [message, setMessage] = useState('');
   const [showAutoConfirm, setShowAutoConfirm] = useState(false);
   const [activity, setActivity] = useState<EngineEvent[]>([]);
+  const [billing, setBilling] = useState<BillingSummary | null>(null);
 
   const load = useCallback(async () => {
     try {
-      const [cfg, events] = await Promise.all([
+      const [cfg, events, billingSummary] = await Promise.all([
         brandFetch<EngineConfig>('/engine/state'),
         brandFetch<EngineEvent[]>('/engine/activity'),
+        getBillingSummary().catch(() => null), // non-critical -- page still works if this fails, just without the plan-aware lock
       ]);
       setConfig(cfg);
       setActivity(events);
+      setBilling(billingSummary);
     } catch (e: any) {
       setMessage(e.message || 'Could not load Oyinca status.');
     } finally {
       setLoading(false);
     }
   }, []);
+
+  // Autopilot (hands-off, auto-publish) is a Pro/Agency entitlement --
+  // Free is capped at Assisted mode. Mirrors the server-side check in
+  // EngineService.setApprovalMode; this just lets the UI show the lock
+  // up front instead of letting the user hit a 403.
+  const autopilotLocked = billing ? billing.entitlements.autopilotLevel !== 'advanced' : false;
 
   useEffect(() => { load(); }, [load]);
 
@@ -110,6 +122,7 @@ export default function AmaiEnginePage() {
 
   const applyApprovalMode = async (mode: ApprovalMode) => {
     if (!config) return;
+    const previous = config.approvalMode;
     setConfig({ ...config, approvalMode: mode });
     setSaving(true);
     try {
@@ -117,6 +130,7 @@ export default function AmaiEnginePage() {
       showToast(mode === 'AUTO' ? 'Autopilot enabled.' : 'Assisted mode enabled.');
     } catch (e: any) {
       showToast(e.message || 'Could not update approval mode.');
+      setConfig((c) => (c ? { ...c, approvalMode: previous } : c)); // revert the optimistic flip -- e.g. a Free plan 403
     } finally {
       setSaving(false);
       setShowAutoConfirm(false);
@@ -124,6 +138,10 @@ export default function AmaiEnginePage() {
   };
 
   const setApprovalMode = (mode: ApprovalMode) => {
+    if (mode === 'AUTO' && autopilotLocked) {
+      showToast("Autopilot is a Pro feature. Upgrade to let Oyinca auto-publish without a review step.");
+      return;
+    }
     if (mode === 'AUTO' && config?.approvalMode !== 'AUTO') {
       setShowAutoConfirm(true);
       return;
@@ -264,18 +282,38 @@ export default function AmaiEnginePage() {
             onClick={() => setApprovalMode('AUTO')}
             className={`flex flex-col p-4 rounded-xl border text-left transition touch-target ${
               config?.approvalMode === 'AUTO' ? 'border-amber-500/60 bg-amber-500/10' : ''
-            }`}
+            } ${autopilotLocked ? 'opacity-70' : ''}`}
             style={{ backgroundColor: config?.approvalMode === 'AUTO' ? undefined : 'var(--bg-surface-raised)', borderColor: config?.approvalMode === 'AUTO' ? undefined : 'var(--card-border)' }}
           >
             <div className="flex items-center justify-between gap-2 mb-2">
               <span className="text-xs font-extrabold leading-snug" style={{ color: 'var(--text-primary)' }}>Autopilot</span>
-              {config?.approvalMode === 'AUTO' && <span className="h-2 w-2 rounded-full bg-amber-400 shrink-0" />}
+              {autopilotLocked ? (
+                <span
+                  className="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider"
+                  style={{ backgroundColor: 'var(--accent-warning-subtle)', color: 'var(--accent-warning)' }}
+                >
+                  <Lock className="h-2.5 w-2.5" />
+                  Pro
+                </span>
+              ) : (
+                config?.approvalMode === 'AUTO' && <span className="h-2 w-2 rounded-full bg-amber-400 shrink-0" />
+              )}
             </div>
             <p className="text-[11px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-              I create, schedule and publish according to your rules.
+              {autopilotLocked
+                ? 'Hands-off, auto-publish without a review step. Upgrade to Pro to unlock.'
+                : 'I create, schedule and publish according to your rules.'}
             </p>
           </button>
         </div>
+
+        {autopilotLocked && (
+          <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+            Your Free plan is limited to Assisted mode.{' '}
+            <Link href="/dashboard/settings?tab=billing" className="underline font-semibold">Upgrade to Pro</Link>{' '}
+            to let Oyinca publish automatically.
+          </p>
+        )}
       </div>
 
       {/* ── Persona / Tone ── */}

@@ -3,6 +3,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { BrandAccessGuard } from '../auth/brand-access.guard';
 import { PostsService } from './posts.service';
 import { EngineService } from '../engine/engine.service';
+import { EntitlementsService } from '../billing/entitlements.service';
 import { PostStatus } from '@prisma/client';
 import { CreatePostDto, ComposeManualPostDto, ApprovePostDto, EditPostDto } from './dto';
 
@@ -12,6 +13,7 @@ export class PostsController {
   constructor(
     private readonly postsService: PostsService,
     private readonly engineService: EngineService,
+    private readonly entitlementsService: EntitlementsService,
   ) {}
 
   @Post()
@@ -38,10 +40,25 @@ export class PostsController {
     return this.postsService.getStats(brandId);
   }
 
-  // Real week-over-week performance deltas for the dashboard home page --
-  // same static-segment reasoning as 'stats' above.
+  /**
+   * Real week-over-week performance deltas for the dashboard home page --
+   * same static-segment reasoning as 'stats' above.
+   *
+   * This is the actual functional difference behind
+   * PlanEntitlements.analyticsLevel: Free ('basic') gets per-post current
+   * stats (Published Posts page, ungated -- just "what are my posts doing
+   * right now", not a premium feature) but not this trend/growth view,
+   * which is real week-over-week analysis. Gated here, before the
+   * (heavier) query runs, rather than computed and then discarded -- a
+   * locked response is a normal 200, not an error, since viewing your own
+   * dashboard isn't a failure state.
+   */
   @Get('performance-summary')
   async getPerformanceSummary(@Param('brandId') brandId: string) {
+    const entitlements = await this.entitlementsService.getEntitlementsForBrand(brandId);
+    if (entitlements.analyticsLevel !== 'advanced') {
+      return { locked: true as const, requiredPlan: 'PRO' as const };
+    }
     return this.postsService.getPerformanceSummary(brandId);
   }
 

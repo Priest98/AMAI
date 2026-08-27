@@ -11,6 +11,7 @@ import { apiFetch, brandFetch } from '@/lib/api';
 import { useEngineEvents } from '@/lib/useEngineEvents';
 import { getBillingSummary, BillingSummary } from '@/lib/billing';
 import UsageBar from '@/components/billing/UsageBar';
+import LockedFeature from '@/components/billing/LockedFeature';
 import { TikTokLogo } from '@/components/icons/platform-logos';
 import {
   CheckCircle2,
@@ -80,6 +81,12 @@ interface PerformanceSummary {
   topPost: { id: string; caption: string; platform: string; viewsDelta: number } | null;
 }
 
+/** Sent instead of the shape above when analyticsLevel isn't 'advanced' -- see PostsController.getPerformanceSummary. */
+interface LockedPerformanceSummary {
+  locked: true;
+  requiredPlan: 'PRO' | 'AGENCY';
+}
+
 /** Compact "1.2K" style formatting for engagement counts -- matches the
  * scale these numbers actually reach (TikTok view counts), unlike raw
  * comma-formatted integers which get unreadable fast. */
@@ -110,7 +117,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [billing, setBilling] = useState<BillingSummary | null>(null);
   const [insights, setInsights] = useState<CalendarInsightsData | null>(null);
-  const [performance, setPerformance] = useState<PerformanceSummary | null>(null);
+  const [performance, setPerformance] = useState<PerformanceSummary | LockedPerformanceSummary | null>(null);
 
   useEffect(() => {
     getBillingSummary().then(setBilling).catch(() => {});
@@ -123,7 +130,7 @@ export default function DashboardPage() {
     // (see PostsService.getPerformanceSummary) -- absent entirely (not
     // zeroed) until TikTok is connected and the metrics-sync cron has had a
     // chance to capture at least one snapshot.
-    brandFetch<PerformanceSummary>('/posts/performance-summary').then(setPerformance).catch(() => {});
+    brandFetch<PerformanceSummary | LockedPerformanceSummary>('/posts/performance-summary').then(setPerformance).catch(() => {});
   }, []);
 
   // Previously this fired 6 separate requests on every mount and every SSE
@@ -280,42 +287,54 @@ export default function DashboardPage() {
           computed from PostPerformance snapshots (see
           PostsService.getPerformanceSummary), not per-post static totals
           (Published Posts already shows those). Absent rather than zeroed
-          until there's at least one real snapshot to compare against. */}
-      <motion.div variants={itemVariants} className="exec-card p-5 sm:p-6 space-y-4">
-        <div className="flex items-center gap-2">
-          <TrendingUp className="h-4 w-4" style={{ color: 'var(--accent-success)' }} />
-          <h2 className="text-h3" style={{ color: 'var(--text-primary)' }}>Performance This Week</h2>
-        </div>
+          until there's at least one real snapshot to compare against.
+          Pro/Agency only (analyticsLevel: 'advanced') -- Free sees a
+          LockedFeature preview instead of the real numbers, per spec #18. */}
+      {performance && 'locked' in performance ? (
+        <motion.div variants={itemVariants}>
+          <LockedFeature
+            title="Performance This Week"
+            description="Real week-over-week views, likes, comments and shares growth, plus your top-performing post. See what's actually landing with your audience, not just what you posted."
+            requiredPlan={performance.requiredPlan}
+          />
+        </motion.div>
+      ) : (
+        <motion.div variants={itemVariants} className="exec-card p-5 sm:p-6 space-y-4">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="h-4 w-4" style={{ color: 'var(--accent-success)' }} />
+            <h2 className="text-h3" style={{ color: 'var(--text-primary)' }}>Performance This Week</h2>
+          </div>
 
-        {!performance || !performance.hasData ? (
-          <p className="text-body-sm" style={{ color: 'var(--text-secondary)' }}>
-            No performance data yet &mdash; once a post has been live for a bit and Oyinca has synced its stats, real engagement growth will show up here.
-          </p>
-        ) : (
-          <>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <StatCard icon={<Eye className="h-4 w-4 text-sky-400" />} label="Views" value={formatCount(performance.views)} helperText={`Last ${performance.sinceDays} days`} />
-              <StatCard icon={<Heart className="h-4 w-4 text-rose-400" />} label="Likes" value={formatCount(performance.likes)} helperText={`Last ${performance.sinceDays} days`} />
-              <StatCard icon={<MessageCircle className="h-4 w-4 text-amber-400" />} label="Comments" value={formatCount(performance.comments)} helperText={`Last ${performance.sinceDays} days`} />
-              <StatCard icon={<Share2 className="h-4 w-4 text-emerald-400" />} label="Shares" value={formatCount(performance.shares)} helperText={`Last ${performance.sinceDays} days`} />
-            </div>
-            {performance.topPost && (
-              <div className="surface-tile p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="space-y-1.5 max-w-xl">
-                  <Badge variant="purple">{performance.topPost.platform}</Badge>
-                  <p className="text-body-sm line-clamp-2 font-medium" style={{ color: 'var(--text-primary)' }}>
-                    Top performer: {performance.topPost.caption}
-                  </p>
-                </div>
-                <Link href="/dashboard/published" className="link-neutral text-body-sm font-semibold flex items-center gap-1 hover:underline shrink-0">
-                  <span>{formatCount(performance.topPost.viewsDelta)} views</span>
-                  <ArrowUpRight className="h-3.5 w-3.5" />
-                </Link>
+          {!performance || !performance.hasData ? (
+            <p className="text-body-sm" style={{ color: 'var(--text-secondary)' }}>
+              No performance data yet &mdash; once a post has been live for a bit and Oyinca has synced its stats, real engagement growth will show up here.
+            </p>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <StatCard icon={<Eye className="h-4 w-4 text-sky-400" />} label="Views" value={formatCount(performance.views)} helperText={`Last ${performance.sinceDays} days`} />
+                <StatCard icon={<Heart className="h-4 w-4 text-rose-400" />} label="Likes" value={formatCount(performance.likes)} helperText={`Last ${performance.sinceDays} days`} />
+                <StatCard icon={<MessageCircle className="h-4 w-4 text-amber-400" />} label="Comments" value={formatCount(performance.comments)} helperText={`Last ${performance.sinceDays} days`} />
+                <StatCard icon={<Share2 className="h-4 w-4 text-emerald-400" />} label="Shares" value={formatCount(performance.shares)} helperText={`Last ${performance.sinceDays} days`} />
               </div>
-            )}
-          </>
-        )}
-      </motion.div>
+              {performance.topPost && (
+                <div className="surface-tile p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="space-y-1.5 max-w-xl">
+                    <Badge variant="purple">{performance.topPost.platform}</Badge>
+                    <p className="text-body-sm line-clamp-2 font-medium" style={{ color: 'var(--text-primary)' }}>
+                      Top performer: {performance.topPost.caption}
+                    </p>
+                  </div>
+                  <Link href="/dashboard/published" className="link-neutral text-body-sm font-semibold flex items-center gap-1 hover:underline shrink-0">
+                    <span>{formatCount(performance.topPost.viewsDelta)} views</span>
+                    <ArrowUpRight className="h-3.5 w-3.5" />
+                  </Link>
+                </div>
+              )}
+            </>
+          )}
+        </motion.div>
+      )}
 
       {/* "Oyinca recommends" -- built entirely on top of the real,
           already-existing GET /engine/calendar-insights data (content
