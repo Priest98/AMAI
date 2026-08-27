@@ -38,6 +38,13 @@ export class PostsController {
     return this.postsService.getStats(brandId);
   }
 
+  // Real week-over-week performance deltas for the dashboard home page --
+  // same static-segment reasoning as 'stats' above.
+  @Get('performance-summary')
+  async getPerformanceSummary(@Param('brandId') brandId: string) {
+    return this.postsService.getPerformanceSummary(brandId);
+  }
+
   // ─────────────────────────────────────────────────────────────
   // Manual composer — Single Image / Carousel. A static 'compose' segment,
   // same reasoning as 'stats' above: declared before the dynamic :postId

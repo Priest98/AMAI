@@ -1,7 +1,7 @@
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PublishingService } from '../queue/publishing.service';
-import { MediaStatus, PostStatus } from '@prisma/client';
+import { MediaStatus, PostStatus, TargetStatus } from '@prisma/client';
 import { CreatePostDto } from './dto';
 
 // Vercel Cron on this plan only fires /api/cron/publish-due once a day
@@ -184,6 +184,92 @@ export class PostsService {
     ]);
 
     return { needsApprovalCount, scheduledCount, publishedCount, mediaCount, pendingPreview };
+  }
+
+  /**
+   * "Surfacing real performance deltas" -- the dashboard home page previously
+   * only ever showed pipeline-stage counts (approval queue / scheduled /
+   * published / media). Nothing summarized how content actually performs,
+   * even though MetricsService has been writing real PostPerformance
+   * snapshots since the metrics-sync cron was built. This turns those
+   * snapshots into "here's what actually happened this week" instead of
+   * per-post static totals (which Published Posts already shows).
+   *
+   * For each tracked target, "this window's growth" is (latest snapshot) -
+   * (the most recent snapshot at or before `sinceDays` ago). A target with
+   * no snapshot that old means it only started being tracked within this
+   * window -- its whole current total is fairly attributed to this window
+   * rather than guessed at against an unknown earlier baseline. Deltas are
+   * floored at 0 so a metrics sync hiccup (a transient dip in a raw platform
+   * count) can never show as negative growth.
+   */
+  async getPerformanceSummary(brandId: string) {
+    const WINDOW_DAYS = 7;
+    // Matches MetricsService.TRACKING_WINDOW_DAYS -- no point looking at
+    // targets that job never syncs.
+    const TRACKING_DAYS = 30;
+    const now = Date.now();
+    const cutoff = new Date(now - WINDOW_DAYS * 24 * 60 * 60 * 1000);
+    const trackingCutoff = new Date(now - TRACKING_DAYS * 24 * 60 * 60 * 1000);
+
+    const targets = await this.prisma.postTarget.findMany({
+      where: {
+        status: TargetStatus.PUBLISHED,
+        providerPostId: { not: null },
+        post: { brandId, publishedAt: { gte: trackingCutoff } },
+      },
+      select: {
+        platform: true,
+        post: { select: { id: true, caption: true } },
+        // Capped, not unbounded -- a target tracked for the full 30-day
+        // window at a couple of syncs a day comfortably fits well under
+        // this; the cap just guards against a misbehaving cron ever
+        // pulling a target's entire history into memory here.
+        performanceSnapshots: { orderBy: { capturedAt: 'desc' }, take: 60 },
+      },
+    });
+
+    const empty = { hasData: false as const, sinceDays: WINDOW_DAYS, views: 0, likes: 0, comments: 0, shares: 0, topPost: null as null | { id: string; caption: string; platform: string; viewsDelta: number } };
+    if (targets.length === 0) return empty;
+
+    let totalViews = 0, totalLikes = 0, totalComments = 0, totalShares = 0;
+    let hasAnySnapshot = false;
+    let topPost: { id: string; caption: string; platform: string; viewsDelta: number } | null = null;
+
+    for (const target of targets) {
+      const snapshots = target.performanceSnapshots;
+      if (snapshots.length === 0) continue;
+      hasAnySnapshot = true;
+
+      const latest = snapshots[0];
+      const baseline = snapshots.find((s) => s.capturedAt <= cutoff) || null;
+
+      const viewsDelta = Math.max(0, latest.views - (baseline?.views ?? 0));
+      const likesDelta = Math.max(0, latest.likes - (baseline?.likes ?? 0));
+      const commentsDelta = Math.max(0, latest.comments - (baseline?.comments ?? 0));
+      const sharesDelta = Math.max(0, latest.shares - (baseline?.shares ?? 0));
+
+      totalViews += viewsDelta;
+      totalLikes += likesDelta;
+      totalComments += commentsDelta;
+      totalShares += sharesDelta;
+
+      if (viewsDelta > 0 && (!topPost || viewsDelta > topPost.viewsDelta)) {
+        topPost = { id: target.post.id, caption: target.post.caption, platform: target.platform, viewsDelta };
+      }
+    }
+
+    if (!hasAnySnapshot) return empty;
+
+    return {
+      hasData: true as const,
+      sinceDays: WINDOW_DAYS,
+      views: totalViews,
+      likes: totalLikes,
+      comments: totalComments,
+      shares: totalShares,
+      topPost,
+    };
   }
 
   /**
