@@ -177,11 +177,6 @@ export class EntitlementsService {
     await this.usageService.increment(organizationId, UsageMetric.AI_GENERATION, sub.id);
   }
 
-  async recordPostPublished(organizationId: string): Promise<void> {
-    const sub = await this.getSubscription(organizationId);
-    await this.usageService.increment(organizationId, UsageMetric.POST_PUBLISHED, sub.id);
-  }
-
   /**
    * The single chokepoint for "this brand is about to commit to publishing
    * one more post this month" -- reserves the monthly credit immediately
@@ -200,19 +195,35 @@ export class EntitlementsService {
    * org is already at its monthly limit -- callers should let this
    * exception propagate rather than swallow it, so the block is visible to
    * the client exactly the way every other entitlement failure already is.
+   *
+   * Race-condition fix: this used to check usage (read) and then increment
+   * (write) as two separate steps -- two concurrent publish requests could
+   * both read "under limit" before either one's write landed, letting an
+   * org exceed its plan by however many requests raced. The check and the
+   * increment now happen as a single atomic DB statement (see
+   * UsageService.incrementIfUnderLimit), so this can no longer be beaten by
+   * concurrency no matter how many requests arrive at once.
    */
   async reservePostSlot(brandId: string): Promise<void> {
     const organizationId = await this.getOrganizationIdForBrand(brandId);
-    const check = await this.canPerformAction(brandId, 'create_post');
-    if (!check.allowed) {
+    const [entitlements, sub] = await Promise.all([
+      this.getEntitlementsForOrganization(organizationId),
+      this.getSubscription(organizationId),
+    ]);
+    const result = await this.usageService.incrementIfUnderLimit(
+      organizationId,
+      UsageMetric.POST_PUBLISHED,
+      entitlements.maxMonthlyPosts,
+      sub.id,
+    );
+    if (!result.allowed) {
       const plan = await this.getPlanForOrganization(organizationId);
-      const limit = check.usage?.limit ?? PLAN_CONFIG[plan].maxMonthlyPosts;
+      const limit = entitlements.maxMonthlyPosts;
       const message =
         plan === PlanTier.FREE
           ? `You've reached your ${limit}-post monthly limit. Upgrade to Pro for up to ${PLAN_CONFIG[PlanTier.PRO].maxMonthlyPosts} posts per month.`
           : `You've reached your ${limit}-post monthly limit. Your allowance resets at the start of your next billing period.`;
       throw new ForbiddenException(message);
     }
-    await this.recordPostPublished(organizationId);
   }
 }
