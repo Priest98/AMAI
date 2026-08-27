@@ -4,7 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { brandFetch, getCurrentUser } from '@/lib/api';
-import { getBillingSummary, startCheckout, openBillingPortal, devSetPlan, formatBytes, BillingSummary } from '@/lib/billing';
+import { getBillingSummary, startCheckout, openBillingPortal, devSetPlan, formatBytes, getPlans, BillingSummary, PlanPricing, PlanTier as BillingPlanTier } from '@/lib/billing';
+import { detectCurrency, formatPrice, CURRENCY_SYMBOLS, type Currency } from '@/lib/currency';
 import UsageBar from '@/components/billing/UsageBar';
 import { useOnboarding } from '@/components/onboarding/OnboardingContext';
 import {
@@ -153,6 +154,17 @@ export default function SettingsPage() {
   const [portalLoading, setPortalLoading] = useState(false);
   const [devPlanLoading, setDevPlanLoading] = useState(false);
 
+  // Which currency an upgrade will actually be charged in. Defaults to the
+  // browser-detected guess (timezone/locale, see lib/currency.ts) but is
+  // never used silently -- it's shown next to the checkout buttons with the
+  // real price in that currency, and the visitor can change it before
+  // clicking. Previously handleUpgrade called startCheckout(plan) with no
+  // currency at all, so this same detectCurrency() guess decided what a
+  // customer was charged with zero visibility or chance to correct it --
+  // exactly the gap that let GBP visitors get silently charged in USD.
+  const [checkoutCurrency, setCheckoutCurrency] = useState<Currency>('USD');
+  const [planPricing, setPlanPricing] = useState<Record<BillingPlanTier, Record<Currency, PlanPricing>> | null>(null);
+
   const loadBilling = () => {
     setBillingLoading(true);
     getBillingSummary()
@@ -160,6 +172,11 @@ export default function SettingsPage() {
       .catch(() => {})
       .finally(() => setBillingLoading(false));
   };
+
+  useEffect(() => {
+    setCheckoutCurrency(detectCurrency());
+    getPlans().then((d) => setPlanPricing(d.pricing)).catch(() => {});
+  }, []);
 
   useEffect(loadBilling, []);
 
@@ -179,7 +196,7 @@ export default function SettingsPage() {
   const handleUpgrade = async (plan: 'PRO' | 'AGENCY') => {
     setCheckoutLoading(plan);
     try {
-      await startCheckout(plan);
+      await startCheckout(plan, checkoutCurrency);
     } catch (e: any) {
       flash(e.message || 'Could not start checkout.');
       setCheckoutLoading(null);
@@ -934,9 +951,29 @@ export default function SettingsPage() {
 
               {billing.plan !== 'AGENCY' && (
                 <div className="exec-card card-pad space-y-5">
-                  <div>
-                    <h3 className="text-h3" style={{ color: 'var(--text-primary)' }}>Upgrade your plan</h3>
-                    <p className="text-body-sm mt-2" style={{ color: 'var(--text-secondary)' }}>More capacity, more automation, more intelligence.</p>
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <h3 className="text-h3" style={{ color: 'var(--text-primary)' }}>Upgrade your plan</h3>
+                      <p className="text-body-sm mt-2" style={{ color: 'var(--text-secondary)' }}>More capacity, more automation, more intelligence.</p>
+                    </div>
+                    {/* Explicit, visible currency choice -- not a silent
+                        guess. detectCurrency() only picks the default
+                        selection; the price shown below always matches
+                        whatever's selected here, and that's what actually
+                        gets charged (see BillingService.providerForCurrency). */}
+                    <label className="flex flex-col items-end gap-1">
+                      <span className="text-caption font-bold" style={{ color: 'var(--text-muted)' }}>Billing currency</span>
+                      <select
+                        value={checkoutCurrency}
+                        onChange={(e) => setCheckoutCurrency(e.target.value as Currency)}
+                        className="px-3 py-1.5 rounded-[var(--radius-md)] border text-xs font-bold touch-target"
+                        style={{ borderColor: 'var(--card-border)', backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)' }}
+                      >
+                        {(['USD', 'GBP', 'NGN'] as Currency[]).map((c) => (
+                          <option key={c} value={c}>{c} ({CURRENCY_SYMBOLS[c]})</option>
+                        ))}
+                      </select>
+                    </label>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {billing.plan === 'FREE' && (
@@ -947,7 +984,12 @@ export default function SettingsPage() {
                           <ZapIcon className="h-3.5 w-3.5" style={{ color: 'var(--accent-warning)' }} />
                           <span className="text-xs font-extrabold" style={{ color: 'var(--text-primary)' }}>Pro</span>
                         </div>
-                        <p className="text-caption mb-3" style={{ color: 'var(--text-secondary)' }}>3 accounts, advanced AutoPilot, AI recommendations, content repurposing.</p>
+                        <p className="text-caption mb-1" style={{ color: 'var(--text-secondary)' }}>3 accounts, advanced AutoPilot, AI recommendations, content repurposing.</p>
+                        {planPricing?.PRO?.[checkoutCurrency] && (
+                          <p className="text-caption font-extrabold mb-3" style={{ color: 'var(--text-primary)' }}>
+                            {formatPrice(planPricing.PRO[checkoutCurrency].newUserMonthly ?? planPricing.PRO[checkoutCurrency].regularMonthly ?? 0, checkoutCurrency)}/month
+                          </p>
+                        )}
                         <button onClick={() => handleUpgrade('PRO')} disabled={checkoutLoading !== null} className="btn-primary-gradient w-full px-4 py-2 rounded-[var(--radius-md)] text-xs font-bold touch-target disabled:opacity-60">
                           {checkoutLoading === 'PRO' ? 'Redirecting…' : 'Start Pro'}
                         </button>
@@ -960,7 +1002,12 @@ export default function SettingsPage() {
                         <Building2 className="h-3.5 w-3.5" style={{ color: 'var(--text-muted)' }} />
                         <span className="text-xs font-extrabold" style={{ color: 'var(--text-primary)' }}>Agency</span>
                       </div>
-                      <p className="text-caption mb-3" style={{ color: 'var(--text-secondary)' }}>Multiple client workspaces, team members, agency overview, white-label.</p>
+                      <p className="text-caption mb-1" style={{ color: 'var(--text-secondary)' }}>Multiple client workspaces, team members, agency overview, white-label.</p>
+                      {planPricing?.AGENCY?.[checkoutCurrency] && (
+                        <p className="text-caption font-extrabold mb-3" style={{ color: 'var(--text-primary)' }}>
+                          {formatPrice(planPricing.AGENCY[checkoutCurrency].newUserMonthly ?? planPricing.AGENCY[checkoutCurrency].regularMonthly ?? 0, checkoutCurrency)}/month
+                        </p>
+                      )}
                       <button onClick={() => handleUpgrade('AGENCY')} disabled={checkoutLoading !== null} className="btn-secondary w-full px-4 py-2 rounded-[var(--radius-md)] text-xs font-bold touch-target disabled:opacity-60">
                         {checkoutLoading === 'AGENCY' ? 'Redirecting…' : 'Start Agency'}
                       </button>
