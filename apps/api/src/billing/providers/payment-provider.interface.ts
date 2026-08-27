@@ -19,6 +19,17 @@ export interface PortalSessionResult {
 export interface NormalizedSubscriptionEvent {
   providerCustomerId: string;
   providerSubscriptionId: string;
+  /**
+   * Set when the provider's own subscription object carries it directly
+   * (Stripe: subscription_data.metadata.organizationId, set at checkout and
+   * read straight back off the webhook payload -- no extra API call).
+   * Paystack's Subscription object has no metadata field at all (only its
+   * Transaction and Customer objects do, and neither is wired to carry
+   * organizationId today), so this is undefined for Paystack events; the
+   * first-link lookup falls back to matching by provider customer/
+   * subscription id in that case. See BillingService.applySubscriptionEvent.
+   */
+  organizationId?: string;
   plan: PlanTier;
   /** Derived from the provider's own Price/line-item currency, not guessed -- what the customer is actually being charged in. */
   currency: SupportedCurrency;

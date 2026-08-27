@@ -1,8 +1,9 @@
-import { BadRequestException, Inject, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PlanTier, SubscriptionStatus } from '@prisma/client';
-import { PAYMENT_PROVIDER } from './billing.constants';
 import type { NormalizedSubscriptionEvent, PaymentProvider } from './providers/payment-provider.interface';
+import { StripeProviderService } from './providers/stripe-provider.service';
+import { PaystackProviderService } from './providers/paystack-provider.service';
 import { EntitlementsService } from './entitlements.service';
 import { UsageService } from './usage.service';
 import { getAppUrl } from '../common/app-url.util';
@@ -15,10 +16,30 @@ export class BillingService {
 
   constructor(
     private prisma: PrismaService,
-    @Inject(PAYMENT_PROVIDER) private provider: PaymentProvider,
+    private stripeProvider: StripeProviderService,
+    private paystackProvider: PaystackProviderService,
     private entitlementsService: EntitlementsService,
     private usageService: UsageService,
   ) {}
+
+  /**
+   * Which provider actually handles a checkout in this currency. Paystack
+   * has no real GBP support (see PaystackProviderService's header comment),
+   * so NGN is the only currency it's ever asked to charge -- USD and GBP
+   * both go to Stripe, which supports both natively (plus Apple/Google Pay
+   * and, for GBP, Bacs Direct Debit). This is the one place that decision
+   * lives; nothing else should be picking a provider by currency.
+   */
+  private providerForCurrency(currency: SupportedCurrency): PaymentProvider {
+    return currency === 'NGN' ? this.paystackProvider : this.stripeProvider;
+  }
+
+  /** Looks up the provider an *existing* subscription was created through, by the name persisted on Subscription.provider at webhook time. */
+  private providerByName(name: string | null): PaymentProvider {
+    if (name === 'paystack') return this.paystackProvider;
+    if (name === 'stripe') return this.stripeProvider;
+    throw new BadRequestException(`No billing provider on this subscription (provider="${name}") -- upgrade first to create one.`);
+  }
 
   async getBillingSummary(brandId: string) {
     const organizationId = await this.entitlementsService.getOrganizationIdForBrand(brandId);
@@ -76,12 +97,24 @@ export class BillingService {
       ? (requestedCurrency as SupportedCurrency)
       : DEFAULT_CURRENCY;
 
-    return this.provider.createCheckoutSession({
+    const provider = this.providerForCurrency(currency);
+
+    // A providerCustomerId only means something to the provider that issued
+    // it -- an org that previously paid via Paystack (NGN) has a Paystack
+    // customer code, not a Stripe customer id. Now that currency picks the
+    // provider, a currency switch (e.g. NGN -> USD) can mean switching
+    // providers too, so a mismatched id must never be forwarded: Stripe
+    // would try to look up a customer that doesn't exist in its own
+    // account and fail the whole checkout.
+    const existingProviderCustomerId =
+      subscription.provider === provider.name ? subscription.providerCustomerId : null;
+
+    return provider.createCheckoutSession({
       organizationId,
       userEmail,
       plan: PlanTier[plan] as Exclude<PlanTier, 'FREE'>,
       currency,
-      existingProviderCustomerId: subscription.providerCustomerId,
+      existingProviderCustomerId,
       successUrl: `${appUrl}/dashboard/settings?tab=billing&checkout=success`,
       cancelUrl: `${appUrl}/dashboard/settings?tab=billing&checkout=cancelled`,
     });
@@ -110,7 +143,7 @@ export class BillingService {
       throw new BadRequestException('No billing account yet -- upgrade first to create one.');
     }
     const appUrl = getAppUrl();
-    return this.provider.createPortalSession({
+    return this.providerByName(subscription.provider).createPortalSession({
       providerCustomerId: subscription.providerCustomerId,
       providerSubscriptionId: subscription.providerSubscriptionId,
       returnUrl: `${appUrl}/dashboard/settings?tab=billing`,
@@ -123,48 +156,75 @@ export class BillingService {
    * middleware wired in backendPort.ts) so the provider's signature can be
    * verified against the exact bytes it signed -- a re-serialized/parsed
    * JSON body would fail verification even for a genuine event.
+   *
+   * Both providers post to the same /billing/webhook URL now (configure
+   * both the Stripe and Paystack dashboards to point here) -- which one
+   * sent this request is determined by which signature header is present,
+   * exactly like the header check this replaces used to assume only one
+   * provider could ever be configured at a time.
    */
-  async handleWebhook(rawBody: Buffer, signatureHeader: string): Promise<{ received: boolean }> {
-    const event = this.provider.verifyWebhookSignature(rawBody, signatureHeader);
+  async handleWebhook(rawBody: Buffer, stripeSignature?: string, paystackSignature?: string): Promise<{ received: boolean }> {
+    const provider = stripeSignature ? this.stripeProvider : paystackSignature ? this.paystackProvider : null;
+    if (!provider) {
+      throw new BadRequestException('No recognized webhook signature header (stripe-signature / x-paystack-signature).');
+    }
+    const event = provider.verifyWebhookSignature(rawBody, (stripeSignature ?? paystackSignature)!);
 
     // Idempotency: providers retry webhook delivery on any non-2xx response
     // or timeout, so the same event id can arrive more than once.
     const alreadyProcessed = await this.prisma.billingWebhookEvent.findUnique({
-      where: { provider_eventId: { provider: this.provider.name, eventId: event.id } },
+      where: { provider_eventId: { provider: provider.name, eventId: event.id } },
     });
     if (alreadyProcessed) {
       this.logger.log(`[billing_event] Duplicate webhook ${event.id} (${event.type}) -- already processed, skipping.`);
       return { received: true };
     }
 
-    const normalized = await this.provider.extractSubscriptionEvent(event.type, event.data);
+    const normalized = await provider.extractSubscriptionEvent(event.type, event.data);
     if (normalized) {
-      await this.applySubscriptionEvent(normalized);
+      await this.applySubscriptionEvent(normalized, provider.name);
     } else {
       this.logger.log(`[billing_event] Webhook ${event.type} received, no subscription state change needed.`);
     }
 
     await this.prisma.billingWebhookEvent.create({
-      data: { provider: this.provider.name, eventId: event.id, type: event.type },
+      data: { provider: provider.name, eventId: event.id, type: event.type },
     });
 
     return { received: true };
   }
 
-  private async applySubscriptionEvent(normalized: NormalizedSubscriptionEvent) {
-    // The subscription's own metadata carries organizationId (see
-    // StripeProviderService.createCheckoutSession's subscription_data.metadata)
-    // rather than trusting the customer id alone to already be linked --
-    // covers the very first webhook for a brand-new checkout, before this
-    // Subscription row has a providerCustomerId yet.
-    const existing = await this.prisma.subscription.findFirst({
-      where: {
-        OR: [
-          { providerSubscriptionId: normalized.providerSubscriptionId },
-          { providerCustomerId: normalized.providerCustomerId },
-        ],
-      },
-    });
+  private async applySubscriptionEvent(normalized: NormalizedSubscriptionEvent, providerName: string) {
+    // Prefer matching by organizationId when the provider surfaced one
+    // (Stripe does, via subscription_data.metadata set at checkout -- see
+    // StripeProviderService.extractSubscriptionEvent). This is what makes
+    // the very first webhook for a brand-new checkout linkable at all: the
+    // Subscription row for this org already exists (created FREE at signup/
+    // first-touch, see EntitlementsService.getSubscription) but has no
+    // providerCustomerId/providerSubscriptionId yet, so the old id-only
+    // match below can never find it on a first purchase.
+    //
+    // Paystack's Subscription object has no metadata field (only its
+    // Transaction/Customer objects do, and neither is wired to carry
+    // organizationId today), so normalized.organizationId is always
+    // undefined for Paystack events -- known gap, falls through to the
+    // id-only match, which still works for every event *after* the first
+    // one since providerCustomerId/providerSubscriptionId get persisted
+    // below once linked.
+    let existing = normalized.organizationId
+      ? await this.prisma.subscription.findUnique({ where: { organizationId: normalized.organizationId } })
+      : null;
+
+    if (!existing) {
+      existing = await this.prisma.subscription.findFirst({
+        where: {
+          OR: [
+            { providerSubscriptionId: normalized.providerSubscriptionId },
+            { providerCustomerId: normalized.providerCustomerId },
+          ],
+        },
+      });
+    }
 
     if (!existing) {
       this.logger.warn(
@@ -180,7 +240,7 @@ export class BillingService {
         plan: normalized.plan,
         status,
         currency: normalized.currency,
-        provider: 'stripe',
+        provider: providerName,
         providerCustomerId: normalized.providerCustomerId,
         providerSubscriptionId: normalized.providerSubscriptionId,
         currentPeriodStart: normalized.currentPeriodStart,
@@ -190,7 +250,7 @@ export class BillingService {
     });
 
     this.logger.log(
-      `[billing_event] upgrade_succeeded org=${existing.organizationId} plan=${normalized.plan} status=${status}`,
+      `[billing_event] upgrade_succeeded org=${existing.organizationId} plan=${normalized.plan} status=${status} provider=${providerName}`,
     );
   }
 }

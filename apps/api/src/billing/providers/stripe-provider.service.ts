@@ -175,6 +175,12 @@ export class StripeProviderService implements PaymentProvider {
     return {
       providerCustomerId: customerId,
       providerSubscriptionId: sub.id,
+      // Set at checkout (see createCheckoutSession's subscription_data.metadata)
+      // and read straight back here -- this is what lets BillingService link
+      // a brand-new subscription to the right org on the very first webhook,
+      // before any providerCustomerId/providerSubscriptionId has ever been
+      // stored locally to match against.
+      organizationId: sub.metadata?.organizationId || undefined,
       plan,
       currency,
       status,

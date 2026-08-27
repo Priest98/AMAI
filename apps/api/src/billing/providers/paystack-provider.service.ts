@@ -6,13 +6,14 @@ import type { SupportedCurrency } from '../plans.config';
 
 const API_BASE = 'https://api.paystack.co';
 
-// Paystack itself only ever charges in one of these -- it has no GBP
-// support at all (confirmed against their currency list: NGN/GHS/ZAR/KES/
-// USD only). GBP is still a real *display* currency on the pricing page
-// (UK visitors see £ prices), it just isn't a real *charge* currency here --
-// see chargeCurrency() below, which is the one place that distinction is
-// bridged.
-type PaystackCurrency = 'USD' | 'NGN';
+// Paystack has no GBP support at all (confirmed against their currency
+// list: NGN/GHS/ZAR/KES/USD only), which is exactly why it's no longer the
+// provider used for GBP or USD checkouts -- BillingService.providerForCurrency
+// routes those to Stripe instead, and only ever calls this class for NGN.
+// This type stays narrowed to NGN (rather than including USD) so a routing
+// mistake that sends the wrong currency here fails at compile time, not by
+// silently charging the wrong amount in production.
+type PaystackCurrency = 'NGN';
 
 const STATUS_MAP: Record<string, NormalizedSubscriptionEvent['status']> = {
   active: 'ACTIVE',
@@ -72,22 +73,25 @@ export class PaystackProviderService implements PaymentProvider {
   }
 
   /**
-   * GBP has no real Paystack charge -- UK visitors see £ prices on the
-   * pricing page (marketing display, see lib/currency.ts on the frontend)
-   * but are actually charged the USD amount here. This is the one place
-   * that substitution happens; everything downstream (plan lookup, the
-   * amount Paystack actually charges, what gets persisted on the
-   * Subscription row after the webhook) uses this resolved currency, not
-   * the visitor's originally-detected one.
+   * Fails loudly instead of silently charging the wrong currency. Before
+   * today, this class was the only active PaymentProvider and would quietly
+   * substitute USD for any non-NGN request (GBP included) -- a customer
+   * shown a £ price at checkout but actually charged in USD. Now that
+   * BillingService.providerForCurrency only ever routes NGN here, reaching
+   * this with anything else means the routing logic itself has a bug, and
+   * that must surface as an error, not a mischarge.
    */
   private chargeCurrency(currency: SupportedCurrency): PaystackCurrency {
-    return currency === 'NGN' ? 'NGN' : 'USD';
+    if (currency !== 'NGN') {
+      throw new Error(`PaystackProviderService was asked to charge ${currency} -- Paystack has no non-NGN support here; this currency should have been routed to Stripe.`);
+    }
+    return 'NGN';
   }
 
   /**
-   * One Paystack Plan per (plan tier, charge currency) -- created ahead of
-   * time via the Paystack dashboard or the Create Plan API, not by this
-   * code. Env var naming: PAYSTACK_PLAN_{PRO|AGENCY}_MONTHLY_{USD|NGN}.
+   * One Paystack Plan per plan tier (NGN only, see PaystackCurrency) --
+   * created ahead of time via the Paystack dashboard or the Create Plan
+   * API, not by this code. Env var naming: PAYSTACK_PLAN_{PRO|AGENCY}_MONTHLY_NGN.
    */
   private planCodeForPlan(plan: Exclude<PlanTier, 'FREE'>, currency: SupportedCurrency): string {
     const chargeCurrency = this.chargeCurrency(currency);
@@ -99,14 +103,12 @@ export class PaystackProviderService implements PaymentProvider {
     return planCode;
   }
 
-  /** Reverse lookup across every configured plan+currency Plan code, built fresh each call so env var changes are picked up without a restart-dependent cache. */
+  /** Reverse lookup across every configured NGN Plan code, built fresh each call so env var changes are picked up without a restart-dependent cache. */
   private planCodeMap(): Record<string, { plan: Exclude<PlanTier, 'FREE'>; currency: PaystackCurrency }> {
     const map: Record<string, { plan: Exclude<PlanTier, 'FREE'>; currency: PaystackCurrency }> = {};
     (['PRO', 'AGENCY'] as const).forEach((plan) => {
-      (['USD', 'NGN'] as const).forEach((currency) => {
-        const code = process.env[`PAYSTACK_PLAN_${plan}_MONTHLY_${currency}`];
-        if (code) map[code] = { plan: PlanTier[plan] as Exclude<PlanTier, 'FREE'>, currency };
-      });
+      const code = process.env[`PAYSTACK_PLAN_${plan}_MONTHLY_NGN`];
+      if (code) map[code] = { plan: PlanTier[plan] as Exclude<PlanTier, 'FREE'>, currency: 'NGN' };
     });
     return map;
   }

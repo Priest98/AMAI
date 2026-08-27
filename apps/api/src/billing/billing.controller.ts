@@ -74,19 +74,24 @@ export class BillingController {
    * @Req().body must be a Buffer here, not parsed JSON, or signature
    * verification always fails.
    *
-   * Header name is provider-specific -- x-paystack-signature for the
-   * currently-active provider (see billing.module.ts). If this ever needs
-   * to receive webhooks from two providers at once, split into two routes
-   * (one per provider) rather than trying to guess the header here.
+   * Both Stripe and Paystack are configured to POST to this same URL --
+   * point both dashboards' webhook settings here. Which provider sent a
+   * given request is determined by which signature header is present
+   * (Stripe: stripe-signature, Paystack: x-paystack-signature); at most one
+   * will ever be set on a real request from either provider.
    */
   @Post('billing/webhook')
   @HttpCode(HttpStatus.OK)
-  async webhook(@Req() req: Request, @Headers('x-paystack-signature') signature: string) {
+  async webhook(
+    @Req() req: Request,
+    @Headers('stripe-signature') stripeSignature?: string,
+    @Headers('x-paystack-signature') paystackSignature?: string,
+  ) {
     const rawBody = req.body;
     if (!Buffer.isBuffer(rawBody)) {
       this.logger.error('Billing webhook received a non-Buffer body -- raw-body middleware is not wired correctly for this path.');
       return { received: false };
     }
-    return this.billingService.handleWebhook(rawBody, signature);
+    return this.billingService.handleWebhook(rawBody, stripeSignature, paystackSignature);
   }
 }
