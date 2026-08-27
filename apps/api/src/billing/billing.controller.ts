@@ -3,21 +3,32 @@ import { Request } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { BrandAccessGuard } from '../auth/brand-access.guard';
 import { BillingService } from './billing.service';
-import { PLAN_CONFIG, PLAN_PRICING } from './plans.config';
+import { PricingAdminService } from './pricing-admin.service';
+import { PLAN_CONFIG } from './plans.config';
 import type { PlanTier } from '@prisma/client';
 
 @Controller()
 export class BillingController {
   private readonly logger = new Logger(BillingController.name);
 
-  constructor(private readonly billingService: BillingService) {}
+  constructor(
+    private readonly billingService: BillingService,
+    private readonly pricingAdminService: PricingAdminService,
+  ) {}
 
-  /** Public plan catalogue for the pricing page -- no auth required, no per-org data. */
+  /**
+   * Public plan catalogue for the pricing page -- no auth required, no
+   * per-org data. Pricing merges any live admin-set prices (PlanPrice DB
+   * rows) on top of plans.config.ts's static defaults -- see
+   * PricingAdminService.getPublicPricingCatalogue -- so a price an admin
+   * changes through the admin pricing dashboard is reflected here
+   * immediately, without a code deploy.
+   */
   @Get('billing/plans')
-  getPlans() {
+  async getPlans() {
     return {
       plans: Object.values(PLAN_CONFIG),
-      pricing: PLAN_PRICING,
+      pricing: await this.pricingAdminService.getPublicPricingCatalogue(),
     };
   }
 

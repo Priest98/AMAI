@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as crypto from 'crypto';
 import { PlanTier, BillingInterval } from '@prisma/client';
+import { PrismaService } from '../../prisma/prisma.service';
 import type { NormalizedSubscriptionEvent, PaymentProvider } from './payment-provider.interface';
 import type { SupportedCurrency } from '../plans.config';
 
@@ -47,6 +48,8 @@ export class PaystackProviderService implements PaymentProvider {
   readonly name = 'paystack';
   private readonly logger = new Logger(PaystackProviderService.name);
 
+  constructor(private readonly prisma: PrismaService) {}
+
   private secretKey(): string {
     const key = process.env.PAYSTACK_SECRET_KEY;
     if (!key) {
@@ -92,25 +95,43 @@ export class PaystackProviderService implements PaymentProvider {
 
   /**
    * One Paystack Plan per (plan tier, billing interval), NGN only (see
-   * PaystackCurrency) -- created ahead of time via the Paystack dashboard or
-   * the Create Plan API (Paystack Plans take their own `interval` field --
-   * 'monthly'/'annually' -- at creation time, which is why this code never
+   * PaystackCurrency) -- Paystack Plans take their own `interval` field
+   * ('monthly'/'annually') at creation time, which is why this code never
    * needs to pass an interval to Initialize Transaction; it's baked into
-   * which plan_code gets used). Env var naming:
-   * PAYSTACK_PLAN_{PRO|AGENCY}_{MONTHLY|ANNUAL}_NGN.
+   * which plan_code gets used.
+   *
+   * DB-first, env-var-fallback: PricingAdminService.setPrice creates a real
+   * new Plan via createPlan() below and stores its plan_code on an active
+   * PlanPrice row whenever an Oyinca admin changes a price through the
+   * admin pricing dashboard -- that row wins here. Until a price has ever
+   * been changed through the dashboard, this falls back to the original
+   * bootstrap mechanism: an env var pointing at a Plan created manually in
+   * the Paystack dashboard. Env var naming: PAYSTACK_PLAN_{PRO|AGENCY}_{MONTHLY|ANNUAL}_NGN.
    */
-  private planCodeForPlan(plan: Exclude<PlanTier, 'FREE'>, currency: SupportedCurrency, interval: BillingInterval): string {
+  private async planCodeForPlan(plan: Exclude<PlanTier, 'FREE'>, currency: SupportedCurrency, interval: BillingInterval): Promise<string> {
     const chargeCurrency = this.chargeCurrency(currency);
+
+    const dbRow = await this.prisma.planPrice.findFirst({
+      where: { tier: plan, currency: chargeCurrency, billingInterval: interval, active: true },
+    });
+    if (dbRow?.paystackPlanCode) return dbRow.paystackPlanCode;
+
     const envVar = `PAYSTACK_PLAN_${plan}_${interval}_${chargeCurrency}`;
     const planCode = process.env[envVar];
     if (!planCode) {
-      throw new Error(`${envVar} is not set. Create a ${interval.toLowerCase()} recurring ${chargeCurrency} Plan for ${plan} in the Paystack test dashboard and set its plan_code here.`);
+      throw new Error(`${envVar} is not set (and no active DB-backed plan exists). Create a ${interval.toLowerCase()} recurring ${chargeCurrency} Plan for ${plan} in the Paystack test dashboard and set its plan_code here, or set one via the admin pricing dashboard.`);
     }
     return planCode;
   }
 
-  /** Reverse lookup across every configured NGN Plan code, built fresh each call so env var changes are picked up without a restart-dependent cache. */
-  private planCodeMap(): Record<string, { plan: Exclude<PlanTier, 'FREE'>; currency: PaystackCurrency; billingInterval: BillingInterval }> {
+  /**
+   * Reverse lookup across every Plan code this service has ever charged
+   * through -- env vars (the original bootstrap mechanism) AND every DB
+   * PlanPrice row, active or not, for the same "old subscribers' renewal
+   * webhooks must still resolve" reason documented on
+   * StripeProviderService.priceIdMap.
+   */
+  private async planCodeMap(): Promise<Record<string, { plan: Exclude<PlanTier, 'FREE'>; currency: PaystackCurrency; billingInterval: BillingInterval }>> {
     const map: Record<string, { plan: Exclude<PlanTier, 'FREE'>; currency: PaystackCurrency; billingInterval: BillingInterval }> = {};
     (['PRO', 'AGENCY'] as const).forEach((plan) => {
       BILLING_INTERVALS.forEach((billingInterval) => {
@@ -118,7 +139,43 @@ export class PaystackProviderService implements PaymentProvider {
         if (code) map[code] = { plan: PlanTier[plan] as Exclude<PlanTier, 'FREE'>, currency: 'NGN', billingInterval };
       });
     });
+
+    const dbRows = await this.prisma.planPrice.findMany({
+      where: { paystackPlanCode: { not: null } },
+      select: { tier: true, billingInterval: true, paystackPlanCode: true },
+    });
+    for (const row of dbRows) {
+      if (row.paystackPlanCode && row.tier !== PlanTier.FREE) {
+        map[row.paystackPlanCode] = { plan: row.tier as Exclude<PlanTier, 'FREE'>, currency: 'NGN', billingInterval: row.billingInterval };
+      }
+    }
     return map;
+  }
+
+  /**
+   * Creates a brand-new, real Paystack Plan -- called by
+   * PricingAdminService.setPrice when an Oyinca admin changes a price
+   * through the admin pricing dashboard. Paystack Plans are immutable once
+   * created (no update-amount endpoint), so "changing a price" is always
+   * "create a new Plan and start pointing new checkouts at its plan_code",
+   * never an update to the old one -- mirrors StripeProviderService.createPrice.
+   *
+   * amount must be in kobo (NGN's smallest unit) per Paystack's Create Plan
+   * API -- chargeAmount arrives in whole Naira (matching plans.config.ts's
+   * convention), multiplied by 100 here.
+   */
+  async createPlan(params: { plan: Exclude<PlanTier, 'FREE'>; interval: BillingInterval; chargeAmount: number }): Promise<string> {
+    const data = await this.paystackFetch<{ plan_code: string }>('/plan', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: `Oyinca ${params.plan} (${params.interval === BillingInterval.ANNUAL ? 'Annual' : 'Monthly'})`,
+        amount: Math.round(params.chargeAmount * 100),
+        interval: params.interval === BillingInterval.ANNUAL ? 'annually' : 'monthly',
+        currency: 'NGN',
+      }),
+    });
+    if (!data?.plan_code) throw new Error('Paystack did not return a plan_code when creating the Plan.');
+    return data.plan_code;
   }
 
   async createCheckoutSession(params: {
@@ -138,11 +195,12 @@ export class PaystackProviderService implements PaymentProvider {
     // cancel-redirect concept -- a visitor who backs out just never
     // completes the hosted checkout page, no callback fires either way.
     const chargeCurrency = this.chargeCurrency(params.currency);
+    const planCode = await this.planCodeForPlan(params.plan, params.currency, params.billingInterval);
     const data = await this.paystackFetch<{ authorization_url: string; access_code: string; reference: string }>('/transaction/initialize', {
       method: 'POST',
       body: JSON.stringify({
         email: params.userEmail,
-        plan: this.planCodeForPlan(params.plan, params.currency, params.billingInterval),
+        plan: planCode,
         currency: chargeCurrency,
         callback_url: params.successUrl,
         metadata: { organizationId: params.organizationId, plan: params.plan, currency: chargeCurrency, billingInterval: params.billingInterval },
@@ -222,7 +280,7 @@ export class PaystackProviderService implements PaymentProvider {
     }
 
     const planCode: string | undefined = sub?.plan?.plan_code;
-    const planInfo = planCode ? this.planCodeMap()[planCode] : undefined;
+    const planInfo = planCode ? (await this.planCodeMap())[planCode] : undefined;
     if (!planInfo) {
       this.logger.warn(`Paystack subscription ${subscriptionCode} has unrecognized plan_code "${planCode}" -- ignoring.`);
       return null;

@@ -98,6 +98,56 @@ enum BillingInterval {
   ANNUAL
 }
 
+/// The DB-backed override layer for what a (plan tier, currency, billing
+/// interval) combination actually charges. plans.config.ts's hardcoded
+/// PLAN_PRICING remains the fallback/default -- this table only has a row
+/// once an Oyinca admin has actually changed a price through the admin
+/// pricing dashboard, at which point that row's stripePriceId/paystackPlanCode
+/// (a REAL, newly-created provider object -- Stripe Prices and Paystack
+/// Plans are both immutable once created, so "changing a price" always
+/// means creating a new one, never mutating the old) takes over from the
+/// env-var-configured id for all NEW checkouts.
+///
+/// Old rows are never deleted, only deactivated (active: false) -- a
+/// Subscription created against an old Price/Plan keeps billing at that
+/// rate until the customer's own plan/cycle changes; deactivating here only
+/// stops NEW checkouts from being offered the old rate, it does not touch
+/// anyone already subscribed at it. At most one row is active per
+/// (tier, currency, billingInterval) at a time -- enforced in
+/// PricingAdminService.setPrice, not at the DB level, since Postgres has no
+/// native "unique among rows where active" constraint without a partial
+/// index this schema doesn't define.
+model PlanPrice {
+  id       String          @id @default(dbgenerated("(gen_random_uuid())::text"))
+  tier     PlanTier
+  /// USD/GBP/NGN today -- see plans.config.ts SupportedCurrency. Kept as a
+  /// plain string (not a Prisma enum) for the same reason Subscription.currency
+  /// is a string: adding a new supported currency should never require a
+  /// migration just to widen an enum.
+  currency        String
+  billingInterval BillingInterval
+  /// Both amounts in whole currency units (e.g. 29 for $29, 20000 for
+  /// ₦20,000) -- matches plans.config.ts's existing convention, NOT cents.
+  regularAmount Int
+  newUserAmount Int?
+  /// Populated once the corresponding provider object is actually created
+  /// (see PricingAdminService.setPrice) -- exactly one of these is set,
+  /// determined by currency (NGN -> paystackPlanCode, else -> stripePriceId),
+  /// mirroring BillingService.providerForCurrency's routing rule.
+  stripePriceId   String?
+  paystackPlanCode String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  /// Which Oyinca admin actually pulled the trigger on this price -- this
+  /// creates real billing objects with real consequences, so "who did this"
+  /// is not optional metadata. Also written to AuditLog (see
+  /// PricingAdminService), but kept here too so the price row is
+  /// self-describing without a join.
+  createdByEmail String
+
+  @@index([tier, currency, billingInterval, active], map: "idx_plan_price_lookup")
+}
+
 /// One row per Organization -- the billing unit. An Organization can own
 /// multiple Brands (see Brand.organizationId), which is exactly the
 /// structure Agency needs for multi-client workspaces, so Agency reuses

@@ -20,6 +20,9 @@ import { HealthController } from './health.controller';
   // ErrorCaptureService is retrieved via app.get() in main.ts to build the
   // global exception filter, which runs outside Nest's normal DI-resolved
   // controller/provider graph (see SentryExceptionFilter's constructor).
-  exports: [ErrorCaptureService],
+  // AuditLogService is also consumed by BillingModule's PricingAdminService
+  // (admin pricing dashboard changes are exactly the kind of privileged,
+  // consequential action this audit trail exists for).
+  exports: [ErrorCaptureService, AuditLogService],
 })
 export class AdminModule {}
