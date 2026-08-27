@@ -2,12 +2,18 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, brandFetch } from '@/lib/api';
 import { TOUR_STEPS, TOTAL_STEPS, TourStep } from './tourSteps';
-import WelcomeModal from './WelcomeModal';
 import TourOverlay from './TourOverlay';
+import BrainCaptureWizard, { BrainCaptureResult } from './BrainCaptureWizard';
 
-type Phase = 'loading' | 'idle' | 'welcome' | 'touring';
+// 'welcome' is gone as an automatic first-run phase -- replaced by
+// 'capturing' (see BrainCaptureWizard). The mechanical click-through
+// product tour ('touring') is no longer triggered automatically, but stays
+// fully intact and reachable on demand via Settings > Help & Support >
+// "Replay tour" (restartTour below), for anyone who still wants the
+// guided walkthrough of the UI itself.
+type Phase = 'loading' | 'idle' | 'capturing' | 'touring';
 
 interface OnboardingContextValue {
   phase: Phase;
@@ -49,7 +55,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       .then((me) => {
         if (cancelled) return;
         if (!me.onboardingCompleted && !me.onboardingSkipped) {
-          setPhase('welcome');
+          setPhase('capturing');
         } else {
           setPhase('idle');
         }
@@ -105,12 +111,51 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     goToStep(0);
   }, [goToStep]);
 
+  // Persists whatever Business Brain fields the wizard actually collected --
+  // called on both a full finish and a mid-wizard skip, since a user who
+  // typed something real into 2 of 4 screens before bailing shouldn't lose
+  // it. A brand-new user's brain is always empty going in, so writing blank
+  // strings/arrays for untouched fields here can never clobber real data.
+  const persistBrainCapture = useCallback((result: Partial<BrainCaptureResult>) => {
+    const hasAnyContent =
+      !!result.businessDescription || !!result.targetAudience || !!result.brandVoice ||
+      (result.brandPersonality && result.brandPersonality.length > 0) ||
+      (result.contentPillars && result.contentPillars.length > 0);
+    if (!hasAnyContent) return;
+    brandFetch('/business-brain', {
+      method: 'PATCH',
+      body: JSON.stringify({
+        businessDescription: result.businessDescription || null,
+        targetAudience: result.targetAudience || null,
+        brandVoice: result.brandVoice || null,
+        brandPersonality: result.brandPersonality || [],
+        contentPillars: result.contentPillars || [],
+      }),
+    }).catch(() => {});
+  }, []);
+
+  const finishCapture = useCallback((result: BrainCaptureResult) => {
+    persistBrainCapture(result);
+    setPhase('idle');
+    apiFetch('/auth/onboarding', { method: 'PATCH', body: JSON.stringify({ completed: true }) }).catch(() => {});
+    // Natural next action after telling Oyinca about your business is
+    // connecting the platform it'll actually publish to.
+    router.push('/dashboard/integrations');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [persistBrainCapture, router]);
+
+  const skipCapture = useCallback((partial: Partial<BrainCaptureResult>) => {
+    persistBrainCapture(partial);
+    setPhase('idle');
+    apiFetch('/auth/onboarding', { method: 'PATCH', body: JSON.stringify({ skipped: true }) }).catch(() => {});
+  }, [persistBrainCapture]);
+
   // This provider sits at the dashboard layout level (same as
   // EngineEventsProvider) and wraps every /dashboard/* page. Without
   // memoizing this object, DashboardLayout state that has nothing to do with
   // onboarding (mobile drawer open/close, header scroll shrink) still forced
   // a brand-new `value` on every render, re-rendering every consumer
-  // (WelcomeModal, TourOverlay, and anything calling useOnboarding()) for no
+  // (BrainCaptureWizard, TourOverlay, and anything calling useOnboarding()) for no
   // reason. It still changes exactly when it should -- on phase/step/route
   // transitions -- since those are real dependencies below.
   const value: OnboardingContextValue = useMemo(() => ({
@@ -128,7 +173,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   return (
     <OnboardingContext.Provider value={value}>
       {children}
-      {phase === 'welcome' && <WelcomeModal onGetStarted={startTour} onSkip={skipTour} />}
+      {phase === 'capturing' && <BrainCaptureWizard onFinish={finishCapture} onSkip={skipCapture} />}
       {phase === 'touring' && (
         <TourOverlay
           step={TOUR_STEPS[stepIndex]}
