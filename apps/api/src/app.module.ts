@@ -18,6 +18,7 @@ import { BusinessBrainModule } from './business-brain/business-brain.module';
 import { BillingModule } from './billing/billing.module';
 import { BrandsModule } from './brands/brands.module';
 import { AdminModule } from './admin/admin.module';
+import { ProductsModule } from './products/products.module';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 
@@ -28,7 +29,7 @@ import { APP_GUARD } from '@nestjs/core';
       limit: 10,
     }]),
     EventEmitterModule.forRoot(),
-    PrismaModule, AuthModule, EncryptionModule, StorageModule, MediaModule, PostsModule, QueueModule, AiModule, EngineModule, GrowthModule, WebhooksModule, OAuthModule, BusinessBrainModule, BillingModule, BrandsModule, AdminModule
+    PrismaModule, AuthModule, EncryptionModule, StorageModule, MediaModule, PostsModule, QueueModule, AiModule, EngineModule, GrowthModule, WebhooksModule, OAuthModule, BusinessBrainModule, BillingModule, BrandsModule, AdminModule, ProductsModule
   ],
   controllers: [AppController],
   providers: [

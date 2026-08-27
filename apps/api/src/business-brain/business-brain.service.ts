@@ -118,6 +118,23 @@ export class BusinessBrainService {
     const insights = brain.learnedInsights as unknown as { summary?: string } | null;
     if (insights?.summary) lines.push(`Learned from past performance: ${insights.summary}`);
 
+    // The "one structural gap" the $1M ARR blueprint's audit flagged: without
+    // this, every generation either stayed generic or risked inventing
+    // specific products/prices/offers that don't exist. Kept compact (one
+    // line per product) rather than dumping full feature/benefit/FAQ lists --
+    // this is a pointer to real facts, not a product catalog dump.
+    const products = await this.prisma.product.findMany({ where: { brandId, active: true }, orderBy: { createdAt: 'desc' } });
+    if (products.length) {
+      const productLines = products.map((p) => {
+        const priceStr = p.price != null ? ` (${p.currency ? `${p.currency} ` : ''}${p.price})` : '';
+        const detail = p.usp || p.description || '';
+        return `${p.name}${priceStr}${detail ? ` -- ${detail}` : ''}`;
+      });
+      lines.push(
+        `Real products/services this business actually offers (reference these specifically when relevant instead of inventing generic ones, and never invent a price, feature, or offer beyond what's listed here): ${productLines.join('; ')}`,
+      );
+    }
+
     // Generation preferences -- explicit overrides for things the caption
     // prompt otherwise hardcodes (see ai.service.ts generateCaption). Only
     // surfaced once the brain has *some* real content -- otherwise these

@@ -7,6 +7,7 @@ import { brandFetch, getCurrentUser } from '@/lib/api';
 import { getBillingSummary, startCheckout, openBillingPortal, devSetPlan, formatBytes, getPlans, BillingSummary, PlanPricing, PlanTier as BillingPlanTier } from '@/lib/billing';
 import { detectCurrency, formatPrice, CURRENCY_SYMBOLS, type Currency } from '@/lib/currency';
 import UsageBar from '@/components/billing/UsageBar';
+import ProductsManager from '@/components/products/ProductsManager';
 import { useOnboarding } from '@/components/onboarding/OnboardingContext';
 import {
   Building,
@@ -796,6 +797,13 @@ export default function SettingsPage() {
                     onChange={(e) => setBrain({ ...brain, ctaStyle: e.target.value })}
                   />
                 </BrainField>
+              </BrainSection>
+
+              <BrainSection title="Products &amp; services">
+                <p className="text-body-sm -mt-2" style={{ color: 'var(--text-secondary)' }}>
+                  What you actually sell, so Oyinca can reference real products, prices, and offers instead of generic ones.
+                </p>
+                <ProductsManager />
               </BrainSection>
             </div>
 

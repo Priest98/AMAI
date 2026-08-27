@@ -269,8 +269,51 @@ model Brand {
   engineEvents        EngineEvent[]
   businessBrain       BusinessBrain?
   memoryEntries       MemoryEntry[]
+  products            Product[]
 
   @@index([organizationId], map: "idx_brand_org")
+}
+
+/// The one structural gap flagged in the $1M ARR blueprint's audit: there
+/// was no way for generation to reference a business's REAL products,
+/// prices, or offers -- every caption/idea either stayed generic or risked
+/// inventing specifics. BusinessBrainService.buildPromptContext reads
+/// active Products directly (see its own comment) and injects them
+/// alongside the rest of the brand context, explicitly instructed to be
+/// referenced rather than invented from.
+///
+/// Soft-deletable (active flag) rather than hard-deleted, matching this
+/// codebase's existing convention for anything a generation prompt might
+/// have already referenced (MemoryEntry, PlanPrice) -- a retired product
+/// stops being offered to new generations without erasing the record.
+model Product {
+  id             String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  brandId        String
+  name           String
+  description    String?
+  /// Whole-unit price (e.g. 29.99), same convention as plans.config.ts --
+  /// not cents/kobo. Null for "price on request" / service-based offers.
+  price          Float?
+  currency       String?
+  features       String[] @default([])
+  benefits       String[] @default([])
+  /// Unique selling point -- the one-line "why this over alternatives".
+  usp            String?
+  targetCustomer String?
+  offers         String[] @default([])
+  availability   String?
+  purchaseUrl    String?
+  /// Array of { question, answer } objects -- kept as JSON since the shape
+  /// is naturally list-of-pairs, not a fixed set of columns.
+  faqs           Json?
+  objections     String[] @default([])
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+
+  brand Brand @relation(fields: [brandId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([brandId, active], map: "idx_product_brand")
 }
 
 /// The AMAI "Business Brain" — the persistent business-context store every
