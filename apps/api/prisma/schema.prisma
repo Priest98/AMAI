@@ -93,6 +93,11 @@ enum SubscriptionStatus {
   EXPIRED
 }
 
+enum BillingInterval {
+  MONTHLY
+  ANNUAL
+}
+
 /// One row per Organization -- the billing unit. An Organization can own
 /// multiple Brands (see Brand.organizationId), which is exactly the
 /// structure Agency needs for multi-client workspaces, so Agency reuses
@@ -111,6 +116,11 @@ model Subscription {
   // happens; set from the Stripe Price object's own currency at webhook
   // time, never guessed at.
   currency       String             @default("USD")
+  // Which billing cycle the customer is actually on -- MONTHLY until a real
+  // checkout happens (Free has no cycle at all), then set from whichever
+  // Price/Plan the checkout session actually used, same "never guessed,
+  // always read back from the provider" rule as currency above.
+  billingInterval BillingInterval   @default(MONTHLY)
   // Null for Free (no payment provider involved at all).
   provider               String?
   providerCustomerId     String?

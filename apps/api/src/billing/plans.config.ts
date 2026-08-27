@@ -115,6 +115,16 @@ export const DEFAULT_CURRENCY: SupportedCurrency = 'USD';
 export interface PlanPricing {
   regularMonthly: number | null;
   newUserMonthly: number | null;
+  /**
+   * Total charged once a year, not a monthly rate -- always exactly 10x the
+   * matching monthly figure (a flat "2 months free" discount, applied
+   * uniformly across every plan/currency rather than varying by market).
+   * Null wherever the matching monthly figure is null (Free has no charge
+   * at all; a currency/tier with no newUserMonthly has no newUserAnnual
+   * either).
+   */
+  regularAnnual: number | null;
+  newUserAnnual: number | null;
 }
 
 /**
@@ -135,21 +145,35 @@ export interface PlanPricing {
  * NGN is a deliberately different (non-converted) local price point, not a
  * currency conversion of USD -- set directly per product/business decision.
  */
+/** Annual = 10x monthly, applied mechanically so it can never drift out of sync with a monthly price edit. Null propagates (Free, and any currency with no newUserMonthly). */
+function annualOf(monthly: number | null): number | null {
+  return monthly == null ? null : monthly * 10;
+}
+
+function pricing(regularMonthly: number, newUserMonthly: number | null): PlanPricing {
+  return {
+    regularMonthly,
+    newUserMonthly,
+    regularAnnual: annualOf(regularMonthly),
+    newUserAnnual: annualOf(newUserMonthly),
+  };
+}
+
 export const PLAN_PRICING: Record<PlanTier, Record<SupportedCurrency, PlanPricing>> = {
   [PlanTier.FREE]: {
-    USD: { regularMonthly: 0, newUserMonthly: null },
-    GBP: { regularMonthly: 0, newUserMonthly: null },
-    NGN: { regularMonthly: 0, newUserMonthly: null },
+    USD: pricing(0, null),
+    GBP: pricing(0, null),
+    NGN: pricing(0, null),
   },
   [PlanTier.PRO]: {
-    USD: { regularMonthly: 29, newUserMonthly: 19 },
-    GBP: { regularMonthly: 21, newUserMonthly: 14 },
-    NGN: { regularMonthly: 20000, newUserMonthly: 9900 },
+    USD: pricing(29, 19),
+    GBP: pricing(21, 14),
+    NGN: pricing(20000, 9900),
   },
   [PlanTier.AGENCY]: {
-    USD: { regularMonthly: 99, newUserMonthly: 79 },
-    GBP: { regularMonthly: 73, newUserMonthly: 58 },
-    NGN: { regularMonthly: 100000, newUserMonthly: 50000 },
+    USD: pricing(99, 79),
+    GBP: pricing(73, 58),
+    NGN: pricing(100000, 50000),
   },
 };
 

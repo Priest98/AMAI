@@ -33,10 +33,11 @@ export class BillingController {
     @Param('brandId') brandId: string,
     @Body('plan') plan: 'PRO' | 'AGENCY',
     @Body('currency') currency: string | undefined,
+    @Body('billingInterval') billingInterval: string | undefined,
     @Req() req: Request,
   ) {
     const user = (req as any).user;
-    return this.billingService.startCheckout(brandId, user.email, plan, currency);
+    return this.billingService.startCheckout(brandId, user.email, plan, currency, billingInterval);
   }
 
   @UseGuards(JwtAuthGuard, BrandAccessGuard)

@@ -1,4 +1,4 @@
-import { PlanTier } from '@prisma/client';
+import { PlanTier, BillingInterval } from '@prisma/client';
 import type { SupportedCurrency } from '../plans.config';
 
 /**
@@ -30,6 +30,7 @@ export interface NormalizedSubscriptionEvent {
    * subscription id in that case. See BillingService.applySubscriptionEvent.
    */
   organizationId?: string;
+  billingInterval: BillingInterval;
   plan: PlanTier;
   /** Derived from the provider's own Price/line-item currency, not guessed -- what the customer is actually being charged in. */
   currency: SupportedCurrency;
@@ -48,6 +49,7 @@ export interface PaymentProvider {
     userEmail: string;
     plan: Exclude<PlanTier, 'FREE'>;
     currency: SupportedCurrency;
+    billingInterval: BillingInterval;
     existingProviderCustomerId: string | null;
     successUrl: string;
     cancelUrl: string;

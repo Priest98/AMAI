@@ -1,10 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as crypto from 'crypto';
-import { PlanTier } from '@prisma/client';
+import { PlanTier, BillingInterval } from '@prisma/client';
 import type { NormalizedSubscriptionEvent, PaymentProvider } from './payment-provider.interface';
 import type { SupportedCurrency } from '../plans.config';
 
 const API_BASE = 'https://api.paystack.co';
+
+const BILLING_INTERVALS: BillingInterval[] = [BillingInterval.MONTHLY, BillingInterval.ANNUAL];
 
 // Paystack has no GBP support at all (confirmed against their currency
 // list: NGN/GHS/ZAR/KES/USD only), which is exactly why it's no longer the
@@ -89,26 +91,32 @@ export class PaystackProviderService implements PaymentProvider {
   }
 
   /**
-   * One Paystack Plan per plan tier (NGN only, see PaystackCurrency) --
-   * created ahead of time via the Paystack dashboard or the Create Plan
-   * API, not by this code. Env var naming: PAYSTACK_PLAN_{PRO|AGENCY}_MONTHLY_NGN.
+   * One Paystack Plan per (plan tier, billing interval), NGN only (see
+   * PaystackCurrency) -- created ahead of time via the Paystack dashboard or
+   * the Create Plan API (Paystack Plans take their own `interval` field --
+   * 'monthly'/'annually' -- at creation time, which is why this code never
+   * needs to pass an interval to Initialize Transaction; it's baked into
+   * which plan_code gets used). Env var naming:
+   * PAYSTACK_PLAN_{PRO|AGENCY}_{MONTHLY|ANNUAL}_NGN.
    */
-  private planCodeForPlan(plan: Exclude<PlanTier, 'FREE'>, currency: SupportedCurrency): string {
+  private planCodeForPlan(plan: Exclude<PlanTier, 'FREE'>, currency: SupportedCurrency, interval: BillingInterval): string {
     const chargeCurrency = this.chargeCurrency(currency);
-    const envVar = `PAYSTACK_PLAN_${plan}_MONTHLY_${chargeCurrency}`;
+    const envVar = `PAYSTACK_PLAN_${plan}_${interval}_${chargeCurrency}`;
     const planCode = process.env[envVar];
     if (!planCode) {
-      throw new Error(`${envVar} is not set. Create a monthly recurring ${chargeCurrency} Plan for ${plan} in the Paystack test dashboard and set its plan_code here.`);
+      throw new Error(`${envVar} is not set. Create a ${interval.toLowerCase()} recurring ${chargeCurrency} Plan for ${plan} in the Paystack test dashboard and set its plan_code here.`);
     }
     return planCode;
   }
 
   /** Reverse lookup across every configured NGN Plan code, built fresh each call so env var changes are picked up without a restart-dependent cache. */
-  private planCodeMap(): Record<string, { plan: Exclude<PlanTier, 'FREE'>; currency: PaystackCurrency }> {
-    const map: Record<string, { plan: Exclude<PlanTier, 'FREE'>; currency: PaystackCurrency }> = {};
+  private planCodeMap(): Record<string, { plan: Exclude<PlanTier, 'FREE'>; currency: PaystackCurrency; billingInterval: BillingInterval }> {
+    const map: Record<string, { plan: Exclude<PlanTier, 'FREE'>; currency: PaystackCurrency; billingInterval: BillingInterval }> = {};
     (['PRO', 'AGENCY'] as const).forEach((plan) => {
-      const code = process.env[`PAYSTACK_PLAN_${plan}_MONTHLY_NGN`];
-      if (code) map[code] = { plan: PlanTier[plan] as Exclude<PlanTier, 'FREE'>, currency: 'NGN' };
+      BILLING_INTERVALS.forEach((billingInterval) => {
+        const code = process.env[`PAYSTACK_PLAN_${plan}_${billingInterval}_NGN`];
+        if (code) map[code] = { plan: PlanTier[plan] as Exclude<PlanTier, 'FREE'>, currency: 'NGN', billingInterval };
+      });
     });
     return map;
   }
@@ -118,6 +126,7 @@ export class PaystackProviderService implements PaymentProvider {
     userEmail: string;
     plan: Exclude<PlanTier, 'FREE'>;
     currency: SupportedCurrency;
+    billingInterval: BillingInterval;
     existingProviderCustomerId: string | null;
     successUrl: string;
     cancelUrl: string;
@@ -133,10 +142,10 @@ export class PaystackProviderService implements PaymentProvider {
       method: 'POST',
       body: JSON.stringify({
         email: params.userEmail,
-        plan: this.planCodeForPlan(params.plan, params.currency),
+        plan: this.planCodeForPlan(params.plan, params.currency, params.billingInterval),
         currency: chargeCurrency,
         callback_url: params.successUrl,
-        metadata: { organizationId: params.organizationId, plan: params.plan, currency: chargeCurrency },
+        metadata: { organizationId: params.organizationId, plan: params.plan, currency: chargeCurrency, billingInterval: params.billingInterval },
       }),
     });
 
@@ -226,6 +235,7 @@ export class PaystackProviderService implements PaymentProvider {
       providerSubscriptionId: subscriptionCode,
       plan: planInfo.plan,
       currency: planInfo.currency,
+      billingInterval: planInfo.billingInterval,
       status,
       // Paystack doesn't expose an explicit "current period start" the way
       // Stripe does (its billing model only tracks next_payment_date going

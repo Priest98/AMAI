@@ -1,9 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import Stripe from 'stripe';
-import { PlanTier } from '@prisma/client';
+import { PlanTier, BillingInterval } from '@prisma/client';
 import type { NormalizedSubscriptionEvent, PaymentProvider } from './payment-provider.interface';
 import { SUPPORTED_CURRENCIES } from '../plans.config';
 import type { SupportedCurrency } from '../plans.config';
+
+const BILLING_INTERVALS: BillingInterval[] = [BillingInterval.MONTHLY, BillingInterval.ANNUAL];
 
 const STATUS_MAP: Record<string, NormalizedSubscriptionEvent['status']> = {
   active: 'ACTIVE',
@@ -45,27 +47,30 @@ export class StripeProviderService implements PaymentProvider {
   }
 
   /**
-   * One Stripe Price per (plan, currency) pair -- Stripe Prices are
-   * single-currency, so "Pro in NGN" and "Pro in USD" are two separate
-   * Price objects even though they're the same Product. Env var naming:
-   * STRIPE_PRICE_{PRO|AGENCY}_MONTHLY_{USD|GBP|NGN}.
+   * One Stripe Price per (plan, currency, billing interval) -- Stripe
+   * Prices are single-currency AND single-interval, so "Pro/USD/Monthly"
+   * and "Pro/USD/Annual" are two separate Price objects even though they're
+   * the same Product. Env var naming:
+   * STRIPE_PRICE_{PRO|AGENCY}_{MONTHLY|ANNUAL}_{USD|GBP|NGN}.
    */
-  private priceIdForPlan(plan: Exclude<PlanTier, 'FREE'>, currency: SupportedCurrency): string {
-    const envVar = `STRIPE_PRICE_${plan}_MONTHLY_${currency}`;
+  private priceIdForPlan(plan: Exclude<PlanTier, 'FREE'>, currency: SupportedCurrency, interval: BillingInterval): string {
+    const envVar = `STRIPE_PRICE_${plan}_${interval}_${currency}`;
     const priceId = process.env[envVar];
     if (!priceId) {
-      throw new Error(`${envVar} is not set. Create a monthly recurring ${currency} Price for ${plan} in the Stripe test dashboard and set it here.`);
+      throw new Error(`${envVar} is not set. Create a ${interval.toLowerCase()} recurring ${currency} Price for ${plan} in the Stripe test dashboard and set it here.`);
     }
     return priceId;
   }
 
-  /** Reverse lookup across every configured plan+currency Price id -- built fresh each call so env var changes (e.g. in tests) are picked up without a restart-dependent cache. */
-  private priceIdMap(): Record<string, { plan: Exclude<PlanTier, 'FREE'>; currency: SupportedCurrency }> {
-    const map: Record<string, { plan: Exclude<PlanTier, 'FREE'>; currency: SupportedCurrency }> = {};
+  /** Reverse lookup across every configured plan+currency+interval Price id -- built fresh each call so env var changes (e.g. in tests) are picked up without a restart-dependent cache. */
+  private priceIdMap(): Record<string, { plan: Exclude<PlanTier, 'FREE'>; currency: SupportedCurrency; billingInterval: BillingInterval }> {
+    const map: Record<string, { plan: Exclude<PlanTier, 'FREE'>; currency: SupportedCurrency; billingInterval: BillingInterval }> = {};
     (['PRO', 'AGENCY'] as const).forEach((plan) => {
       SUPPORTED_CURRENCIES.forEach((currency) => {
-        const id = process.env[`STRIPE_PRICE_${plan}_MONTHLY_${currency}`];
-        if (id) map[id] = { plan: PlanTier[plan] as Exclude<PlanTier, 'FREE'>, currency };
+        BILLING_INTERVALS.forEach((billingInterval) => {
+          const id = process.env[`STRIPE_PRICE_${plan}_${billingInterval}_${currency}`];
+          if (id) map[id] = { plan: PlanTier[plan] as Exclude<PlanTier, 'FREE'>, currency, billingInterval };
+        });
       });
     });
     return map;
@@ -81,11 +86,17 @@ export class StripeProviderService implements PaymentProvider {
     return this.priceIdMap()[priceId]?.currency ?? null;
   }
 
+  private intervalForPriceId(priceId: string | undefined): BillingInterval | null {
+    if (!priceId) return null;
+    return this.priceIdMap()[priceId]?.billingInterval ?? null;
+  }
+
   async createCheckoutSession(params: {
     organizationId: string;
     userEmail: string;
     plan: Exclude<PlanTier, 'FREE'>;
     currency: SupportedCurrency;
+    billingInterval: BillingInterval;
     existingProviderCustomerId: string | null;
     successUrl: string;
     cancelUrl: string;
@@ -100,7 +111,7 @@ export class StripeProviderService implements PaymentProvider {
     // surprise later.
     const session = await this.client().checkout.sessions.create({
       mode: 'subscription',
-      line_items: [{ price: this.priceIdForPlan(params.plan, params.currency), quantity: 1 }],
+      line_items: [{ price: this.priceIdForPlan(params.plan, params.currency, params.billingInterval), quantity: 1 }],
       success_url: params.successUrl,
       cancel_url: params.cancelUrl,
       customer: params.existingProviderCustomerId || undefined,
@@ -108,10 +119,19 @@ export class StripeProviderService implements PaymentProvider {
       // Ties the eventual webhook back to the right Organization without
       // relying on customer metadata alone -- belt and suspenders.
       client_reference_id: params.organizationId,
+      // Lets the visitor enter a Stripe promotion code on the hosted
+      // Checkout page itself -- Stripe validates and applies the discount
+      // entirely on its side (percent-off, amount-off, first-N-months, expiry,
+      // redemption limits all handled by Stripe), no code here needs to know
+      // which codes exist. This is the coupon story for USD/GBP; Paystack has
+      // no equivalent primitive for recurring Plans, so NGN checkouts have no
+      // promo-code field -- newUserMonthly/newUserAnnual is NGN's discount
+      // mechanism instead (see plans.config.ts).
+      allow_promotion_codes: true,
       subscription_data: {
-        metadata: { organizationId: params.organizationId, currency: params.currency },
+        metadata: { organizationId: params.organizationId, currency: params.currency, billingInterval: params.billingInterval },
       },
-      metadata: { organizationId: params.organizationId, plan: params.plan, currency: params.currency },
+      metadata: { organizationId: params.organizationId, plan: params.plan, currency: params.currency, billingInterval: params.billingInterval },
     });
 
     if (!session.url) throw new Error('Stripe did not return a checkout URL.');
@@ -169,6 +189,14 @@ export class StripeProviderService implements PaymentProvider {
     // exists in Stripe but its env var was renamed/removed after the fact.
     const currency = this.currencyForPriceId(priceId) ?? ((sub.items?.data?.[0]?.price?.currency?.toUpperCase() as SupportedCurrency) || 'USD');
 
+    // Same fallback shape as currency above: prefer our own map, but Stripe's
+    // Price object itself also carries recurring.interval ('month'/'year'),
+    // so a renamed/removed env var still resolves to the right cycle rather
+    // than silently defaulting to MONTHLY.
+    const priceInterval = sub.items?.data?.[0]?.price?.recurring?.interval;
+    const billingInterval =
+      this.intervalForPriceId(priceId) ?? (priceInterval === 'year' ? BillingInterval.ANNUAL : BillingInterval.MONTHLY);
+
     const status = STATUS_MAP[sub.status] || 'ACTIVE';
     const customerId = typeof sub.customer === 'string' ? sub.customer : sub.customer.id;
 
@@ -183,6 +211,7 @@ export class StripeProviderService implements PaymentProvider {
       organizationId: sub.metadata?.organizationId || undefined,
       plan,
       currency,
+      billingInterval,
       status,
       currentPeriodStart: new Date(sub.current_period_start * 1000),
       currentPeriodEnd: new Date(sub.current_period_end * 1000),

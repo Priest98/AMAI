@@ -164,6 +164,10 @@ export default function SettingsPage() {
   // exactly the gap that let GBP visitors get silently charged in USD.
   const [checkoutCurrency, setCheckoutCurrency] = useState<Currency>('USD');
   const [planPricing, setPlanPricing] = useState<Record<BillingPlanTier, Record<Currency, PlanPricing>> | null>(null);
+  // Annual = 10x monthly (2 months free), same discount rule for every plan
+  // and currency -- see plans.config.ts. Defaults to MONTHLY so switching
+  // currency never silently switches billing cycle too.
+  const [checkoutInterval, setCheckoutInterval] = useState<'MONTHLY' | 'ANNUAL'>('MONTHLY');
 
   const loadBilling = () => {
     setBillingLoading(true);
@@ -193,10 +197,22 @@ export default function SettingsPage() {
     }
   };
 
+  /** The price string to show next to an upgrade button, matching whatever startCheckout will actually charge (currency + interval both read from the same selectors). */
+  const displayPrice = (tier: 'PRO' | 'AGENCY'): string | null => {
+    const p = planPricing?.[tier]?.[checkoutCurrency];
+    if (!p) return null;
+    if (checkoutInterval === 'ANNUAL') {
+      const annual = p.newUserAnnual ?? p.regularAnnual ?? 0;
+      return `${formatPrice(annual, checkoutCurrency)}/year`;
+    }
+    const monthly = p.newUserMonthly ?? p.regularMonthly ?? 0;
+    return `${formatPrice(monthly, checkoutCurrency)}/month`;
+  };
+
   const handleUpgrade = async (plan: 'PRO' | 'AGENCY') => {
     setCheckoutLoading(plan);
     try {
-      await startCheckout(plan, checkoutCurrency);
+      await startCheckout(plan, checkoutCurrency, checkoutInterval);
     } catch (e: any) {
       flash(e.message || 'Could not start checkout.');
       setCheckoutLoading(null);
@@ -961,19 +977,40 @@ export default function SettingsPage() {
                         selection; the price shown below always matches
                         whatever's selected here, and that's what actually
                         gets charged (see BillingService.providerForCurrency). */}
-                    <label className="flex flex-col items-end gap-1">
-                      <span className="text-caption font-bold" style={{ color: 'var(--text-muted)' }}>Billing currency</span>
-                      <select
-                        value={checkoutCurrency}
-                        onChange={(e) => setCheckoutCurrency(e.target.value as Currency)}
-                        className="px-3 py-1.5 rounded-[var(--radius-md)] border text-xs font-bold touch-target"
-                        style={{ borderColor: 'var(--card-border)', backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)' }}
-                      >
-                        {(['USD', 'GBP', 'NGN'] as Currency[]).map((c) => (
-                          <option key={c} value={c}>{c} ({CURRENCY_SYMBOLS[c]})</option>
-                        ))}
-                      </select>
-                    </label>
+                    <div className="flex flex-wrap items-end gap-3">
+                      <label className="flex flex-col items-end gap-1">
+                        <span className="text-caption font-bold" style={{ color: 'var(--text-muted)' }}>Billing cycle</span>
+                        <div className="flex rounded-[var(--radius-md)] border overflow-hidden" style={{ borderColor: 'var(--card-border)' }}>
+                          {(['MONTHLY', 'ANNUAL'] as const).map((i) => (
+                            <button
+                              key={i}
+                              type="button"
+                              onClick={() => setCheckoutInterval(i)}
+                              className="px-3 py-1.5 text-xs font-bold touch-target"
+                              style={{
+                                backgroundColor: checkoutInterval === i ? 'var(--accent-primary)' : 'var(--bg-surface)',
+                                color: checkoutInterval === i ? 'var(--text-on-accent)' : 'var(--text-primary)',
+                              }}
+                            >
+                              {i === 'MONTHLY' ? 'Monthly' : 'Annual (2 months free)'}
+                            </button>
+                          ))}
+                        </div>
+                      </label>
+                      <label className="flex flex-col items-end gap-1">
+                        <span className="text-caption font-bold" style={{ color: 'var(--text-muted)' }}>Billing currency</span>
+                        <select
+                          value={checkoutCurrency}
+                          onChange={(e) => setCheckoutCurrency(e.target.value as Currency)}
+                          className="px-3 py-1.5 rounded-[var(--radius-md)] border text-xs font-bold touch-target"
+                          style={{ borderColor: 'var(--card-border)', backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)' }}
+                        >
+                          {(['USD', 'GBP', 'NGN'] as Currency[]).map((c) => (
+                            <option key={c} value={c}>{c} ({CURRENCY_SYMBOLS[c]})</option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {billing.plan === 'FREE' && (
@@ -985,9 +1022,9 @@ export default function SettingsPage() {
                           <span className="text-xs font-extrabold" style={{ color: 'var(--text-primary)' }}>Pro</span>
                         </div>
                         <p className="text-caption mb-1" style={{ color: 'var(--text-secondary)' }}>3 accounts, advanced AutoPilot, AI recommendations, content repurposing.</p>
-                        {planPricing?.PRO?.[checkoutCurrency] && (
+                        {displayPrice('PRO') && (
                           <p className="text-caption font-extrabold mb-3" style={{ color: 'var(--text-primary)' }}>
-                            {formatPrice(planPricing.PRO[checkoutCurrency].newUserMonthly ?? planPricing.PRO[checkoutCurrency].regularMonthly ?? 0, checkoutCurrency)}/month
+                            {displayPrice('PRO')}
                           </p>
                         )}
                         <button onClick={() => handleUpgrade('PRO')} disabled={checkoutLoading !== null} className="btn-primary-gradient w-full px-4 py-2 rounded-[var(--radius-md)] text-xs font-bold touch-target disabled:opacity-60">
@@ -1003,9 +1040,9 @@ export default function SettingsPage() {
                         <span className="text-xs font-extrabold" style={{ color: 'var(--text-primary)' }}>Agency</span>
                       </div>
                       <p className="text-caption mb-1" style={{ color: 'var(--text-secondary)' }}>Multiple client workspaces, team members, agency overview, white-label.</p>
-                      {planPricing?.AGENCY?.[checkoutCurrency] && (
+                      {displayPrice('AGENCY') && (
                         <p className="text-caption font-extrabold mb-3" style={{ color: 'var(--text-primary)' }}>
-                          {formatPrice(planPricing.AGENCY[checkoutCurrency].newUserMonthly ?? planPricing.AGENCY[checkoutCurrency].regularMonthly ?? 0, checkoutCurrency)}/month
+                          {displayPrice('AGENCY')}
                         </p>
                       )}
                       <button onClick={() => handleUpgrade('AGENCY')} disabled={checkoutLoading !== null} className="btn-secondary w-full px-4 py-2 rounded-[var(--radius-md)] text-xs font-bold touch-target disabled:opacity-60">

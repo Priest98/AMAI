@@ -26,9 +26,14 @@ export interface PlanEntitlements {
   prioritySupport: boolean;
 }
 
+export type BillingInterval = 'MONTHLY' | 'ANNUAL';
+
 export interface PlanPricing {
   regularMonthly: number | null;
   newUserMonthly: number | null;
+  /** Total charged once a year (not a monthly rate) -- always 10x the matching monthly figure. Null wherever the monthly figure is null. */
+  regularAnnual: number | null;
+  newUserAnnual: number | null;
 }
 
 export interface BillingSummary {
@@ -37,6 +42,8 @@ export interface BillingSummary {
   status: SubscriptionStatus;
   /** What currency the active subscription is actually being charged in -- 'USD' (the schema default) for orgs that have never completed a paid checkout. */
   currency: Currency;
+  /** Which billing cycle the active subscription is on -- 'MONTHLY' (the schema default) for orgs that have never completed a paid checkout. */
+  billingInterval: BillingInterval;
   cancelAtPeriodEnd: boolean;
   currentPeriodEnd: string | null;
   entitlements: PlanEntitlements;
@@ -61,11 +68,11 @@ export function getBillingSummary() {
   return brandFetch<BillingSummary>('/billing');
 }
 
-/** Currency defaults to the visitor's browser-detected currency (see lib/currency.ts) if not passed explicitly. */
-export async function startCheckout(plan: 'PRO' | 'AGENCY', currency?: Currency): Promise<void> {
+/** Currency defaults to the visitor's browser-detected currency (see lib/currency.ts) if not passed explicitly; billingInterval defaults to MONTHLY. */
+export async function startCheckout(plan: 'PRO' | 'AGENCY', currency?: Currency, billingInterval?: BillingInterval): Promise<void> {
   const { url } = await brandFetch<{ url: string }>('/billing/checkout', {
     method: 'POST',
-    body: JSON.stringify({ plan, currency: currency || detectCurrency() }),
+    body: JSON.stringify({ plan, currency: currency || detectCurrency(), billingInterval: billingInterval || 'MONTHLY' }),
   });
   window.location.href = url;
 }

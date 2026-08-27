@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { PlanTier, SubscriptionStatus } from '@prisma/client';
+import { PlanTier, SubscriptionStatus, BillingInterval } from '@prisma/client';
 import type { NormalizedSubscriptionEvent, PaymentProvider } from './providers/payment-provider.interface';
 import { StripeProviderService } from './providers/stripe-provider.service';
 import { PaystackProviderService } from './providers/paystack-provider.service';
@@ -64,6 +64,7 @@ export class BillingService {
       subscribedPlan: subscription.plan,
       status: subscription.status,
       currency: subscription.currency as SupportedCurrency,
+      billingInterval: subscription.billingInterval,
       cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
       currentPeriodEnd: subscription.currentPeriodEnd,
       entitlements,
@@ -84,7 +85,13 @@ export class BillingService {
     };
   }
 
-  async startCheckout(brandId: string, userEmail: string, plan: 'PRO' | 'AGENCY', requestedCurrency?: string) {
+  async startCheckout(
+    brandId: string,
+    userEmail: string,
+    plan: 'PRO' | 'AGENCY',
+    requestedCurrency?: string,
+    requestedInterval?: string,
+  ) {
     const organizationId = await this.entitlementsService.getOrganizationIdForBrand(brandId);
     const subscription = await this.entitlementsService.getSubscription(organizationId);
     const appUrl = getAppUrl();
@@ -96,6 +103,9 @@ export class BillingService {
     const currency: SupportedCurrency = SUPPORTED_CURRENCIES.includes(requestedCurrency as SupportedCurrency)
       ? (requestedCurrency as SupportedCurrency)
       : DEFAULT_CURRENCY;
+
+    const billingInterval: BillingInterval =
+      requestedInterval === BillingInterval.ANNUAL ? BillingInterval.ANNUAL : BillingInterval.MONTHLY;
 
     const provider = this.providerForCurrency(currency);
 
@@ -114,6 +124,7 @@ export class BillingService {
       userEmail,
       plan: PlanTier[plan] as Exclude<PlanTier, 'FREE'>,
       currency,
+      billingInterval,
       existingProviderCustomerId,
       successUrl: `${appUrl}/dashboard/settings?tab=billing&checkout=success`,
       cancelUrl: `${appUrl}/dashboard/settings?tab=billing&checkout=cancelled`,
@@ -240,6 +251,7 @@ export class BillingService {
         plan: normalized.plan,
         status,
         currency: normalized.currency,
+        billingInterval: normalized.billingInterval,
         provider: providerName,
         providerCustomerId: normalized.providerCustomerId,
         providerSubscriptionId: normalized.providerSubscriptionId,
