@@ -3,6 +3,7 @@ import { PublishingService } from '../queue/publishing.service';
 import { EngineJobsService } from '../engine/engine-jobs.service';
 import { HealthEngineService } from '../health/health-engine.service';
 import { MetricsService } from '../metrics/metrics.service';
+import { LearningService } from '../metrics/learning.service';
 
 /**
  * Endpoints that trigger publishing/Drive-sync on a schedule. These replace
@@ -44,6 +45,7 @@ export class CronController {
     private readonly engineJobsService: EngineJobsService,
     private readonly healthEngineService: HealthEngineService,
     private readonly metricsService: MetricsService,
+    private readonly learningService: LearningService,
   ) {}
 
   private assertAuthorized(authHeader?: string) {
@@ -136,11 +138,15 @@ export class CronController {
   // TikTok posts and stores them as PostPerformance snapshots -- see
   // MetricsService for why this exists and why it can't just reuse
   // OAuthService.getTikTokVideos directly (circular module dependency).
+  // Metrics sync, then learning: the learning pass reads PostPerformance
+  // rows this same run's sync just wrote, so it always analyzes same-day
+  // data rather than trailing a full day behind on a separate schedule.
   private async runSyncPostMetrics(authHeader?: string) {
     this.assertAuthorized(authHeader);
-    const result = await this.metricsService.syncTikTokMetrics();
-    this.logger.log(`sync-post-metrics: ${JSON.stringify(result)}`);
-    return { success: true, ...result };
+    const metrics = await this.metricsService.syncTikTokMetrics();
+    const learning = await this.learningService.runForAllBrands();
+    this.logger.log(`sync-post-metrics: ${JSON.stringify(metrics)}; learning: ${JSON.stringify(learning)}`);
+    return { success: true, metrics, learning };
   }
 
   @Get('sync-post-metrics')
