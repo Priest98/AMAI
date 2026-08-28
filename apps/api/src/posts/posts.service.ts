@@ -324,9 +324,23 @@ export class PostsService {
   async getContentIntelligence(brandId: string) {
     const MIN_MEASURED_POSTS = 5;
 
+    // Scalability fix (#176): unbounded before -- a brand with a long
+    // publishing history would eventually pull every PUBLISHED post ever,
+    // each with nested media/targets/performanceSnapshots, on every load of
+    // this Pro-gated endpoint. Recent posts are what a "what's working
+    // lately" panel should reflect anyway (an 18-month-old pattern isn't
+    // actionable today), and the MIN_MEASURED_POSTS-based sample-size gates
+    // above only ever need a few dozen measured posts at most to say
+    // anything statistically real -- 200 is a generous ceiling relative to
+    // that, same reasoning as MediaAsset.getAssets' and Post.getPosts' own
+    // caps elsewhere in this file.
+    const CONTENT_INTELLIGENCE_POST_CAP = 200;
+
     const [posts, engineConfig] = await Promise.all([
       this.prisma.post.findMany({
         where: { brandId, status: PostStatus.PUBLISHED, publishedAt: { not: null } },
+        orderBy: { publishedAt: 'desc' },
+        take: CONTENT_INTELLIGENCE_POST_CAP,
         select: {
           id: true,
           caption: true,
