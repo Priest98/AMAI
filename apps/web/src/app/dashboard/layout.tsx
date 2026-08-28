@@ -25,6 +25,7 @@ import {
   Users,
   Gem,
   Lock,
+  Layers,
 } from 'lucide-react';
 import { getCurrentUser, logout } from '@/lib/api';
 import { getBillingSummary } from '@/lib/billing';
@@ -51,6 +52,12 @@ const navSections: NavSection[] = [
   {
     items: [
       { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+    ],
+  },
+  {
+    title: 'Creator',
+    items: [
+      { label: 'Command Center', href: '/dashboard/creator', icon: Layers },
     ],
   },
   {
@@ -133,6 +140,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // Agency nav items or a wrong workspace label to a Free/Pro user (even for
   // one render) is worse than a half-second delay before they appear.
   const [hasAgency, setHasAgency] = useState(false);
+  // Same "hide until known" caution as hasAgency -- gates the Creator nav
+  // section (Command Center) so it never briefly shows for a Free/Pro/Agency
+  // user before the real plan loads.
+  const [hasCreator, setHasCreator] = useState(false);
   const [workspaceLabel, setWorkspaceLabel] = useState('');
   // Drives the lock badge on the "Oyinca Intelligence" nav item (see
   // LOCKED_NAV_HREFS). Defaults to locked, same "hide until known" caution
@@ -169,13 +180,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     getBillingSummary()
       .then((b) => {
         setHasAgency(b.entitlements.clientManagement === true);
+        setHasCreator(b.entitlements.tier === 'CREATOR');
         setWorkspaceLabel(`${b.plan.toLowerCase()}_workspace`);
         setAnalyticsLocked(b.entitlements.analyticsLevel !== 'advanced');
       })
       .catch(() => {});
   }, []);
 
-  const visibleNavSections = navSections.filter((section) => section.title !== 'Agency' || hasAgency);
+  const visibleNavSections = navSections.filter((section) => {
+    if (section.title === 'Agency') return hasAgency;
+    if (section.title === 'Creator') return hasCreator;
+    return true;
+  });
 
   // Every dashboard <Link> in the mobile nav drawer closes the drawer on
   // click, but this layout never remounts between routes, so any

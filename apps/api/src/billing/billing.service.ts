@@ -95,7 +95,7 @@ export class BillingService {
   async startCheckout(
     brandId: string,
     userEmail: string,
-    plan: 'PRO' | 'AGENCY',
+    plan: 'PRO' | 'CREATOR' | 'AGENCY',
     requestedCurrency?: string,
     requestedInterval?: string,
   ) {

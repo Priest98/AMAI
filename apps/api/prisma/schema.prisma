@@ -78,6 +78,12 @@ model Organization {
 enum PlanTier {
   FREE
   PRO
+  // Sits between PRO and AGENCY in the value ladder (FREE -> PRO -> CREATOR
+  // -> AGENCY) -- 2 managed accounts, 300 posts/month, everything PRO has
+  // plus a dedicated multi-account command center. Added after AGENCY in
+  // this enum (not reordered alphabetically/by rank) so existing rows'
+  // underlying integer/string values never shift.
+  CREATOR
   AGENCY
 }
 

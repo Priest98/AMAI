@@ -23,6 +23,7 @@ import {
   Zap as ZapIcon,
   Building2,
   Lock,
+  Layers,
 } from 'lucide-react';
 
 type ApprovalMode = 'MANUAL' | 'AUTO';
@@ -159,6 +160,20 @@ function BrainSection({ title, children }: { title: string; children: React.Reac
   );
 }
 
+/** Which plan + post limit to suggest once the current one is maxed out -- FREE/PRO/CREATOR each point at the next tier up; AGENCY has nowhere further to go, so it just explains the reset. */
+const NEXT_TIER_POST_LIMIT: Partial<Record<BillingPlanTier, { name: string; posts: number }>> = {
+  FREE: { name: 'Pro', posts: 150 },
+  PRO: { name: 'Creator', posts: 300 },
+  CREATOR: { name: 'Agency', posts: 500 },
+};
+
+function postLimitReachedMessage(billing: BillingSummary): string {
+  const next = NEXT_TIER_POST_LIMIT[billing.entitlements.tier];
+  return next
+    ? `You've reached your ${billing.usage.posts.limit}-post monthly limit. Upgrade to ${next.name} for up to ${next.posts} posts per month.`
+    : `You've reached your ${billing.usage.posts.limit}-post monthly limit. Your allowance resets at the start of your next billing period.`;
+}
+
 export default function SettingsPage() {
   const searchParams = useSearchParams();
   const initialTab = (searchParams.get('tab') as any) || 'publishing';
@@ -169,7 +184,7 @@ export default function SettingsPage() {
 
   const [billing, setBilling] = useState<BillingSummary | null>(null);
   const [billingLoading, setBillingLoading] = useState(true);
-  const [checkoutLoading, setCheckoutLoading] = useState<'PRO' | 'AGENCY' | null>(null);
+  const [checkoutLoading, setCheckoutLoading] = useState<'PRO' | 'CREATOR' | 'AGENCY' | null>(null);
   const [portalLoading, setPortalLoading] = useState(false);
   const [devPlanLoading, setDevPlanLoading] = useState(false);
 
@@ -212,7 +227,7 @@ export default function SettingsPage() {
   useEffect(loadBilling, []);
 
   // LOCAL DEV / QA ONLY -- see lib/billing.ts's devSetPlan doc comment.
-  const handleDevSetPlan = async (plan: 'FREE' | 'PRO' | 'AGENCY') => {
+  const handleDevSetPlan = async (plan: 'FREE' | 'PRO' | 'CREATOR' | 'AGENCY') => {
     setDevPlanLoading(true);
     try {
       await devSetPlan(plan);
@@ -225,7 +240,7 @@ export default function SettingsPage() {
   };
 
   /** The price string to show next to an upgrade button, matching whatever startCheckout will actually charge (currency + interval both read from the same selectors). */
-  const displayPrice = (tier: 'PRO' | 'AGENCY'): string | null => {
+  const displayPrice = (tier: 'PRO' | 'CREATOR' | 'AGENCY'): string | null => {
     const p = planPricing?.[tier]?.[checkoutCurrency];
     if (!p) return null;
     if (checkoutInterval === 'ANNUAL') {
@@ -236,7 +251,7 @@ export default function SettingsPage() {
     return `${formatPrice(monthly, checkoutCurrency)}/month`;
   };
 
-  const handleUpgrade = async (plan: 'PRO' | 'AGENCY') => {
+  const handleUpgrade = async (plan: 'PRO' | 'CREATOR' | 'AGENCY') => {
     setCheckoutLoading(plan);
     try {
       await startCheckout(plan, checkoutCurrency, checkoutInterval);
@@ -965,7 +980,7 @@ export default function SettingsPage() {
                 {process.env.NODE_ENV === 'development' && (
                   <div className="pt-4 border-t flex flex-wrap items-center gap-2" style={{ borderColor: 'var(--card-border)' }}>
                     <span className="text-caption font-bold" style={{ color: 'var(--text-muted)' }}>DEV: set plan →</span>
-                    {(['FREE', 'PRO', 'AGENCY'] as const).map((p) => (
+                    {(['FREE', 'PRO', 'CREATOR', 'AGENCY'] as const).map((p) => (
                       <button
                         key={p}
                         type="button"
@@ -987,11 +1002,7 @@ export default function SettingsPage() {
                     limit={billing.usage.posts.limit}
                     planName={billing.entitlements.displayName}
                     unitLabel="posts"
-                    reachedMessage={
-                      billing.entitlements.tier === 'FREE'
-                        ? `You've reached your ${billing.usage.posts.limit}-post monthly limit. Upgrade to Pro for up to 150 posts per month.`
-                        : `You've reached your ${billing.usage.posts.limit}-post monthly limit. Your allowance resets at the start of your next billing period.`
-                    }
+                    reachedMessage={postLimitReachedMessage(billing)}
                   />
                   <UsageBar label="Storage" used={billing.usage.storage.used} limit={billing.usage.storage.limit} formatValue={formatBytes} planName={billing.entitlements.displayName} />
                   <UsageBar label="Social accounts" used={billing.usage.socialAccounts.used} limit={billing.usage.socialAccounts.limit} planName={billing.entitlements.displayName} />
@@ -1050,7 +1061,7 @@ export default function SettingsPage() {
                       </label>
                     </div>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     {billing.plan === 'FREE' && (
                       <div className="p-4 rounded-[var(--radius-lg)] border" style={{ borderColor: 'var(--accent-warning)', backgroundColor: 'var(--accent-warning-subtle)' }}>
                         {/* Zap, not Sparkles: billing should read as capability
@@ -1059,7 +1070,7 @@ export default function SettingsPage() {
                           <ZapIcon className="h-3.5 w-3.5" style={{ color: 'var(--accent-warning)' }} />
                           <span className="text-xs font-extrabold" style={{ color: 'var(--text-primary)' }}>Pro</span>
                         </div>
-                        <p className="text-caption mb-1" style={{ color: 'var(--text-secondary)' }}>3 accounts, advanced AutoPilot, AI recommendations, content repurposing.</p>
+                        <p className="text-caption mb-1" style={{ color: 'var(--text-secondary)' }}>1 account, advanced AutoPilot, AI recommendations, content repurposing.</p>
                         {displayPrice('PRO') && (
                           <p className="text-caption font-extrabold mb-3" style={{ color: 'var(--text-primary)' }}>
                             {displayPrice('PRO')}
@@ -1067,6 +1078,25 @@ export default function SettingsPage() {
                         )}
                         <button onClick={() => handleUpgrade('PRO')} disabled={checkoutLoading !== null} className="btn-primary-gradient w-full px-4 py-2 rounded-[var(--radius-md)] text-xs font-bold touch-target disabled:opacity-60">
                           {checkoutLoading === 'PRO' ? 'Redirecting…' : 'Start Pro'}
+                        </button>
+                      </div>
+                    )}
+                    {(billing.plan === 'FREE' || billing.plan === 'PRO') && (
+                      <div className="p-4 rounded-[var(--radius-lg)] border" style={{ borderColor: 'var(--accent-primary)', backgroundColor: 'var(--accent-primary-subtle)' }}>
+                        {/* Layers: two managed accounts side by side, the thing
+                            that actually distinguishes Creator from Pro. */}
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <Layers className="h-3.5 w-3.5" style={{ color: 'var(--accent-primary)' }} />
+                          <span className="text-xs font-extrabold" style={{ color: 'var(--text-primary)' }}>Creator</span>
+                        </div>
+                        <p className="text-caption mb-1" style={{ color: 'var(--text-secondary)' }}>2 managed accounts, 300 posts/month, everything in Pro plus cross-account intelligence.</p>
+                        {displayPrice('CREATOR') && (
+                          <p className="text-caption font-extrabold mb-3" style={{ color: 'var(--text-primary)' }}>
+                            {displayPrice('CREATOR')}
+                          </p>
+                        )}
+                        <button onClick={() => handleUpgrade('CREATOR')} disabled={checkoutLoading !== null} className="btn-primary-gradient w-full px-4 py-2 rounded-[var(--radius-md)] text-xs font-bold touch-target disabled:opacity-60">
+                          {checkoutLoading === 'CREATOR' ? 'Redirecting…' : 'Start Creator'}
                         </button>
                       </div>
                     )}

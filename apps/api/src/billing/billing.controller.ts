@@ -42,7 +42,7 @@ export class BillingController {
   @Post('brands/:brandId/billing/checkout')
   async startCheckout(
     @Param('brandId') brandId: string,
-    @Body('plan') plan: 'PRO' | 'AGENCY',
+    @Body('plan') plan: 'PRO' | 'CREATOR' | 'AGENCY',
     @Body('currency') currency: string | undefined,
     @Body('billingInterval') billingInterval: string | undefined,
     @Req() req: Request,

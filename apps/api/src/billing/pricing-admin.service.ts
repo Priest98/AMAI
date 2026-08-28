@@ -7,7 +7,7 @@ import { AuditLogService } from '../admin/audit-log.service';
 import { PLAN_PRICING, SUPPORTED_CURRENCIES } from './plans.config';
 import type { SupportedCurrency, PlanPricing } from './plans.config';
 
-const PAID_TIERS: Exclude<PlanTier, 'FREE'>[] = [PlanTier.PRO, PlanTier.AGENCY];
+const PAID_TIERS: Exclude<PlanTier, 'FREE'>[] = [PlanTier.PRO, PlanTier.CREATOR, PlanTier.AGENCY];
 const BILLING_INTERVALS: BillingInterval[] = [BillingInterval.MONTHLY, BillingInterval.ANNUAL];
 
 export interface EffectivePriceRow {

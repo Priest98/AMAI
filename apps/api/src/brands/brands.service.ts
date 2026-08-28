@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EntitlementsService } from '../billing/entitlements.service';
 import { toPublicConnection, needsAttention } from '../oauth/connection-health';
-import { TargetStatus } from '@prisma/client';
+import { TargetStatus, UsageMetric } from '@prisma/client';
 
 /**
  * Minimal multi-brand support for Agency. The Organization->Brand
@@ -346,6 +346,120 @@ export class BrandsService {
       // rendering a zero that looks like real measured performance.
       unavailableMetrics: ['reach', 'impressions', 'followerGrowth'],
       perClient,
+    };
+  }
+
+  /**
+   * Creator Command Center: the two-account overview for PlanTier.CREATOR
+   * (see CreatorEntitlementGuard). Deliberately smaller than
+   * getAgencyAnalytics -- no per-status breakdown, no approval-queue/calendar
+   * rollups, because Creator isn't Agency-with-a-lower-price; it's meant to
+   * feel like "one person watching two accounts", not a scaled-down client
+   * management console. Reuses the same real-data-only engagement math as
+   * getAgencyAnalytics (same PostPerformance snapshots, same
+   * views+likes+comments+shares sum) so the two surfaces can never disagree
+   * about what "engagement" means.
+   *
+   * crossAccountRecommendation only ever names a real, computed winner: it
+   * requires both accounts to have at least MIN_SAMPLE_SIZE published,
+   * measured posts before comparing them at all, and says so explicitly
+   * when that bar isn't met yet rather than guessing from a handful of
+   * posts (same minimum-sample-size discipline as
+   * PostsService.getContentIntelligence).
+   */
+  async getCreatorOverview(organizationId: string, days = 30) {
+    const MIN_SAMPLE_SIZE = 3;
+    const window = Math.min(Math.max(days, 1), 365);
+    const since = new Date();
+    since.setDate(since.getDate() - window);
+    const now = new Date();
+
+    const [brands, postUsage] = await Promise.all([
+      this.prisma.brand.findMany({
+        where: { organizationId },
+        orderBy: { createdAt: 'asc' },
+        select: {
+          id: true,
+          name: true,
+          industry: true,
+          logo: true,
+          socialAccounts: {
+            select: { id: true, platform: true, metadata: true, status: true, tokenExpiresAt: true, refreshToken: true },
+          },
+        },
+      }),
+      this.entitlementsService.checkUsage(organizationId, UsageMetric.POST_PUBLISHED),
+    ]);
+
+    const brandIds = brands.map((b) => b.id);
+
+    const rows = await this.prisma.post.findMany({
+      where: { brandId: { in: brandIds }, status: 'PUBLISHED', publishedAt: { gte: since } },
+      select: {
+        brandId: true,
+        targets: {
+          where: { status: TargetStatus.PUBLISHED, providerPostId: { not: null } },
+          select: { performanceSnapshots: { orderBy: { capturedAt: 'desc' }, take: 1 } },
+        },
+      },
+    });
+
+    const engagementOf = (row: (typeof rows)[number]): number =>
+      row.targets.reduce((sum, t) => {
+        const snap = t.performanceSnapshots[0];
+        if (!snap) return sum;
+        return sum + snap.views + snap.likes + snap.comments + snap.shares;
+      }, 0);
+
+    const accounts = brands.map((b) => {
+      const connections = b.socialAccounts.map((a) => toPublicConnection(a, now));
+      const mine = rows.filter((r) => r.brandId === b.id);
+      const measured = mine.filter((r) => r.targets.some((t) => t.performanceSnapshots[0]));
+      return {
+        brandId: b.id,
+        name: b.name,
+        industry: b.industry,
+        logo: b.logo,
+        connections,
+        connectionIssueCount: connections.filter((c) => needsAttention(c.health)).length,
+        publishedCount: mine.length,
+        measuredCount: measured.length,
+        totalEngagement: mine.reduce((sum, r) => sum + engagementOf(r), 0),
+      };
+    });
+
+    let crossAccountRecommendation: string | null = null;
+    if (accounts.length === 2) {
+      const [a, b] = accounts;
+      if (a.measuredCount >= MIN_SAMPLE_SIZE && b.measuredCount >= MIN_SAMPLE_SIZE) {
+        const aAvg = a.totalEngagement / a.measuredCount;
+        const bAvg = b.totalEngagement / b.measuredCount;
+        if (aAvg !== bAvg) {
+          const [leader, laggard] = aAvg > bAvg ? [a, b] : [b, a];
+          const leaderAvg = aAvg > bAvg ? aAvg : bAvg;
+          const laggardAvg = aAvg > bAvg ? bAvg : aAvg;
+          const delta = laggardAvg > 0 ? Math.round(((leaderAvg - laggardAvg) / laggardAvg) * 100) : null;
+          crossAccountRecommendation = delta && delta > 0
+            ? `${leader.name} is averaging ${delta}% more engagement per post than ${laggard.name} over the last ${window} days. Worth carrying over whatever's working there.`
+            : `${leader.name} is currently out-performing ${laggard.name} on engagement per post over the last ${window} days.`;
+        } else {
+          crossAccountRecommendation = `${a.name} and ${b.name} are performing about the same over the last ${window} days.`;
+        }
+      } else {
+        crossAccountRecommendation = null;
+      }
+    }
+
+    return {
+      windowDays: window,
+      since,
+      accounts,
+      usage: {
+        posts: { used: postUsage.used, limit: postUsage.limit, remaining: postUsage.limit === -1 ? -1 : Math.max(0, postUsage.limit - postUsage.used) },
+      },
+      crossAccountRecommendation,
+      hasEnoughDataForComparison: accounts.length === 2 && accounts.every((a) => a.measuredCount >= MIN_SAMPLE_SIZE),
+      unavailableMetrics: ['reach', 'impressions', 'followerGrowth'],
     };
   }
 

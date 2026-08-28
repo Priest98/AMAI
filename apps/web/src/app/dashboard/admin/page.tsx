@@ -19,7 +19,7 @@ interface AdminOverview {
   accounts: {
     totalOrganizations: number;
     totalBrands: number;
-    usersByPlan: Record<'FREE' | 'PRO' | 'AGENCY', number>;
+    usersByPlan: Record<'FREE' | 'PRO' | 'CREATOR' | 'AGENCY', number>;
   };
   revenue: {
     mrrEstimateByCurrency: Record<'USD' | 'GBP' | 'NGN', number>;
@@ -102,11 +102,12 @@ export default function AdminOverviewPage() {
 
       <div>
         <h2 className="text-overline mb-3" style={{ color: 'var(--text-muted)' }}>Accounts</h2>
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
           <Stat label="Organizations" value={data.accounts.totalOrganizations} />
           <Stat label="Brands / clients" value={data.accounts.totalBrands} />
           <Stat label="Free" value={data.accounts.usersByPlan.FREE} />
           <Stat label="Pro" value={data.accounts.usersByPlan.PRO} />
+          <Stat label="Creator" value={data.accounts.usersByPlan.CREATOR} />
           <Stat label="Agency" value={data.accounts.usersByPlan.AGENCY} />
         </div>
       </div>

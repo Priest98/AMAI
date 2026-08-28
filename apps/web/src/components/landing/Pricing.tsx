@@ -68,10 +68,23 @@ const CARD_COPY: Record<PlanTier, Omit<CardCopy, 'tier'>> = {
     cta: 'Start Pro',
     highlighted: true,
   },
+  CREATOR: {
+    badge: 'BUILD YOUR ECOSYSTEM',
+    heading: 'For creators and small teams running more than one TikTok presence.',
+    includes: [
+      'Everything in Pro, plus:',
+      '2 managed accounts',
+      'Creator Command Center',
+      'Cross-account intelligence',
+      'Priority processing',
+    ],
+    cta: 'Start Creator',
+    highlighted: true,
+  },
   AGENCY: {
     heading: 'For teams managing TikTok for multiple clients.',
     includes: [
-      'Everything in Pro, plus:',
+      'Everything in Creator, plus:',
       'Multiple client workspaces',
       'Client management',
       'Team members',
@@ -194,9 +207,9 @@ export default function Pricing({ initialData }: { initialData?: PlansResponse |
           initial="hidden"
           whileInView="show"
           viewport={{ once: true, margin: '-100px' }}
-          className="mt-20 grid md:grid-cols-3 gap-8 lg:gap-10 items-start"
+          className="mt-20 grid md:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-6 items-start"
         >
-          {(['FREE', 'PRO', 'AGENCY'] as PlanTier[]).map((tier) => {
+          {(['FREE', 'PRO', 'CREATOR', 'AGENCY'] as PlanTier[]).map((tier) => {
             const copy = CARD_COPY[tier];
             const price = pricing?.[tier]?.[currency];
             return (
@@ -302,7 +315,7 @@ export default function Pricing({ initialData }: { initialData?: PlansResponse |
             Built for businesses, creators and agencies.
           </p>
           <p className="mt-2 text-sm leading-relaxed" style={{ color: 'var(--lp-text-muted)' }}>
-            Agency: manage multiple brands and client workspaces from one place.
+            Creator: run two TikTok accounts side by side with cross-account intelligence. Agency: manage multiple brands and client workspaces from one place.
           </p>
         </GsapReveal>
 

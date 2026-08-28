@@ -3,7 +3,7 @@
 import { apiFetch, brandFetch } from './api';
 import { detectCurrency, type Currency } from './currency';
 
-export type PlanTier = 'FREE' | 'PRO' | 'AGENCY';
+export type PlanTier = 'FREE' | 'PRO' | 'CREATOR' | 'AGENCY';
 export type SubscriptionStatus = 'ACTIVE' | 'TRIALING' | 'PAST_DUE' | 'CANCELLED' | 'EXPIRED';
 
 export interface PlanEntitlements {
@@ -71,7 +71,7 @@ export function getBillingSummary() {
 }
 
 /** Currency defaults to the visitor's browser-detected currency (see lib/currency.ts) if not passed explicitly; billingInterval defaults to MONTHLY. */
-export async function startCheckout(plan: 'PRO' | 'AGENCY', currency?: Currency, billingInterval?: BillingInterval): Promise<void> {
+export async function startCheckout(plan: 'PRO' | 'CREATOR' | 'AGENCY', currency?: Currency, billingInterval?: BillingInterval): Promise<void> {
   const { url } = await brandFetch<{ url: string }>('/billing/checkout', {
     method: 'POST',
     body: JSON.stringify({ plan, currency: currency || detectCurrency(), billingInterval: billingInterval || 'MONTHLY' }),

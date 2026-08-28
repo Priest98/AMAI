@@ -13,7 +13,7 @@ interface CustomerDetail {
   createdAt: string;
   owner: { id: string; email: string; fullName: string | null; lastLogin: string | null; createdAt: string } | null;
   subscription: {
-    plan: 'FREE' | 'PRO' | 'AGENCY';
+    plan: 'FREE' | 'PRO' | 'CREATOR' | 'AGENCY';
     status: string;
     currency: string;
     currentPeriodEnd: string | null;

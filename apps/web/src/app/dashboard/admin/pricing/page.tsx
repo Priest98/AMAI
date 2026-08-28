@@ -5,8 +5,10 @@ import { ShieldAlert, Pencil } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { formatPrice, CURRENCY_SYMBOLS, type Currency } from '@/lib/currency';
 
-type PlanTier = 'PRO' | 'AGENCY';
+type PlanTier = 'PRO' | 'CREATOR' | 'AGENCY';
 type BillingInterval = 'MONTHLY' | 'ANNUAL';
+
+const TIER_LABELS: Record<PlanTier, string> = { PRO: 'Pro', CREATOR: 'Creator', AGENCY: 'Agency' };
 
 interface PriceRow {
   tier: PlanTier;
@@ -20,7 +22,7 @@ interface PriceRow {
   updatedAt: string | null;
 }
 
-const TIERS: PlanTier[] = ['PRO', 'AGENCY'];
+const TIERS: PlanTier[] = ['PRO', 'CREATOR', 'AGENCY'];
 const CURRENCIES: Currency[] = ['USD', 'GBP', 'NGN'];
 const INTERVALS: BillingInterval[] = ['MONTHLY', 'ANNUAL'];
 
@@ -72,7 +74,7 @@ export default function AdminPricingPage() {
         <div className="space-y-8">
           {TIERS.map((tier) => (
             <div key={tier} className="space-y-3">
-              <h2 className="text-h3" style={{ color: 'var(--text-primary)' }}>{tier === 'PRO' ? 'Pro' : 'Agency'}</h2>
+              <h2 className="text-h3" style={{ color: 'var(--text-primary)' }}>{TIER_LABELS[tier]}</h2>
               <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${CURRENCIES.length}, minmax(0, 1fr))` }}>
                 {CURRENCIES.map((currency) => (
                   <div key={currency} className="exec-card card-pad space-y-3">
@@ -190,7 +192,7 @@ function EditPriceModal({ row, onClose, onSaved }: { row: PriceRow; onClose: () 
       <div className="exec-card card-pad max-w-sm w-full space-y-4" style={{ backgroundColor: 'var(--bg-surface)' }}>
         <div>
           <h3 className="text-h3" style={{ color: 'var(--text-primary)' }}>
-            {row.tier === 'PRO' ? 'Pro' : 'Agency'} · {row.currency} · {row.billingInterval === 'MONTHLY' ? 'Monthly' : 'Annual'}
+            {TIER_LABELS[row.tier]} · {row.currency} · {row.billingInterval === 'MONTHLY' ? 'Monthly' : 'Annual'}
           </h3>
           <p className="text-caption mt-1" style={{ color: 'var(--accent-warning)' }}>
             This creates a new live {row.currency === 'NGN' ? 'Paystack Plan' : 'Stripe Price'}. New checkouts use it immediately; existing subscribers are unaffected.

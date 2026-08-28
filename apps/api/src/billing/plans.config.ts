@@ -81,6 +81,44 @@ export const PLAN_CONFIG: Record<PlanTier, PlanEntitlements> = {
     whiteLabel: false,
     prioritySupport: true,
   },
+  [PlanTier.CREATOR]: {
+    tier: PlanTier.CREATOR,
+    displayName: 'Creator',
+    tagline: 'Build your content ecosystem: 2 managed accounts, up to 300 posts a month, with a dedicated multi-account command center.',
+    // 2, not 1: Creator's entire point is running two separate identities
+    // (a personal brand + a business, two businesses, etc.) from one
+    // workspace -- see the Creator Command Center (dashboard/creator) for
+    // the cross-account overview this unlocks. Deliberately short of
+    // Agency's 5: Creator is "a person running their own accounts," not
+    // "an agency running client accounts" -- client workspaces, team
+    // members, approval workflows and white-label stay Agency-only (see
+    // clientManagement/whiteLabel below) so Creator doesn't cannibalize
+    // Agency's reason to exist.
+    maxBrands: 2,
+    maxSocialAccountsPerBrand: 1,
+    maxTeamMembers: 1,
+    maxMonthlyPosts: 300,
+    maxMonthlyAiGenerations: 500,
+    maxStorageBytes: 50 * GB,
+    // Everything Pro has, advanced across the board -- Creator is "Pro,
+    // twice over, plus a command center," never a step down from Pro on
+    // any single capability.
+    autopilotLevel: 'advanced',
+    analyticsLevel: 'advanced',
+    businessBrainLevel: 'advanced',
+    aiRecommendations: true,
+    contentRepurposing: true,
+    // Deliberately false: clientManagement gates the Agency-only
+    // /dashboard/agency/* surface (client workspaces, team members,
+    // approval workflows, bulk operations, client-ready reports -- see
+    // AgencyEntitlementGuard). Creator's own multi-account overview is a
+    // separate, lighter surface gated directly on tier === 'CREATOR' (see
+    // dashboard/creator), not on this flag -- so upgrading those Agency
+    // features later can never accidentally leak into Creator.
+    clientManagement: false,
+    whiteLabel: false,
+    prioritySupport: true,
+  },
   [PlanTier.AGENCY]: {
     tier: PlanTier.AGENCY,
     displayName: 'Agency',
@@ -175,6 +213,16 @@ export const PLAN_PRICING: Record<PlanTier, Record<SupportedCurrency, PlanPricin
     USD: pricing(29, 19),
     GBP: pricing(21, 14),
     NGN: pricing(20000, 9900),
+  },
+  // USD/GBP are placeholders, not numbers the user gave -- only the NGN
+  // price (35,000 regular / 18,000 new-user, confirmed directly) was
+  // specified. Positioned proportionally between Pro and Agency on both the
+  // regular and new-user price so the ladder stays strictly ascending in
+  // every currency; revisit these two once real USD/GBP prices are set.
+  [PlanTier.CREATOR]: {
+    USD: pricing(39, 25),
+    GBP: pricing(29, 19),
+    NGN: pricing(35000, 18000),
   },
   [PlanTier.AGENCY]: {
     USD: pricing(99, 79),

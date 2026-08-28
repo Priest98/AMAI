@@ -46,7 +46,7 @@ export class AdminService {
     // Users by plan: tallied in memory rather than Prisma groupBy (known
     // TS2615 circular-reference issue against this schema elsewhere in the
     // app -- same workaround used in brands.service.ts).
-    const usersByPlan: Record<PlanTier, number> = { FREE: 0, PRO: 0, AGENCY: 0 };
+    const usersByPlan: Record<PlanTier, number> = { FREE: 0, PRO: 0, CREATOR: 0, AGENCY: 0 };
     for (const row of usersByPlanRows) usersByPlan[row.plan] += 1;
 
     // MRR estimate: Subscription doesn't store the exact amount actually

@@ -142,6 +142,38 @@ export async function getAgencyAnalytics(days = 30): Promise<AgencyAnalytics> {
   return apiFetch(`/organizations/${organizationId}/analytics?days=${days}`);
 }
 
+// ---- Creator Command Center (PlanTier.CREATOR only) --------------------
+
+export interface CreatorAccount {
+  brandId: string;
+  name: string;
+  industry: string | null;
+  logo: string | null;
+  connections: PublicConnection[];
+  connectionIssueCount: number;
+  publishedCount: number;
+  /** How many of publishedCount actually have a synced performance snapshot -- the denominator for totalEngagement being a meaningful average, not just a raw sum. */
+  measuredCount: number;
+  /** Real views+likes+comments+shares across this account's published, synced posts in the window. */
+  totalEngagement: number;
+}
+
+export interface CreatorOverview {
+  windowDays: number;
+  since: string;
+  accounts: CreatorAccount[];
+  usage: { posts: { used: number; limit: number; remaining: number } };
+  /** Null until both accounts have enough measured posts to compare honestly -- see hasEnoughDataForComparison. */
+  crossAccountRecommendation: string | null;
+  hasEnoughDataForComparison: boolean;
+  unavailableMetrics: string[];
+}
+
+export async function getCreatorOverview(days = 30): Promise<CreatorOverview> {
+  const organizationId = await getOrganizationId();
+  return apiFetch(`/organizations/${organizationId}/creator-overview?days=${days}`);
+}
+
 // ---- P1 agency team/roles foundation -----------------------------------
 
 export interface OrgMember {

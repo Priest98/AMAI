@@ -3,6 +3,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { BrandAccessGuard } from '../auth/brand-access.guard';
 import { OrganizationAccessGuard } from './organization-access.guard';
 import { AgencyEntitlementGuard } from './agency-entitlement.guard';
+import { CreatorEntitlementGuard } from './creator-entitlement.guard';
 import { BrandsService } from './brands.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -84,6 +85,21 @@ export class BrandsController {
     @Query('days') days?: string,
   ) {
     return this.brandsService.getAgencyAnalytics(organizationId, days ? Number(days) : undefined);
+  }
+
+  /**
+   * Creator Command Center overview: the two-managed-account view for
+   * PlanTier.CREATOR only -- see CreatorEntitlementGuard for why this is a
+   * separate guard from AgencyEntitlementGuard rather than a broadened
+   * version of it.
+   */
+  @UseGuards(OrganizationAccessGuard, CreatorEntitlementGuard)
+  @Get('organizations/:organizationId/creator-overview')
+  async getCreatorOverview(
+    @Param('organizationId') organizationId: string,
+    @Query('days') days?: string,
+  ) {
+    return this.brandsService.getCreatorOverview(organizationId, days ? Number(days) : undefined);
   }
 
   /**

@@ -14,7 +14,7 @@ interface CustomerRow {
   owner: { id: string; email: string; fullName: string | null } | null;
   brandCount: number;
   memberCount: number;
-  plan: 'FREE' | 'PRO' | 'AGENCY';
+  plan: 'FREE' | 'PRO' | 'CREATOR' | 'AGENCY';
   subscriptionStatus: string | null;
   currency: string | null;
 }
@@ -29,6 +29,7 @@ interface CustomersResponse {
 const PLAN_VARIANT: Record<string, 'neutral' | 'purple' | 'success'> = {
   FREE: 'neutral',
   PRO: 'purple',
+  CREATOR: 'purple',
   AGENCY: 'success',
 };
 

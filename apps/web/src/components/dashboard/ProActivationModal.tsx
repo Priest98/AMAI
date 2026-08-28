@@ -58,11 +58,17 @@ export default function ProActivationModal() {
   if (!billing) return null;
 
   const planName = billing.entitlements.displayName;
+  const isCreator = billing.entitlements.tier === 'CREATOR';
   const capabilities = [
     'Advanced analytics activated',
     'Oyinca Intelligence activated',
     'Autopilot (hands-off publishing) available',
     'Full Business Brain (voice learning, goals, competitive context) unlocked',
+    // Creator's whole point is running more than one account side by side --
+    // the maxBrands figure IS the account count for this tier (see
+    // plans.config.ts), so this line stays accurate even if that number
+    // changes later.
+    ...(isCreator ? [`${billing.entitlements.maxBrands} managed accounts activated`, 'Creator Command Center activated', 'Cross-account intelligence activated'] : []),
     ...(billing.entitlements.clientManagement ? ['Multi-brand workspace activated'] : []),
     ...(billing.entitlements.prioritySupport ? ['Priority support activated'] : []),
   ];

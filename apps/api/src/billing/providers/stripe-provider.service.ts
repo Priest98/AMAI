@@ -91,7 +91,7 @@ export class StripeProviderService implements PaymentProvider {
    */
   private async priceIdMap(): Promise<Record<string, { plan: Exclude<PlanTier, 'FREE'>; currency: SupportedCurrency; billingInterval: BillingInterval }>> {
     const map: Record<string, { plan: Exclude<PlanTier, 'FREE'>; currency: SupportedCurrency; billingInterval: BillingInterval }> = {};
-    (['PRO', 'AGENCY'] as const).forEach((plan) => {
+    (['PRO', 'CREATOR', 'AGENCY'] as const).forEach((plan) => {
       SUPPORTED_CURRENCIES.forEach((currency) => {
         BILLING_INTERVALS.forEach((billingInterval) => {
           const id = process.env[`STRIPE_PRICE_${plan}_${billingInterval}_${currency}`];

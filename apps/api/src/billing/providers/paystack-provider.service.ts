@@ -133,7 +133,7 @@ export class PaystackProviderService implements PaymentProvider {
    */
   private async planCodeMap(): Promise<Record<string, { plan: Exclude<PlanTier, 'FREE'>; currency: PaystackCurrency; billingInterval: BillingInterval }>> {
     const map: Record<string, { plan: Exclude<PlanTier, 'FREE'>; currency: PaystackCurrency; billingInterval: BillingInterval }> = {};
-    (['PRO', 'AGENCY'] as const).forEach((plan) => {
+    (['PRO', 'CREATOR', 'AGENCY'] as const).forEach((plan) => {
       BILLING_INTERVALS.forEach((billingInterval) => {
         const code = process.env[`PAYSTACK_PLAN_${plan}_${billingInterval}_NGN`];
         if (code) map[code] = { plan: PlanTier[plan] as Exclude<PlanTier, 'FREE'>, currency: 'NGN', billingInterval };

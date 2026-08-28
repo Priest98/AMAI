@@ -268,11 +268,18 @@ export class EntitlementsService {
     if (!result.allowed) {
       const plan = await this.getPlanForOrganization(organizationId);
       const limit = entitlements.maxMonthlyPosts;
-      const message =
-        plan === PlanTier.FREE
-          ? `You've reached your ${limit}-post monthly limit. Upgrade to Pro for up to ${PLAN_CONFIG[PlanTier.PRO].maxMonthlyPosts} posts per month.`
-          : `You've reached your ${limit}-post monthly limit. Your allowance resets at the start of your next billing period.`;
+      const next = NEXT_TIER[plan];
+      const message = next
+        ? `You've reached your ${limit}-post monthly limit. Upgrade to ${PLAN_CONFIG[next].displayName} for up to ${PLAN_CONFIG[next].maxMonthlyPosts} posts per month.`
+        : `You've reached your ${limit}-post monthly limit. Your allowance resets at the start of your next billing period.`;
       throw new ForbiddenException(message);
     }
   }
 }
+
+/** Which plan sits one rung above a given tier -- FREE -> PRO -> CREATOR -> AGENCY -- used to suggest an upgrade in limit-reached copy. AGENCY has nothing above it, so it's omitted (falls through to the generic "resets next period" message). */
+const NEXT_TIER: Partial<Record<PlanTier, PlanTier>> = {
+  [PlanTier.FREE]: PlanTier.PRO,
+  [PlanTier.PRO]: PlanTier.CREATOR,
+  [PlanTier.CREATOR]: PlanTier.AGENCY,
+};
