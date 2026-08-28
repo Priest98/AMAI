@@ -330,6 +330,7 @@ export class PostsService {
         select: {
           id: true,
           caption: true,
+          hashtags: true,
           postType: true,
           contentCategory: true,
           publishedAt: true,
@@ -353,6 +354,16 @@ export class PostsService {
       formatKey: string; formatLabel: string;
       categoryKey: string; categoryLabel: string;
       windowKey: string; windowLabel: string;
+      // Per-post scoring inputs (#174): caption/hook-level signals, computed
+      // straight from data already stored on the post -- no AI call, no
+      // guessing. hookKey is a coarse, deterministic classification of how
+      // the caption opens; a real hook-quality model is a much bigger,
+      // separate project, but "does it open with a question" is a real,
+      // checkable fact worth surfacing once there's enough sample to trust it.
+      captionLength: number;
+      hashtagCount: number;
+      hookKey: 'question' | 'statement';
+      hookLabel: string;
     };
     const measured: Measured[] = [];
 
@@ -382,7 +393,21 @@ export class PostsService {
       const windowKey = postingWindowBucket(hour);
       const windowLabel = POSTING_WINDOW_LABEL[windowKey];
 
-      measured.push({ id: post.id, caption: post.caption, platform, engagement, views, formatKey, formatLabel, categoryKey, categoryLabel, windowKey, windowLabel });
+      const caption = post.caption || '';
+      // "Opens with a question" -- checks the first sentence-ish chunk only
+      // (up to the first ~80 chars or the first line break), so a caption
+      // that merely mentions a question mark deep in the hashtags/body
+      // doesn't get misclassified as a question hook.
+      const openingChunk = caption.split('\n')[0].slice(0, 80);
+      const hookKey: 'question' | 'statement' = openingChunk.includes('?') ? 'question' : 'statement';
+      const hookLabel = hookKey === 'question' ? 'Question-opening captions' : 'Statement-opening captions';
+
+      measured.push({
+        id: post.id, caption, platform, engagement, views, formatKey, formatLabel, categoryKey, categoryLabel, windowKey, windowLabel,
+        captionLength: caption.length,
+        hashtagCount: Array.isArray(post.hashtags) ? post.hashtags.length : 0,
+        hookKey, hookLabel,
+      });
     }
 
     if (measured.length < MIN_MEASURED_POSTS) {
@@ -392,6 +417,7 @@ export class PostsService {
     const formatBuckets = new Map<string, EngagementBucket>();
     const categoryBuckets = new Map<string, EngagementBucket>();
     const windowBuckets = new Map<string, EngagementBucket>();
+    const hookBuckets = new Map<string, EngagementBucket>();
     const addTo = (map: Map<string, EngagementBucket>, key: string, label: string, engagement: number) => {
       const existing = map.get(key) || { key, label, totalEngagement: 0, postCount: 0 };
       existing.totalEngagement += engagement;
@@ -403,6 +429,7 @@ export class PostsService {
       addTo(formatBuckets, m.formatKey, m.formatLabel, m.engagement);
       addTo(categoryBuckets, m.categoryKey, m.categoryLabel, m.engagement);
       addTo(windowBuckets, m.windowKey, m.windowLabel, m.engagement);
+      addTo(hookBuckets, m.hookKey, m.hookLabel, m.engagement);
       overallEngagement += m.engagement;
     }
     const overallAvg = overallEngagement / measured.length;
@@ -410,13 +437,41 @@ export class PostsService {
     const formatRanked = rankBuckets(formatBuckets);
     const categoryRanked = rankBuckets(categoryBuckets);
     const windowRanked = rankBuckets(windowBuckets);
+    const hookRanked = rankBuckets(hookBuckets);
 
     const bestFormat = formatRanked[0] ?? null;
     const weakestFormat = formatRanked.length >= 2 ? formatRanked[formatRanked.length - 1] : null;
     const bestCategory = categoryRanked[0] ?? null;
     const bestWindow = windowRanked[0] ?? null;
+    // Only meaningful as a comparison between the two hook styles -- both
+    // 'question' and 'statement' need >=2 posts each (rankBuckets' own
+    // floor) for this to be a pattern instead of one caption's luck.
+    const bestHook = hookRanked.length === 2 ? hookRanked[0] : null;
 
-    const topPost = [...measured].sort((a, b) => b.engagement - a.engagement)[0];
+    const byEngagementDesc = [...measured].sort((a, b) => b.engagement - a.engagement);
+    const topPost = byEngagementDesc[0];
+
+    // Per-post scoring (#174): each measured post's engagement rank among
+    // this brand's OWN measured posts, expressed as a 0-100 score --
+    // deliberately relative, never an absolute/universal "virality score"
+    // (Oyinca has no cross-brand benchmark data to compare against, and
+    // fabricating one would violate the no-fake-data principle). Top post
+    // scores 100, the weakest measured post scores 0; ties share a score.
+    const n = byEngagementDesc.length;
+    const scoredPosts = byEngagementDesc.slice(0, 10).map((m, i) => ({
+      id: m.id,
+      caption: m.caption,
+      platform: m.platform,
+      engagement: m.engagement,
+      views: m.views,
+      score: n > 1 ? Math.round(100 - (i / (n - 1)) * 100) : 100,
+      formatLabel: m.formatLabel,
+      categoryLabel: m.categoryLabel,
+      windowLabel: m.windowLabel,
+      hookLabel: m.hookLabel,
+      captionLength: m.captionLength,
+      hashtagCount: m.hashtagCount,
+    }));
 
     const recommendationParts: string[] = [];
     if (bestFormat && bestFormat.avgEngagement > overallAvg) {
@@ -427,6 +482,9 @@ export class PostsService {
     }
     if (bestWindow) {
       recommendationParts.push(`posts published during ${bestWindow.label.toLowerCase()} tend to perform best`);
+    }
+    if (bestHook) {
+      recommendationParts.push(`${bestHook.label.toLowerCase()} average ${Math.round(bestHook.avgEngagement).toLocaleString()} engagement per post`);
     }
     const recommendation = recommendationParts.length
       ? `Based on your last ${measured.length} published posts: ${recommendationParts.join('; ')}.`
@@ -440,7 +498,10 @@ export class PostsService {
       weakestFormat: weakestFormat && { label: weakestFormat.label, avgEngagement: Math.round(weakestFormat.avgEngagement), postCount: weakestFormat.postCount },
       bestCategory: bestCategory && { label: bestCategory.label, avgEngagement: Math.round(bestCategory.avgEngagement), postCount: bestCategory.postCount },
       bestWindow: bestWindow && { label: bestWindow.label, avgEngagement: Math.round(bestWindow.avgEngagement), postCount: bestWindow.postCount },
+      bestHook: bestHook && { label: bestHook.label, avgEngagement: Math.round(bestHook.avgEngagement), postCount: bestHook.postCount },
       topPost: { id: topPost.id, caption: topPost.caption, platform: topPost.platform, engagement: topPost.engagement, views: topPost.views },
+      /** Individual post scores (top 10 by engagement), relative to this brand's own measured posts only -- see comment above. */
+      scoredPosts,
       recommendation,
     };
   }

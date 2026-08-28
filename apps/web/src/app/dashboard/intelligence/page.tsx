@@ -7,12 +7,27 @@ import Badge from '@/components/ui/Badge';
 import StatCard from '@/components/ui/StatCard';
 import { Reveal } from '@/components/ui/Reveal';
 import { brandFetch } from '@/lib/api';
-import { Gem, Layers, Tag, Clock3, TrendingDown, ArrowUpRight, Lock, Sparkles } from 'lucide-react';
+import { Gem, Layers, Tag, Clock3, TrendingDown, ArrowUpRight, Lock, Sparkles, MessageSquareText } from 'lucide-react';
 
 interface Pattern {
   label: string;
   avgEngagement: number;
   postCount: number;
+}
+
+interface ScoredPost {
+  id: string;
+  caption: string;
+  platform: string;
+  engagement: number;
+  views: number;
+  score: number;
+  formatLabel: string;
+  categoryLabel: string;
+  windowLabel: string;
+  hookLabel: string;
+  captionLength: number;
+  hashtagCount: number;
 }
 
 interface ContentIntelligence {
@@ -24,7 +39,9 @@ interface ContentIntelligence {
   weakestFormat?: Pattern | null;
   bestCategory?: Pattern | null;
   bestWindow?: Pattern | null;
+  bestHook?: Pattern | null;
   topPost?: { id: string; caption: string; platform: string; engagement: number; views: number } | null;
+  scoredPosts?: ScoredPost[];
   recommendation?: string | null;
 }
 
@@ -199,6 +216,51 @@ export default function IntelligencePage() {
                   <span>{fmt(data.topPost.engagement)} total engagement</span>
                   <ArrowUpRight className="h-3.5 w-3.5" />
                 </Link>
+              </div>
+            </Reveal>
+          )}
+
+          {data.bestHook && (
+            <Reveal delay={0.18} className="exec-card p-5 flex items-center gap-3">
+              <MessageSquareText className="h-4 w-4 shrink-0" style={{ color: 'var(--accent-secondary)' }} />
+              <p className="text-body-sm" style={{ color: 'var(--text-secondary)' }}>
+                <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{data.bestHook.label}</span>
+                {' '}average {fmt(data.bestHook.avgEngagement)} engagement per post across {data.bestHook.postCount} posts &mdash; how a caption opens seems to matter for this brand.
+              </p>
+            </Reveal>
+          )}
+
+          {data.scoredPosts && data.scoredPosts.length > 0 && (
+            <Reveal delay={0.2} className="exec-card p-5 sm:p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-h3" style={{ color: 'var(--text-primary)' }}>Post-by-post scores</h3>
+                <span className="text-caption" style={{ color: 'var(--text-muted)' }}>Relative to your own posts, 0&ndash;100</span>
+              </div>
+              <div className="space-y-2.5">
+                {data.scoredPosts.map((p) => (
+                  <div
+                    key={p.id}
+                    className="flex items-center gap-3 p-3 rounded-[var(--radius-md)]"
+                    style={{ backgroundColor: 'var(--bg-surface-raised)' }}
+                  >
+                    <div
+                      className="h-9 w-9 shrink-0 rounded-full flex items-center justify-center text-[11px] font-bold"
+                      style={{
+                        backgroundColor: p.score >= 70 ? 'var(--accent-success-subtle)' : p.score >= 40 ? 'var(--accent-warning-subtle)' : 'var(--bg-surface-sunken)',
+                        color: p.score >= 70 ? 'var(--accent-success)' : p.score >= 40 ? 'var(--accent-warning)' : 'var(--text-muted)',
+                      }}
+                    >
+                      {p.score}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-body-sm line-clamp-1 font-medium" style={{ color: 'var(--text-primary)' }}>{p.caption || '(no caption)'}</p>
+                      <p className="text-caption mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                        {p.formatLabel} · {p.categoryLabel} · {p.windowLabel} · {p.hookLabel.replace('-opening captions', ' opening')} · {p.hashtagCount} hashtags
+                      </p>
+                    </div>
+                    <span className="text-body-sm font-semibold shrink-0" style={{ color: 'var(--text-secondary)' }}>{fmt(p.engagement)}</span>
+                  </div>
+                ))}
               </div>
             </Reveal>
           )}
