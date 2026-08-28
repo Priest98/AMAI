@@ -57,6 +57,13 @@ export class BillingController {
     return this.billingService.openBillingPortal(brandId);
   }
 
+  /** Dismisses the one-time Pro/Agency activation welcome moment (see Subscription.proActivationSeenAt / GET .../billing's showProActivation). */
+  @UseGuards(JwtAuthGuard, BrandAccessGuard)
+  @Post('brands/:brandId/billing/activation-seen')
+  async markActivationSeen(@Param('brandId') brandId: string) {
+    return this.billingService.markActivationSeen(brandId);
+  }
+
   /**
    * LOCAL DEV / QA ONLY. Lets an authenticated OWNER instantly switch their
    * own organization's plan for testing Pro/Agency-gated features without a

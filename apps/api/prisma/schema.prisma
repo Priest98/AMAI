@@ -181,6 +181,14 @@ model Subscription {
   // current billing period hasn't ended yet -- Pro access stays active
   // until currentPeriodEnd, then a webhook flips this to FREE/CANCELLED.
   cancelAtPeriodEnd Boolean  @default(false)
+  // Null means "this org has upgraded to a paid plan and hasn't seen the
+  // Pro/Agency activation welcome moment yet" -- set to now() the moment
+  // they dismiss it (BillingController.markActivationSeen). Reset back to
+  // null by BillingService whenever the plan actually moves to a new,
+  // higher paid tier (Free->Pro, Free->Agency, Pro->Agency), so a genuine
+  // upgrade always gets its own welcome moment -- but NOT on a same-plan
+  // renewal webhook or a downgrade, which shouldn't replay it.
+  proActivationSeenAt DateTime? @db.Timestamptz(6)
   createdAt         DateTime @default(now()) @db.Timestamptz(6)
   updatedAt         DateTime @default(now()) @updatedAt @db.Timestamptz(6)
 

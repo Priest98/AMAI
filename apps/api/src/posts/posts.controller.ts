@@ -62,6 +62,21 @@ export class PostsController {
     return this.postsService.getPerformanceSummary(brandId);
   }
 
+  /**
+   * "Oyinca Intelligence" (Pro/Agency): real content-pattern analysis, see
+   * PostsService.getContentIntelligence for what's computed and why. Same
+   * analyticsLevel gate and locked-response shape as performance-summary
+   * above -- one entitlement, two surfaces.
+   */
+  @Get('content-intelligence')
+  async getContentIntelligence(@Param('brandId') brandId: string) {
+    const entitlements = await this.entitlementsService.getEntitlementsForBrand(brandId);
+    if (entitlements.analyticsLevel !== 'advanced') {
+      return { locked: true as const, requiredPlan: 'PRO' as const };
+    }
+    return this.postsService.getContentIntelligence(brandId);
+  }
+
   // ─────────────────────────────────────────────────────────────
   // Manual composer — Single Image / Carousel. A static 'compose' segment,
   // same reasoning as 'stats' above: declared before the dynamic :postId

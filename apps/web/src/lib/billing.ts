@@ -46,6 +46,8 @@ export interface BillingSummary {
   billingInterval: BillingInterval;
   cancelAtPeriodEnd: boolean;
   currentPeriodEnd: string | null;
+  /** True exactly once, right after a genuine upgrade to Pro/Agency, until the user dismisses the welcome moment (see ProActivationModal). */
+  showProActivation: boolean;
   entitlements: PlanEntitlements;
   usage: {
     aiGenerations: { used: number; limit: number };
@@ -80,6 +82,11 @@ export async function startCheckout(plan: 'PRO' | 'AGENCY', currency?: Currency,
 export async function openBillingPortal(): Promise<void> {
   const { url } = await brandFetch<{ url: string }>('/billing/portal', { method: 'POST' });
   window.location.href = url;
+}
+
+/** Dismisses the one-time Pro/Agency activation welcome moment -- see BillingSummary.showProActivation. */
+export async function markProActivationSeen(): Promise<void> {
+  await brandFetch('/billing/activation-seen', { method: 'POST' });
 }
 
 /**

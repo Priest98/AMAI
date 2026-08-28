@@ -23,6 +23,8 @@ import {
   Plus,
   Building2,
   Users,
+  Gem,
+  Lock,
 } from 'lucide-react';
 import { getCurrentUser, logout } from '@/lib/api';
 import { getBillingSummary } from '@/lib/billing';
@@ -30,6 +32,7 @@ import { EngineEventsProvider } from '@/lib/EngineEventsContext';
 import { OnboardingProvider } from '@/components/onboarding/OnboardingContext';
 import NotificationsBell from '@/components/dashboard/NotificationsBell';
 import ClientSwitcher from '@/components/dashboard/ClientSwitcher';
+import ProActivationModal from '@/components/dashboard/ProActivationModal';
 import { useTheme } from '@/lib/useTheme';
 import BrandAttribution from '@/components/BrandAttribution';
 
@@ -91,10 +94,19 @@ const navSections: NavSection[] = [
     title: 'Workspace',
     items: [
       { label: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
+      // Pro/Agency only (analyticsLevel: 'advanced') -- shown to every plan
+      // per the "preview the magic" principle (Free should see the surface
+      // area of Oyinca, not have it hidden outright), with a lock badge
+      // rendered inline below for whichever plan doesn't have it yet. The
+      // page itself renders a real LockedFeature preview rather than 404ing.
+      { label: 'Oyinca Intelligence', href: '/dashboard/intelligence', icon: Gem },
       { label: 'Settings', href: '/dashboard/settings', icon: Settings },
     ],
   },
 ];
+
+/** Nav items that render a small lock badge for plans without the matching entitlement -- keys are hrefs, values the plan-check to run against the fetched BillingSummary. */
+const LOCKED_NAV_HREFS = new Set(['/dashboard/intelligence']);
 
 const NAV_TOUR_IDS: Record<string, string> = {
   '/dashboard/integrations': 'nav-integrations',
@@ -122,6 +134,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // one render) is worse than a half-second delay before they appear.
   const [hasAgency, setHasAgency] = useState(false);
   const [workspaceLabel, setWorkspaceLabel] = useState('');
+  // Drives the lock badge on the "Oyinca Intelligence" nav item (see
+  // LOCKED_NAV_HREFS). Defaults to locked, same "hide until known" caution
+  // as hasAgency above -- never briefly show an unlocked item to a Free user.
+  const [analyticsLocked, setAnalyticsLocked] = useState(true);
   const { isDark: isDarkMode, toggleTheme } = useTheme();
   const [scrolled, setScrolled] = useState(false);
   // Gates rendering of the actual dashboard shell until the auth check has
@@ -154,6 +170,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       .then((b) => {
         setHasAgency(b.entitlements.clientManagement === true);
         setWorkspaceLabel(`${b.plan.toLowerCase()}_workspace`);
+        setAnalyticsLocked(b.entitlements.analyticsLevel !== 'advanced');
       })
       .catch(() => {});
   }, []);
@@ -209,6 +226,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       }`}
       style={{ backgroundColor: 'var(--bg-base)', color: 'var(--text-primary)' }}
     >
+      <ProActivationModal />
+
       {/* ── 1. Floating "Dynamic Island" Top Navigation ──
           Same floating glass-pill language as the landing page's Nav.tsx:
           rounded-full, inset margins, blur/border/shadow, and a tightened
@@ -334,20 +353,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       {section.items.map((item) => {
                         const isActive = pathname === item.href;
                         const Icon = item.icon;
+                        const isLocked = LOCKED_NAV_HREFS.has(item.href) && analyticsLocked;
                         return (
                           <Link
                             key={item.label}
                             href={item.href}
                             data-tour={NAV_TOUR_IDS[item.href]}
                             onClick={() => setIsMobileOpen(false)}
-                            className="flex items-center space-x-3 px-3 py-2.5 rounded-[var(--radius-md)] text-body-sm font-semibold transition-all duration-200 touch-target"
+                            className="flex items-center justify-between px-3 py-2.5 rounded-[var(--radius-md)] text-body-sm font-semibold transition-all duration-200 touch-target"
                             style={{
                               backgroundColor: isActive ? 'var(--accent-secondary-subtle)' : 'transparent',
                               color: isActive ? 'var(--accent-secondary)' : 'var(--text-secondary)',
                             }}
                           >
-                            <Icon className="h-4 w-4" style={{ color: isActive ? 'var(--accent-secondary)' : 'var(--text-muted)' }} />
-                            <span>{item.label}</span>
+                            <span className="flex items-center space-x-3">
+                              <Icon className="h-4 w-4" style={{ color: isActive ? 'var(--accent-secondary)' : 'var(--text-muted)' }} />
+                              <span>{item.label}</span>
+                            </span>
+                            {isLocked && <Lock className="h-3 w-3" style={{ color: 'var(--text-muted)' }} />}
                           </Link>
                         );
                       })}
@@ -411,12 +434,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     {section.items.map((item) => {
                       const isActive = pathname === item.href;
                       const Icon = item.icon;
+                      const isLocked = LOCKED_NAV_HREFS.has(item.href) && analyticsLocked;
                       return (
                         <Link
                           key={item.label}
                           href={item.href}
                           data-tour={NAV_TOUR_IDS[item.href]}
-                          className="flex items-center space-x-2.5 px-3 py-2.5 rounded-[var(--radius-md)] text-body-sm font-semibold transition-all duration-200"
+                          className="flex items-center justify-between px-3 py-2.5 rounded-[var(--radius-md)] text-body-sm font-semibold transition-all duration-200"
                           style={{
                             backgroundColor: isActive ? 'var(--accent-secondary-subtle)' : 'transparent',
                             color: isActive ? 'var(--accent-secondary)' : 'var(--text-secondary)',
@@ -424,8 +448,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                           onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = 'var(--hover-surface)'; }}
                           onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = 'transparent'; }}
                         >
-                          <Icon className="h-4 w-4 flex-shrink-0" style={{ color: isActive ? 'var(--accent-secondary)' : 'var(--text-muted)' }} />
-                          <span className="truncate tracking-tight">{item.label}</span>
+                          <span className="flex items-center space-x-2.5 min-w-0">
+                            <Icon className="h-4 w-4 flex-shrink-0" style={{ color: isActive ? 'var(--accent-secondary)' : 'var(--text-muted)' }} />
+                            <span className="truncate tracking-tight">{item.label}</span>
+                          </span>
+                          {isLocked && <Lock className="h-3 w-3 flex-shrink-0" style={{ color: 'var(--text-muted)' }} />}
                         </Link>
                       );
                     })}

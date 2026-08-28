@@ -1,8 +1,46 @@
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PublishingService } from '../queue/publishing.service';
-import { MediaStatus, PostStatus, TargetStatus } from '@prisma/client';
+import { MediaStatus, PostStatus, TargetStatus, PostType } from '@prisma/client';
 import { CreatePostDto } from './dto';
+
+const CONTENT_CATEGORY_LABEL: Record<string, string> = {
+  promotional: 'Promotional',
+  educational: 'Educational',
+  behind_the_scenes: 'Behind the Scenes',
+  product: 'Product Showcase',
+  general: 'General',
+};
+
+const POSTING_WINDOW_LABEL: Record<string, string> = {
+  night: 'Late night (9pm-5am)',
+  morning: 'Mornings (5am-12pm)',
+  afternoon: 'Afternoons (12pm-5pm)',
+  evening: 'Evenings (5pm-9pm)',
+};
+
+/** Bucket an hour-of-day (0-23, already in the brand's own configured time zone) into one of four broad posting windows. */
+function postingWindowBucket(hour: number): keyof typeof POSTING_WINDOW_LABEL {
+  if (hour >= 5 && hour < 12) return 'morning';
+  if (hour >= 12 && hour < 17) return 'afternoon';
+  if (hour >= 17 && hour < 21) return 'evening';
+  return 'night';
+}
+
+interface EngagementBucket {
+  key: string;
+  label: string;
+  totalEngagement: number;
+  postCount: number;
+}
+
+/** Sum(engagement)/count for every bucket, sorted best-first. Only buckets with at least 2 posts are eligible to be reported as a "best"/"weakest" pattern -- a single post is an anecdote, not a pattern. */
+function rankBuckets(buckets: Map<string, EngagementBucket>): (EngagementBucket & { avgEngagement: number })[] {
+  return Array.from(buckets.values())
+    .filter((b) => b.postCount >= 2)
+    .map((b) => ({ ...b, avgEngagement: b.totalEngagement / b.postCount }))
+    .sort((a, b) => b.avgEngagement - a.avgEngagement);
+}
 
 // Vercel Cron on this plan only fires /api/cron/publish-due once a day
 // (see vercel.json), which left genuinely-due posts sitting in SCHEDULED
@@ -269,6 +307,141 @@ export class PostsService {
       comments: totalComments,
       shares: totalShares,
       topPost,
+    };
+  }
+
+  /**
+   * Oyinca Intelligence (Pro/Agency): real content-pattern analysis over
+   * this brand's own published, measured posts. No LLM call, no invented
+   * numbers -- purely deterministic aggregation (same spirit as
+   * getCalendarInsights), reusing performance data MetricsService's sync
+   * cron already captured. Deliberately conservative: a bucket only ever
+   * gets reported as a "best"/"weakest" pattern once it has >= 2 posts
+   * (rankBuckets), and the whole thing declines to draw any conclusion at
+   * all below MIN_MEASURED_POSTS -- a "best format" computed from 2
+   * lifetime posts would be a coin flip dressed up as insight.
+   */
+  async getContentIntelligence(brandId: string) {
+    const MIN_MEASURED_POSTS = 5;
+
+    const [posts, engineConfig] = await Promise.all([
+      this.prisma.post.findMany({
+        where: { brandId, status: PostStatus.PUBLISHED, publishedAt: { not: null } },
+        select: {
+          id: true,
+          caption: true,
+          postType: true,
+          contentCategory: true,
+          publishedAt: true,
+          media: { take: 1, orderBy: { order: 'asc' }, select: { asset: { select: { mimeType: true } } } },
+          targets: {
+            where: { status: TargetStatus.PUBLISHED, providerPostId: { not: null } },
+            select: {
+              platform: true,
+              performanceSnapshots: { orderBy: { capturedAt: 'desc' }, take: 1 },
+            },
+          },
+        },
+      }),
+      this.prisma.amaiEngineConfig.findUnique({ where: { brandId }, select: { timeZone: true } }),
+    ]);
+
+    const timeZone = engineConfig?.timeZone || 'UTC';
+
+    type Measured = {
+      id: string; caption: string; platform: string; engagement: number; views: number;
+      formatKey: string; formatLabel: string;
+      categoryKey: string; categoryLabel: string;
+      windowKey: string; windowLabel: string;
+    };
+    const measured: Measured[] = [];
+
+    for (const post of posts) {
+      let views = 0, likes = 0, comments = 0, shares = 0, hasSnapshot = false, platform = 'TIKTOK';
+      for (const target of post.targets) {
+        const snap = target.performanceSnapshots[0];
+        if (!snap) continue;
+        hasSnapshot = true;
+        views += snap.views; likes += snap.likes; comments += snap.comments; shares += snap.shares;
+        platform = target.platform;
+      }
+      if (!hasSnapshot) continue;
+
+      const engagement = views + likes + comments + shares;
+      const isVideo = post.media[0]?.asset?.mimeType?.startsWith('video/') ?? true;
+      const formatKey = post.postType === PostType.CAROUSEL ? 'carousel' : isVideo ? 'video' : 'image';
+      const formatLabel = post.postType === PostType.CAROUSEL ? 'Carousels' : isVideo ? 'Videos' : 'Single images';
+
+      const categoryKey = post.contentCategory || 'general';
+      const categoryLabel = CONTENT_CATEGORY_LABEL[categoryKey] || CONTENT_CATEGORY_LABEL.general;
+
+      // Hour-of-day in the brand's own configured time zone, not server UTC.
+      const hour = Number(
+        new Intl.DateTimeFormat('en-US', { hour: 'numeric', hour12: false, timeZone }).format(post.publishedAt!),
+      ) % 24;
+      const windowKey = postingWindowBucket(hour);
+      const windowLabel = POSTING_WINDOW_LABEL[windowKey];
+
+      measured.push({ id: post.id, caption: post.caption, platform, engagement, views, formatKey, formatLabel, categoryKey, categoryLabel, windowKey, windowLabel });
+    }
+
+    if (measured.length < MIN_MEASURED_POSTS) {
+      return { hasEnoughData: false as const, measuredCount: measured.length, minRequired: MIN_MEASURED_POSTS };
+    }
+
+    const formatBuckets = new Map<string, EngagementBucket>();
+    const categoryBuckets = new Map<string, EngagementBucket>();
+    const windowBuckets = new Map<string, EngagementBucket>();
+    const addTo = (map: Map<string, EngagementBucket>, key: string, label: string, engagement: number) => {
+      const existing = map.get(key) || { key, label, totalEngagement: 0, postCount: 0 };
+      existing.totalEngagement += engagement;
+      existing.postCount += 1;
+      map.set(key, existing);
+    };
+    let overallEngagement = 0;
+    for (const m of measured) {
+      addTo(formatBuckets, m.formatKey, m.formatLabel, m.engagement);
+      addTo(categoryBuckets, m.categoryKey, m.categoryLabel, m.engagement);
+      addTo(windowBuckets, m.windowKey, m.windowLabel, m.engagement);
+      overallEngagement += m.engagement;
+    }
+    const overallAvg = overallEngagement / measured.length;
+
+    const formatRanked = rankBuckets(formatBuckets);
+    const categoryRanked = rankBuckets(categoryBuckets);
+    const windowRanked = rankBuckets(windowBuckets);
+
+    const bestFormat = formatRanked[0] ?? null;
+    const weakestFormat = formatRanked.length >= 2 ? formatRanked[formatRanked.length - 1] : null;
+    const bestCategory = categoryRanked[0] ?? null;
+    const bestWindow = windowRanked[0] ?? null;
+
+    const topPost = [...measured].sort((a, b) => b.engagement - a.engagement)[0];
+
+    const recommendationParts: string[] = [];
+    if (bestFormat && bestFormat.avgEngagement > overallAvg) {
+      recommendationParts.push(`${bestFormat.label} average ${Math.round(bestFormat.avgEngagement).toLocaleString()} engagement per post (your overall average is ${Math.round(overallAvg).toLocaleString()})`);
+    }
+    if (bestCategory) {
+      recommendationParts.push(`${bestCategory.label} is your strongest-performing topic`);
+    }
+    if (bestWindow) {
+      recommendationParts.push(`posts published during ${bestWindow.label.toLowerCase()} tend to perform best`);
+    }
+    const recommendation = recommendationParts.length
+      ? `Based on your last ${measured.length} published posts: ${recommendationParts.join('; ')}.`
+      : null;
+
+    return {
+      hasEnoughData: true as const,
+      measuredCount: measured.length,
+      overallAvgEngagement: Math.round(overallAvg),
+      bestFormat: bestFormat && { label: bestFormat.label, avgEngagement: Math.round(bestFormat.avgEngagement), postCount: bestFormat.postCount },
+      weakestFormat: weakestFormat && { label: weakestFormat.label, avgEngagement: Math.round(weakestFormat.avgEngagement), postCount: weakestFormat.postCount },
+      bestCategory: bestCategory && { label: bestCategory.label, avgEngagement: Math.round(bestCategory.avgEngagement), postCount: bestCategory.postCount },
+      bestWindow: bestWindow && { label: bestWindow.label, avgEngagement: Math.round(bestWindow.avgEngagement), postCount: bestWindow.postCount },
+      topPost: { id: topPost.id, caption: topPost.caption, platform: topPost.platform, engagement: topPost.engagement, views: topPost.views },
+      recommendation,
     };
   }
 

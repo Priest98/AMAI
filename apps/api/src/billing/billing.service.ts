@@ -59,14 +59,21 @@ export class BillingService {
       this.prisma.brand.count({ where: { organizationId } }),
     ]);
 
+    const effectivePlan = this.entitlementsService.effectivePlan(subscription);
     return {
-      plan: this.entitlementsService.effectivePlan(subscription),
+      plan: effectivePlan,
       subscribedPlan: subscription.plan,
       status: subscription.status,
       currency: subscription.currency as SupportedCurrency,
       billingInterval: subscription.billingInterval,
       cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
       currentPeriodEnd: subscription.currentPeriodEnd,
+      // Drives the one-time "Welcome to Pro/Agency" activation moment (see
+      // Subscription.proActivationSeenAt's own doc comment for the full
+      // reset rules). effectivePlan, not the raw subscribedPlan, so a
+      // lapsed subscription that's fallen back to FREE access never shows
+      // an upgrade celebration it's no longer entitled to.
+      showProActivation: effectivePlan !== PlanTier.FREE && subscription.proActivationSeenAt === null,
       entitlements,
       usage: {
         aiGenerations: { used: usage.AI_GENERATION, limit: entitlements.maxMonthlyAiGenerations },
@@ -134,12 +141,27 @@ export class BillingService {
   /** LOCAL DEV / QA ONLY -- see the NODE_ENV guard in BillingController.devSetPlan, the actual enforcement point. */
   async devSetPlan(brandId: string, plan: PlanTier) {
     const organizationId = await this.entitlementsService.getOrganizationIdForBrand(brandId);
+    const existing = await this.prisma.subscription.findUnique({ where: { organizationId } });
+    // Same "reset on genuine upgrade" rule as the real webhook path, so the
+    // activation moment is actually testable locally without a payment
+    // provider.
+    const resetActivation = plan !== PlanTier.FREE && plan !== existing?.plan;
     const subscription = await this.prisma.subscription.upsert({
       where: { organizationId },
-      update: { plan, status: SubscriptionStatus.ACTIVE },
+      update: { plan, status: SubscriptionStatus.ACTIVE, ...(resetActivation ? { proActivationSeenAt: null } : {}) },
       create: { organizationId, plan, status: SubscriptionStatus.ACTIVE },
     });
     return { organizationId, plan: subscription.plan, status: subscription.status };
+  }
+
+  /** Called once the user dismisses the Pro/Agency activation welcome moment (see Subscription.proActivationSeenAt). */
+  async markActivationSeen(brandId: string) {
+    const organizationId = await this.entitlementsService.getOrganizationIdForBrand(brandId);
+    await this.prisma.subscription.update({
+      where: { organizationId },
+      data: { proActivationSeenAt: new Date() },
+    });
+    return { ok: true };
   }
 
   async openBillingPortal(brandId: string) {
@@ -245,6 +267,11 @@ export class BillingService {
     }
 
     const status = SubscriptionStatus[normalized.status];
+    // A genuine upgrade (moving to a *different*, non-FREE plan -- covers
+    // Free->Pro, Free->Agency, and Pro->Agency) gets a fresh activation
+    // welcome moment; a same-plan renewal webhook or a downgrade doesn't
+    // replay it. See Subscription.proActivationSeenAt's doc comment.
+    const isUpgrade = normalized.plan !== PlanTier.FREE && normalized.plan !== existing.plan;
     await this.prisma.subscription.update({
       where: { id: existing.id },
       data: {
@@ -258,6 +285,7 @@ export class BillingService {
         currentPeriodStart: normalized.currentPeriodStart,
         currentPeriodEnd: normalized.currentPeriodEnd,
         cancelAtPeriodEnd: normalized.cancelAtPeriodEnd,
+        ...(isUpgrade ? { proActivationSeenAt: null } : {}),
       },
     });
 
