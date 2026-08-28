@@ -427,7 +427,17 @@ export class EngineService {
     let hashtags: string[];
     let connectedAccounts: { id: string; platform: Platform }[] = [];
     try {
-      if (!isVideo && asset.blobUrl) {
+      if (asset.visionTopic) {
+        // Cost/caching fix (#175): a prior run of this exact pipeline (e.g.
+        // one that got this far, then failed on caption/hashtag generation
+        // and was retried) may have already paid for a real vision call on
+        // this asset -- visionTopic is only ever written from an actual
+        // Gemini vision result (never the filename fallback, see below), so
+        // reusing it here is reusing a real prior analysis, not skipping a
+        // step. The image's content doesn't change between runs, so a
+        // second vision call would be paying twice for the same answer.
+        topic = asset.visionTopic;
+      } else if (!isVideo && asset.blobUrl) {
         const visionTopic = await this.aiService.analyzeImage(asset.blobUrl, brandId, 'amai_engine');
         topic = visionTopic || this.deriveTopicFromFilename(asset.filename, asset.batchName);
         // Content-library intelligence: persist the real vision output onto
@@ -755,16 +765,24 @@ export class EngineService {
       // item happens to be a video, this always falls back to the
       // filename-based heuristic rather than feeding a video URL to an
       // image-analysis call.
-      const visionTopic = !primaryIsVideo && primaryAsset.blobUrl
-        ? await this.aiService.analyzeImage(primaryAsset.blobUrl, brandId, 'amai_engine')
-        : null;
+      // Cost/caching fix (#175): reuse a prior real vision result for the
+      // primary asset if one's already persisted (e.g. it was already
+      // analyzed by processMediaAsset's own pipeline, or an earlier attempt
+      // at composing this same asset) instead of paying for a second
+      // identical vision call -- same reasoning as processMediaAsset's own
+      // visionTopic reuse above.
+      const visionTopic = primaryAsset.visionTopic
+        || (!primaryIsVideo && primaryAsset.blobUrl
+          ? await this.aiService.analyzeImage(primaryAsset.blobUrl, brandId, 'amai_engine')
+          : null);
       topic = visionTopic || this.deriveTopicFromFilename(primaryAsset.filename, primaryAsset.batchName);
       // Content-library intelligence: only the primary asset was actually
       // vision-analyzed (see the comment above on why one call stands in for
       // the whole collection), so only its row gets a visionTopic -- the
       // other carousel items correctly stay null rather than being credited
-      // with an analysis that was never run on them specifically.
-      if (visionTopic) {
+      // with an analysis that was never run on them specifically. Skipped
+      // entirely when visionTopic was already persisted (nothing new to save).
+      if (visionTopic && !primaryAsset.visionTopic) {
         this.prisma.mediaAsset
           .update({ where: { id: primaryAsset.id }, data: { visionTopic, visionAnalyzedAt: new Date() } })
           .catch((e) => this.logger.warn(`[${primaryAsset.id}] Failed to persist vision analysis: ${e?.message || e}`));
