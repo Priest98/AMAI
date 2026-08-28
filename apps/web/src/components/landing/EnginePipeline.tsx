@@ -48,7 +48,7 @@ export default function EnginePipeline() {
             Watch the engine actually work
           </h2>
           <p className="mt-4 text-base" style={{ color: 'var(--lp-text-secondary)' }}>
-            This is the real pipeline every upload goes through — not a mockup.
+            This is the real pipeline every upload goes through, not a mockup.
           </p>
         </Reveal>
 

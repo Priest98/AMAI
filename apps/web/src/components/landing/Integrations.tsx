@@ -27,7 +27,7 @@ const INTEGRATIONS = [
   {
     icon: HardDrive,
     name: 'Google Drive',
-    description: 'Point Oyinca at a watched folder — new media is picked up automatically.',
+    description: 'Point Oyinca at a watched folder, and new media is picked up automatically.',
     accent: 'var(--lp-cyan)',
   },
 ];

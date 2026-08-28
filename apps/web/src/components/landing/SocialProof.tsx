@@ -14,7 +14,7 @@ export default function SocialProof() {
       <div className="max-w-3xl mx-auto px-5 sm:px-8 text-center">
         <Reveal>
           <p className="text-sm sm:text-base font-medium" style={{ color: 'var(--lp-text-muted)' }}>
-            Built for businesses that want to grow — without spending all day posting.
+            Built for businesses that want to grow without spending all day posting.
           </p>
         </Reveal>
       </div>

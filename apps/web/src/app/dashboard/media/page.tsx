@@ -463,7 +463,7 @@ export default function MediaLibraryPage() {
         method: 'POST',
         body: JSON.stringify({ mediaAssetIds: carouselItems.map((i) => i.id), postType: 'CAROUSEL' }),
       });
-      setComposeMessage({ text: `Carousel post created with ${carouselItems.length} items — it's ready for your review in the Approval Queue.`, type: 'success' });
+      setComposeMessage({ text: `Carousel post created with ${carouselItems.length} items. It's ready for your review in the Approval Queue.`, type: 'success' });
       setCarouselItems([]);
       fetchMediaAssets();
     } catch (e: any) {
@@ -528,7 +528,7 @@ export default function MediaLibraryPage() {
 
         {composerMode === 'single' ? (
           <p className="text-[11px] -mt-2" style={{ color: 'var(--text-secondary)' }}>
-            Each file becomes its own post automatically — 1 image, 1 caption, 1 hashtag set.
+            Each file becomes its own post automatically: 1 image, 1 caption, 1 hashtag set.
           </p>
         ) : (
           <p className="text-[11px] -mt-2" style={{ color: 'var(--text-secondary)' }}>
@@ -645,7 +645,7 @@ export default function MediaLibraryPage() {
 
             <div className="flex items-center justify-between pt-1">
               <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                {carouselItems.length < 2 ? 'Add at least 2 items to create a carousel post.' : 'Items publish in this order — TikTok requires all-photo carousels or a single video.'}
+                {carouselItems.length < 2 ? 'Add at least 2 items to create a carousel post.' : 'Items publish in this order. TikTok requires all-photo carousels or a single video.'}
               </p>
               <button
                 onClick={handleComposeCarousel}

@@ -75,7 +75,7 @@ export class AuthService {
           </tr>
           <tr>
             <td align="left" style="padding-bottom: 24px; font-size: 14px; line-height: 1.6; color: #94A3B8;">
-              Thank you for signing up for Oyinca—the AI Operating System for Social Media Automation. You're one step away from transforming your content pipeline. Please verify your email address below to activate your account.
+              Thank you for signing up for Oyinca, the AI Operating System for Social Media Automation. You're one step away from transforming your content pipeline. Please verify your email address below to activate your account.
             </td>
           </tr>
           <tr>
@@ -116,7 +116,7 @@ export class AuthService {
           </tr>
           <tr>
             <td align="left" style="padding-top: 24px; border-top: 1px solid rgba(255, 255, 255, 0.08); font-size: 12px; line-height: 1.5; color: #64748B;">
-              If you didn't request this, you can safely ignore this email — your password will not be changed.
+              If you didn't request this, you can safely ignore this email. Your password will not be changed.
             </td>
           </tr>
     `);
@@ -212,7 +212,7 @@ export class AuthService {
     const verificationUrl = `${appUrl}/verify-email?token=${verificationToken}`;
 
     const emailHtml = this.generateWelcomeEmailHtml(user.fullName || 'Creator', verificationUrl);
-    await this.emailService.sendEmail(user.email, 'Welcome to Oyinca 🚀 — verify your email', emailHtml);
+    await this.emailService.sendEmail(user.email, 'Welcome to Oyinca 🚀 Verify your email', emailHtml);
 
     return {
       success: true,

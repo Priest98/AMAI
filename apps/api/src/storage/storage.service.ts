@@ -42,7 +42,7 @@ export class StorageService {
     } catch (error: any) {
       this.logger.error(`Storage upload error: ${error?.message || error}`);
       throw new InternalServerErrorException(
-        'We could not upload that file to storage. Please try again — if this keeps happening, the file may be too large or an unsupported format.',
+        'We could not upload that file to storage. Please try again. If this keeps happening, the file may be too large or an unsupported format.',
       );
     }
   }

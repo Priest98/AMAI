@@ -32,7 +32,7 @@ export function ContentScoreCard({
   suggestions,
 }: ContentScoreCardProps) {
   const displayTips = tips || suggestions || [];
-  const displaySummary = recommendation || summary || "High engagement potential — good hook and hashtag density.";
+  const displaySummary = recommendation || summary || "High engagement potential: good hook and hashtag density.";
 
   return (
     <div className="surface-tile rounded-xl p-5 border space-y-3" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)' }}>

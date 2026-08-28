@@ -180,8 +180,8 @@ export class EngineService {
     });
     await this.logEvent(brandId, EngineEventType.ENGINE_STATE_CHANGED, {
       message: state === EngineState.ACTIVE
-        ? 'Oyinca is now Active — preparing and publishing content automatically.'
-        : 'Oyinca is now Paused — content will still be prepared, but nothing publishes until approved.',
+        ? 'Oyinca is now Active. Preparing and publishing content automatically.'
+        : 'Oyinca is now Paused. Content will still be prepared, but nothing publishes until approved.',
     });
     return updated;
   }
@@ -239,7 +239,7 @@ export class EngineService {
     });
 
     await this.logEvent(brandId, EngineEventType.POSTING_SCHEDULE_UPDATED, {
-      message: `Posting Schedule updated — ${updated.postsPerDay} post${updated.postsPerDay === 1 ? '' : 's'}/day, ${updated.schedulingPlatform.toLowerCase()}, starting ${updated.scheduleStartFrom.toLowerCase()}.`,
+      message: `Posting Schedule updated: ${updated.postsPerDay} post${updated.postsPerDay === 1 ? '' : 's'}/day, ${updated.schedulingPlatform.toLowerCase()}, starting ${updated.scheduleStartFrom.toLowerCase()}.`,
     });
 
     return updated;
@@ -271,8 +271,8 @@ export class EngineService {
     });
     await this.logEvent(brandId, EngineEventType.APPROVAL_MODE_CHANGED, {
       message: approvalMode === ApprovalMode.AUTO
-        ? 'Auto Approval enabled — new posts will publish automatically at the AI-selected best time.'
-        : 'Manual Approval enabled — new posts will wait in the Approval Queue.',
+        ? 'Auto Approval enabled. New posts will publish automatically at the AI-selected best time.'
+        : 'Manual Approval enabled. New posts will wait in the Approval Queue.',
     });
     return updated;
   }
@@ -976,7 +976,7 @@ export class EngineService {
 
     await this.logEvent(brandId, EngineEventType.POST_APPROVED, {
       postId,
-      message: overrides?.publishNow ? 'Post approved — publishing now.' : 'Post approved and scheduled.',
+      message: overrides?.publishNow ? 'Post approved, publishing now.' : 'Post approved and scheduled.',
     });
 
     if (overrides?.publishNow) {
@@ -1174,14 +1174,14 @@ export class EngineService {
       });
       issues.push(
         anyConnected > 0
-          ? 'No platform is selected for this post — choose at least one connected account.'
-          : 'No social account is connected for this brand yet — connect one in Integrations first.',
+          ? 'No platform is selected for this post. Choose at least one connected account.'
+          : 'No social account is connected for this brand yet. Connect one in Integrations first.',
       );
     } else {
       for (const target of targets) {
         const health = deriveConnectionHealth(target.socialAccount);
         if (health.health === 'REAUTH_REQUIRED' && !target.socialAccount.refreshToken) {
-          issues.push(`${target.platform} needs to be reconnected before this post can publish — reconnect it in Integrations.`);
+          issues.push(`${target.platform} needs to be reconnected before this post can publish. Reconnect it in Integrations.`);
         }
       }
     }

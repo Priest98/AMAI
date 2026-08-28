@@ -88,7 +88,7 @@ export default function AdminPricingPage() {
                               {interval === 'MONTHLY' ? 'Monthly' : 'Annual'}
                             </p>
                             <p className="text-body-sm font-bold" style={{ color: 'var(--text-primary)' }}>
-                              {row?.newUserAmount != null ? formatPrice(row.newUserAmount, currency) : row?.regularAmount != null ? formatPrice(row.regularAmount, currency) : '—'}
+                              {row?.newUserAmount != null ? formatPrice(row.newUserAmount, currency) : row?.regularAmount != null ? formatPrice(row.regularAmount, currency) : 'N/A'}
                             </p>
                             {row?.regularAmount != null && row.newUserAmount != null && row.newUserAmount !== row.regularAmount && (
                               <p className="text-caption line-through" style={{ color: 'var(--text-muted)' }}>

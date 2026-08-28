@@ -39,7 +39,7 @@ export default function ApprovalControlSection() {
 
         <Reveal delay={0.3} className="mt-10 text-center">
           <p className="text-sm font-medium" style={{ color: 'var(--lp-text-muted)' }}>
-            AI should save you time — not take away your control.
+            AI should save you time, not take away your control.
           </p>
         </Reveal>
       </div>

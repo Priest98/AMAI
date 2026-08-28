@@ -724,7 +724,7 @@ export default function SettingsPage() {
                   />
                 </BrainField>
 
-                <BrainField id="bb-banned-phrases" label="Never use these words or phrases" optional helper="Exact wording to avoid — different from topics above, which are subjects, not specific words.">
+                <BrainField id="bb-banned-phrases" label="Never use these words or phrases" optional helper="Exact wording to avoid. Different from topics above, which are subjects, not specific words.">
                   <input
                     id="bb-banned-phrases"
                     aria-describedby="bb-banned-phrases-helper"

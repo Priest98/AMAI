@@ -1018,7 +1018,7 @@ export class PublishingService {
         await new Promise((resolve) => setTimeout(resolve, 6000));
       }
     }
-    throw new Error('Instagram is still processing this media — it will be retried automatically on the next publish pass.');
+    throw new Error('Instagram is still processing this media. It will be retried automatically on the next publish pass.');
   }
 
   /**

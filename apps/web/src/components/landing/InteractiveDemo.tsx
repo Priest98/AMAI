@@ -67,12 +67,12 @@ export default function InteractiveDemo() {
     <section id="demo" className="relative py-24 sm:py-32" aria-label="Interactive demo">
       <div className="max-w-4xl mx-auto px-5 sm:px-8">
         <Reveal className="text-center max-w-2xl mx-auto">
-          <Eyebrow>Try It — No Account Needed</Eyebrow>
+          <Eyebrow>Try It, No Account Needed</Eyebrow>
           <h2 className="lp-heading mt-5 text-3xl sm:text-4xl font-bold tracking-tight">
             See the engine run, right here
           </h2>
           <p className="mt-4 text-sm" style={{ color: 'var(--lp-text-secondary)' }}>
-            This is a simulated walkthrough — nothing is uploaded or stored. Your real content
+            This is a simulated walkthrough. Nothing is uploaded or stored. Your real content
             gets the exact same pipeline once you sign up.
           </p>
         </Reveal>
@@ -207,7 +207,7 @@ export default function InteractiveDemo() {
                       style={{ color: 'var(--lp-success)' }}
                     >
                       <CheckCircle2 className="h-4.5 w-4.5" />
-                      Added to your Approval Queue — ready for a real review.
+                      Added to your Approval Queue, ready for a real review.
                     </motion.div>
                   )}
                 </AnimatePresence>

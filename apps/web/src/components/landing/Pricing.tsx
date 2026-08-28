@@ -240,7 +240,7 @@ export default function Pricing({ initialData }: { initialData?: PlansResponse |
                     </div>
                   ) : (
                     <div className="flex items-baseline gap-1">
-                      <span className="lp-heading text-4xl font-bold">{price?.regularMonthly != null ? formatPrice(price.regularMonthly, currency) : '—'}</span>
+                      <span className="lp-heading text-4xl font-bold">{price?.regularMonthly != null ? formatPrice(price.regularMonthly, currency) : 'N/A'}</span>
                       <span className="text-sm" style={{ color: 'var(--lp-text-muted)' }}>/month</span>
                     </div>
                   )}
