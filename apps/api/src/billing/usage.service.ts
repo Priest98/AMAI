@@ -113,4 +113,21 @@ export class UsageService {
     const current = await this.getUsage(organizationId, metric);
     return { allowed: false, used: current };
   }
+
+  /**
+   * Refunds one unit reserved by incrementIfUnderLimit() when the work it
+   * was guarding then fails (e.g. a reserved AI-generation slot where the
+   * actual AI call errors out afterward) -- a rejected/failed attempt
+   * shouldn't permanently burn quota. Floors at 0 via the `count > 0` guard
+   * so a decrement that races a period rollover (rare: this period's row
+   * genuinely reaches 0, or doesn't exist yet) is a safe no-op instead of
+   * going negative.
+   */
+  async decrement(organizationId: string, metric: UsageMetric): Promise<void> {
+    const { start } = this.getCurrentPeriod();
+    await this.prisma.usageRecord.updateMany({
+      where: { organizationId, metric, periodStart: start, count: { gt: 0 } },
+      data: { count: { decrement: 1 } },
+    });
+  }
 }

@@ -171,10 +171,59 @@ export class EntitlementsService {
     }
   }
 
-  /** Convenience wrapper for the AI generation counter -- call after a generation actually succeeds, never before (a rejected/failed generation shouldn't burn quota). */
+  /**
+   * Legacy convenience wrapper -- still used nowhere as of this fix, kept
+   * only in case a future call site genuinely wants "record after success"
+   * semantics without needing the release path below. Prefer
+   * reserveAiGeneration()/releaseAiGeneration() for anything gating real AI
+   * spend; this plain increment has no under-limit check and is not
+   * concurrency-safe against reserveAiGeneration() on its own (each is
+   * atomic individually, but this one never checks the limit at all).
+   */
   async recordAiGeneration(organizationId: string): Promise<void> {
     const sub = await this.getSubscription(organizationId);
     await this.usageService.increment(organizationId, UsageMetric.AI_GENERATION, sub.id);
+  }
+
+  /**
+   * Atomic replacement for the old "canPerformAction('generate_ai_content')
+   * (read) now, recordAiGeneration() (write) later, after the AI call
+   * succeeds" two-step -- the exact same race class reservePostSlot()
+   * already closed for posts: two concurrent AI-triggering requests for the
+   * same org could both read "under limit" before either write landed,
+   * letting the org exceed its monthly AI quota by however many requests
+   * raced. Call this BEFORE the AI provider call it's guarding (reserves
+   * the credit immediately, atomically, via
+   * UsageService.incrementIfUnderLimit -- same Postgres
+   * INSERT...ON CONFLICT...WHERE idiom used there), and call
+   * releaseAiGeneration() with the returned organizationId if that AI call
+   * then fails, so a failed attempt still doesn't permanently burn quota.
+   *
+   * Throws ForbiddenException with plan-specific copy when already at the
+   * monthly limit -- callers should let it propagate, same convention as
+   * reservePostSlot().
+   */
+  async reserveAiGeneration(brandId: string): Promise<string> {
+    const organizationId = await this.getOrganizationIdForBrand(brandId);
+    const [entitlements, sub] = await Promise.all([
+      this.getEntitlementsForOrganization(organizationId),
+      this.getSubscription(organizationId),
+    ]);
+    const result = await this.usageService.incrementIfUnderLimit(
+      organizationId,
+      UsageMetric.AI_GENERATION,
+      entitlements.maxMonthlyAiGenerations,
+      sub.id,
+    );
+    if (!result.allowed) {
+      throw new ForbiddenException(`You've reached your ${entitlements.displayName} plan's monthly AI generation limit.`);
+    }
+    return organizationId;
+  }
+
+  /** Refunds a reservation made by reserveAiGeneration() -- call when the AI call it was guarding fails, so the org's quota reflects only generations that actually happened. */
+  async releaseAiGeneration(organizationId: string): Promise<void> {
+    await this.usageService.decrement(organizationId, UsageMetric.AI_GENERATION);
   }
 
   /**

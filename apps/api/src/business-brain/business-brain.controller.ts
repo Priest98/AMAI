@@ -67,15 +67,27 @@ export class BusinessBrainController {
     if (!context) {
       return { ideas: [], reason: 'Fill in your Business Brain first so ideas are grounded in your actual business.' };
     }
-    const ideas = await this.aiService.generateContentIdeas(brandId, 'amai_engine', context, brain.contentPillars);
+    // Race-condition fix: @RequireEntitlement above is a read-only
+    // pre-check (fast, clear 403 for the obviously-over-limit case) but was
+    // the only thing standing between this and the same two-step
+    // check-then-record race reservePostSlot()/reserveAiGeneration() closed
+    // elsewhere -- two concurrent requests could both pass that guard
+    // before either write landed. reserveAiGeneration() is the atomic,
+    // race-safe enforcement point; the guard above is now purely a UX
+    // fast-fail, not the real gate.
+    const organizationId = await this.entitlementsService.reserveAiGeneration(brandId);
+    let ideas: Awaited<ReturnType<typeof this.aiService.generateContentIdeas>>;
+    try {
+      ideas = await this.aiService.generateContentIdeas(brandId, 'amai_engine', context, brain.contentPillars);
+    } catch (err) {
+      await this.entitlementsService.releaseAiGeneration(organizationId).catch(() => {});
+      throw err;
+    }
     // Only counted once generation actually succeeded, same as the Oyinca
     // Engine's own caption/hashtag generation -- a failed/empty attempt
-    // never burns quota.
-    if (ideas.length > 0) {
-      this.entitlementsService
-        .getOrganizationIdForBrand(brandId)
-        .then((organizationId) => this.entitlementsService.recordAiGeneration(organizationId))
-        .catch(() => {});
+    // never burns quota, so an empty result releases the reservation too.
+    if (ideas.length === 0) {
+      await this.entitlementsService.releaseAiGeneration(organizationId).catch(() => {});
     }
     return { ideas };
   }

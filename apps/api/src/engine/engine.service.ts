@@ -376,12 +376,23 @@ export class EngineService {
     // Marks the asset FAILED with a clear, actionable reason rather than
     // leaving it silently stuck in PROCESSING -- same failure-reporting
     // convention as every other rejection path in this method.
-    const entitlementCheck = await this.entitlementsService.canPerformAction(brandId, 'generate_ai_content');
-    if (!entitlementCheck.allowed) {
-      this.logger.warn(`[${asset.id}] AI pipeline blocked by entitlement check: ${entitlementCheck.reason}`);
+    //
+    // Race-condition fix: this used to be a read-only canPerformAction()
+    // check here, with the actual usage-counter write (recordAiGeneration)
+    // happening later, fire-and-forget, only after generation succeeded --
+    // two concurrent pipeline runs for the same org could both pass this
+    // read before either write landed. reserveAiGeneration() folds the
+    // check and the increment into one atomic DB statement, so the credit
+    // is genuinely spoken for the instant this line returns. If the AI
+    // calls below then fail, the catch block releases it back.
+    let aiGenerationOrgId: string;
+    try {
+      aiGenerationOrgId = await this.entitlementsService.reserveAiGeneration(brandId);
+    } catch (err: any) {
+      this.logger.warn(`[${asset.id}] AI pipeline blocked by entitlement check: ${err?.message}`);
       await this.prisma.mediaAsset.update({
         where: { id: asset.id },
-        data: { status: MediaStatus.FAILED, lastErrorMessage: entitlementCheck.reason || 'Monthly AI generation limit reached.' },
+        data: { status: MediaStatus.FAILED, lastErrorMessage: err?.message || 'Monthly AI generation limit reached.' },
       }).catch(() => {});
       return;
     }
@@ -404,68 +415,86 @@ export class EngineService {
     // isn't configured, the vision call fails, or the asset is a video
     // (video content analysis isn't implemented yet — always uses the
     // filename fallback).
+    // Everything AI-consuming this pipeline run does (vision analysis,
+    // caption, hashtags) lives inside this try block, guarded by the single
+    // reserveAiGeneration() credit taken above -- if any of it throws, the
+    // credit is released before rethrowing (to the outer catch in
+    // handleMediaUploaded, which already marks the asset FAILED), so a
+    // failed attempt still doesn't permanently burn the org's quota.
     const isVideo = asset.mimeType?.startsWith('video/');
     let topic: string;
-    if (!isVideo && asset.blobUrl) {
-      const visionTopic = await this.aiService.analyzeImage(asset.blobUrl, brandId, 'amai_engine');
-      topic = visionTopic || this.deriveTopicFromFilename(asset.filename, asset.batchName);
-      // Content-library intelligence: persist the real vision output onto
-      // the asset itself, decoupled from whatever happens later in this
-      // pipeline run (slot retries, entitlement downgrades, etc.) -- the
-      // analysis genuinely happened and is worth keeping even if something
-      // downstream fails. Never persists the filename-derived fallback --
-      // only a real Gemini vision result counts as "vision analysis".
-      if (visionTopic) {
-        this.prisma.mediaAsset
-          .update({ where: { id: asset.id }, data: { visionTopic, visionAnalyzedAt: new Date() } })
-          .catch((e) => this.logger.warn(`[${asset.id}] Failed to persist vision analysis: ${e?.message || e}`));
+    let caption: string;
+    let hashtags: string[];
+    let connectedAccounts: { id: string; platform: Platform }[] = [];
+    try {
+      if (!isVideo && asset.blobUrl) {
+        const visionTopic = await this.aiService.analyzeImage(asset.blobUrl, brandId, 'amai_engine');
+        topic = visionTopic || this.deriveTopicFromFilename(asset.filename, asset.batchName);
+        // Content-library intelligence: persist the real vision output onto
+        // the asset itself, decoupled from whatever happens later in this
+        // pipeline run (slot retries, entitlement downgrades, etc.) -- the
+        // analysis genuinely happened and is worth keeping even if something
+        // downstream fails. Never persists the filename-derived fallback --
+        // only a real Gemini vision result counts as "vision analysis".
+        if (visionTopic) {
+          this.prisma.mediaAsset
+            .update({ where: { id: asset.id }, data: { visionTopic, visionAnalyzedAt: new Date() } })
+            .catch((e) => this.logger.warn(`[${asset.id}] Failed to persist vision analysis: ${e?.message || e}`));
+        }
+      } else {
+        topic = this.deriveTopicFromFilename(asset.filename, asset.batchName);
       }
-    } else {
-      topic = this.deriveTopicFromFilename(asset.filename, asset.batchName);
+      this.logger.log(`[${asset.id}] Media analyzed: topic="${topic}"`);
+
+      const allConnectedAccounts = await this.prisma.socialAccount.findMany({
+        where: { brandId, status: ConnectionStatus.CONNECTED },
+      });
+      // The Posting Schedule setting's "Platforms" choice restricts which
+      // connected accounts this post targets (INSTAGRAM/TIKTOK only, or BOTH).
+      // Falls back to every connected account if that filter would leave
+      // zero targets (e.g. platform set to Instagram but only TikTok is
+      // connected) — an empty-targets post would otherwise sit unpublished
+      // forever with no way for the user to notice why, the same class of
+      // silent-failure bug already fixed once this session.
+      const platformFiltered = allConnectedAccounts.filter((a) => {
+        if (config.schedulingPlatform === SchedulingPlatform.INSTAGRAM) return a.platform === Platform.INSTAGRAM;
+        if (config.schedulingPlatform === SchedulingPlatform.TIKTOK) return a.platform === Platform.TIKTOK;
+        return true;
+      });
+      connectedAccounts = platformFiltered.length > 0 ? platformFiltered : allConnectedAccounts;
+      const platformLabel = connectedAccounts.length > 0
+        ? connectedAccounts.map((a) => a.platform).join(', ')
+        : 'Instagram & TikTok';
+
+      // Business Brain: the brand context (voice, audience, content pillars,
+      // goals, things to avoid) every AI generation step below should reflect
+      // instead of writing something generic. Returns '' if nothing's been
+      // configured yet, so this is always safe to pass through unconditionally.
+      const brainContext = await this.businessBrainService.buildPromptContext(brandId);
+
+      // 2-3. Generate caption and hashtags — independent of each other, run
+      // concurrently rather than one after another to cut real wall-clock
+      // time roughly in half.
+      const [captionResult, hashtagResult] = await Promise.all([
+        this.aiService.generateCaption(brandId, 'amai_engine', topic, platformLabel, config.defaultTone || 'friendly', brainContext),
+        this.aiService.generateHashtags(topic, platformLabel, config.defaultTone || 'Content Creator', brandId, 'amai_engine'),
+      ]);
+      caption = captionResult.caption;
+      hashtags = Array.from(new Set(hashtagResult.allHashtags)).slice(0, 8);
+      this.logger.log(`[${asset.id}] Caption generated (${caption.length} chars), ${hashtags.length} hashtags generated`);
+    } catch (err) {
+      // The reserved credit was never actually spent on a completed
+      // generation -- release it before letting the error propagate, so a
+      // failed attempt doesn't count against the org's monthly AI quota.
+      await this.entitlementsService.releaseAiGeneration(aiGenerationOrgId).catch((e) =>
+        this.logger.warn(`[${asset.id}] Failed to release AI generation reservation after pipeline error: ${e?.message || e}`),
+      );
+      throw err;
     }
-    this.logger.log(`[${asset.id}] Media analyzed: topic="${topic}"`);
 
-    const allConnectedAccounts = await this.prisma.socialAccount.findMany({
-      where: { brandId, status: ConnectionStatus.CONNECTED },
-    });
-    // The Posting Schedule setting's "Platforms" choice restricts which
-    // connected accounts this post targets (INSTAGRAM/TIKTOK only, or BOTH).
-    // Falls back to every connected account if that filter would leave
-    // zero targets (e.g. platform set to Instagram but only TikTok is
-    // connected) — an empty-targets post would otherwise sit unpublished
-    // forever with no way for the user to notice why, the same class of
-    // silent-failure bug already fixed once this session.
-    const platformFiltered = allConnectedAccounts.filter((a) => {
-      if (config.schedulingPlatform === SchedulingPlatform.INSTAGRAM) return a.platform === Platform.INSTAGRAM;
-      if (config.schedulingPlatform === SchedulingPlatform.TIKTOK) return a.platform === Platform.TIKTOK;
-      return true;
-    });
-    const connectedAccounts = platformFiltered.length > 0 ? platformFiltered : allConnectedAccounts;
-    const platformLabel = connectedAccounts.length > 0
-      ? connectedAccounts.map((a) => a.platform).join(', ')
-      : 'Instagram & TikTok';
-
-    // Business Brain: the brand context (voice, audience, content pillars,
-    // goals, things to avoid) every AI generation step below should reflect
-    // instead of writing something generic. Returns '' if nothing's been
-    // configured yet, so this is always safe to pass through unconditionally.
-    const brainContext = await this.businessBrainService.buildPromptContext(brandId);
-
-    // 2-3. Generate caption and hashtags — independent of each other, run
-    // concurrently rather than one after another to cut real wall-clock
-    // time roughly in half.
-    const [{ caption }, hashtagResult] = await Promise.all([
-      this.aiService.generateCaption(brandId, 'amai_engine', topic, platformLabel, config.defaultTone || 'friendly', brainContext),
-      this.aiService.generateHashtags(topic, platformLabel, config.defaultTone || 'Content Creator', brandId, 'amai_engine'),
-    ]);
-    const hashtags = Array.from(new Set(hashtagResult.allHashtags)).slice(0, 8);
-    this.logger.log(`[${asset.id}] Caption generated (${caption.length} chars), ${hashtags.length} hashtags generated`);
-    // Only counted once generation actually succeeded -- a rejected or
-    // failed attempt (caught further up the call stack) never burns quota.
-    this.entitlementsService
-      .getOrganizationIdForBrand(brandId)
-      .then((organizationId) => this.entitlementsService.recordAiGeneration(organizationId))
-      .catch((err) => this.logger.warn(`[${asset.id}] Failed to record AI generation usage: ${err.message}`));
+    // Reservation is now confirmed spent -- caption/hashtags genuinely
+    // generated successfully above, no separate "record usage" write needed
+    // (reserveAiGeneration already incremented the counter atomically).
     this.logEvent(brandId, EngineEventType.CAPTION_GENERATED, { mediaAssetId: asset.id, message: 'Caption generated.' }).catch(() => {});
     this.logEvent(brandId, EngineEventType.HASHTAGS_GENERATED, { mediaAssetId: asset.id, message: `${hashtags.length} hashtags generated.` }).catch(() => {});
 
@@ -693,62 +722,88 @@ export class EngineService {
 
     const config = await this.getOrCreateConfig(brandId);
 
+    // Entitlement fix: this path (the manual composer's "create post from
+    // selected media" flow) previously had NO AI-quota check at all --
+    // @RequireEntitlement('generate_ai_content') was never wired to this
+    // controller action, and the only usage-counter touch was a post-hoc,
+    // best-effort recordAiGeneration() after generation had already
+    // happened. A brand already over its monthly AI quota could freely keep
+    // composing posts through this route. reserveAiGeneration() closes that
+    // gap the same way it does for the automatic pipeline: one atomic
+    // check-and-increment before any AI spend, released back if the AI
+    // calls below then fail.
+    const aiGenerationOrgId = await this.entitlementsService.reserveAiGeneration(brandId);
+
     await this.prisma.mediaAsset.updateMany({
       where: { id: { in: ids } },
       data: { status: MediaStatus.PROCESSING },
     });
 
-    // Analyse: one vision call against the first item stands in for "the
-    // collection" -- carousels are near-universally one coherent subject
-    // shot from multiple angles/moments (the exact case Part A's spec
-    // describes: "understand the images as a single piece of content"), so
-    // a single representative analysis is both accurate and avoids running
-    // N separate (and N times as expensive) vision calls for what must
-    // become one caption anyway. Matches processMediaAsset's own isVideo
-    // gate (video content analysis isn't implemented yet): if the first
-    // item happens to be a video, this always falls back to the
-    // filename-based heuristic rather than feeding a video URL to an
-    // image-analysis call.
-    const visionTopic = !primaryIsVideo && primaryAsset.blobUrl
-      ? await this.aiService.analyzeImage(primaryAsset.blobUrl, brandId, 'amai_engine')
-      : null;
-    const topic = visionTopic || this.deriveTopicFromFilename(primaryAsset.filename, primaryAsset.batchName);
-    // Content-library intelligence: only the primary asset was actually
-    // vision-analyzed (see the comment above on why one call stands in for
-    // the whole collection), so only its row gets a visionTopic -- the
-    // other carousel items correctly stay null rather than being credited
-    // with an analysis that was never run on them specifically.
-    if (visionTopic) {
-      this.prisma.mediaAsset
-        .update({ where: { id: primaryAsset.id }, data: { visionTopic, visionAnalyzedAt: new Date() } })
-        .catch((e) => this.logger.warn(`[${primaryAsset.id}] Failed to persist vision analysis: ${e?.message || e}`));
+    let topic: string;
+    let caption: string;
+    let hashtags: string[];
+    let connectedAccounts: { id: string; platform: Platform }[] = [];
+    try {
+      // Analyse: one vision call against the first item stands in for "the
+      // collection" -- carousels are near-universally one coherent subject
+      // shot from multiple angles/moments (the exact case Part A's spec
+      // describes: "understand the images as a single piece of content"), so
+      // a single representative analysis is both accurate and avoids running
+      // N separate (and N times as expensive) vision calls for what must
+      // become one caption anyway. Matches processMediaAsset's own isVideo
+      // gate (video content analysis isn't implemented yet): if the first
+      // item happens to be a video, this always falls back to the
+      // filename-based heuristic rather than feeding a video URL to an
+      // image-analysis call.
+      const visionTopic = !primaryIsVideo && primaryAsset.blobUrl
+        ? await this.aiService.analyzeImage(primaryAsset.blobUrl, brandId, 'amai_engine')
+        : null;
+      topic = visionTopic || this.deriveTopicFromFilename(primaryAsset.filename, primaryAsset.batchName);
+      // Content-library intelligence: only the primary asset was actually
+      // vision-analyzed (see the comment above on why one call stands in for
+      // the whole collection), so only its row gets a visionTopic -- the
+      // other carousel items correctly stay null rather than being credited
+      // with an analysis that was never run on them specifically.
+      if (visionTopic) {
+        this.prisma.mediaAsset
+          .update({ where: { id: primaryAsset.id }, data: { visionTopic, visionAnalyzedAt: new Date() } })
+          .catch((e) => this.logger.warn(`[${primaryAsset.id}] Failed to persist vision analysis: ${e?.message || e}`));
+      }
+
+      const allConnectedAccounts = await this.prisma.socialAccount.findMany({
+        where: { brandId, status: ConnectionStatus.CONNECTED },
+      });
+      const platformFiltered = allConnectedAccounts.filter((a) => {
+        if (config.schedulingPlatform === SchedulingPlatform.INSTAGRAM) return a.platform === Platform.INSTAGRAM;
+        if (config.schedulingPlatform === SchedulingPlatform.TIKTOK) return a.platform === Platform.TIKTOK;
+        return true;
+      });
+      connectedAccounts = platformFiltered.length > 0 ? platformFiltered : allConnectedAccounts;
+      const platformLabel = connectedAccounts.length > 0
+        ? connectedAccounts.map((a) => a.platform).join(', ')
+        : 'Instagram & TikTok';
+
+      const brainContext = await this.businessBrainService.buildPromptContext(brandId);
+
+      // One caption + one hashtag set for the entire batch -- never per-image.
+      const [captionResult, hashtagResult] = await Promise.all([
+        this.aiService.generateCaption(brandId, 'amai_engine', topic, platformLabel, config.defaultTone || 'friendly', brainContext),
+        this.aiService.generateHashtags(topic, platformLabel, config.defaultTone || 'Content Creator', brandId, 'amai_engine'),
+      ]);
+      caption = captionResult.caption;
+      hashtags = Array.from(new Set(hashtagResult.allHashtags)).slice(0, 8);
+    } catch (err) {
+      await this.entitlementsService.releaseAiGeneration(aiGenerationOrgId).catch((e) =>
+        this.logger.warn(`Failed to release AI generation reservation for composed post after error: ${e?.message || e}`),
+      );
+      // Selected assets were marked PROCESSING above -- put them back to a
+      // clean, retryable state rather than leaving them stuck.
+      await this.prisma.mediaAsset.updateMany({
+        where: { id: { in: ids } },
+        data: { status: MediaStatus.FAILED, lastErrorMessage: err instanceof Error ? err.message : 'Failed to generate caption/hashtags.' },
+      }).catch(() => {});
+      throw err;
     }
-
-    const allConnectedAccounts = await this.prisma.socialAccount.findMany({
-      where: { brandId, status: ConnectionStatus.CONNECTED },
-    });
-    const platformFiltered = allConnectedAccounts.filter((a) => {
-      if (config.schedulingPlatform === SchedulingPlatform.INSTAGRAM) return a.platform === Platform.INSTAGRAM;
-      if (config.schedulingPlatform === SchedulingPlatform.TIKTOK) return a.platform === Platform.TIKTOK;
-      return true;
-    });
-    const connectedAccounts = platformFiltered.length > 0 ? platformFiltered : allConnectedAccounts;
-    const platformLabel = connectedAccounts.length > 0
-      ? connectedAccounts.map((a) => a.platform).join(', ')
-      : 'Instagram & TikTok';
-
-    const brainContext = await this.businessBrainService.buildPromptContext(brandId);
-
-    // One caption + one hashtag set for the entire batch -- never per-image.
-    const [{ caption }, hashtagResult] = await Promise.all([
-      this.aiService.generateCaption(brandId, 'amai_engine', topic, platformLabel, config.defaultTone || 'friendly', brainContext),
-      this.aiService.generateHashtags(topic, platformLabel, config.defaultTone || 'Content Creator', brandId, 'amai_engine'),
-    ]);
-    const hashtags = Array.from(new Set(hashtagResult.allHashtags)).slice(0, 8);
-    this.entitlementsService
-      .getOrganizationIdForBrand(brandId)
-      .then((organizationId) => this.entitlementsService.recordAiGeneration(organizationId))
-      .catch((err) => this.logger.warn(`Failed to record AI generation usage for composed post: ${err.message}`));
 
     const contentCategory = this.schedulingService.classifyContentCategory(topic, caption);
     const brain = await this.businessBrainService.getOrCreate(brandId);
