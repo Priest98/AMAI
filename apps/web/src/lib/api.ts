@@ -46,7 +46,23 @@ interface CachedUser extends CurrentUser {
   expiresAt: string;
 }
 
-/** Called after a successful login/register response to cache the (non-sensitive) user snapshot. */
+/**
+ * Called after a successful login/register response to cache the
+ * (non-sensitive) user snapshot.
+ *
+ * Bug fix: also clears the previously-selected client (see
+ * ACTIVE_CLIENT_KEY / getBrandId) on every call. getBrandId() prefers
+ * that stored id over this session's own brandId claim, and logout()
+ * clearing it isn't sufficient on its own -- a session that ends by
+ * simply expiring (cookie lapses, user never explicitly logs out) skips
+ * logout() entirely, so a second account logging in on the same browser
+ * would otherwise keep acting on the first account's brand and get a
+ * legitimate-but-baffling 403 ("You do not have access to this brand")
+ * on every brand-scoped request, including TikTok/Instagram/Google
+ * "connect". setSession only ever runs right after a real login (its one
+ * call site), so this can't clear an in-session Agency user's client
+ * selection mid-use -- only ever at the moment a session actually starts.
+ */
 export function setSession(user: CurrentUser, expiresAt: string): void {
   if (typeof window === 'undefined') return;
   const cached: CachedUser = { ...user, expiresAt };
@@ -57,6 +73,7 @@ export function setSession(user: CurrentUser, expiresAt: string): void {
     // return null until the next successful /auth/me call; nothing here is
     // itself a credential, so there's no security downside to losing it.
   }
+  setActiveClientId(null);
 }
 
 function readCachedUser(): CachedUser | null {
@@ -159,6 +176,19 @@ export async function logout(): Promise<void> {
     // best-effort -- still clear local state and redirect below
   }
   localStorage.removeItem(USER_CACHE_KEY);
+  // Bug fix: getBrandId() prefers this over the JWT's own brandId claim, and
+  // nothing on the login side ever resets it -- so logging out and back in
+  // as a *different* account (same browser) kept acting on the previous
+  // account's brand. Every brand-scoped request then got a legitimate
+  // server-side 403 ("You do not have access to this brand"), which for
+  // the TikTok/Instagram/Google "connect" endpoints specifically surfaces
+  // as an opaque "Failed to start ... connection. Please try again." with
+  // no indication the real problem is a stale selected client, not TikTok.
+  // Clearing here (the one point that knows a new login is about to
+  // happen) is safe for the single-account case too: setActiveClientId(null)
+  // just falls back to getCurrentUser()?.brandId, i.e. the new session's own
+  // primary brand.
+  setActiveClientId(null);
   window.location.href = '/login';
 }
 

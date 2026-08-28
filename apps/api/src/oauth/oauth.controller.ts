@@ -33,6 +33,26 @@ export class OAuthController {
    * BrandAccessGuard uses elsewhere in the app (never trust the claim,
    * always re-check against real organization membership).
    */
+  /**
+   * The three /connect handlers below (google, instagram, tiktok) all
+   * catch every error the same way -- deliberately, per the security-audit
+   * comment on getGoogleConnect: a raw err.message could be a stack
+   * fragment, a Prisma error, or other internal detail that shouldn't
+   * reach the browser. But that blanket rule was also swallowing
+   * assertBrandAccess's own ForbiddenException, which is itself already a
+   * safe, deliberately-written, user-facing string ("You do not have
+   * access to this brand") -- flattening it to a generic "Failed to
+   * start ... connection" made a real, actionable, non-sensitive error
+   * (typically: a stale selected-client id left over from a previous
+   * account on the same browser -- see setSession/logout in lib/api.ts)
+   * indistinguishable from an actual TikTok/Instagram/Google outage. Only
+   * ForbiddenException gets its message passed through; anything else
+   * still falls back to the generic per-platform message.
+   */
+  private connectErrorMessage(err: any, fallback: string): string {
+    return err instanceof ForbiddenException ? (err.message || fallback) : fallback;
+  }
+
   private async assertBrandAccess(userId: string, brandId: string): Promise<void> {
     const brand = await this.prisma.brand.findFirst({
       where: { id: brandId, organization: { members: { some: { userId } } } },
@@ -79,7 +99,7 @@ export class OAuthController {
       // generic message to the user.
       this.logger.error(`Google Drive connect failed: ${err?.message || err}`);
       return res.redirect(
-        `${this.appUrl}/dashboard/media?error=${encodeURIComponent('Failed to start Google Drive connection. Please try again.')}`,
+        `${this.appUrl}/dashboard/media?error=${encodeURIComponent(this.connectErrorMessage(err, 'Failed to start Google Drive connection. Please try again.'))}`,
       );
     }
   }
@@ -157,7 +177,7 @@ export class OAuthController {
     } catch (err: any) {
       this.logger.error(`Instagram connect failed: ${err?.message || err}`);
       return res.redirect(
-        `${this.appUrl}/dashboard/integrations?error=${encodeURIComponent('Failed to start Instagram connection. Please try again.')}`,
+        `${this.appUrl}/dashboard/integrations?error=${encodeURIComponent(this.connectErrorMessage(err, 'Failed to start Instagram connection. Please try again.'))}`,
       );
     }
   }
@@ -219,7 +239,7 @@ export class OAuthController {
     } catch (err: any) {
       this.logger.error(`TikTok connect failed: ${err?.message || err}`);
       return res.redirect(
-        `${this.appUrl}/dashboard/integrations?error=${encodeURIComponent('Failed to start TikTok connection. Please try again.')}`,
+        `${this.appUrl}/dashboard/integrations?error=${encodeURIComponent(this.connectErrorMessage(err, 'Failed to start TikTok connection. Please try again.'))}`,
       );
     }
   }
