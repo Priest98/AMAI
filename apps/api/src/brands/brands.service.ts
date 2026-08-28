@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EntitlementsService } from '../billing/entitlements.service';
 import { toPublicConnection, needsAttention } from '../oauth/connection-health';
+import { TargetStatus } from '@prisma/client';
 
 /**
  * Minimal multi-brand support for Agency. The Organization->Brand
@@ -268,11 +269,15 @@ export class BrandsService {
   /**
    * Portfolio analytics.
    *
-   * IMPORTANT: these are *publishing* metrics (counts of what Oyinca did),
-   * not *performance* metrics. Oyinca does not currently ingest reach,
-   * impressions, engagement or follower data from Instagram/TikTok, so
-   * those are reported as unavailable rather than invented. Anything
-   * returned here is a real row count.
+   * Mostly *publishing* metrics (counts of what Oyinca did), plus one real
+   * *performance* metric: totalEngagement, sourced from the same
+   * PostPerformance snapshots MetricsService.syncTikTokMetrics writes (see
+   * PostsService.getContentIntelligence for the single-brand version of
+   * this same computation). Oyinca still does not ingest reach,
+   * impressions, or follower-growth data from Instagram/TikTok -- those
+   * stay in unavailableMetrics rather than being invented. Agency-only:
+   * this is the one place a rollup across a whole client portfolio exists
+   * at all, since a single-brand Pro plan has no "portfolio" to roll up.
    */
   async getAgencyAnalytics(organizationId: string, days = 30) {
     const window = Math.min(Math.max(days, 1), 365);
@@ -293,8 +298,25 @@ export class BrandsService {
         status: { in: ['PUBLISHED', 'FAILED', 'SCHEDULED', 'NEEDS_APPROVAL'] },
         createdAt: { gte: since },
       },
-      select: { brandId: true, status: true },
+      select: {
+        brandId: true,
+        status: true,
+        // Only populated for PUBLISHED posts with a real synced snapshot --
+        // an unpublished post has no targets matching this filter, so this
+        // is a cheap no-op for the other three statuses, not a wasted join.
+        targets: {
+          where: { status: TargetStatus.PUBLISHED, providerPostId: { not: null } },
+          select: { performanceSnapshots: { orderBy: { capturedAt: 'desc' }, take: 1 } },
+        },
+      },
     });
+
+    const engagementOf = (row: (typeof rows)[number]): number =>
+      row.targets.reduce((sum, t) => {
+        const snap = t.performanceSnapshots[0];
+        if (!snap) return sum;
+        return sum + snap.views + snap.likes + snap.comments + snap.shares;
+      }, 0);
 
     const perClient = brands.map((b) => {
       const mine = rows.filter((r) => r.brandId === b.id);
@@ -305,6 +327,7 @@ export class BrandsService {
         failed: mine.filter((r) => r.status === 'FAILED').length,
         scheduled: mine.filter((r) => r.status === 'SCHEDULED').length,
         awaitingApproval: mine.filter((r) => r.status === 'NEEDS_APPROVAL').length,
+        totalEngagement: mine.reduce((sum, r) => sum + engagementOf(r), 0),
       };
     });
 
@@ -316,11 +339,12 @@ export class BrandsService {
         failed: perClient.reduce((n, c) => n + c.failed, 0),
         scheduled: perClient.reduce((n, c) => n + c.scheduled, 0),
         awaitingApproval: perClient.reduce((n, c) => n + c.awaitingApproval, 0),
+        totalEngagement: perClient.reduce((n, c) => n + c.totalEngagement, 0),
         clients: brands.length,
       },
       // Explicitly declared so the UI can say "not available yet" instead of
       // rendering a zero that looks like real measured performance.
-      unavailableMetrics: ['reach', 'impressions', 'engagement', 'followerGrowth'],
+      unavailableMetrics: ['reach', 'impressions', 'followerGrowth'],
       perClient,
     };
   }

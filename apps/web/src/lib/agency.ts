@@ -122,7 +122,7 @@ export async function getAgencyCalendar(days = 30): Promise<{ from: string; to: 
 export interface AgencyAnalytics {
   windowDays: number;
   since: string;
-  totals: { published: number; failed: number; scheduled: number; awaitingApproval: number; clients: number };
+  totals: { published: number; failed: number; scheduled: number; awaitingApproval: number; totalEngagement: number; clients: number };
   /** Metrics Oyinca cannot measure yet. The UI must say so rather than render a misleading zero. */
   unavailableMetrics: string[];
   perClient: {
@@ -132,6 +132,8 @@ export interface AgencyAnalytics {
     failed: number;
     scheduled: number;
     awaitingApproval: number;
+    /** Real views+likes+comments+shares across this client's published, synced posts in the window -- Agency-only rollup. */
+    totalEngagement: number;
   }[];
 }
 

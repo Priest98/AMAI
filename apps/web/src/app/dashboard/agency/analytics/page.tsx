@@ -16,10 +16,10 @@ import AgencyUpgradePrompt from '@/components/dashboard/AgencyUpgradePrompt';
  */
 function exportAnalyticsCsv(data: AgencyAnalytics, days: number) {
   const rows: string[][] = [
-    ['Client', 'Published', 'Scheduled', 'Awaiting approval', 'Failed'],
-    ...data.perClient.map((c) => [c.clientName, String(c.published), String(c.scheduled), String(c.awaitingApproval), String(c.failed)]),
+    ['Client', 'Published', 'Scheduled', 'Awaiting approval', 'Failed', 'Total engagement'],
+    ...data.perClient.map((c) => [c.clientName, String(c.published), String(c.scheduled), String(c.awaitingApproval), String(c.failed), String(c.totalEngagement)]),
     [],
-    ['Totals', String(data.totals.published), String(data.totals.scheduled), String(data.totals.awaitingApproval), String(data.totals.failed)],
+    ['Totals', String(data.totals.published), String(data.totals.scheduled), String(data.totals.awaitingApproval), String(data.totals.failed), String(data.totals.totalEngagement)],
     [],
     [`Window: last ${days} days`],
     [`Not measured: ${data.unavailableMetrics.join(', ')}`],
@@ -136,23 +136,27 @@ export default function AgencyAnalyticsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <Stat label="Published" value={d.totals.published} />
         <Stat label="Scheduled" value={d.totals.scheduled} />
         <Stat label="Awaiting approval" value={d.totals.awaitingApproval} />
         <Stat label="Failed" value={d.totals.failed} tone="error" />
+        <Stat label="Total engagement" value={d.totals.totalEngagement} />
       </div>
 
       {/* Stating the gap plainly is the honest option: an agency owner
-          seeing "Reach 0" would reasonably assume it was measured. */}
+          seeing "Reach 0" would reasonably assume it was measured.
+          Engagement (views+likes+comments+shares, synced from TikTok) IS
+          real and shown above -- only reach/impressions/follower growth,
+          which Oyinca genuinely doesn't ingest, stay flagged as missing. */}
       <div
         className="flex items-start gap-2.5 p-4 rounded-[var(--radius-md)] border"
         style={{ borderColor: 'var(--card-border)', backgroundColor: 'var(--bg-surface-sunken)' }}
       >
         <Info className="h-4 w-4 shrink-0 mt-0.5" style={{ color: 'var(--text-muted)' }} />
         <p className="text-body-sm" style={{ color: 'var(--text-secondary)' }}>
-          Reach, impressions, engagement and follower growth are not shown because Oyinca does not yet pull insights
-          data from Instagram or TikTok. The figures above are publishing activity recorded by Oyinca.
+          Reach, impressions and follower growth are not shown because Oyinca does not yet pull that data from
+          Instagram or TikTok. Engagement above is real (views, likes, comments and shares synced from published posts).
         </p>
       </div>
 
@@ -173,6 +177,7 @@ export default function AgencyAnalyticsPage() {
                   <span>{c.scheduled} scheduled</span>
                   <span>{c.awaitingApproval} awaiting</span>
                   {c.failed > 0 && <span style={{ color: 'var(--accent-error)' }}>{c.failed} failed</span>}
+                  {c.totalEngagement > 0 && <span>{c.totalEngagement.toLocaleString()} engagement</span>}
                 </div>
                 <button
                   onClick={() => openClient(c.clientId)}
