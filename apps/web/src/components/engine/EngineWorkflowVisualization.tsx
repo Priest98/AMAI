@@ -3,14 +3,14 @@
 import React, { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  UploadCloud,
+  Eye,
   Wand2,
-  PenLine,
-  Hash,
   Target,
+  PenLine,
   CalendarClock,
   ShieldCheck,
   Send,
+  Gem,
   AlertTriangle,
 } from "lucide-react";
 import { useEngineEvents, EngineEvent } from "@/lib/useEngineEvents";
@@ -23,10 +23,17 @@ import { useEngineEvents, EngineEvent } from "@/lib/useEngineEvents";
  * lights up because the actual pipeline (apps/api/src/engine/engine.service.ts,
  * publishing.service.ts) really did that step for real media, moments ago.
  *
- * Stage -> EngineEventType mapping intentionally mirrors the real pipeline
- * order documented in engine.service.ts's processAsset flow.
+ * Stage labels follow the premium-conversion brief's "Oyinca is working"
+ * narrative (Observe -> Analyze -> Strategize -> Create -> Schedule ->
+ * Review -> Publish) instead of raw technical step names -- same real
+ * EngineEventType mapping as before, just told as what Oyinca is actually
+ * doing rather than what function ran. "Review" (human approval) isn't in
+ * the brief's own 6-word version of the loop, but it's a real step this
+ * product actually has, so it stays rather than being dropped to match the
+ * brief's word count exactly. Caption + hashtag generation collapse into
+ * one "Create" node -- from the outside these are one creative act, not two.
  */
-type StageKey = "upload" | "optimize" | "caption" | "hashtags" | "scoring" | "scheduling" | "approval" | "publishing";
+type StageKey = "observe" | "analyze" | "strategize" | "create" | "schedule" | "review" | "publish";
 
 interface Stage {
   key: StageKey;
@@ -36,14 +43,13 @@ interface Stage {
 }
 
 const STAGES: Stage[] = [
-  { key: "upload", label: "Upload detected", icon: UploadCloud, matches: ["MEDIA_UPLOADED"] },
-  { key: "optimize", label: "Optimizing media", icon: Wand2, matches: ["ANALYSIS_STARTED"] },
-  { key: "caption", label: "Writing caption", icon: PenLine, matches: ["CAPTION_GENERATED"] },
-  { key: "hashtags", label: "Generating hashtags", icon: Hash, matches: ["HASHTAGS_GENERATED"] },
-  { key: "scoring", label: "Scoring content", icon: Target, matches: ["BEST_TIME_DETERMINED"] },
-  { key: "scheduling", label: "Scheduling", icon: CalendarClock, matches: ["AUTO_SCHEDULED", "POSTING_SCHEDULE_UPDATED"] },
-  { key: "approval", label: "Approval queue", icon: ShieldCheck, matches: ["APPROVAL_QUEUED", "POST_APPROVED"] },
-  { key: "publishing", label: "Publishing", icon: Send, matches: ["PUBLISH_STARTED", "PUBLISH_UPLOADING", "PUBLISH_SUCCEEDED"] },
+  { key: "observe", label: "Observing new content", icon: Eye, matches: ["MEDIA_UPLOADED"] },
+  { key: "analyze", label: "Analyzing", icon: Wand2, matches: ["ANALYSIS_STARTED"] },
+  { key: "strategize", label: "Strategizing timing", icon: Target, matches: ["BEST_TIME_DETERMINED"] },
+  { key: "create", label: "Creating caption & tags", icon: PenLine, matches: ["CAPTION_GENERATED", "HASHTAGS_GENERATED"] },
+  { key: "schedule", label: "Scheduling", icon: CalendarClock, matches: ["AUTO_SCHEDULED", "POSTING_SCHEDULE_UPDATED"] },
+  { key: "review", label: "Awaiting your review", icon: ShieldCheck, matches: ["APPROVAL_QUEUED", "POST_APPROVED"] },
+  { key: "publish", label: "Publishing", icon: Send, matches: ["PUBLISH_STARTED", "PUBLISH_UPLOADING", "PUBLISH_SUCCEEDED"] },
 ];
 
 const PULSE_WINDOW_MS = 4000;
@@ -180,6 +186,22 @@ export default function EngineWorkflowVisualization() {
           </motion.p>
         )}
       </AnimatePresence>
+
+      {/* Measure & Learn -- the brief's closing two steps of the loop.
+          Deliberately not an animated live node like the ones above: unlike
+          a caption or a publish, "measuring" isn't a single instant Oyinca
+          can pulse on, it's an always-on background fact (MetricsService's
+          sync-post-metrics cron, feeding Oyinca Intelligence -- see
+          apps/api/src/posts/posts.service.ts's getContentIntelligence).
+          States the real mechanism plainly rather than faking a live tick
+          for something that isn't actually event-driven. */}
+      <div
+        className="text-caption mt-4 pt-4 border-t flex items-center gap-1.5"
+        style={{ color: "var(--text-muted)", borderColor: "var(--card-border)" }}
+      >
+        <Gem className="h-3 w-3 shrink-0" />
+        <span>Every published post feeds Oyinca Intelligence, so it keeps learning what actually works for this brand.</span>
+      </div>
     </div>
   );
 }
