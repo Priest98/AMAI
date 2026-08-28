@@ -124,13 +124,20 @@ function GatheringData({ measuredCount, minRequired }: { measuredCount: number; 
 export default function IntelligencePage() {
   const [data, setData] = useState<ContentIntelligence | LockedIntelligence | null>(null);
   const [loading, setLoading] = useState(true);
+  // UI quality fix (#178): a failed fetch used to just leave data null and
+  // loading false, which the render below reads as "still loading" forever
+  // -- an infinite skeleton with no error message and no way to retry.
+  const [error, setError] = useState(false);
 
   const load = useCallback(async () => {
+    setLoading(true);
+    setError(false);
     try {
       const result = await brandFetch<ContentIntelligence | LockedIntelligence>('/posts/content-intelligence');
       setData(result);
     } catch {
       setData(null);
+      setError(true);
     } finally {
       setLoading(false);
     }
@@ -146,7 +153,16 @@ export default function IntelligencePage() {
         badge={<Gem className="h-4 w-4" style={{ color: 'var(--accent-secondary)' }} />}
       />
 
-      {loading || !data ? (
+      {loading ? (
+        <div className="exec-card p-8 animate-pulse h-48" style={{ backgroundColor: 'var(--bg-surface-raised)' }} />
+      ) : error ? (
+        <div className="exec-card p-8 text-center space-y-3">
+          <p className="text-body-sm" style={{ color: 'var(--text-secondary)' }}>Couldn't load Oyinca Intelligence. Try again.</p>
+          <button onClick={load} className="btn-secondary px-4 py-2 rounded-[var(--radius-md)] text-body-sm font-semibold touch-target">
+            Retry
+          </button>
+        </div>
+      ) : !data ? (
         <div className="exec-card p-8 animate-pulse h-48" style={{ backgroundColor: 'var(--bg-surface-raised)' }} />
       ) : 'locked' in data ? (
         <LockedIntelligencePreview />
