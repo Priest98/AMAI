@@ -2,11 +2,95 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Layers, Zap, Gem, ArrowRight, TrendingUp } from 'lucide-react';
+import { Zap, Gem, ArrowRight, TrendingUp, Plus, X } from 'lucide-react';
 import Link from 'next/link';
-import { getCreatorOverview, CreatorOverview, HEALTH_META, healthColor } from '@/lib/agency';
+import { getCreatorOverview, CreatorOverview, HEALTH_META, healthColor, createClient } from '@/lib/agency';
 import { getBillingSummary, BillingSummary } from '@/lib/billing';
 import { setActiveClientId } from '@/lib/api';
+
+/**
+ * Inline "add second account" dialog -- deliberately NOT a link to
+ * /dashboard/clients. That page (and its AddClientDialog) fetches
+ * getPortfolio(), which is Agency-only (AgencyEntitlementGuard checks
+ * `clientManagement`, which is false for Creator on purpose -- see
+ * plans.config.ts). A Creator user landing on /dashboard/clients gets
+ * bounced to an "upgrade to Agency" prompt despite already being on a paid
+ * plan that includes a second account, which is exactly backwards. This
+ * calls the same underlying createClient() (POST
+ * organizations/:id/brands), which only requires OrganizationAccessGuard
+ * and is enforced server-side by canCreateBrand's real maxBrands check, so
+ * a Creator org still can't create a 3rd account even if this dialog is
+ * reused elsewhere later.
+ */
+function AddAccountDialog({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const [name, setName] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await createClient(name.trim());
+      onCreated();
+      onClose();
+    } catch (err: any) {
+      setError(err?.message || "Couldn't add this account. Try again.");
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" style={{ backgroundColor: 'rgba(10,11,20,0.6)' }}>
+      <div className="exec-card card-pad w-full max-w-md space-y-5" role="dialog" aria-modal="true" aria-labelledby="add-account-title">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 id="add-account-title" className="text-h3" style={{ color: 'var(--text-primary)' }}>Add your second account</h2>
+            <p className="text-body-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
+              You'll connect its TikTok account and start posting separately from your first one right after.
+            </p>
+          </div>
+          <button onClick={onClose} aria-label="Close" className="btn-icon-glass h-9 w-9 flex items-center justify-center touch-target">
+            <X className="h-4 w-4" style={{ color: 'var(--text-secondary)' }} />
+          </button>
+        </div>
+
+        <form onSubmit={submit} className="space-y-4">
+          <div>
+            <label htmlFor="account-name" className="text-body-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+              Account name
+            </label>
+            <input
+              id="account-name"
+              autoFocus
+              className="input-field w-full h-11 px-3.5 mt-2"
+              placeholder="e.g. My Second Brand"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </div>
+
+          {error && <p className="text-body-sm" style={{ color: 'var(--accent-error)' }}>{error}</p>}
+
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="submit"
+              disabled={saving || !name.trim()}
+              className="btn-primary-gradient px-5 py-2.5 rounded-[var(--radius-md)] text-body-sm font-bold touch-target disabled:opacity-60"
+            >
+              {saving ? 'Adding…' : 'Add account'}
+            </button>
+            <button type="button" onClick={onClose} className="btn-secondary px-5 py-2.5 rounded-[var(--radius-md)] text-body-sm font-bold touch-target">
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
 
 /**
  * Creator Command Center: the two-managed-account overview for
@@ -24,13 +108,17 @@ export default function CreatorCommandCenterPage() {
   const [billing, setBilling] = useState<BillingSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [addingAccount, setAddingAccount] = useState(false);
 
-  useEffect(() => {
+  const load = () => {
+    setLoading(true);
     Promise.all([getCreatorOverview(), getBillingSummary()])
       .then(([o, b]) => { setOverview(o); setBilling(b); })
       .catch(() => setError("Couldn't load your Command Center. Try again."))
       .finally(() => setLoading(false));
-  }, []);
+  };
+
+  useEffect(load, []);
 
   const isCreator = billing?.entitlements?.tier === 'CREATOR';
 
@@ -200,19 +288,25 @@ export default function CreatorCommandCenterPage() {
         })}
 
         {/* Fewer than 2 accounts exist yet -- an honest empty slot rather
-            than hiding the fact that the second account hasn't been added. */}
+            than hiding the fact that the second account hasn't been added.
+            Opens the inline dialog above, NOT a link to /dashboard/clients
+            (see AddAccountDialog's doc comment for why that page is wrong
+            for Creator). */}
         {o.accounts.length < 2 && (
-          <Link
-            href="/dashboard/clients"
-            className="surface-tile p-5 flex flex-col items-center justify-center text-center gap-2 border-dashed"
+          <button
+            type="button"
+            onClick={() => setAddingAccount(true)}
+            className="surface-tile p-5 flex flex-col items-center justify-center text-center gap-2"
             style={{ borderStyle: 'dashed', borderWidth: 1, borderColor: 'var(--card-border)' }}
           >
-            <Layers className="h-5 w-5" style={{ color: 'var(--text-muted)' }} />
+            <Plus className="h-5 w-5" style={{ color: 'var(--text-muted)' }} />
             <p className="text-body-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Add your second account</p>
             <p className="text-caption" style={{ color: 'var(--text-muted)' }}>Your Creator plan includes up to 2 managed accounts.</p>
-          </Link>
+          </button>
         )}
       </div>
+
+      {addingAccount && <AddAccountDialog onClose={() => setAddingAccount(false)} onCreated={load} />}
     </div>
   );
 }
