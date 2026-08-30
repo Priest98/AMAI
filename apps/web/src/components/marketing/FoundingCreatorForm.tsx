@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowRight, ArrowLeft, Loader2, Trophy, AlertCircle, Check } from 'lucide-react';
 
 export function FoundingCreatorForm() {
@@ -8,7 +8,7 @@ export function FoundingCreatorForm() {
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
-    country: 'United States',
+    country: 'Nigeria',
     preferredContact: 'WhatsApp',
     tiktokUsername: '',
     tiktokProfileUrl: '',
@@ -36,6 +36,10 @@ export function FoundingCreatorForm() {
   const [result, setResult] = useState<any | null>(null);
 
   const totalSteps = 5;
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, []);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
@@ -167,7 +171,7 @@ export function FoundingCreatorForm() {
           {Array.from({ length: totalSteps }).map((_, idx) => (
             <div
               key={idx}
-              className="h-1 rounded-full transition-all duration-300"
+              className="h-1.5 rounded-full transition-all duration-300"
               style={{
                 width: currentStep === idx + 1 ? '24px' : '8px',
                 background: currentStep >= idx + 1 ? 'var(--lp-cyan)' : 'var(--lp-border)',
@@ -179,8 +183,8 @@ export function FoundingCreatorForm() {
 
       {error && (
         <div
-          className="p-4 rounded-xl border flex items-center gap-3 text-xs"
-          style={{ background: 'rgba(239, 68, 68, 0.08)', borderColor: 'rgba(239, 68, 68, 0.25)', color: '#EF4444' }}
+          className="p-4 rounded-xl border flex items-center gap-3 text-xs font-semibold"
+          style={{ background: 'rgba(239, 68, 68, 0.1)', borderColor: 'rgba(239, 68, 68, 0.3)', color: '#F87171' }}
         >
           <AlertCircle className="w-4 h-4 shrink-0" />
           <span>{error}</span>
@@ -210,7 +214,6 @@ export function FoundingCreatorForm() {
                     type="text"
                     name="fullName"
                     required
-                    autoFocus
                     value={formData.fullName}
                     onChange={handleChange}
                     placeholder="e.g. Jordan Reed"
@@ -241,16 +244,24 @@ export function FoundingCreatorForm() {
                   <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--lp-text-secondary)' }}>
                     Country *
                   </label>
-                  <input
-                    type="text"
+                  <select
                     name="country"
-                    required
                     value={formData.country}
                     onChange={handleChange}
-                    placeholder="e.g. United States, UK"
-                    className="w-full px-5 py-3.5 rounded-2xl text-base outline-none"
+                    className="w-full px-4 py-3.5 rounded-2xl text-base outline-none"
                     style={{ background: 'var(--lp-bg-soft)', border: '1px solid var(--lp-border)', color: 'var(--lp-text-primary)' }}
-                  />
+                  >
+                    <option value="Nigeria">🇳🇬 Nigeria (Primary Market)</option>
+                    <option value="United States">🇺🇸 United States</option>
+                    <option value="United Kingdom">🇬🇧 United Kingdom</option>
+                    <option value="Canada">🇨🇦 Canada</option>
+                    <option value="Ghana">🇬🇭 Ghana</option>
+                    <option value="South Africa">🇿🇦 South Africa</option>
+                    <option value="Kenya">🇰🇪 Kenya</option>
+                    <option value="United Arab Emirates">🇦🇪 United Arab Emirates</option>
+                    <option value="Germany">🇩🇪 Germany</option>
+                    <option value="Other International">Other International</option>
+                  </select>
                 </div>
 
                 <div>
@@ -299,7 +310,6 @@ export function FoundingCreatorForm() {
                       type="text"
                       name="tiktokUsername"
                       required
-                      autoFocus
                       value={formData.tiktokUsername}
                       onChange={handleChange}
                       placeholder="username"

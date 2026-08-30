@@ -1,12 +1,30 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowRight, ArrowLeft, Loader2, Check, AlertCircle } from 'lucide-react';
 import { ReferralShareCard } from './ReferralShareCard';
 
 interface EarlyAccessFormProps {
   initialReferralCode?: string;
 }
+
+const PROBLEM_OPTIONS = [
+  'Consistency & posting daily',
+  'Writing engaging captions & hashtags',
+  'Spending too much time manually posting',
+  'Brainstorming video ideas',
+  'Tracking performance & analytics',
+  'Other workflow challenge',
+];
+
+const WISH_OPTIONS = [
+  'Auto-publishing & scheduling posts',
+  'AI Caption & hashtag generation',
+  'Content calendar planning',
+  '7-Day TikTok Autopilot mode',
+  'Growth & audience recommendations',
+  'All of the above',
+];
 
 export function EarlyAccessForm({ initialReferralCode }: EarlyAccessFormProps) {
   const [currentStep, setCurrentStep] = useState<number>(1);
@@ -18,18 +36,24 @@ export function EarlyAccessForm({ initialReferralCode }: EarlyAccessFormProps) {
     followerRange: '1K–5K',
     niche: 'Business / Entrepreneurship',
     postingFrequency: 'Daily',
-    country: 'United States',
-    biggestProblem: '',
-    automationWish: '',
+    country: 'Nigeria',
+    biggestProblem: 'Consistency & posting daily',
+    automationWish: 'Auto-publishing & scheduling posts',
     heardFrom: 'TikTok',
     preferredNextPlatform: 'Instagram',
   });
 
+  const [customProblem, setCustomProblem] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successResult, setSuccessResult] = useState<any | null>(null);
 
   const totalSteps = 5;
+
+  // Prevent auto-scrolling to middle of page on initial render
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, []);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
@@ -41,7 +65,6 @@ export function EarlyAccessForm({ initialReferralCode }: EarlyAccessFormProps) {
     e.preventDefault();
     setError(null);
 
-    // Step-specific validation
     if (currentStep === 1) {
       if (!formData.fullName.trim() || !formData.email.trim()) {
         setError('Please enter your full name and email address.');
@@ -53,13 +76,14 @@ export function EarlyAccessForm({ initialReferralCode }: EarlyAccessFormProps) {
         return;
       }
     } else if (currentStep === 3) {
-      if (!formData.biggestProblem.trim()) {
-        setError('Please share your biggest TikTok management problem.');
+      const problemValue = formData.biggestProblem === 'Other workflow challenge' ? customProblem : formData.biggestProblem;
+      if (!problemValue.trim()) {
+        setError('Please select or specify your biggest TikTok management problem.');
         return;
       }
     } else if (currentStep === 4) {
       if (!formData.automationWish.trim()) {
-        setError('Please share what you would most want Oyinca to automate.');
+        setError('Please select what you would most want Oyinca to handle for you.');
         return;
       }
     }
@@ -82,6 +106,8 @@ export function EarlyAccessForm({ initialReferralCode }: EarlyAccessFormProps) {
     setLoading(true);
     setError(null);
 
+    const problemValue = formData.biggestProblem === 'Other workflow challenge' ? customProblem : formData.biggestProblem;
+
     try {
       let attribution: any = {};
       try {
@@ -94,6 +120,7 @@ export function EarlyAccessForm({ initialReferralCode }: EarlyAccessFormProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
+          biggestProblem: problemValue,
           referralCode: initialReferralCode || attribution.referralCode || undefined,
           utmSource: attribution.utmSource || undefined,
           utmMedium: attribution.utmMedium || undefined,
@@ -138,7 +165,7 @@ export function EarlyAccessForm({ initialReferralCode }: EarlyAccessFormProps) {
           {Array.from({ length: totalSteps }).map((_, idx) => (
             <div
               key={idx}
-              className="h-1 rounded-full transition-all duration-300"
+              className="h-1.5 rounded-full transition-all duration-300"
               style={{
                 width: currentStep === idx + 1 ? '24px' : '8px',
                 background: currentStep >= idx + 1 ? 'var(--lp-cyan)' : 'var(--lp-border)',
@@ -150,8 +177,8 @@ export function EarlyAccessForm({ initialReferralCode }: EarlyAccessFormProps) {
 
       {error && (
         <div
-          className="p-4 rounded-xl border flex items-center gap-3 text-xs"
-          style={{ background: 'rgba(239, 68, 68, 0.08)', borderColor: 'rgba(239, 68, 68, 0.25)', color: '#EF4444' }}
+          className="p-4 rounded-xl border flex items-center gap-3 text-xs font-semibold"
+          style={{ background: 'rgba(239, 68, 68, 0.1)', borderColor: 'rgba(239, 68, 68, 0.3)', color: '#F87171' }}
         >
           <AlertCircle className="w-4 h-4 shrink-0" />
           <span>{error}</span>
@@ -183,7 +210,6 @@ export function EarlyAccessForm({ initialReferralCode }: EarlyAccessFormProps) {
                   type="text"
                   name="fullName"
                   required
-                  autoFocus
                   value={formData.fullName}
                   onChange={handleChange}
                   placeholder="e.g. Alex Morgan"
@@ -235,7 +261,6 @@ export function EarlyAccessForm({ initialReferralCode }: EarlyAccessFormProps) {
                       type="text"
                       name="tiktokUsername"
                       required
-                      autoFocus
                       value={formData.tiktokUsername}
                       onChange={handleChange}
                       placeholder="username"
@@ -312,26 +337,35 @@ export function EarlyAccessForm({ initialReferralCode }: EarlyAccessFormProps) {
                 </div>
               </div>
 
+              {/* Country Select (Nigeria Primary) */}
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--lp-text-secondary)' }}>
                   Country *
                 </label>
-                <input
-                  type="text"
+                <select
                   name="country"
-                  required
                   value={formData.country}
                   onChange={handleChange}
-                  placeholder="e.g. United States, UK"
-                  className="w-full px-5 py-3.5 rounded-2xl text-base outline-none"
+                  className="w-full px-4 py-3.5 rounded-2xl text-base outline-none"
                   style={{ background: 'var(--lp-bg-soft)', border: '1px solid var(--lp-border)', color: 'var(--lp-text-primary)' }}
-                />
+                >
+                  <option value="Nigeria">🇳🇬 Nigeria (Primary Market)</option>
+                  <option value="United States">🇺🇸 United States</option>
+                  <option value="United Kingdom">🇬🇧 United Kingdom</option>
+                  <option value="Canada">🇨🇦 Canada</option>
+                  <option value="Ghana">🇬🇭 Ghana</option>
+                  <option value="South Africa">🇿🇦 South Africa</option>
+                  <option value="Kenya">🇰🇪 Kenya</option>
+                  <option value="United Arab Emirates">🇦🇪 United Arab Emirates</option>
+                  <option value="Germany">🇩🇪 Germany</option>
+                  <option value="Other International">Other International</option>
+                </select>
               </div>
             </div>
           </div>
         )}
 
-        {/* STEP 03: YOUR WORKFLOW */}
+        {/* STEP 03: YOUR WORKFLOW (Multiple Choice Card Design) */}
         {currentStep === 3 && (
           <div className="space-y-6 animate-fadeIn">
             <div>
@@ -343,32 +377,51 @@ export function EarlyAccessForm({ initialReferralCode }: EarlyAccessFormProps) {
               </h2>
             </div>
 
-            <div className="space-y-3 pt-2">
+            <div className="space-y-4 pt-2">
               <label className="block text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--lp-text-secondary)' }}>
                 What is the biggest problem you have managing your TikTok right now? *
               </label>
-              <div className="relative">
-                <textarea
-                  name="biggestProblem"
-                  required
-                  autoFocus
-                  rows={5}
-                  maxLength={400}
-                  value={formData.biggestProblem}
-                  onChange={handleChange}
-                  placeholder="Tell us what makes TikTok management difficult for you right now..."
-                  className="w-full p-5 rounded-2xl text-base outline-none leading-relaxed transition-all"
-                  style={{ background: 'var(--lp-bg-soft)', border: '1px solid var(--lp-border)', color: 'var(--lp-text-primary)' }}
-                />
-                <div className="text-[11px] font-mono text-right mt-1" style={{ color: 'var(--lp-text-muted)' }}>
-                  {formData.biggestProblem.length} / 400
-                </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {PROBLEM_OPTIONS.map((opt) => {
+                  const isSelected = formData.biggestProblem === opt;
+                  return (
+                    <button
+                      type="button"
+                      key={opt}
+                      onClick={() => setFormData((prev) => ({ ...prev, biggestProblem: opt }))}
+                      className="p-4 rounded-2xl text-left border transition-all flex items-center justify-between"
+                      style={{
+                        background: isSelected ? 'var(--lp-cyan)' : 'var(--lp-bg-soft)',
+                        color: isSelected ? '#090D14' : 'var(--lp-text-primary)',
+                        borderColor: isSelected ? 'var(--lp-cyan)' : 'var(--lp-border)',
+                        fontWeight: isSelected ? 700 : 500,
+                      }}
+                    >
+                      <span className="text-xs sm:text-sm">{opt}</span>
+                      {isSelected && <Check className="w-4 h-4 shrink-0" style={{ color: '#090D14' }} />}
+                    </button>
+                  );
+                })}
               </div>
+
+              {formData.biggestProblem === 'Other workflow challenge' && (
+                <div className="pt-2">
+                  <input
+                    type="text"
+                    value={customProblem}
+                    onChange={(e) => setCustomProblem(e.target.value)}
+                    placeholder="Specify your specific workflow challenge..."
+                    className="w-full px-5 py-3 rounded-2xl text-sm outline-none"
+                    style={{ background: 'var(--lp-bg-soft)', border: '1px solid var(--lp-border)', color: 'var(--lp-text-primary)' }}
+                  />
+                </div>
+              )}
             </div>
           </div>
         )}
 
-        {/* STEP 04: OYINCA */}
+        {/* STEP 04: OYINCA (Multiple Choice Card Design) */}
         {currentStep === 4 && (
           <div className="space-y-6 animate-fadeIn">
             <div>
@@ -380,32 +433,38 @@ export function EarlyAccessForm({ initialReferralCode }: EarlyAccessFormProps) {
               </h2>
             </div>
 
-            <div className="space-y-3 pt-2">
+            <div className="space-y-4 pt-2">
               <label className="block text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--lp-text-secondary)' }}>
                 What would you most want Oyinca to handle for you? *
               </label>
-              <div className="relative">
-                <textarea
-                  name="automationWish"
-                  required
-                  autoFocus
-                  rows={5}
-                  maxLength={400}
-                  value={formData.automationWish}
-                  onChange={handleChange}
-                  placeholder="e.g. Writing engaging captions, picking optimal posting times, content consistency..."
-                  className="w-full p-5 rounded-2xl text-base outline-none leading-relaxed transition-all"
-                  style={{ background: 'var(--lp-bg-soft)', border: '1px solid var(--lp-border)', color: 'var(--lp-text-primary)' }}
-                />
-                <div className="text-[11px] font-mono text-right mt-1" style={{ color: 'var(--lp-text-muted)' }}>
-                  {formData.automationWish.length} / 400
-                </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {WISH_OPTIONS.map((opt) => {
+                  const isSelected = formData.automationWish === opt;
+                  return (
+                    <button
+                      type="button"
+                      key={opt}
+                      onClick={() => setFormData((prev) => ({ ...prev, automationWish: opt }))}
+                      className="p-4 rounded-2xl text-left border transition-all flex items-center justify-between"
+                      style={{
+                        background: isSelected ? 'var(--lp-cyan)' : 'var(--lp-bg-soft)',
+                        color: isSelected ? '#090D14' : 'var(--lp-text-primary)',
+                        borderColor: isSelected ? 'var(--lp-cyan)' : 'var(--lp-border)',
+                        fontWeight: isSelected ? 700 : 500,
+                      }}
+                    >
+                      <span className="text-xs sm:text-sm">{opt}</span>
+                      {isSelected && <Check className="w-4 h-4 shrink-0" style={{ color: '#090D14' }} />}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>
         )}
 
-        {/* STEP 05: DISCOVERY & FINISH */}
+        {/* STEP 05: DISCOVERY & FINISH (High-Contrast Buttons) */}
         {currentStep === 5 && (
           <div className="space-y-6 animate-fadeIn">
             <div>
@@ -423,23 +482,25 @@ export function EarlyAccessForm({ initialReferralCode }: EarlyAccessFormProps) {
                   Acquisition Channel *
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {['TikTok', 'Friend / Creator', 'X / Twitter', 'Instagram', 'WhatsApp', 'Other'].map((channel) => (
-                    <button
-                      type="button"
-                      key={channel}
-                      onClick={() => setFormData((prev) => ({ ...prev, heardFrom: channel }))}
-                      className={`p-3.5 rounded-xl text-xs font-semibold border transition-all text-left ${
-                        formData.heardFrom === channel
-                          ? 'border-[var(--lp-cyan)] text-white'
-                          : 'border-[var(--lp-border)] text-slate-400 hover:text-white'
-                      }`}
-                      style={{
-                        background: formData.heardFrom === channel ? 'var(--lp-cyan-soft)' : 'var(--lp-bg-soft)',
-                      }}
-                    >
-                      {channel}
-                    </button>
-                  ))}
+                  {['TikTok', 'Friend / Creator', 'X / Twitter', 'Instagram', 'WhatsApp', 'Other'].map((channel) => {
+                    const isSelected = formData.heardFrom === channel;
+                    return (
+                      <button
+                        type="button"
+                        key={channel}
+                        onClick={() => setFormData((prev) => ({ ...prev, heardFrom: channel }))}
+                        className="p-3.5 rounded-xl text-xs font-bold border transition-all text-left flex items-center justify-between"
+                        style={{
+                          background: isSelected ? 'var(--lp-cyan)' : 'var(--lp-bg-soft)',
+                          color: isSelected ? '#090D14' : 'var(--lp-text-primary)',
+                          borderColor: isSelected ? 'var(--lp-cyan)' : 'var(--lp-border)',
+                        }}
+                      >
+                        <span>{channel}</span>
+                        {isSelected && <Check className="w-3.5 h-3.5 shrink-0" style={{ color: '#090D14' }} />}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
