@@ -79,7 +79,7 @@ export function MarketingAdminDashboard() {
   }
 
   return (
-    <div className="w-full max-w-7xl mx-auto p-4 md:p-8 space-y-8">
+    <div className="w-full max-w-7xl mx-auto space-y-8 text-left">
       {/* Top Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-6" style={{ borderColor: 'var(--lp-border)' }}>
         <div>
@@ -87,17 +87,17 @@ export function MarketingAdminDashboard() {
             <ShieldCheck className="w-4 h-4" />
             Founder Acquisition Dashboard
           </div>
-          <h1 className="lp-heading text-3xl font-extrabold tracking-tight" style={{ color: 'var(--lp-text-primary)' }}>Oyinca Pre-Launch Analytics</h1>
+          <h1 className="lp-heading-display text-3xl sm:text-4xl font-bold tracking-tight text-white">Oyinca Pre-Launch Analytics</h1>
           <p className="text-xs md:text-sm mt-1" style={{ color: 'var(--lp-text-secondary)' }}>
             Manage Early Access waitlist signups, referral metrics, and Founding Creator qualification.
           </p>
         </div>
 
-        {/* Tab Buttons */}
+        {/* Tab Navigation Buttons */}
         <div className="flex items-center gap-2 p-1.5 rounded-full" style={{ background: 'var(--lp-bg-soft)', border: '1px solid var(--lp-border)' }}>
           <button
             onClick={() => setActiveTab('overview')}
-            className={`px-4 py-2 rounded-full text-xs font-semibold transition-all ${
+            className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all ${
               activeTab === 'overview' ? 'lp-btn-primary' : 'text-slate-400 hover:text-white'
             }`}
           >
@@ -105,7 +105,7 @@ export function MarketingAdminDashboard() {
           </button>
           <button
             onClick={() => setActiveTab('early-access')}
-            className={`px-4 py-2 rounded-full text-xs font-semibold transition-all ${
+            className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all ${
               activeTab === 'early-access' ? 'lp-btn-primary' : 'text-slate-400 hover:text-white'
             }`}
           >
@@ -113,7 +113,7 @@ export function MarketingAdminDashboard() {
           </button>
           <button
             onClick={() => setActiveTab('creators')}
-            className={`px-4 py-2 rounded-full text-xs font-semibold transition-all ${
+            className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all ${
               activeTab === 'creators' ? 'lp-btn-primary' : 'text-slate-400 hover:text-white'
             }`}
           >
@@ -123,63 +123,63 @@ export function MarketingAdminDashboard() {
       </div>
 
       {/* Target Tracker Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="lp-card p-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="lp-card p-6">
           <div className="text-xs font-bold uppercase tracking-wider flex items-center justify-between" style={{ color: 'var(--lp-text-muted)' }}>
             Early Access Waitlist
             <Users className="w-4 h-4" style={{ color: 'var(--lp-cyan)' }} />
           </div>
-          <div className="lp-heading text-3xl font-black mt-2" style={{ color: 'var(--lp-text-primary)' }}>{stats?.earlyAccess?.total || 0}</div>
+          <div className="lp-heading-display text-3xl font-bold mt-2" style={{ color: 'var(--lp-text-primary)' }}>{stats?.earlyAccess?.total || 0}</div>
           <div className="text-xs mt-1" style={{ color: 'var(--lp-text-muted)' }}>Target: {stats?.earlyAccess?.targetRange || '100–500'} signups</div>
         </div>
 
-        <div className="lp-card p-5">
+        <div className="lp-card p-6">
           <div className="text-xs font-bold uppercase tracking-wider flex items-center justify-between" style={{ color: 'var(--lp-text-muted)' }}>
             Signups Today / Week
             <TrendingUp className="w-4 h-4 text-emerald-400" />
           </div>
-          <div className="lp-heading text-3xl font-black text-emerald-400 mt-2">
+          <div className="lp-heading-display text-3xl font-bold text-emerald-400 mt-2">
             +{stats?.earlyAccess?.today || 0} <span className="text-xs font-normal" style={{ color: 'var(--lp-text-muted)' }}>/ +{stats?.earlyAccess?.thisWeek || 0}</span>
           </div>
           <div className="text-xs mt-1" style={{ color: 'var(--lp-text-muted)' }}>New traffic velocity</div>
         </div>
 
-        <div className="lp-card p-5">
+        <div className="lp-card p-6">
           <div className="text-xs font-bold uppercase tracking-wider flex items-center justify-between" style={{ color: 'var(--lp-text-muted)' }}>
             Founding Creators Cohort
             <Trophy className="w-4 h-4" style={{ color: 'var(--lp-gold)' }} />
           </div>
-          <div className="lp-heading text-3xl font-black mt-2" style={{ color: 'var(--lp-gold)' }}>
+          <div className="lp-heading-display text-3xl font-bold mt-2" style={{ color: 'var(--lp-gold)' }}>
             {stats?.foundingCreators?.accepted || 0} <span className="text-xs font-normal" style={{ color: 'var(--lp-text-muted)' }}>/ 25</span>
           </div>
           <div className="text-xs mt-1" style={{ color: 'var(--lp-text-muted)' }}>{stats?.foundingCreators?.underReview || 0} under review</div>
         </div>
 
-        <div className="lp-card p-5">
+        <div className="lp-card p-6">
           <div className="text-xs font-bold uppercase tracking-wider flex items-center justify-between" style={{ color: 'var(--lp-text-muted)' }}>
             Autopilot Testers
             <ShieldCheck className="w-4 h-4" style={{ color: 'var(--lp-cyan)' }} />
           </div>
-          <div className="lp-heading text-3xl font-black mt-2" style={{ color: 'var(--lp-cyan)' }}>{stats?.foundingCreators?.accepted || 0}</div>
+          <div className="lp-heading-display text-3xl font-bold mt-2" style={{ color: 'var(--lp-cyan)' }}>{stats?.foundingCreators?.accepted || 0}</div>
           <div className="text-xs mt-1" style={{ color: 'var(--lp-text-muted)' }}>Target: 10–20 active testers</div>
         </div>
       </div>
 
       {/* OVERVIEW TAB */}
       {activeTab === 'overview' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Recent Waitlist */}
           <div className="lp-card p-6 space-y-4">
             <h3 className="text-base font-bold text-white flex items-center justify-between">
               Latest Early Access Signups
-              <button onClick={() => setActiveTab('early-access')} className="text-xs hover:underline" style={{ color: 'var(--lp-cyan)' }}>
+              <button onClick={() => setActiveTab('early-access')} className="text-xs font-semibold hover:underline" style={{ color: 'var(--lp-cyan)' }}>
                 View All →
               </button>
             </h3>
 
             <div className="space-y-3">
               {(stats?.earlyAccess?.recent || []).map((item: any) => (
-                <div key={item.id} className="p-3.5 rounded-xl lp-glass flex items-center justify-between">
+                <div key={item.id} className="p-4 rounded-xl lp-glass flex items-center justify-between">
                   <div>
                     <div className="text-xs font-bold text-white flex items-center gap-2">
                       #{item.position} — {item.fullName}
@@ -204,14 +204,14 @@ export function MarketingAdminDashboard() {
           <div className="lp-card p-6 space-y-4">
             <h3 className="text-base font-bold text-white flex items-center justify-between">
               Top Scoring Creator Applicants
-              <button onClick={() => setActiveTab('creators')} className="text-xs hover:underline" style={{ color: 'var(--lp-cyan)' }}>
+              <button onClick={() => setActiveTab('creators')} className="text-xs font-semibold hover:underline" style={{ color: 'var(--lp-cyan)' }}>
                 View All →
               </button>
             </h3>
 
             <div className="space-y-3">
               {(stats?.foundingCreators?.recent || []).map((item: any) => (
-                <div key={item.id} className="p-3.5 rounded-xl lp-glass flex items-center justify-between">
+                <div key={item.id} className="p-4 rounded-xl lp-glass flex items-center justify-between">
                   <div>
                     <div className="text-xs font-bold text-white flex items-center gap-2">
                       {item.fullName}
@@ -245,7 +245,7 @@ export function MarketingAdminDashboard() {
                 placeholder="Search name, email, @handle..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 rounded-xl text-xs outline-none"
+                className="w-full pl-9 pr-4 py-2.5 rounded-xl text-xs outline-none"
                 style={{ background: 'var(--lp-bg-soft)', border: '1px solid var(--lp-border)', color: 'var(--lp-text-primary)' }}
               />
             </div>
@@ -299,7 +299,7 @@ export function MarketingAdminDashboard() {
               <select
                 value={creatorStatusFilter}
                 onChange={(e) => setCreatorStatusFilter(e.target.value)}
-                className="px-3 py-1.5 rounded-xl text-xs outline-none"
+                className="px-3 py-2 rounded-xl text-xs outline-none"
                 style={{ background: 'var(--lp-bg-soft)', border: '1px solid var(--lp-border)', color: 'var(--lp-text-primary)' }}
               >
                 <option value="">All Outcomes</option>
