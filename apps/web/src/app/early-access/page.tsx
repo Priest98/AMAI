@@ -5,10 +5,13 @@ import '@/styles/landing.css';
 import { Logo } from '@/components/logo';
 import { EarlyAccessForm } from '@/components/marketing/EarlyAccessForm';
 import { AttributionTracker } from '@/components/marketing/AttributionTracker';
+import { HeroProductVisual } from '@/components/marketing/HeroProductVisual';
 import ProductVisual from '@/components/landing/ProductVisual';
+import BrandAttribution from '@/components/BrandAttribution';
+import { ArrowRight } from 'lucide-react';
 
 export const metadata: Metadata = {
-  title: 'Oyinca Early Access | Your Social Media Just Got A Manager',
+  title: 'Oyinca Early Access | Your Social Media. Finally, Managed.',
   description:
     'Oyinca is building a smarter way to manage TikTok — from planning and content to publishing and consistency. Get early access before the public launch.',
 };
@@ -27,13 +30,13 @@ export default async function EarlyAccessPage({
         <AttributionTracker pageName="early-access" />
       </Suspense>
 
-      {/* Header — Isolated Logo Only */}
+      {/* Header — Isolated Oyinca Logo Only */}
       <header className="fixed top-0 inset-x-0 z-50 flex justify-center px-4 pointer-events-none">
-        <div className="pointer-events-auto w-full mt-4 max-w-5xl">
+        <div className="pointer-events-auto w-full mt-4 max-w-6xl">
           <nav
-            className="flex items-center justify-between rounded-full px-6 py-3"
+            className="flex items-center justify-between rounded-full px-6 py-3.5"
             style={{
-              background: 'color-mix(in srgb, var(--lp-bg-soft) 80%, transparent)',
+              background: 'color-mix(in srgb, var(--lp-bg-soft) 85%, transparent)',
               backdropFilter: 'blur(20px)',
               WebkitBackdropFilter: 'blur(20px)',
               border: '1px solid var(--lp-border)',
@@ -46,42 +49,61 @@ export default async function EarlyAccessPage({
         </div>
       </header>
 
-      {/* Hero Section */}
-      <main className="pt-32 pb-20 px-5 sm:px-8 max-w-4xl mx-auto flex flex-col items-center text-center">
-        <div className="max-w-3xl space-y-6">
-          <h1 className="lp-heading-display text-4xl sm:text-6xl md:text-7xl font-bold tracking-tight uppercase">
-            YOUR SOCIAL MEDIA <br />
-            <span style={{ color: 'var(--lp-hero-accent)' }}>JUST GOT A MANAGER.</span>
-          </h1>
+      {/* Hero Section — Asymmetric Editorial Layout */}
+      <main className="pt-32 sm:pt-40 pb-20 px-5 sm:px-8 max-w-6xl mx-auto space-y-24">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
+          {/* Left Column (Editorial Headline + Copy + CTA) */}
+          <div className="lg:col-span-5 text-left space-y-6">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full" style={{ background: 'var(--lp-cyan)' }} />
+              <span className="text-xs font-mono font-bold uppercase tracking-widest" style={{ color: 'var(--lp-text-muted)' }}>
+                EARLY ACCESS
+              </span>
+            </div>
 
-          <p className="text-base sm:text-xl max-w-2xl mx-auto font-normal leading-relaxed" style={{ color: 'var(--lp-text-secondary)' }}>
-            Oyinca is building a smarter way to manage TikTok — from planning and content to publishing and consistency. Get early access before the public launch.
-          </p>
+            <h1 className="lp-heading-display text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-white leading-[1.08]">
+              Your social media. <br />
+              <span style={{ color: 'var(--lp-hero-accent)' }}>Finally, managed.</span>
+            </h1>
 
-          <div className="pt-4">
-            <a
-              href="#signup-form"
-              className="inline-block px-10 py-4 rounded-full text-sm sm:text-base font-bold uppercase tracking-wider lp-btn-primary transition-transform active:scale-95 shadow-lg"
-            >
-              GET EARLY ACCESS
-            </a>
+            <p className="text-base sm:text-lg font-normal leading-relaxed" style={{ color: 'var(--lp-text-secondary)' }}>
+              Oyinca is building a smarter way to manage TikTok — from planning and content to publishing and consistency. Get early access before the public launch.
+            </p>
+
+            <div className="pt-2">
+              <a
+                href="#signup-form"
+                className="inline-flex items-center gap-3 px-8 py-4 rounded-full text-xs sm:text-sm font-bold uppercase tracking-wider lp-btn-primary transition-transform active:scale-95 shadow-xl"
+              >
+                GET EARLY ACCESS
+                <ArrowRight className="w-4 h-4" />
+              </a>
+            </div>
+          </div>
+
+          {/* Right Column (Product Visual Anchor) */}
+          <div className="lg:col-span-7">
+            <HeroProductVisual />
           </div>
         </div>
 
-        {/* Product Evidence Visual */}
-        <div className="w-full mt-16 max-w-4xl">
-          <ProductVisual />
+        {/* Premium Multi-Step Form */}
+        <div id="signup-form" className="w-full pt-8 scroll-mt-28">
+          <EarlyAccessForm initialReferralCode={referralCode} />
         </div>
 
-        {/* Multi-Step Onboarding Form */}
-        <div id="signup-form" className="w-full pt-16 scroll-mt-28">
-          <EarlyAccessForm initialReferralCode={referralCode} />
+        {/* Status Strip Section (Moved Below Form as Requested) */}
+        <div className="pt-8">
+          <ProductVisual />
         </div>
       </main>
 
       {/* Footer */}
-      <footer className="w-full border-t py-8 text-center text-xs" style={{ borderColor: 'var(--lp-border)', color: 'var(--lp-text-muted)' }}>
-        <p>© 2026 Oyinca. All rights reserved.</p>
+      <footer className="w-full border-t py-10 text-center space-y-2" style={{ borderColor: 'var(--lp-border)' }}>
+        <BrandAttribution />
+        <p className="text-xs" style={{ color: 'var(--lp-text-muted)' }}>
+          © 2026 Oyinca. All rights reserved.
+        </p>
       </footer>
     </div>
   );
