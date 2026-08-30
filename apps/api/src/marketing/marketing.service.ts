@@ -68,7 +68,7 @@ export class MarketingService {
     else if (dto.willingToTest7Days === 'YES' || dto.willingAutopilotChallenge === 'YES') willingnessScore = 10;
 
     let communicationScore = 5;
-    if (dto.whyJoin?.length > 30 && (dto.biggestProblem?.length || 0) > 20) communicationScore = 10;
+    if ((dto.whyJoin?.length || 0) > 20 && (dto.biggestProblem?.length || 0) > 20) communicationScore = 10;
 
     let growthScore = 3;
     if (dto.accountsManagedCount > 1 || dto.videosPerWeek >= 5) growthScore = 5;
@@ -260,7 +260,7 @@ export class MarketingService {
         country: dto.country,
         preferredContact: dto.preferredContact,
         tiktokUsername: dto.tiktokUsername.trim(),
-        tiktokProfileUrl: dto.tiktokProfileUrl.trim(),
+        tiktokProfileUrl: dto.tiktokProfileUrl?.trim() || `https://www.tiktok.com/@${dto.tiktokUsername.replace(/^@/, '').trim()}`,
         followerRange: dto.followerRange,
         averageViews: dto.averageViews || null,
         postingFrequency: dto.postingFrequency,

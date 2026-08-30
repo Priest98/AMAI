@@ -8,22 +8,33 @@ interface EarlyAccessFormProps {
   initialReferralCode?: string;
 }
 
-const PROBLEM_OPTIONS = [
-  'Consistency & posting daily',
-  'Writing engaging captions & hashtags',
-  'Spending too much time manually posting',
-  'Brainstorming video ideas',
-  'Tracking performance & analytics',
-  'Other workflow challenge',
+const TIME_OPTIONS = [
+  'Coming up with video ideas',
+  'Writing captions & hashtags',
+  'Planning my content',
+  'Uploading & scheduling posts',
+  'Checking my performance & analytics',
+  'Editing videos',
+  'Staying consistent',
+  'Other',
 ];
 
-const WISH_OPTIONS = [
-  'Auto-publishing & scheduling posts',
-  'AI Caption & hashtag generation',
-  'Content calendar planning',
-  '7-Day TikTok Autopilot mode',
-  'Growth & audience recommendations',
-  'All of the above',
+const HANDLE_OPTIONS = [
+  'Automatically publish & schedule my posts',
+  'Write captions & hashtags',
+  'Plan my content calendar',
+  'Keep my TikTok running with Autopilot',
+  'Give me content & growth recommendations',
+  'Everything above',
+];
+
+const SOURCE_OPTIONS = [
+  'TikTok',
+  'Friend / Creator',
+  'X',
+  'Instagram',
+  'WhatsApp',
+  'Other',
 ];
 
 export function EarlyAccessForm({ initialReferralCode }: EarlyAccessFormProps) {
@@ -32,33 +43,59 @@ export function EarlyAccessForm({ initialReferralCode }: EarlyAccessFormProps) {
     fullName: '',
     email: '',
     tiktokUsername: '',
-    tiktokProfileUrl: '',
     followerRange: '1K–5K',
     niche: 'Business / Entrepreneurship',
     postingFrequency: 'Daily',
     country: 'Nigeria',
-    biggestProblem: 'Consistency & posting daily',
-    automationWish: 'Auto-publishing & scheduling posts',
-    heardFrom: 'TikTok',
-    preferredNextPlatform: 'Instagram',
+    contentType: '',
+    timeConsumingParts: ['Writing captions & hashtags', 'Uploading & scheduling posts'] as string[],
+    customTimePart: '',
+    handleWishes: ['Automatically publish & schedule my posts', 'Write captions & hashtags'] as string[],
+    sources: ['TikTok'] as string[],
+    customSource: '',
+    videoParticipation: "Yes, I'd be happy to",
   });
 
-  const [customProblem, setCustomProblem] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successResult, setSuccessResult] = useState<any | null>(null);
 
   const totalSteps = 5;
 
-  // Prevent auto-scrolling to middle of page on initial render
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });
-  }, []);
+  }, [currentStep]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+
+  // Multi-select toggle helper for array fields
+  const toggleArrayOption = (field: 'timeConsumingParts' | 'handleWishes' | 'sources', option: string) => {
+    setFormData((prev) => {
+      const current = [...prev[field]];
+
+      if (field === 'handleWishes' && option === 'Everything above') {
+        if (current.includes('Everything above')) {
+          return { ...prev, handleWishes: [] };
+        } else {
+          return { ...prev, handleWishes: [...HANDLE_OPTIONS] };
+        }
+      }
+
+      if (current.includes(option)) {
+        const next = current.filter((item) => item !== option && item !== 'Everything above');
+        return { ...prev, [field]: next };
+      } else {
+        const next = [...current, option];
+        if (field === 'handleWishes' && next.length >= HANDLE_OPTIONS.length - 1 && !next.includes('Everything above')) {
+          next.push('Everything above');
+        }
+        return { ...prev, [field]: next };
+      }
+    });
   };
 
   const handleNext = (e: React.FormEvent) => {
@@ -76,14 +113,22 @@ export function EarlyAccessForm({ initialReferralCode }: EarlyAccessFormProps) {
         return;
       }
     } else if (currentStep === 3) {
-      const problemValue = formData.biggestProblem === 'Other workflow challenge' ? customProblem : formData.biggestProblem;
-      if (!problemValue.trim()) {
-        setError('Please select or specify your biggest TikTok management problem.');
+      if (!formData.contentType.trim()) {
+        setError('Please briefly describe the kind of content you create.');
         return;
       }
     } else if (currentStep === 4) {
-      if (!formData.automationWish.trim()) {
-        setError('Please select what you would most want Oyinca to handle for you.');
+      if (formData.timeConsumingParts.length === 0) {
+        setError('Please select at least one option for what takes up most of your time.');
+        return;
+      }
+      if (formData.handleWishes.length === 0) {
+        setError('Please select at least one feature you would love Oyinca to handle.');
+        return;
+      }
+    } else if (currentStep === 5) {
+      if (formData.sources.length === 0) {
+        setError('Please select how you discovered Oyinca.');
         return;
       }
     }
@@ -106,7 +151,15 @@ export function EarlyAccessForm({ initialReferralCode }: EarlyAccessFormProps) {
     setLoading(true);
     setError(null);
 
-    const problemValue = formData.biggestProblem === 'Other workflow challenge' ? customProblem : formData.biggestProblem;
+    const biggestProblemText = formData.timeConsumingParts
+      .map((item) => (item === 'Other' && formData.customTimePart ? formData.customTimePart : item))
+      .join(', ');
+
+    const automationWishText = formData.handleWishes.join(', ');
+
+    const heardFromText = formData.sources
+      .map((item) => (item === 'Other' && formData.customSource ? formData.customSource : item))
+      .join(', ');
 
     try {
       let attribution: any = {};
@@ -119,8 +172,16 @@ export function EarlyAccessForm({ initialReferralCode }: EarlyAccessFormProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...formData,
-          biggestProblem: problemValue,
+          fullName: formData.fullName.trim(),
+          email: formData.email.toLowerCase().trim(),
+          tiktokUsername: formData.tiktokUsername.trim(),
+          followerRange: formData.followerRange,
+          niche: formData.niche,
+          postingFrequency: formData.postingFrequency,
+          country: formData.country,
+          biggestProblem: biggestProblemText || 'N/A',
+          automationWish: automationWishText || 'N/A',
+          heardFrom: heardFromText || 'TikTok',
           referralCode: initialReferralCode || attribution.referralCode || undefined,
           utmSource: attribution.utmSource || undefined,
           utmMedium: attribution.utmMedium || undefined,
@@ -155,11 +216,11 @@ export function EarlyAccessForm({ initialReferralCode }: EarlyAccessFormProps) {
   }
 
   return (
-    <div className="w-full max-w-2xl mx-auto text-left space-y-8">
-      {/* Step Indicator Header */}
+    <div className="w-full max-w-2xl mx-auto text-left space-y-8 sm:space-y-10">
+      {/* Subtle Step Progress Header */}
       <div className="flex items-center justify-between border-b pb-4" style={{ borderColor: 'var(--lp-border)' }}>
-        <div className="text-xs font-mono font-semibold uppercase tracking-widest" style={{ color: 'var(--lp-cyan)' }}>
-          0{currentStep} — 0{totalSteps}
+        <div className="text-xs font-mono font-bold tracking-widest text-[#7FB0DB]">
+          0{currentStep} / 0{totalSteps}
         </div>
         <div className="flex items-center gap-1.5">
           {Array.from({ length: totalSteps }).map((_, idx) => (
@@ -167,7 +228,7 @@ export function EarlyAccessForm({ initialReferralCode }: EarlyAccessFormProps) {
               key={idx}
               className="h-1.5 rounded-full transition-all duration-300"
               style={{
-                width: currentStep === idx + 1 ? '24px' : '8px',
+                width: currentStep === idx + 1 ? '28px' : '8px',
                 background: currentStep >= idx + 1 ? 'var(--lp-cyan)' : 'var(--lp-border)',
               }}
             />
@@ -177,7 +238,7 @@ export function EarlyAccessForm({ initialReferralCode }: EarlyAccessFormProps) {
 
       {error && (
         <div
-          className="p-4 rounded-xl border flex items-center gap-3 text-xs font-semibold"
+          className="p-4 rounded-2xl border flex items-center gap-3 text-xs font-semibold"
           style={{ background: 'rgba(239, 68, 68, 0.1)', borderColor: 'rgba(239, 68, 68, 0.3)', color: '#F87171' }}
         >
           <AlertCircle className="w-4 h-4 shrink-0" />
@@ -190,20 +251,20 @@ export function EarlyAccessForm({ initialReferralCode }: EarlyAccessFormProps) {
         {currentStep === 1 && (
           <div className="space-y-6 animate-fadeIn">
             <div>
-              <span className="text-xs font-mono uppercase tracking-widest" style={{ color: 'var(--lp-text-muted)' }}>
+              <span className="text-xs font-mono uppercase tracking-widest text-[#7E8CA3]">
                 01 / ABOUT YOU
               </span>
-              <h2 className="lp-heading text-2xl md:text-4xl font-bold mt-2" style={{ color: 'var(--lp-text-primary)' }}>
+              <h2 className="lp-heading-display text-3xl sm:text-4xl font-bold text-white mt-2">
                 Let's start with the basics.
               </h2>
-              <p className="text-xs md:text-sm mt-1.5" style={{ color: 'var(--lp-text-secondary)' }}>
+              <p className="text-xs sm:text-sm text-slate-300 mt-1.5">
                 Just a few details. We'll take it from here.
               </p>
             </div>
 
             <div className="space-y-5 pt-2">
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--lp-text-secondary)' }}>
+                <label className="block text-xs font-bold uppercase tracking-wider mb-2 text-slate-300">
                   Full Name
                 </label>
                 <input
@@ -213,13 +274,13 @@ export function EarlyAccessForm({ initialReferralCode }: EarlyAccessFormProps) {
                   value={formData.fullName}
                   onChange={handleChange}
                   placeholder="e.g. Alex Morgan"
-                  className="w-full px-5 py-3.5 rounded-2xl text-base outline-none transition-all"
+                  className="w-full px-5 py-4 rounded-2xl text-base outline-none transition-all"
                   style={{ background: 'var(--lp-bg-soft)', border: '1px solid var(--lp-border)', color: 'var(--lp-text-primary)' }}
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--lp-text-secondary)' }}>
+                <label className="block text-xs font-bold uppercase tracking-wider mb-2 text-slate-300">
                   Email Address
                 </label>
                 <input
@@ -229,7 +290,7 @@ export function EarlyAccessForm({ initialReferralCode }: EarlyAccessFormProps) {
                   value={formData.email}
                   onChange={handleChange}
                   placeholder="alex@creator.com"
-                  className="w-full px-5 py-3.5 rounded-2xl text-base outline-none transition-all"
+                  className="w-full px-5 py-4 rounded-2xl text-base outline-none transition-all"
                   style={{ background: 'var(--lp-bg-soft)', border: '1px solid var(--lp-border)', color: 'var(--lp-text-primary)' }}
                 />
               </div>
@@ -241,10 +302,10 @@ export function EarlyAccessForm({ initialReferralCode }: EarlyAccessFormProps) {
         {currentStep === 2 && (
           <div className="space-y-6 animate-fadeIn">
             <div>
-              <span className="text-xs font-mono uppercase tracking-widest" style={{ color: 'var(--lp-text-muted)' }}>
+              <span className="text-xs font-mono uppercase tracking-widest text-[#7E8CA3]">
                 02 / YOUR TIKTOK
               </span>
-              <h2 className="lp-heading text-2xl md:text-4xl font-bold mt-2" style={{ color: 'var(--lp-text-primary)' }}>
+              <h2 className="lp-heading-display text-3xl sm:text-4xl font-bold text-white mt-2">
                 Tell us about your TikTok.
               </h2>
             </div>
@@ -252,11 +313,11 @@ export function EarlyAccessForm({ initialReferralCode }: EarlyAccessFormProps) {
             <div className="space-y-5 pt-2">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--lp-text-secondary)' }}>
+                  <label className="block text-xs font-bold uppercase tracking-wider mb-2 text-slate-300">
                     TikTok Username *
                   </label>
                   <div className="relative">
-                    <span className="absolute left-4 top-3.5 text-sm font-mono" style={{ color: 'var(--lp-text-muted)' }}>@</span>
+                    <span className="absolute left-4 top-4 text-sm font-mono text-slate-400">@</span>
                     <input
                       type="text"
                       name="tiktokUsername"
@@ -264,21 +325,21 @@ export function EarlyAccessForm({ initialReferralCode }: EarlyAccessFormProps) {
                       value={formData.tiktokUsername}
                       onChange={handleChange}
                       placeholder="username"
-                      className="w-full pl-9 pr-4 py-3.5 rounded-2xl text-base outline-none transition-all"
+                      className="w-full pl-9 pr-4 py-4 rounded-2xl text-base outline-none transition-all"
                       style={{ background: 'var(--lp-bg-soft)', border: '1px solid var(--lp-border)', color: 'var(--lp-text-primary)' }}
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--lp-text-secondary)' }}>
+                  <label className="block text-xs font-bold uppercase tracking-wider mb-2 text-slate-300">
                     Follower Range *
                   </label>
                   <select
                     name="followerRange"
                     value={formData.followerRange}
                     onChange={handleChange}
-                    className="w-full px-4 py-3.5 rounded-2xl text-base outline-none"
+                    className="w-full px-4 py-4 rounded-2xl text-base outline-none cursor-pointer"
                     style={{ background: 'var(--lp-bg-soft)', border: '1px solid var(--lp-border)', color: 'var(--lp-text-primary)' }}
                   >
                     <option value="Under 1K">Under 1K (Getting Started)</option>
@@ -294,14 +355,14 @@ export function EarlyAccessForm({ initialReferralCode }: EarlyAccessFormProps) {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--lp-text-secondary)' }}>
-                    Primary Niche *
+                  <label className="block text-xs font-bold uppercase tracking-wider mb-2 text-slate-300">
+                    Content Niche *
                   </label>
                   <select
                     name="niche"
                     value={formData.niche}
                     onChange={handleChange}
-                    className="w-full px-4 py-3.5 rounded-2xl text-base outline-none"
+                    className="w-full px-4 py-4 rounded-2xl text-base outline-none cursor-pointer"
                     style={{ background: 'var(--lp-bg-soft)', border: '1px solid var(--lp-border)', color: 'var(--lp-text-primary)' }}
                   >
                     <option value="Business / Entrepreneurship">Business / Entrepreneurship</option>
@@ -318,14 +379,14 @@ export function EarlyAccessForm({ initialReferralCode }: EarlyAccessFormProps) {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--lp-text-secondary)' }}>
+                  <label className="block text-xs font-bold uppercase tracking-wider mb-2 text-slate-300">
                     Posting Frequency *
                   </label>
                   <select
                     name="postingFrequency"
                     value={formData.postingFrequency}
                     onChange={handleChange}
-                    className="w-full px-4 py-3.5 rounded-2xl text-base outline-none"
+                    className="w-full px-4 py-4 rounded-2xl text-base outline-none cursor-pointer"
                     style={{ background: 'var(--lp-bg-soft)', border: '1px solid var(--lp-border)', color: 'var(--lp-text-primary)' }}
                   >
                     <option value="Multiple times daily">Multiple times daily</option>
@@ -337,16 +398,15 @@ export function EarlyAccessForm({ initialReferralCode }: EarlyAccessFormProps) {
                 </div>
               </div>
 
-              {/* Country Select (Nigeria Primary) */}
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--lp-text-secondary)' }}>
+                <label className="block text-xs font-bold uppercase tracking-wider mb-2 text-slate-300">
                   Country *
                 </label>
                 <select
                   name="country"
                   value={formData.country}
                   onChange={handleChange}
-                  className="w-full px-4 py-3.5 rounded-2xl text-base outline-none"
+                  className="w-full px-4 py-4 rounded-2xl text-base outline-none cursor-pointer"
                   style={{ background: 'var(--lp-bg-soft)', border: '1px solid var(--lp-border)', color: 'var(--lp-text-primary)' }}
                 >
                   <option value="Nigeria">🇳🇬 Nigeria (Primary Market)</option>
@@ -365,32 +425,66 @@ export function EarlyAccessForm({ initialReferralCode }: EarlyAccessFormProps) {
           </div>
         )}
 
-        {/* STEP 03: YOUR WORKFLOW (Multiple Choice Card Design) */}
+        {/* STEP 03: YOUR CONTENT */}
         {currentStep === 3 && (
           <div className="space-y-6 animate-fadeIn">
             <div>
-              <span className="text-xs font-mono uppercase tracking-widest" style={{ color: 'var(--lp-text-muted)' }}>
-                03 / YOUR WORKFLOW
+              <span className="text-xs font-mono uppercase tracking-widest text-[#7E8CA3]">
+                03 / YOUR CONTENT
               </span>
-              <h2 className="lp-heading text-2xl md:text-4xl font-bold mt-2" style={{ color: 'var(--lp-text-primary)' }}>
-                Where does TikTok take the most time?
+              <h2 className="lp-heading-display text-3xl sm:text-4xl font-bold text-white mt-2">
+                What kind of content do you create?
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-300 mt-1.5">
+                One or two sentences is enough.
+              </p>
+            </div>
+
+            <div className="pt-2">
+              <textarea
+                name="contentType"
+                required
+                rows={4}
+                value={formData.contentType}
+                onChange={handleChange}
+                placeholder="e.g. Talking-head videos explaining business strategies, product breakdowns, and daily founder vlogs..."
+                className="w-full p-5 rounded-2xl text-base outline-none leading-relaxed transition-all"
+                style={{ background: 'var(--lp-bg-soft)', border: '1px solid var(--lp-border)', color: 'var(--lp-text-primary)' }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* STEP 04: WHAT SHOULD OYINCA HANDLE? (MULTI-SELECT) */}
+        {currentStep === 4 && (
+          <div className="space-y-8 animate-fadeIn">
+            <div>
+              <span className="text-xs font-mono uppercase tracking-widest text-[#7E8CA3]">
+                04 / WHAT SHOULD OYINCA HANDLE?
+              </span>
+              <h2 className="lp-heading-display text-3xl sm:text-4xl font-bold text-white mt-2">
+                Your TikTok Workflow
               </h2>
             </div>
 
-            <div className="space-y-4 pt-2">
-              <label className="block text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--lp-text-secondary)' }}>
-                What is the biggest problem you have managing your TikTok right now? *
-              </label>
+            {/* Question 1: What takes up most of your time on TikTok? */}
+            <div className="space-y-3">
+              <div>
+                <h3 className="text-lg sm:text-xl font-bold text-white">
+                  What takes up most of your time on TikTok?
+                </h3>
+                <p className="text-xs text-[#7FB0DB] font-mono mt-0.5">Select all that apply.</p>
+              </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {PROBLEM_OPTIONS.map((opt) => {
-                  const isSelected = formData.biggestProblem === opt;
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                {TIME_OPTIONS.map((opt) => {
+                  const isSelected = formData.timeConsumingParts.includes(opt);
                   return (
                     <button
                       type="button"
                       key={opt}
-                      onClick={() => setFormData((prev) => ({ ...prev, biggestProblem: opt }))}
-                      className="p-4 rounded-2xl text-left border transition-all flex items-center justify-between"
+                      onClick={() => toggleArrayOption('timeConsumingParts', opt)}
+                      className="p-4 rounded-2xl text-left border transition-all flex items-center justify-between cursor-pointer"
                       style={{
                         background: isSelected ? 'var(--lp-cyan)' : 'var(--lp-bg-soft)',
                         color: isSelected ? '#090D14' : 'var(--lp-text-primary)',
@@ -399,54 +493,42 @@ export function EarlyAccessForm({ initialReferralCode }: EarlyAccessFormProps) {
                       }}
                     >
                       <span className="text-xs sm:text-sm">{opt}</span>
-                      {isSelected && <Check className="w-4 h-4 shrink-0" style={{ color: '#090D14' }} />}
+                      {isSelected && <Check className="w-4 h-4 shrink-0 text-[#090D14]" />}
                     </button>
                   );
                 })}
               </div>
 
-              {formData.biggestProblem === 'Other workflow challenge' && (
-                <div className="pt-2">
-                  <input
-                    type="text"
-                    value={customProblem}
-                    onChange={(e) => setCustomProblem(e.target.value)}
-                    placeholder="Specify your specific workflow challenge..."
-                    className="w-full px-5 py-3 rounded-2xl text-sm outline-none"
-                    style={{ background: 'var(--lp-bg-soft)', border: '1px solid var(--lp-border)', color: 'var(--lp-text-primary)' }}
-                  />
-                </div>
+              {formData.timeConsumingParts.includes('Other') && (
+                <input
+                  type="text"
+                  value={formData.customTimePart}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, customTimePart: e.target.value }))}
+                  placeholder="Specify what takes up most of your time..."
+                  className="w-full px-5 py-3.5 rounded-2xl text-sm outline-none mt-2"
+                  style={{ background: 'var(--lp-bg-soft)', border: '1px solid var(--lp-border)', color: 'var(--lp-text-primary)' }}
+                />
               )}
             </div>
-          </div>
-        )}
 
-        {/* STEP 04: OYINCA (Multiple Choice Card Design) */}
-        {currentStep === 4 && (
-          <div className="space-y-6 animate-fadeIn">
-            <div>
-              <span className="text-xs font-mono uppercase tracking-widest" style={{ color: 'var(--lp-text-muted)' }}>
-                04 / OYINCA
-              </span>
-              <h2 className="lp-heading text-2xl md:text-4xl font-bold mt-2" style={{ color: 'var(--lp-text-primary)' }}>
-                What should Oyinca take off your plate?
-              </h2>
-            </div>
+            {/* Question 2: What would you love Oyinca to take off your plate? */}
+            <div className="space-y-3 pt-4 border-t border-slate-800">
+              <div>
+                <h3 className="text-lg sm:text-xl font-bold text-white">
+                  What would you love Oyinca to take off your plate?
+                </h3>
+                <p className="text-xs text-[#7FB0DB] font-mono mt-0.5">Select all that apply.</p>
+              </div>
 
-            <div className="space-y-4 pt-2">
-              <label className="block text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--lp-text-secondary)' }}>
-                What would you most want Oyinca to handle for you? *
-              </label>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {WISH_OPTIONS.map((opt) => {
-                  const isSelected = formData.automationWish === opt;
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                {HANDLE_OPTIONS.map((opt) => {
+                  const isSelected = formData.handleWishes.includes(opt);
                   return (
                     <button
                       type="button"
                       key={opt}
-                      onClick={() => setFormData((prev) => ({ ...prev, automationWish: opt }))}
-                      className="p-4 rounded-2xl text-left border transition-all flex items-center justify-between"
+                      onClick={() => toggleArrayOption('handleWishes', opt)}
+                      className="p-4 rounded-2xl text-left border transition-all flex items-center justify-between cursor-pointer"
                       style={{
                         background: isSelected ? 'var(--lp-cyan)' : 'var(--lp-bg-soft)',
                         color: isSelected ? '#090D14' : 'var(--lp-text-primary)',
@@ -455,7 +537,7 @@ export function EarlyAccessForm({ initialReferralCode }: EarlyAccessFormProps) {
                       }}
                     >
                       <span className="text-xs sm:text-sm">{opt}</span>
-                      {isSelected && <Check className="w-4 h-4 shrink-0" style={{ color: '#090D14' }} />}
+                      {isSelected && <Check className="w-4 h-4 shrink-0 text-[#090D14]" />}
                     </button>
                   );
                 })}
@@ -464,75 +546,104 @@ export function EarlyAccessForm({ initialReferralCode }: EarlyAccessFormProps) {
           </div>
         )}
 
-        {/* STEP 05: DISCOVERY & FINISH (High-Contrast Buttons) */}
+        {/* STEP 05: JOINING EARLY */}
         {currentStep === 5 && (
-          <div className="space-y-6 animate-fadeIn">
+          <div className="space-y-8 animate-fadeIn">
             <div>
-              <span className="text-xs font-mono uppercase tracking-widest" style={{ color: 'var(--lp-text-muted)' }}>
-                05 / DISCOVERY
+              <span className="text-xs font-mono uppercase tracking-widest text-[#7E8CA3]">
+                05 / JOINING EARLY
               </span>
-              <h2 className="lp-heading text-2xl md:text-4xl font-bold mt-2" style={{ color: 'var(--lp-text-primary)' }}>
-                How did you find Oyinca?
+              <h2 className="lp-heading-display text-3xl sm:text-4xl font-bold text-white mt-2">
+                Discovery & Feedback
               </h2>
             </div>
 
-            <div className="space-y-5 pt-2">
+            {/* Question 1: How did you find Oyinca? (MULTI-SELECT) */}
+            <div className="space-y-3">
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--lp-text-secondary)' }}>
-                  Acquisition Channel *
-                </label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {['TikTok', 'Friend / Creator', 'X / Twitter', 'Instagram', 'WhatsApp', 'Other'].map((channel) => {
-                    const isSelected = formData.heardFrom === channel;
-                    return (
-                      <button
-                        type="button"
-                        key={channel}
-                        onClick={() => setFormData((prev) => ({ ...prev, heardFrom: channel }))}
-                        className="p-3.5 rounded-xl text-xs font-bold border transition-all text-left flex items-center justify-between"
-                        style={{
-                          background: isSelected ? 'var(--lp-cyan)' : 'var(--lp-bg-soft)',
-                          color: isSelected ? '#090D14' : 'var(--lp-text-primary)',
-                          borderColor: isSelected ? 'var(--lp-cyan)' : 'var(--lp-border)',
-                        }}
-                      >
-                        <span>{channel}</span>
-                        {isSelected && <Check className="w-3.5 h-3.5 shrink-0" style={{ color: '#090D14' }} />}
-                      </button>
-                    );
-                  })}
-                </div>
+                <h3 className="text-lg sm:text-xl font-bold text-white">
+                  How did you find Oyinca?
+                </h3>
+                <p className="text-xs text-[#7FB0DB] font-mono mt-0.5">Select all that apply.</p>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--lp-text-secondary)' }}>
-                  Which platform should Oyinca support next? (Optional)
-                </label>
-                <select
-                  name="preferredNextPlatform"
-                  value={formData.preferredNextPlatform}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3.5 rounded-2xl text-base outline-none"
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-1">
+                {SOURCE_OPTIONS.map((src) => {
+                  const isSelected = formData.sources.includes(src);
+                  return (
+                    <button
+                      type="button"
+                      key={src}
+                      onClick={() => toggleArrayOption('sources', src)}
+                      className="p-4 rounded-2xl text-left border transition-all flex items-center justify-between cursor-pointer"
+                      style={{
+                        background: isSelected ? 'var(--lp-cyan)' : 'var(--lp-bg-soft)',
+                        color: isSelected ? '#090D14' : 'var(--lp-text-primary)',
+                        borderColor: isSelected ? 'var(--lp-cyan)' : 'var(--lp-border)',
+                        fontWeight: isSelected ? 700 : 500,
+                      }}
+                    >
+                      <span className="text-xs sm:text-sm">{src}</span>
+                      {isSelected && <Check className="w-4 h-4 shrink-0 text-[#090D14]" />}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {formData.sources.includes('Other') && (
+                <input
+                  type="text"
+                  value={formData.customSource}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, customSource: e.target.value }))}
+                  placeholder="Specify how you discovered Oyinca..."
+                  className="w-full px-5 py-3.5 rounded-2xl text-sm outline-none mt-2"
                   style={{ background: 'var(--lp-bg-soft)', border: '1px solid var(--lp-border)', color: 'var(--lp-text-primary)' }}
-                >
-                  <option value="Instagram">Instagram</option>
-                  <option value="YouTube Shorts">YouTube Shorts</option>
-                  <option value="X">X (Twitter)</option>
-                  <option value="LinkedIn">LinkedIn</option>
-                  <option value="Facebook">Facebook</option>
-                </select>
+                />
+              )}
+            </div>
+
+            {/* Question 2: 15-20 Second Video Question */}
+            <div className="space-y-3 pt-4 border-t border-slate-800">
+              <div>
+                <h3 className="text-lg sm:text-xl font-bold text-white">
+                  If you join early, would you be open to sharing a short 15–20 second video about your experience with Oyinca?
+                </h3>
+                <p className="text-xs text-slate-400 mt-1">Nothing polished — just your honest experience.</p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                {["Yes, I'd be happy to", 'Maybe', 'Not right now'].map((opt) => {
+                  const isSelected = formData.videoParticipation === opt;
+                  return (
+                    <button
+                      type="button"
+                      key={opt}
+                      onClick={() => setFormData((prev) => ({ ...prev, videoParticipation: opt }))}
+                      className="p-4 rounded-2xl text-left border transition-all flex items-center justify-between cursor-pointer"
+                      style={{
+                        background: isSelected ? 'var(--lp-cyan)' : 'var(--lp-bg-soft)',
+                        color: isSelected ? '#090D14' : 'var(--lp-text-primary)',
+                        borderColor: isSelected ? 'var(--lp-cyan)' : 'var(--lp-border)',
+                        fontWeight: isSelected ? 700 : 500,
+                      }}
+                    >
+                      <span className="text-xs sm:text-sm">{opt}</span>
+                      {isSelected && <Check className="w-4 h-4 shrink-0 text-[#090D14]" />}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>
         )}
 
         {/* Step Navigation Bar */}
-        <div className="flex items-center justify-between pt-6 border-t" style={{ borderColor: 'var(--lp-border)' }}>
+        <div className="flex items-center justify-between pt-6 border-t border-slate-800">
           {currentStep > 1 ? (
             <button
               type="button"
               onClick={handleBack}
-              className="px-5 py-3 rounded-full text-xs font-bold uppercase tracking-wider lp-btn-ghost transition-colors flex items-center gap-2"
+              className="px-6 py-3.5 rounded-full text-xs font-bold uppercase tracking-wider lp-btn-ghost transition-colors flex items-center gap-2"
             >
               <ArrowLeft className="w-4 h-4" />
               BACK
@@ -544,7 +655,7 @@ export function EarlyAccessForm({ initialReferralCode }: EarlyAccessFormProps) {
           <button
             type="submit"
             disabled={loading}
-            className="px-8 py-3.5 rounded-full text-xs sm:text-sm font-bold uppercase tracking-wider lp-btn-primary transition-transform active:scale-95 flex items-center gap-2 ml-auto"
+            className="px-8 py-4 rounded-full text-xs sm:text-sm font-bold uppercase tracking-wider lp-btn-primary transition-transform active:scale-95 flex items-center gap-2 ml-auto shadow-xl"
           >
             {loading ? (
               <>
@@ -558,8 +669,7 @@ export function EarlyAccessForm({ initialReferralCode }: EarlyAccessFormProps) {
               </>
             ) : (
               <>
-                JOIN EARLY ACCESS
-                <Check className="w-4 h-4" />
+                JOIN EARLY ACCESS →
               </>
             )}
           </button>

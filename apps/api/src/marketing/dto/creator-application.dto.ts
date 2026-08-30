@@ -16,8 +16,9 @@ export class CreatorApplicationDto {
   @IsString()
   tiktokUsername!: string;
 
+  @IsOptional()
   @IsString()
-  tiktokProfileUrl!: string;
+  tiktokProfileUrl?: string;
 
   @IsString()
   followerRange!: string;
@@ -54,20 +55,27 @@ export class CreatorApplicationDto {
   @IsString()
   usesExistingTools?: string;
 
+  @IsOptional()
   @IsString()
-  whyJoin!: string;
+  whyJoin?: string;
 
+  @IsOptional()
   @IsString()
-  biggestProblem!: string;
+  biggestProblem?: string;
 
+  @IsOptional()
   @IsString()
-  workflowToRemove!: string;
+  workflowToRemove?: string;
 
   @IsString()
   willingToTest7Days!: string;
 
   @IsString()
   willingAutopilotChallenge!: string;
+
+  @IsOptional()
+  @IsString()
+  videoParticipation?: string;
 
   @IsOptional()
   @IsString()
