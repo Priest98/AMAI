@@ -11,9 +11,9 @@ import BrandAttribution from '@/components/BrandAttribution';
 import { ArrowRight } from 'lucide-react';
 
 export const metadata: Metadata = {
-  title: 'Oyinca Early Access | Your Social Media. Finally, Managed.',
+  title: 'Oyinca Early Access | You Create. Oyinca Handles The Rest.',
   description:
-    'Oyinca is building a smarter way to manage TikTok — from planning and content to publishing and consistency. Get early access before the public launch.',
+    'Meet Oyinca — your social media manager, built to work in the background while you focus on creating. Get early access before the public launch.',
 };
 
 export default async function EarlyAccessPage({
@@ -32,9 +32,9 @@ export default async function EarlyAccessPage({
 
       {/* Header — Isolated Oyinca Logo Only */}
       <header className="fixed top-0 inset-x-0 z-50 flex justify-center px-4 pointer-events-none">
-        <div className="pointer-events-auto w-full mt-4 max-w-6xl">
+        <div className="pointer-events-auto w-full mt-3 sm:mt-4 max-w-6xl">
           <nav
-            className="flex items-center justify-between rounded-full px-6 py-3.5"
+            className="flex items-center justify-between rounded-full px-5 py-3 sm:px-6 sm:py-3.5"
             style={{
               background: 'color-mix(in srgb, var(--lp-bg-soft) 85%, transparent)',
               backdropFilter: 'blur(20px)',
@@ -49,31 +49,32 @@ export default async function EarlyAccessPage({
         </div>
       </header>
 
-      {/* Hero Section — Asymmetric Editorial Layout */}
-      <main className="pt-32 sm:pt-40 pb-20 px-5 sm:px-8 max-w-6xl mx-auto space-y-24">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
-          {/* Left Column (Editorial Headline + Copy + CTA) */}
-          <div className="lg:col-span-5 text-left space-y-6">
+      {/* Main Container — Mobile First Design Layout */}
+      <main className="pt-24 sm:pt-40 pb-20 px-4 sm:px-8 max-w-6xl mx-auto space-y-16 sm:space-y-24">
+        {/* Hero Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-8 items-center">
+          {/* Hero Copy (Mobile & Desktop First Column) */}
+          <div className="lg:col-span-5 text-left space-y-5 sm:space-y-6">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full" style={{ background: 'var(--lp-cyan)' }} />
               <span className="text-xs font-mono font-bold uppercase tracking-widest" style={{ color: 'var(--lp-text-muted)' }}>
-                EARLY ACCESS
+                OYINCA IS COMING
               </span>
             </div>
 
-            <h1 className="lp-heading-display text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-white leading-[1.08]">
-              Your social media. <br />
-              <span style={{ color: 'var(--lp-hero-accent)' }}>Finally, managed.</span>
+            <h1 className="lp-heading-display text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-white leading-[1.08] uppercase">
+              You create. <br />
+              <span style={{ color: 'var(--lp-hero-accent)' }}>Oyinca handles the rest.</span>
             </h1>
 
-            <p className="text-base sm:text-lg font-normal leading-relaxed" style={{ color: 'var(--lp-text-secondary)' }}>
-              Oyinca is building a smarter way to manage TikTok — from planning and content to publishing and consistency. Get early access before the public launch.
+            <p className="text-sm sm:text-lg font-normal leading-relaxed max-w-xl" style={{ color: 'var(--lp-text-secondary)' }}>
+              Meet Oyinca — your social media manager, built to work in the background while you focus on creating.
             </p>
 
             <div className="pt-2">
               <a
                 href="#signup-form"
-                className="inline-flex items-center gap-3 px-8 py-4 rounded-full text-xs sm:text-sm font-bold uppercase tracking-wider lp-btn-primary transition-transform active:scale-95 shadow-xl"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-4 rounded-full text-xs sm:text-sm font-bold uppercase tracking-wider lp-btn-primary transition-transform active:scale-95 shadow-xl"
               >
                 GET EARLY ACCESS
                 <ArrowRight className="w-4 h-4" />
@@ -81,19 +82,19 @@ export default async function EarlyAccessPage({
             </div>
           </div>
 
-          {/* Right Column (Product Visual Anchor) */}
-          <div className="lg:col-span-7">
+          {/* Product Visual Anchor (Placed Immediately After CTA) */}
+          <div className="lg:col-span-7 pt-2 lg:pt-0">
             <HeroProductVisual />
           </div>
         </div>
 
         {/* Premium Multi-Step Form */}
-        <div id="signup-form" className="w-full pt-8 scroll-mt-28">
+        <div id="signup-form" className="w-full pt-4 sm:pt-8 scroll-mt-24">
           <EarlyAccessForm initialReferralCode={referralCode} />
         </div>
 
-        {/* Status Strip Section (Moved Below Form as Requested) */}
-        <div className="pt-8">
+        {/* Status Strip Section */}
+        <div className="pt-4 sm:pt-8">
           <ProductVisual />
         </div>
       </main>
