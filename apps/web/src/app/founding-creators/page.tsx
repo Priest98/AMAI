@@ -5,6 +5,7 @@ import '@/styles/landing.css';
 import { Logo } from '@/components/logo';
 import { FoundingCreatorForm } from '@/components/marketing/FoundingCreatorForm';
 import { HeroProductVisual } from '@/components/marketing/HeroProductVisual';
+import { RewardShowcase } from '@/components/marketing/RewardShowcase';
 import { AttributionTracker } from '@/components/marketing/AttributionTracker';
 import ProductVisual from '@/components/landing/ProductVisual';
 
@@ -41,7 +42,7 @@ export default function FoundingCreatorsPage() {
       </header>
 
       {/* Main Content */}
-      <main className="pt-28 pb-20 px-5 sm:px-8 max-w-6xl mx-auto">
+      <main className="pt-28 pb-20 px-5 sm:px-8 max-w-6xl mx-auto space-y-16 sm:space-y-24">
         {/* Asymmetric Hero Section */}
         <section className="pt-8 pb-16 md:py-20 border-b" style={{ borderColor: 'var(--lp-border)' }}>
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
@@ -81,73 +82,31 @@ export default function FoundingCreatorsPage() {
           </div>
         </section>
 
-        {/* Benefits Grid */}
-        <section className="py-16 text-left border-b" style={{ borderColor: 'var(--lp-border)' }}>
-          <div className="max-w-3xl mb-10">
-            <span className="text-xs font-mono uppercase tracking-widest" style={{ color: 'var(--lp-text-muted)' }}>
-              PROGRAM PERKS
-            </span>
-            <h2 className="lp-heading text-2xl sm:text-4xl font-bold mt-2" style={{ color: 'var(--lp-text-primary)' }}>
-              Founding Creator Benefits
-            </h2>
-            <p className="text-xs sm:text-sm mt-1" style={{ color: 'var(--lp-text-secondary)' }}>
-              What selected members of Cohort 001 receive:
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div className="lp-card p-6">
-              <h3 className="text-base font-bold text-white mb-2">Free Oyinca Creator Access</h3>
-              <p className="text-xs leading-relaxed" style={{ color: 'var(--lp-text-secondary)' }}>
-                Complimentary access to the full Oyinca Creator tier during the founding period and launch phase.
-              </p>
-            </div>
-
-            <div className="lp-card p-6">
-              <h3 className="text-base font-bold text-white mb-2">Direct Product Access</h3>
-              <p className="text-xs leading-relaxed" style={{ color: 'var(--lp-text-secondary)' }}>
-                Direct slack/whatsapp channel access to the Oyinca core team to request features and shape development.
-              </p>
-            </div>
-
-            <div className="lp-card p-6">
-              <h3 className="text-base font-bold text-white mb-2">Founding Creator Recognition</h3>
-              <p className="text-xs leading-relaxed" style={{ color: 'var(--lp-text-secondary)' }}>
-                Exclusive Founding Creator badge, verified referral tier status, and early access to every new platform drop.
-              </p>
-            </div>
-
-            <div className="lp-card p-6">
-              <h3 className="text-base font-bold text-white mb-2">Campaign Opportunities</h3>
-              <p className="text-xs leading-relaxed" style={{ color: 'var(--lp-text-secondary)' }}>
-                Priority placement for paid brand deals, co-marketing spotlight campaigns, and affiliate revenue share.
-              </p>
-            </div>
-          </div>
-        </section>
+        {/* Exclusive Reward Showcase Section */}
+        <RewardShowcase variant="founding-creator" />
 
         {/* 7-Day Autopilot Challenge */}
-        <section className="py-16">
-          <div className="lp-card p-8 sm:p-12 text-center space-y-4 max-w-4xl mx-auto">
-            <span className="text-xs font-mono uppercase tracking-widest" style={{ color: 'var(--lp-cyan)' }}>
+        <section className="py-4">
+          <div className="lp-card p-8 sm:p-12 text-center space-y-4 max-w-4xl mx-auto border border-[#D8B571]/20">
+            <span className="text-xs font-mono uppercase tracking-widest text-[#D8B571]">
               COHORT EXPERIMENT
             </span>
-            <h2 className="lp-heading text-2xl sm:text-4xl font-bold" style={{ color: 'var(--lp-text-primary)' }}>
+            <h2 className="lp-heading-display text-2xl sm:text-4xl font-bold text-white">
               The 7-Day Oyinca Autopilot Challenge
             </h2>
-            <p className="text-sm sm:text-base max-w-2xl mx-auto leading-relaxed" style={{ color: 'var(--lp-text-secondary)' }}>
+            <p className="text-sm sm:text-base max-w-2xl mx-auto leading-relaxed text-slate-300">
               "Give Oyinca your TikTok content for 7 days and see what happens." Selected creators document their honest experience from Day 1 to Day 7.
             </p>
           </div>
         </section>
 
         {/* Multi-Step Creator Application Form */}
-        <section id="application-form" className="py-12 scroll-mt-28">
+        <section id="application-form" className="py-8 scroll-mt-28">
           <FoundingCreatorForm />
         </section>
 
         {/* Live Product Status Strip Below Form */}
-        <section className="py-12">
+        <section className="py-8">
           <ProductVisual />
         </section>
       </main>

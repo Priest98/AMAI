@@ -6,6 +6,7 @@ import { Logo } from '@/components/logo';
 import { EarlyAccessForm } from '@/components/marketing/EarlyAccessForm';
 import { AttributionTracker } from '@/components/marketing/AttributionTracker';
 import { HeroProductVisual } from '@/components/marketing/HeroProductVisual';
+import { RewardShowcase } from '@/components/marketing/RewardShowcase';
 import ProductVisual from '@/components/landing/ProductVisual';
 import BrandAttribution from '@/components/BrandAttribution';
 import { ArrowRight } from 'lucide-react';
@@ -82,11 +83,14 @@ export default async function EarlyAccessPage({
             </div>
           </div>
 
-          {/* Product Visual Anchor (Placed Immediately After CTA) */}
+          {/* Product Visual Anchor */}
           <div className="lg:col-span-7 pt-2 lg:pt-0">
             <HeroProductVisual />
           </div>
         </div>
+
+        {/* Exclusive Reward Showcase Section */}
+        <RewardShowcase variant="early-access" />
 
         {/* Premium Multi-Step Form */}
         <div id="signup-form" className="w-full pt-4 sm:pt-8 scroll-mt-24">
