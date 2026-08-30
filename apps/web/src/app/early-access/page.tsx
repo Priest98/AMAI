@@ -5,7 +5,6 @@ import '@/styles/landing.css';
 import { Logo } from '@/components/logo';
 import { EarlyAccessForm } from '@/components/marketing/EarlyAccessForm';
 import { AttributionTracker } from '@/components/marketing/AttributionTracker';
-import HeroVisual from '@/components/landing/HeroVisual';
 import ProductVisual from '@/components/landing/ProductVisual';
 
 export const metadata: Metadata = {
@@ -28,7 +27,7 @@ export default async function EarlyAccessPage({
         <AttributionTracker pageName="early-access" />
       </Suspense>
 
-      {/* Header */}
+      {/* Header — Isolated Logo Only */}
       <header className="fixed top-0 inset-x-0 z-50 flex justify-center px-4 pointer-events-none">
         <div className="pointer-events-auto w-full mt-4 max-w-5xl">
           <nav
@@ -43,20 +42,12 @@ export default async function EarlyAccessPage({
             <Link href="/" className="flex items-center gap-2" aria-label="Oyinca home">
               <Logo variant="full" size="md" />
             </Link>
-
-            <Link
-              href="/founding-creators"
-              className="text-xs font-semibold px-4 py-2 rounded-full transition-colors hover:text-white"
-              style={{ color: 'var(--lp-text-secondary)' }}
-            >
-              Founding Creator Program
-            </Link>
           </nav>
         </div>
       </header>
 
       {/* Hero Section */}
-      <main className="pt-32 pb-20 px-5 sm:px-8 max-w-5xl mx-auto flex flex-col items-center text-center">
+      <main className="pt-32 pb-20 px-5 sm:px-8 max-w-4xl mx-auto flex flex-col items-center text-center">
         <div className="max-w-3xl space-y-6">
           <h1 className="lp-heading-display text-4xl sm:text-6xl md:text-7xl font-bold tracking-tight uppercase">
             YOUR SOCIAL MEDIA <br />
@@ -67,29 +58,22 @@ export default async function EarlyAccessPage({
             Oyinca is building a smarter way to manage TikTok — from planning and content to publishing and consistency. Get early access before the public launch.
           </p>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
+          <div className="pt-4">
             <a
               href="#signup-form"
-              className="w-full sm:w-auto px-8 py-3.5 rounded-full text-sm sm:text-base font-bold uppercase tracking-wider lp-btn-primary transition-transform active:scale-95"
+              className="inline-block px-10 py-4 rounded-full text-sm sm:text-base font-bold uppercase tracking-wider lp-btn-primary transition-transform active:scale-95 shadow-lg"
             >
               GET EARLY ACCESS
             </a>
-
-            <Link
-              href="/founding-creators"
-              className="w-full sm:w-auto px-8 py-3.5 rounded-full text-sm sm:text-base font-bold uppercase tracking-wider lp-btn-ghost transition-colors"
-            >
-              BECOME A FOUNDING CREATOR
-            </Link>
           </div>
         </div>
 
-        {/* Real Product Visual Evidence */}
+        {/* Product Evidence Visual */}
         <div className="w-full mt-16 max-w-4xl">
           <ProductVisual />
         </div>
 
-        {/* Form Section */}
+        {/* Multi-Step Onboarding Form */}
         <div id="signup-form" className="w-full pt-16 scroll-mt-28">
           <EarlyAccessForm initialReferralCode={referralCode} />
         </div>

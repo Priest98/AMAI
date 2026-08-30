@@ -19,7 +19,7 @@ export default function FoundingCreatorsPage() {
         <AttributionTracker pageName="founding-creators" />
       </Suspense>
 
-      {/* Header */}
+      {/* Header — Isolated Logo Only */}
       <header className="fixed top-0 inset-x-0 z-50 flex justify-center px-4 pointer-events-none">
         <div className="pointer-events-auto w-full mt-4 max-w-5xl">
           <nav
@@ -34,20 +34,12 @@ export default function FoundingCreatorsPage() {
             <Link href="/" className="flex items-center gap-2" aria-label="Oyinca home">
               <Logo variant="full" size="md" />
             </Link>
-
-            <Link
-              href="/early-access"
-              className="text-xs font-semibold px-4 py-2 rounded-full transition-colors hover:text-white"
-              style={{ color: 'var(--lp-text-secondary)' }}
-            >
-              Early Access Queue
-            </Link>
           </nav>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="pt-32 pb-20 px-5 sm:px-8 max-w-5xl mx-auto flex flex-col items-center text-center">
+      <main className="pt-32 pb-20 px-5 sm:px-8 max-w-4xl mx-auto flex flex-col items-center text-center">
         {/* Hero */}
         <div className="max-w-3xl space-y-6 mb-16">
           <h1 className="lp-heading-display text-4xl sm:text-6xl md:text-7xl font-bold tracking-tight uppercase">
@@ -62,14 +54,14 @@ export default function FoundingCreatorsPage() {
           <div className="pt-2">
             <a
               href="#application-form"
-              className="inline-block px-8 py-3.5 rounded-full text-sm sm:text-base font-bold uppercase tracking-wider lp-btn-primary transition-transform active:scale-95"
+              className="inline-block px-10 py-4 rounded-full text-sm sm:text-base font-bold uppercase tracking-wider lp-btn-primary transition-transform active:scale-95 shadow-lg"
             >
               APPLY TO BECOME A FOUNDING CREATOR
             </a>
           </div>
 
           <p className="text-xs" style={{ color: 'var(--lp-text-muted)' }}>
-            Applications are reviewed selectively.
+            Applications are reviewed individually.
           </p>
         </div>
 
@@ -113,7 +105,7 @@ export default function FoundingCreatorsPage() {
           </p>
         </div>
 
-        {/* Form Container */}
+        {/* Multi-Step Creator Application Form */}
         <div id="application-form" className="w-full scroll-mt-28">
           <FoundingCreatorForm />
         </div>
