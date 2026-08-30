@@ -13,7 +13,7 @@ import { ArrowRight } from 'lucide-react';
 export const metadata: Metadata = {
   title: 'Oyinca Early Access | You Create. Oyinca Handles The Rest.',
   description:
-    'Meet Oyinca — your social media manager, built to work in the background while you focus on creating. Get early access before the public launch.',
+    'Meet Oyinca, your social media manager, built to work in the background while you focus on creating. Get early access before the public launch.',
 };
 
 export default async function EarlyAccessPage({
@@ -68,7 +68,7 @@ export default async function EarlyAccessPage({
             </h1>
 
             <p className="text-sm sm:text-lg font-normal leading-relaxed max-w-xl" style={{ color: 'var(--lp-text-secondary)' }}>
-              Meet Oyinca — your social media manager, built to work in the background while you focus on creating.
+              Meet Oyinca, your social media manager, built to work in the background while you focus on creating.
             </p>
 
             <div className="pt-2">

@@ -1,5 +1,6 @@
 import { Injectable, ConflictException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { TelegramService } from '../common/telegram.service';
 import { EarlyAccessSignupDto } from './dto/early-access-signup.dto';
 import { CreatorApplicationDto } from './dto/creator-application.dto';
 import { AttributionEventDto } from './dto/attribution-event.dto';
@@ -7,13 +8,16 @@ import * as crypto from 'crypto';
 
 @Injectable()
 export class MarketingService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly telegram: TelegramService,
+  ) {}
 
   /**
    * Helper to generate a clean, readable unique referral code (e.g., OYC-7X9K2A)
    */
   private generateReferralCode(): string {
-    const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ'; // Avoid confusing characters (0, O, 1, I)
+    const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
     let code = 'OYC-';
     for (let i = 0; i < 6; i++) {
       code += chars.charAt(Math.floor(Math.random() * chars.length));
@@ -64,7 +68,7 @@ export class MarketingService {
     else if (dto.willingToTest7Days === 'YES' || dto.willingAutopilotChallenge === 'YES') willingnessScore = 10;
 
     let communicationScore = 5;
-    if (dto.whyJoin?.length > 30 && dto.biggestProblem?.length > 20) communicationScore = 10;
+    if (dto.whyJoin?.length > 30 && (dto.biggestProblem?.length || 0) > 20) communicationScore = 10;
 
     let growthScore = 3;
     if (dto.accountsManagedCount > 1 || dto.videosPerWeek >= 5) growthScore = 5;
@@ -163,6 +167,22 @@ export class MarketingService {
 
     const updatedTotalCount = currentCount + 1;
 
+    // Send Real-time Notification to Telegram
+    const telegramMessage = [
+      `🚀 <b>NEW OYINCA EARLY ACCESS SIGNUP</b>`,
+      ``,
+      `<b>Position:</b> #${position}`,
+      `<b>Name:</b> ${dto.fullName.trim()}`,
+      `<b>Email:</b> ${dto.email.toLowerCase().trim()}`,
+      `<b>TikTok:</b> @${dto.tiktokUsername.trim()}`,
+      `<b>Followers:</b> ${dto.followerRange}`,
+      `<b>Niche:</b> ${dto.niche}`,
+      `<b>Country:</b> ${dto.country}`,
+      `<b>Source:</b> ${dto.heardFrom || 'Direct'}`,
+      `<b>Referral Code:</b> ${referralCode}`,
+    ].join('\n');
+    this.telegram.send(telegramMessage).catch(() => {});
+
     return {
       isExisting: false,
       signup,
@@ -247,38 +267,44 @@ export class MarketingService {
         niche: dto.niche,
         accountsManagedCount: dto.accountsManagedCount || 1,
         sampleVideoUrls: dto.sampleVideoUrls || [],
-        currentWorkflow: dto.currentWorkflow,
-        timeConsumingPart: dto.timeConsumingPart,
-        videosPerWeek: dto.videosPerWeek || 1,
+        currentWorkflow: dto.currentWorkflow || 'N/A',
+        timeConsumingPart: dto.timeConsumingPart || 'N/A',
+        videosPerWeek: dto.videosPerWeek || 5,
         usesExistingTools: dto.usesExistingTools || null,
-        whyJoin: dto.whyJoin,
-        biggestProblem: dto.biggestProblem,
-        workflowToRemove: dto.workflowToRemove,
+        whyJoin: dto.whyJoin || 'N/A',
+        biggestProblem: dto.biggestProblem || 'N/A',
+        workflowToRemove: dto.workflowToRemove || 'N/A',
         willingToTest7Days: dto.willingToTest7Days,
         willingAutopilotChallenge: dto.willingAutopilotChallenge,
         internalScore: score,
         scoreBreakdown: breakdown,
         status: initialStatus,
-        utmSource: dto.utmSource || null,
-        utmMedium: dto.utmMedium || null,
-        utmCampaign: dto.utmCampaign || null,
       },
     });
+
+    // Send Real-time Notification to Telegram
+    const telegramMessage = [
+      `🌟 <b>NEW FOUNDING TIKTOK CREATOR APPLICATION</b>`,
+      ``,
+      `<b>Name:</b> ${dto.fullName.trim()}`,
+      `<b>Email:</b> ${dto.email.toLowerCase().trim()}`,
+      `<b>TikTok:</b> @${dto.tiktokUsername.trim()} (${dto.followerRange})`,
+      `<b>Score:</b> ${score}/100`,
+      `<b>Status Outcome:</b> ${initialStatus}`,
+      `<b>Country:</b> ${dto.country}`,
+      `<b>Contact:</b> ${dto.preferredContact}`,
+    ].join('\n');
+    this.telegram.send(telegramMessage).catch(() => {});
 
     return {
       isExisting: false,
       application,
-      message:
-        initialStatus === 'ACCEPTED'
-          ? "Congratulations! You're officially an Oyinca Founding TikTok Creator. 🚀"
-          : initialStatus === 'CREATOR_REVIEW'
-          ? "We've received your application and are keeping it under priority review."
-          : "Thank you! You've been added to Oyinca Early Access.",
+      message: 'Application submitted successfully! Our team will review your channel details.',
     };
   }
 
   // ==========================================
-  // MARKETING ATTRIBUTION & ANALYTICS
+  // MARKETING ATTRIBUTION TRACKING
   // ==========================================
 
   async recordAttributionEvent(dto: AttributionEventDto) {
@@ -286,16 +312,20 @@ export class MarketingService {
       data: {
         sessionId: dto.sessionId,
         eventType: dto.eventType,
+        landingPage: dto.landingPage,
+        referrerUrl: dto.referrerUrl || null,
         utmSource: dto.utmSource || null,
         utmMedium: dto.utmMedium || null,
         utmCampaign: dto.utmCampaign || null,
-        referrerUrl: dto.referrerUrl || null,
-        landingPage: dto.landingPage,
         signupId: dto.signupId || null,
         creatorAppId: dto.creatorAppId || null,
       },
     });
   }
+
+  // ==========================================
+  // ADMIN MARKETING METRICS
+  // ==========================================
 
   async getAdminStats() {
     const totalEarlyAccess = await this.prisma.earlyAccessSignup.count();
@@ -304,38 +334,25 @@ export class MarketingService {
     startOfToday.setHours(0, 0, 0, 0);
 
     const startOfWeek = new Date();
-    startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
-    startOfWeek.setHours(0, 0, 0, 0);
+    startOfWeek.setDate(startOfWeek.getDate() - 7);
 
-    const signupsToday = await this.prisma.earlyAccessSignup.count({
+    const todayEarlyAccess = await this.prisma.earlyAccessSignup.count({
       where: { createdAt: { gte: startOfToday } },
     });
 
-    const signupsThisWeek = await this.prisma.earlyAccessSignup.count({
+    const thisWeekEarlyAccess = await this.prisma.earlyAccessSignup.count({
       where: { createdAt: { gte: startOfWeek } },
     });
 
-    const followerRanges = await this.prisma.earlyAccessSignup.groupBy({
-      by: ['followerRange'],
-      _count: { _all: true },
+    const totalApplications = await this.prisma.foundingCreatorApplication.count();
+    const acceptedCount = await this.prisma.foundingCreatorApplication.count({
+      where: { status: 'ACCEPTED' },
+    });
+    const reviewCount = await this.prisma.foundingCreatorApplication.count({
+      where: { status: 'CREATOR_REVIEW' },
     });
 
-    const niches = await this.prisma.earlyAccessSignup.groupBy({
-      by: ['niche'],
-      _count: { _all: true },
-    });
-
-    const utmSources = await this.prisma.earlyAccessSignup.groupBy({
-      by: ['utmSource'],
-      _count: { _all: true },
-    });
-
-    const creatorAppsTotal = await this.prisma.foundingCreatorApplication.count();
-    const creatorAccepted = await this.prisma.foundingCreatorApplication.count({ where: { status: 'ACCEPTED' } });
-    const creatorReview = await this.prisma.foundingCreatorApplication.count({ where: { status: 'CREATOR_REVIEW' } });
-    const creatorEarlyAccess = await this.prisma.foundingCreatorApplication.count({ where: { status: 'EARLY_ACCESS' } });
-
-    const recentSignups = await this.prisma.earlyAccessSignup.findMany({
+    const recentEarlyAccess = await this.prisma.earlyAccessSignup.findMany({
       take: 10,
       orderBy: { createdAt: 'desc' },
       select: {
@@ -343,12 +360,11 @@ export class MarketingService {
         fullName: true,
         email: true,
         tiktokUsername: true,
+        position: true,
         followerRange: true,
         niche: true,
         country: true,
-        referralCode: true,
         referralCount: true,
-        position: true,
         createdAt: true,
       },
     });
@@ -366,8 +382,6 @@ export class MarketingService {
         niche: true,
         internalScore: true,
         status: true,
-        sampleVideoUrls: true,
-        willingAutopilotChallenge: true,
         createdAt: true,
       },
     });
@@ -375,74 +389,65 @@ export class MarketingService {
     return {
       earlyAccess: {
         total: totalEarlyAccess,
-        today: signupsToday,
-        thisWeek: signupsThisWeek,
-        targetRange: '100 - 500',
-        followerRanges,
-        niches,
-        utmSources,
-        recent: recentSignups,
+        today: todayEarlyAccess,
+        thisWeek: thisWeekEarlyAccess,
+        targetRange: '100–500',
+        recent: recentEarlyAccess,
       },
       foundingCreators: {
-        totalApplications: creatorAppsTotal,
-        accepted: creatorAccepted,
-        underReview: creatorReview,
-        earlyAccessFallback: creatorEarlyAccess,
-        targetAccepted: 25,
+        totalApplications,
+        accepted: acceptedCount,
+        underReview: reviewCount,
+        cohortTarget: 25,
         recent: recentCreators,
       },
     };
   }
 
   async getAdminEarlyAccessList(search?: string, limit = 50, page = 1) {
-    const skip = (page - 1) * limit;
-    const whereClause: any = {};
-
-    if (search) {
-      whereClause.OR = [
-        { fullName: { contains: search, mode: 'insensitive' } },
-        { email: { contains: search, mode: 'insensitive' } },
-        { tiktokUsername: { contains: search, mode: 'insensitive' } },
-        { referralCode: { contains: search, mode: 'insensitive' } },
+    const where: any = {};
+    if (search && search.trim().length > 0) {
+      const query = search.trim();
+      where.OR = [
+        { fullName: { contains: query, mode: 'insensitive' } },
+        { email: { contains: query, mode: 'insensitive' } },
+        { tiktokUsername: { contains: query, mode: 'insensitive' } },
       ];
     }
 
-    const [items, total] = await Promise.all([
-      this.prisma.earlyAccessSignup.findMany({
-        where: whereClause,
-        orderBy: { position: 'asc' },
-        take: limit,
-        skip,
-      }),
-      this.prisma.earlyAccessSignup.count({ where: whereClause }),
-    ]);
+    const items = await this.prisma.earlyAccessSignup.findMany({
+      where,
+      orderBy: { position: 'asc' },
+      take: limit,
+      skip: (page - 1) * limit,
+    });
 
-    return { items, total, page, limit, totalPages: Math.ceil(total / limit) };
+    const total = await this.prisma.earlyAccessSignup.count({ where });
+
+    return { items, total, limit, page };
   }
 
   async getAdminCreatorsList(status?: string, limit = 50, page = 1) {
-    const skip = (page - 1) * limit;
-    const whereClause: any = {};
-    if (status) {
-      whereClause.status = status;
+    const where: any = {};
+    if (status && status.trim().length > 0) {
+      where.status = status.trim();
     }
 
-    const [items, total] = await Promise.all([
-      this.prisma.foundingCreatorApplication.findMany({
-        where: whereClause,
-        orderBy: { internalScore: 'desc' },
-        take: limit,
-        skip,
-      }),
-      this.prisma.foundingCreatorApplication.count({ where: whereClause }),
-    ]);
+    const items = await this.prisma.foundingCreatorApplication.findMany({
+      where,
+      orderBy: { internalScore: 'desc' },
+      take: limit,
+      skip: (page - 1) * limit,
+    });
 
-    return { items, total, page, limit, totalPages: Math.ceil(total / limit) };
+    const total = await this.prisma.foundingCreatorApplication.count({ where });
+
+    return { items, total, limit, page };
   }
 
   async updateCreatorStatus(id: string, status: string, cohortRole?: string, adminNotes?: string) {
-    const app = await this.prisma.foundingCreatorApplication.findUnique({ where: { id } });
-    if (!app) {
+    const existing = await this.prisma.foundingCreatorApplication.findUnique({ where: { id } });
+    if (!existing) {
       throw new NotFoundException('Creator application not found');
     }
 
@@ -450,8 +455,8 @@ export class MarketingService {
       where: { id },
       data: {
         status,
-        cohortRole: cohortRole || app.cohortRole,
-        adminNotes: adminNotes !== undefined ? adminNotes : app.adminNotes,
+        cohortRole: cohortRole || existing.cohortRole,
+        adminNotes: adminNotes || existing.adminNotes,
       },
     });
   }
