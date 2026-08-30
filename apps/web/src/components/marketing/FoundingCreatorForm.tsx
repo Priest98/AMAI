@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Loader2, Sparkles, AlertCircle, CheckCircle2, Video, Trophy, Rocket, HelpCircle } from 'lucide-react';
+import { Loader2, AlertCircle, Trophy, CheckCircle2 } from 'lucide-react';
 
 export function FoundingCreatorForm() {
   const [formData, setFormData] = useState({
@@ -82,74 +82,63 @@ export function FoundingCreatorForm() {
   if (result) {
     const status = result.application.status;
     return (
-      <div className="w-full max-w-2xl mx-auto p-8 rounded-3xl bg-slate-900/90 border border-purple-500/30 backdrop-blur-xl shadow-2xl text-white text-center space-y-6">
-        <div className="inline-flex p-4 rounded-2xl bg-purple-500/10 border border-purple-500/30 text-purple-300">
-          {status === 'ACCEPTED' ? (
-            <Trophy className="w-10 h-10 text-amber-400" />
-          ) : status === 'CREATOR_REVIEW' ? (
-            <Sparkles className="w-10 h-10 text-purple-400" />
-          ) : (
-            <Rocket className="w-10 h-10 text-pink-400" />
-          )}
+      <div className="lp-card p-8 md:p-10 w-full max-w-2xl mx-auto text-center space-y-6">
+        <div className="inline-flex p-4 rounded-2xl" style={{ background: 'var(--lp-cyan-soft)', color: 'var(--lp-cyan)' }}>
+          <Trophy className="w-10 h-10" />
         </div>
 
-        <h2 className="text-3xl font-extrabold tracking-tight">
+        <h2 className="lp-heading text-2xl md:text-3xl font-bold" style={{ color: 'var(--lp-text-primary)' }}>
           {status === 'ACCEPTED'
-            ? "You're officially an Oyinca Founding TikTok Creator! 🚀"
+            ? "You're officially an Oyinca Founding TikTok Creator!"
             : status === 'CREATOR_REVIEW'
-            ? "Application Under Priority Review"
-            : "Welcome to Oyinca Early Access!"}
+            ? 'Application Under Priority Review'
+            : 'Welcome to Oyinca Early Access'}
         </h2>
 
-        <p className="text-slate-300 text-sm max-w-md mx-auto">
+        <p className="text-sm max-w-md mx-auto" style={{ color: 'var(--lp-text-secondary)' }}>
           {status === 'ACCEPTED'
-            ? 'Congratulations! Your profile has been selected for our initial 25 Founding Creators cohort. Our team will contact you via ' +
+            ? 'Your application has been selected for our initial 25 Founding Creators cohort. Our team will reach out via ' +
               result.application.preferredContact +
               ' shortly.'
             : status === 'CREATOR_REVIEW'
-            ? "We are selectively reviewing your application as we curate our Founding TikTok Creator cohort. We'll be in touch soon!"
-            : "While the initial 25 creator cohort is highly selective, you're locked in for Oyinca Early Access priority."}
+            ? "We're reviewing your application as we curate our Founding TikTok Creator cohort. We'll be in touch soon!"
+            : "While the initial 25 creator cohort is highly selective, you're locked in for Oyinca Early Access."}
         </p>
 
-        <div className="pt-4 border-t border-slate-800 text-xs text-slate-400">
-          Application reference ID: <code className="text-purple-300 font-mono">{result.application.id}</code>
+        <div className="pt-4 border-t text-xs" style={{ borderColor: 'var(--lp-border)', color: 'var(--lp-text-muted)' }}>
+          Application ID: <code className="font-mono text-white">{result.application.id}</code>
         </div>
       </div>
     );
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="w-full max-w-2xl mx-auto p-6 md:p-8 rounded-3xl bg-slate-900/80 border border-purple-500/20 backdrop-blur-xl shadow-2xl text-white space-y-8"
-    >
+    <form onSubmit={handleSubmit} className="lp-card p-6 md:p-10 w-full max-w-2xl mx-auto text-left space-y-8">
       <div className="text-center">
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/30 text-purple-300 text-xs font-semibold uppercase tracking-wider mb-3">
-          <Trophy className="w-4 h-4 text-amber-400" />
-          First 25 Creators Cohort
-        </div>
-        <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight">Apply to Become a Founding Creator</h2>
-        <p className="text-xs md:text-sm text-slate-400 mt-1 max-w-md mx-auto">
-          Help us build the future of AI TikTok management. Applications are selectively reviewed.
+        <h2 className="lp-heading text-2xl md:text-3xl font-bold tracking-tight" style={{ color: 'var(--lp-text-primary)' }}>
+          APPLY FOR FOUNDING CREATOR COHORT
+        </h2>
+        <p className="text-xs md:text-sm mt-1.5" style={{ color: 'var(--lp-text-secondary)' }}>
+          Help shape the future of TikTok management. Applications are reviewed selectively.
         </p>
       </div>
 
       {error && (
-        <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-3">
-          <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+        <div className="p-4 rounded-xl border flex items-center gap-3 text-xs" style={{ background: 'rgba(239, 68, 68, 0.1)', borderColor: 'rgba(239, 68, 68, 0.3)', color: '#EF4444' }}>
+          <AlertCircle className="w-4 h-4 shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
       {/* Section 1: Creator Identity */}
       <div className="space-y-4 pt-2">
-        <h3 className="text-sm font-bold uppercase tracking-wider text-purple-300 border-b border-slate-800 pb-2">
+        <h3 className="text-xs font-bold uppercase tracking-wider border-b pb-2" style={{ color: 'var(--lp-cyan)', borderColor: 'var(--lp-border)' }}>
           1. Creator Profile
         </h3>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">Full Name *</label>
+            <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--lp-text-secondary)' }}>Full Name *</label>
             <input
               type="text"
               name="fullName"
@@ -157,12 +146,13 @@ export function FoundingCreatorForm() {
               value={formData.fullName}
               onChange={handleChange}
               placeholder="e.g. Jordan Reed"
-              className="w-full px-4 py-2.5 rounded-xl bg-slate-950/80 border border-slate-800 text-sm text-white focus:outline-none focus:border-purple-500"
+              className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
+              style={{ background: 'var(--lp-bg-soft)', border: '1px solid var(--lp-border)', color: 'var(--lp-text-primary)' }}
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">Email Address *</label>
+            <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--lp-text-secondary)' }}>Email Address *</label>
             <input
               type="email"
               name="email"
@@ -170,32 +160,35 @@ export function FoundingCreatorForm() {
               value={formData.email}
               onChange={handleChange}
               placeholder="jordan@creator.com"
-              className="w-full px-4 py-2.5 rounded-xl bg-slate-950/80 border border-slate-800 text-sm text-white focus:outline-none focus:border-purple-500"
+              className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
+              style={{ background: 'var(--lp-bg-soft)', border: '1px solid var(--lp-border)', color: 'var(--lp-text-primary)' }}
             />
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">Country *</label>
+            <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--lp-text-secondary)' }}>Country *</label>
             <input
               type="text"
               name="country"
               required
               value={formData.country}
               onChange={handleChange}
-              placeholder="e.g. United States, UK, Canada"
-              className="w-full px-4 py-2.5 rounded-xl bg-slate-950/80 border border-slate-800 text-sm text-white focus:outline-none focus:border-purple-500"
+              placeholder="e.g. United States, UK"
+              className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
+              style={{ background: 'var(--lp-bg-soft)', border: '1px solid var(--lp-border)', color: 'var(--lp-text-primary)' }}
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">Preferred Contact Channel *</label>
+            <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--lp-text-secondary)' }}>Preferred Contact Channel *</label>
             <select
               name="preferredContact"
               value={formData.preferredContact}
               onChange={handleChange}
-              className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white focus:outline-none focus:border-purple-500"
+              className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
+              style={{ background: 'var(--lp-bg-soft)', border: '1px solid var(--lp-border)', color: 'var(--lp-text-primary)' }}
             >
               <option value="WhatsApp">WhatsApp</option>
               <option value="Email">Email</option>
@@ -208,15 +201,15 @@ export function FoundingCreatorForm() {
 
       {/* Section 2: TikTok Metrics */}
       <div className="space-y-4">
-        <h3 className="text-sm font-bold uppercase tracking-wider text-purple-300 border-b border-slate-800 pb-2">
+        <h3 className="text-xs font-bold uppercase tracking-wider border-b pb-2" style={{ color: 'var(--lp-cyan)', borderColor: 'var(--lp-border)' }}>
           2. TikTok Channel & Metrics
         </h3>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">TikTok Username *</label>
+            <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--lp-text-secondary)' }}>TikTok Username *</label>
             <div className="relative">
-              <span className="absolute left-3.5 top-2.5 text-sm text-slate-500">@</span>
+              <span className="absolute left-3.5 top-2.5 text-sm" style={{ color: 'var(--lp-text-muted)' }}>@</span>
               <input
                 type="text"
                 name="tiktokUsername"
@@ -224,13 +217,14 @@ export function FoundingCreatorForm() {
                 value={formData.tiktokUsername}
                 onChange={handleChange}
                 placeholder="username"
-                className="w-full pl-8 pr-4 py-2.5 rounded-xl bg-slate-950/80 border border-slate-800 text-sm text-white focus:outline-none focus:border-purple-500"
+                className="w-full pl-8 pr-4 py-2.5 rounded-xl text-sm outline-none"
+                style={{ background: 'var(--lp-bg-soft)', border: '1px solid var(--lp-border)', color: 'var(--lp-text-primary)' }}
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">TikTok Profile URL *</label>
+            <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--lp-text-secondary)' }}>TikTok Profile URL *</label>
             <input
               type="url"
               name="tiktokProfileUrl"
@@ -238,19 +232,21 @@ export function FoundingCreatorForm() {
               value={formData.tiktokProfileUrl}
               onChange={handleChange}
               placeholder="https://www.tiktok.com/@username"
-              className="w-full px-4 py-2.5 rounded-xl bg-slate-950/80 border border-slate-800 text-sm text-white focus:outline-none focus:border-purple-500"
+              className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
+              style={{ background: 'var(--lp-bg-soft)', border: '1px solid var(--lp-border)', color: 'var(--lp-text-primary)' }}
             />
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">Follower Count Range *</label>
+            <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--lp-text-secondary)' }}>Follower Count Range *</label>
             <select
               name="followerRange"
               value={formData.followerRange}
               onChange={handleChange}
-              className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white focus:outline-none focus:border-purple-500"
+              className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
+              style={{ background: 'var(--lp-bg-soft)', border: '1px solid var(--lp-border)', color: 'var(--lp-text-primary)' }}
             >
               <option value="Under 1K">Under 1K (Qualified Signal)</option>
               <option value="1K–5K">1K–5K</option>
@@ -263,24 +259,26 @@ export function FoundingCreatorForm() {
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">Average Views per Video *</label>
+            <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--lp-text-secondary)' }}>Average Views per Video *</label>
             <input
               type="text"
               name="averageViews"
               value={formData.averageViews}
               onChange={handleChange}
               placeholder="e.g. 2K–10K views"
-              className="w-full px-4 py-2.5 rounded-xl bg-slate-950/80 border border-slate-800 text-sm text-white focus:outline-none focus:border-purple-500"
+              className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
+              style={{ background: 'var(--lp-bg-soft)', border: '1px solid var(--lp-border)', color: 'var(--lp-text-primary)' }}
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">Posting Frequency *</label>
+            <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--lp-text-secondary)' }}>Posting Frequency *</label>
             <select
               name="postingFrequency"
               value={formData.postingFrequency}
               onChange={handleChange}
-              className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white focus:outline-none focus:border-purple-500"
+              className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
+              style={{ background: 'var(--lp-bg-soft)', border: '1px solid var(--lp-border)', color: 'var(--lp-text-primary)' }}
             >
               <option value="Multiple times daily">Multiple times daily</option>
               <option value="Daily">Daily</option>
@@ -291,22 +289,22 @@ export function FoundingCreatorForm() {
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-slate-300 mb-1.5">Content Niche *</label>
+          <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--lp-text-secondary)' }}>Content Niche *</label>
           <input
             type="text"
             name="niche"
             required
             value={formData.niche}
             onChange={handleChange}
-            placeholder="e.g. SaaS Founder, Tech Reviews, AI Tools, Fashion Tips, Fitness Coaching"
-            className="w-full px-4 py-2.5 rounded-xl bg-slate-950/80 border border-slate-800 text-sm text-white focus:outline-none focus:border-purple-500"
+            placeholder="e.g. SaaS Founder, Tech Reviews, Fashion, Fitness"
+            className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
+            style={{ background: 'var(--lp-bg-soft)', border: '1px solid var(--lp-border)', color: 'var(--lp-text-primary)' }}
           />
         </div>
 
-        {/* Representative Videos (3 URLs) */}
+        {/* Representative Videos */}
         <div>
-          <label className="block text-xs font-medium text-purple-300 mb-1.5 flex items-center gap-1.5">
-            <Video className="w-4 h-4 text-purple-400" />
+          <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--lp-text-secondary)' }}>
             Links to 3 Representative TikTok Videos *
           </label>
           <div className="space-y-2">
@@ -316,8 +314,9 @@ export function FoundingCreatorForm() {
               required
               value={formData.video1}
               onChange={handleChange}
-              placeholder="Video 1: https://www.tiktok.com/@user/video/123..."
-              className="w-full px-4 py-2 rounded-xl bg-slate-950/80 border border-slate-800 text-xs text-white focus:outline-none focus:border-purple-500"
+              placeholder="Video 1 URL"
+              className="w-full px-4 py-2 rounded-xl text-xs outline-none"
+              style={{ background: 'var(--lp-bg-soft)', border: '1px solid var(--lp-border)', color: 'var(--lp-text-primary)' }}
             />
             <input
               type="url"
@@ -325,8 +324,9 @@ export function FoundingCreatorForm() {
               required
               value={formData.video2}
               onChange={handleChange}
-              placeholder="Video 2: https://www.tiktok.com/@user/video/456..."
-              className="w-full px-4 py-2 rounded-xl bg-slate-950/80 border border-slate-800 text-xs text-white focus:outline-none focus:border-purple-500"
+              placeholder="Video 2 URL"
+              className="w-full px-4 py-2 rounded-xl text-xs outline-none"
+              style={{ background: 'var(--lp-bg-soft)', border: '1px solid var(--lp-border)', color: 'var(--lp-text-primary)' }}
             />
             <input
               type="url"
@@ -334,21 +334,22 @@ export function FoundingCreatorForm() {
               required
               value={formData.video3}
               onChange={handleChange}
-              placeholder="Video 3: https://www.tiktok.com/@user/video/789..."
-              className="w-full px-4 py-2 rounded-xl bg-slate-950/80 border border-slate-800 text-xs text-white focus:outline-none focus:border-purple-500"
+              placeholder="Video 3 URL"
+              className="w-full px-4 py-2 rounded-xl text-xs outline-none"
+              style={{ background: 'var(--lp-bg-soft)', border: '1px solid var(--lp-border)', color: 'var(--lp-text-primary)' }}
             />
           </div>
         </div>
       </div>
 
-      {/* Section 3: Creator Workflow */}
+      {/* Section 3: Workflow */}
       <div className="space-y-4">
-        <h3 className="text-sm font-bold uppercase tracking-wider text-purple-300 border-b border-slate-800 pb-2">
+        <h3 className="text-xs font-bold uppercase tracking-wider border-b pb-2" style={{ color: 'var(--lp-cyan)', borderColor: 'var(--lp-border)' }}>
           3. Content Workflow & Friction
         </h3>
 
         <div>
-          <label className="block text-xs font-medium text-slate-300 mb-1.5">
+          <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--lp-text-secondary)' }}>
             How do you currently manage your TikTok content? *
           </label>
           <textarea
@@ -357,13 +358,14 @@ export function FoundingCreatorForm() {
             rows={2}
             value={formData.currentWorkflow}
             onChange={handleChange}
-            placeholder="e.g. I write hook ideas in Notion, record in batches on Sundays, edit in CapCut, and manually post every evening..."
-            className="w-full px-4 py-2.5 rounded-xl bg-slate-950/80 border border-slate-800 text-sm text-white focus:outline-none focus:border-purple-500"
+            placeholder="Describe your current planning & posting routine..."
+            className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
+            style={{ background: 'var(--lp-bg-soft)', border: '1px solid var(--lp-border)', color: 'var(--lp-text-primary)' }}
           />
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-slate-300 mb-1.5">
+          <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--lp-text-secondary)' }}>
             What takes the most time in your process? *
           </label>
           <textarea
@@ -372,21 +374,22 @@ export function FoundingCreatorForm() {
             rows={2}
             value={formData.timeConsumingPart}
             onChange={handleChange}
-            placeholder="e.g. Scripting unique captions, researching trending hashtags, setting up optimal posting schedules..."
-            className="w-full px-4 py-2.5 rounded-xl bg-slate-950/80 border border-slate-800 text-sm text-white focus:outline-none focus:border-purple-500"
+            placeholder="e.g. Writing captions, researching hashtags, staying consistent..."
+            className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
+            style={{ background: 'var(--lp-bg-soft)', border: '1px solid var(--lp-border)', color: 'var(--lp-text-primary)' }}
           />
         </div>
       </div>
 
       {/* Section 4: Motivation */}
       <div className="space-y-4">
-        <h3 className="text-sm font-bold uppercase tracking-wider text-purple-300 border-b border-slate-800 pb-2">
-          4. Program Motivation
+        <h3 className="text-xs font-bold uppercase tracking-wider border-b pb-2" style={{ color: 'var(--lp-cyan)', borderColor: 'var(--lp-border)' }}>
+          4. Motivation
         </h3>
 
         <div>
-          <label className="block text-xs font-medium text-slate-300 mb-1.5">
-            Why do you want to join the Oyinca Founding TikTok Creator Program? *
+          <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--lp-text-secondary)' }}>
+            Why do you want to join the Founding TikTok Creator Program? *
           </label>
           <textarea
             name="whyJoin"
@@ -394,14 +397,15 @@ export function FoundingCreatorForm() {
             rows={2}
             value={formData.whyJoin}
             onChange={handleChange}
-            placeholder="Tell us what excites you about shaping an AI social media manager built for creators..."
-            className="w-full px-4 py-2.5 rounded-xl bg-slate-950/80 border border-slate-800 text-sm text-white focus:outline-none focus:border-purple-500"
+            placeholder="Tell us what excites you about building a better TikTok manager..."
+            className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
+            style={{ background: 'var(--lp-bg-soft)', border: '1px solid var(--lp-border)', color: 'var(--lp-text-primary)' }}
           />
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-slate-300 mb-1.5">
-            If Oyinca could completely remove ONE part of your TikTok workflow, what should it remove? *
+          <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--lp-text-secondary)' }}>
+            If Oyinca could remove ONE part of your TikTok workflow, what should it remove? *
           </label>
           <textarea
             name="workflowToRemove"
@@ -409,29 +413,30 @@ export function FoundingCreatorForm() {
             rows={2}
             value={formData.workflowToRemove}
             onChange={handleChange}
-            placeholder="e.g. Manual publishing & timing, writing captions from scratch, content scheduling..."
-            className="w-full px-4 py-2.5 rounded-xl bg-slate-950/80 border border-slate-800 text-sm text-white focus:outline-none focus:border-purple-500"
+            placeholder="e.g. Manual publishing, writing captions from scratch..."
+            className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
+            style={{ background: 'var(--lp-bg-soft)', border: '1px solid var(--lp-border)', color: 'var(--lp-text-primary)' }}
           />
         </div>
       </div>
 
       {/* Section 5: Testing Commitment */}
-      <div className="space-y-4 p-5 rounded-2xl bg-purple-950/30 border border-purple-500/30">
-        <h3 className="text-sm font-bold uppercase tracking-wider text-purple-200 flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-purple-400" />
+      <div className="space-y-4 p-5 rounded-xl lp-glass">
+        <h3 className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--lp-cyan)' }}>
           5. Testing & Autopilot Challenge Commitment
         </h3>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-medium text-slate-200 mb-1.5">
+            <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--lp-text-secondary)' }}>
               Willing to test Oyinca for 7 days & give feedback? *
             </label>
             <select
               name="willingToTest7Days"
               value={formData.willingToTest7Days}
               onChange={handleChange}
-              className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-purple-500/40 text-sm text-white focus:outline-none"
+              className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
+              style={{ background: 'var(--lp-bg-soft)', border: '1px solid var(--lp-border)', color: 'var(--lp-text-primary)' }}
             >
               <option value="YES">Yes, absolutely</option>
               <option value="MAYBE">Maybe</option>
@@ -440,16 +445,17 @@ export function FoundingCreatorForm() {
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-200 mb-1.5">
-              Participate in #OyincaAutopilot Challenge? *
+            <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--lp-text-secondary)' }}>
+              Participate in 7-Day Autopilot Challenge? *
             </label>
             <select
               name="willingAutopilotChallenge"
               value={formData.willingAutopilotChallenge}
               onChange={handleChange}
-              className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-purple-500/40 text-sm text-white focus:outline-none"
+              className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
+              style={{ background: 'var(--lp-bg-soft)', border: '1px solid var(--lp-border)', color: 'var(--lp-text-primary)' }}
             >
-              <option value="YES">Yes, I'm in!</option>
+              <option value="YES">Yes, I'm in</option>
               <option value="MAYBE">Maybe</option>
               <option value="NO">No</option>
             </select>
@@ -460,16 +466,16 @@ export function FoundingCreatorForm() {
       <button
         type="submit"
         disabled={loading}
-        className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-purple-600 via-pink-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-extrabold text-base shadow-lg shadow-purple-600/30 hover:shadow-purple-600/50 transition-all flex items-center justify-center gap-2 active:scale-98 disabled:opacity-50"
+        className="w-full py-4 px-6 rounded-full text-base font-extrabold lp-btn-primary transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
       >
         {loading ? (
           <>
             <Loader2 className="w-5 h-5 animate-spin" />
-            Submitting Application...
+            SUBMITTING APPLICATION...
           </>
         ) : (
           <>
-            Submit Founding Creator Application
+            SUBMIT CREATOR APPLICATION
             <Trophy className="w-5 h-5" />
           </>
         )}
