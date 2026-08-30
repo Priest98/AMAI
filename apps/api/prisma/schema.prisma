@@ -1164,3 +1164,103 @@ enum EngineEventType {
   APPROVAL_MODE_CHANGED
   POSTING_SCHEDULE_UPDATED
 }
+
+// ==========================================
+// OYINCA MARKETING & PRE-LAUNCH ACQUISITION MODELS
+// Completely isolated marketing layer
+// ==========================================
+
+model EarlyAccessSignup {
+  id                    String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  fullName              String
+  email                 String   @unique
+  tiktokUsername        String
+  tiktokProfileUrl      String?
+  followerRange         String   // e.g. "UNDER_1K", "1K_5K", "5K_10K", "10K_50K", "50K_100K", "100K_500K", "500K_PLUS"
+  niche                 String
+  postingFrequency      String
+  country               String
+  biggestProblem        String
+  automationWish        String
+  heardFrom             String
+  preferredNextPlatform String?  // Optional intelligence: Instagram, YouTube, X, etc.
+  referralCode          String   @unique
+  referredById          String?
+  referralCount         Int      @default(0)
+  position              Int
+  status                String   @default("ACTIVE") // ACTIVE, VERIFIED, CONVERTED
+  rewardTier            String   @default("NONE")   // NONE, PRIORITY_ACCESS (3), FOUNDING_BADGE (10), PRO_3_MONTHS (25)
+  utmSource             String?
+  utmMedium             String?
+  utmCampaign           String?
+  createdAt             DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt             DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+
+  referredBy            EarlyAccessSignup?  @relation("ReferralHierarchy", fields: [referredById], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  referrals             EarlyAccessSignup[] @relation("ReferralHierarchy")
+
+  @@index([referralCode], map: "idx_early_access_ref_code")
+  @@index([position], map: "idx_early_access_position")
+  @@index([email], map: "idx_early_access_email")
+  @@index([createdAt], map: "idx_early_access_created")
+}
+
+model FoundingCreatorApplication {
+  id                       String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  fullName                 String
+  email                    String   @unique
+  country                  String
+  preferredContact         String
+  tiktokUsername           String
+  tiktokProfileUrl         String
+  followerRange            String
+  averageViews             String?
+  postingFrequency         String
+  niche                    String
+  accountsManagedCount     Int      @default(1)
+  sampleVideoUrls          String[] @default([]) // Array of 3 video URLs
+  currentWorkflow          String
+  timeConsumingPart        String
+  videosPerWeek            Int      @default(1)
+  usesExistingTools        String?
+  whyJoin                  String
+  biggestProblem           String
+  workflowToRemove         String
+  willingToTest7Days       String   // "YES", "MAYBE", "NO"
+  willingAutopilotChallenge String   // "YES", "MAYBE", "NO"
+  internalScore            Int      @default(0) // Computed score out of 100
+  scoreBreakdown           Json?    // Detailed scoring breakdown object
+  status                   String   @default("CREATOR_REVIEW") // ACCEPTED, CREATOR_REVIEW, EARLY_ACCESS
+  cohortRole               String?  // e.g. "FOUNDING_CREATOR_001", "ESTABLISHED", "MID_SIZED", "EMERGING"
+  adminNotes               String?
+  utmSource                String?
+  utmMedium                String?
+  utmCampaign              String?
+  createdAt                DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt                DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+
+  @@index([email], map: "idx_creator_app_email")
+  @@index([status], map: "idx_creator_app_status")
+  @@index([internalScore], map: "idx_creator_app_score")
+  @@index([createdAt], map: "idx_creator_app_created")
+}
+
+model MarketingAttributionEvent {
+  id          String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  sessionId   String
+  eventType   String   // "PAGE_VIEW", "REFERRAL_CLICK", "EARLY_ACCESS_SUBMIT", "CREATOR_APP_SUBMIT"
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
+  referrerUrl String?
+  landingPage String
+  signupId    String?
+  creatorAppId String?
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([sessionId], map: "idx_attr_session")
+  @@index([eventType], map: "idx_attr_event_type")
+  @@index([utmSource], map: "idx_attr_utm_source")
+  @@index([createdAt], map: "idx_attr_created")
+}
+
