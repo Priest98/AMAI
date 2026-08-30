@@ -3,6 +3,24 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowRight, ArrowLeft, Loader2, Trophy, AlertCircle, Check } from 'lucide-react';
 
+const TIME_CONSUMING_OPTIONS = [
+  'Writing captions & hashtags',
+  'Planning & brainstorming video ideas',
+  'Manual uploading & scheduling',
+  'Analyzing video performance & stats',
+  'Editing & post-production',
+  'Other workflow friction',
+];
+
+const REMOVE_WORKFLOW_OPTIONS = [
+  'Auto-publishing & scheduled posts',
+  'AI Caption & hashtag drafting',
+  'Content calendar management',
+  '7-Day TikTok Autopilot mode',
+  'Growth & audience recommendations',
+  'All of the above',
+];
+
 export function FoundingCreatorForm() {
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [formData, setFormData] = useState({
@@ -21,16 +39,17 @@ export function FoundingCreatorForm() {
     video2: '',
     video3: '',
     currentWorkflow: '',
-    timeConsumingPart: '',
+    timeConsumingPart: 'Writing captions & hashtags',
     videosPerWeek: 5,
     usesExistingTools: '',
     whyJoin: '',
     biggestProblem: '',
-    workflowToRemove: '',
+    workflowToRemove: 'Auto-publishing & scheduled posts',
     willingToTest7Days: 'YES',
     willingAutopilotChallenge: 'YES',
   });
 
+  const [customTimeConsuming, setCustomTimeConsuming] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<any | null>(null);
@@ -67,8 +86,9 @@ export function FoundingCreatorForm() {
         return;
       }
     } else if (currentStep === 4) {
-      if (!formData.timeConsumingPart.trim()) {
-        setError('Please share what takes the most time in your content workflow.');
+      const timeVal = formData.timeConsumingPart === 'Other workflow friction' ? customTimeConsuming : formData.timeConsumingPart;
+      if (!timeVal.trim()) {
+        setError('Please select or specify what takes the most time in your process.');
         return;
       }
     }
@@ -91,6 +111,8 @@ export function FoundingCreatorForm() {
     setLoading(true);
     setError(null);
 
+    const finalTimeConsuming = formData.timeConsumingPart === 'Other workflow friction' ? customTimeConsuming : formData.timeConsumingPart;
+
     try {
       let attribution: any = {};
       try {
@@ -107,6 +129,7 @@ export function FoundingCreatorForm() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
+          timeConsumingPart: finalTimeConsuming,
           sampleVideoUrls,
           accountsManagedCount: Number(formData.accountsManagedCount),
           videosPerWeek: Number(formData.videosPerWeek),
@@ -162,10 +185,10 @@ export function FoundingCreatorForm() {
 
   return (
     <div className="w-full max-w-2xl mx-auto text-left space-y-8">
-      {/* Step Indicator */}
+      {/* Step Indicator Header */}
       <div className="flex items-center justify-between border-b pb-4" style={{ borderColor: 'var(--lp-border)' }}>
         <div className="text-xs font-mono font-semibold uppercase tracking-widest" style={{ color: 'var(--lp-cyan)' }}>
-          STEP 0{currentStep} OF 0{totalSteps}
+          0{currentStep} — 0{totalSteps}
         </div>
         <div className="flex items-center gap-1.5">
           {Array.from({ length: totalSteps }).map((_, idx) => (
@@ -479,7 +502,7 @@ export function FoundingCreatorForm() {
           </div>
         )}
 
-        {/* STEP 04: YOUR PAIN */}
+        {/* STEP 04: YOUR PAIN (Interactive Multiple Choice Cards) */}
         {currentStep === 4 && (
           <div className="space-y-6 animate-fadeIn">
             <div>
@@ -491,37 +514,74 @@ export function FoundingCreatorForm() {
               </h2>
             </div>
 
-            <div className="space-y-5 pt-2">
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--lp-text-secondary)' }}>
+            <div className="space-y-6 pt-2">
+              <div className="space-y-3">
+                <label className="block text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--lp-text-secondary)' }}>
                   What takes the most time in your process? *
                 </label>
-                <textarea
-                  name="timeConsumingPart"
-                  required
-                  rows={3}
-                  value={formData.timeConsumingPart}
-                  onChange={handleChange}
-                  placeholder="e.g. Writing captions, researching hashtags, staying consistent..."
-                  className="w-full p-4 rounded-2xl text-sm outline-none"
-                  style={{ background: 'var(--lp-bg-soft)', border: '1px solid var(--lp-border)', color: 'var(--lp-text-primary)' }}
-                />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {TIME_CONSUMING_OPTIONS.map((opt) => {
+                    const isSelected = formData.timeConsumingPart === opt;
+                    return (
+                      <button
+                        type="button"
+                        key={opt}
+                        onClick={() => setFormData((prev) => ({ ...prev, timeConsumingPart: opt }))}
+                        className="p-4 rounded-2xl text-left border transition-all flex items-center justify-between"
+                        style={{
+                          background: isSelected ? 'var(--lp-cyan)' : 'var(--lp-bg-soft)',
+                          color: isSelected ? '#090D14' : 'var(--lp-text-primary)',
+                          borderColor: isSelected ? 'var(--lp-cyan)' : 'var(--lp-border)',
+                          fontWeight: isSelected ? 700 : 500,
+                        }}
+                      >
+                        <span className="text-xs sm:text-sm">{opt}</span>
+                        {isSelected && <Check className="w-4 h-4 shrink-0" style={{ color: '#090D14' }} />}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {formData.timeConsumingPart === 'Other workflow friction' && (
+                  <div className="pt-2">
+                    <input
+                      type="text"
+                      value={customTimeConsuming}
+                      onChange={(e) => setCustomTimeConsuming(e.target.value)}
+                      placeholder="Specify what takes the most time..."
+                      className="w-full px-5 py-3 rounded-2xl text-sm outline-none"
+                      style={{ background: 'var(--lp-bg-soft)', border: '1px solid var(--lp-border)', color: 'var(--lp-text-primary)' }}
+                    />
+                  </div>
+                )}
               </div>
 
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--lp-text-secondary)' }}>
+              <div className="space-y-3">
+                <label className="block text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--lp-text-secondary)' }}>
                   What part of your workflow should Oyinca remove? *
                 </label>
-                <textarea
-                  name="workflowToRemove"
-                  required
-                  rows={3}
-                  value={formData.workflowToRemove}
-                  onChange={handleChange}
-                  placeholder="e.g. Manual publishing, writing captions from scratch..."
-                  className="w-full p-4 rounded-2xl text-sm outline-none"
-                  style={{ background: 'var(--lp-bg-soft)', border: '1px solid var(--lp-border)', color: 'var(--lp-text-primary)' }}
-                />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {REMOVE_WORKFLOW_OPTIONS.map((opt) => {
+                    const isSelected = formData.workflowToRemove === opt;
+                    return (
+                      <button
+                        type="button"
+                        key={opt}
+                        onClick={() => setFormData((prev) => ({ ...prev, workflowToRemove: opt }))}
+                        className="p-4 rounded-2xl text-left border transition-all flex items-center justify-between"
+                        style={{
+                          background: isSelected ? 'var(--lp-cyan)' : 'var(--lp-bg-soft)',
+                          color: isSelected ? '#090D14' : 'var(--lp-text-primary)',
+                          borderColor: isSelected ? 'var(--lp-cyan)' : 'var(--lp-border)',
+                          fontWeight: isSelected ? 700 : 500,
+                        }}
+                      >
+                        <span className="text-xs sm:text-sm">{opt}</span>
+                        {isSelected && <Check className="w-4 h-4 shrink-0" style={{ color: '#090D14' }} />}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </div>
