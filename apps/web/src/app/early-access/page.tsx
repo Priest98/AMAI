@@ -6,10 +6,9 @@ import { Logo } from '@/components/logo';
 import { EarlyAccessForm } from '@/components/marketing/EarlyAccessForm';
 import { AttributionTracker } from '@/components/marketing/AttributionTracker';
 import { HeroProductVisual } from '@/components/marketing/HeroProductVisual';
-import { RewardShowcase } from '@/components/marketing/RewardShowcase';
 import ProductVisual from '@/components/landing/ProductVisual';
 import BrandAttribution from '@/components/BrandAttribution';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Zap, Crown, Gift } from 'lucide-react';
 
 export const metadata: Metadata = {
   title: 'Oyinca Early Access | You Create. Oyinca Handles The Rest.',
@@ -89,8 +88,52 @@ export default async function EarlyAccessPage({
           </div>
         </div>
 
-        {/* Exclusive Reward Showcase Section */}
-        <RewardShowcase variant="early-access" />
+        {/* Early Access Privileges Section (Restored Specific Early Access Rewards) */}
+        <section className="py-12 text-left border-y" style={{ borderColor: 'var(--lp-border)' }}>
+          <div className="max-w-3xl mb-10">
+            <span className="text-xs font-mono font-bold uppercase tracking-widest text-[#7FB0DB]">
+              EARLY ACCESS PRIVILEGES
+            </span>
+            <h2 className="lp-heading-display text-3xl sm:text-5xl font-bold text-white mt-2">
+              Why Join Early?
+            </h2>
+            <p className="text-sm sm:text-base text-slate-300 mt-1">
+              Unlock exclusive rewards reserved for our first members:
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="p-6 sm:p-8 rounded-3xl border border-slate-800 bg-[#0F131E] space-y-3">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-[#7FB0DB]/10 text-[#7FB0DB]">
+                <Zap className="w-5 h-5" />
+              </div>
+              <h3 className="text-lg font-bold text-white">Priority Launch Access</h3>
+              <p className="text-sm text-slate-300 leading-relaxed">
+                Get ahead of the public launch queue and start managing your social media in the background first.
+              </p>
+            </div>
+
+            <div className="p-6 sm:p-8 rounded-3xl border border-slate-800 bg-[#0F131E] space-y-3">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-[#D8B571]/10 text-[#D8B571]">
+                <Crown className="w-5 h-5" />
+              </div>
+              <h3 className="text-lg font-bold text-white">Founding Status</h3>
+              <p className="text-sm text-slate-300 leading-relaxed">
+                Be recognized as one of Oyinca's earliest users with permanent founding status and feature request priority.
+              </p>
+            </div>
+
+            <div className="p-6 sm:p-8 rounded-3xl border border-slate-800 bg-[#0F131E] space-y-3">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-emerald-500/10 text-emerald-400">
+                <Gift className="w-5 h-5" />
+              </div>
+              <h3 className="text-lg font-bold text-white">Referral Progression</h3>
+              <p className="text-sm text-slate-300 leading-relaxed">
+                Unlock 3 extra months of Pro features and priority queue position for every 3 creator friends you invite.
+              </p>
+            </div>
+          </div>
+        </section>
 
         {/* Premium Multi-Step Form */}
         <div id="signup-form" className="w-full pt-4 sm:pt-8 scroll-mt-24">

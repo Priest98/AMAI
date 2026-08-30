@@ -5,7 +5,6 @@ import '@/styles/landing.css';
 import { Logo } from '@/components/logo';
 import { FoundingCreatorForm } from '@/components/marketing/FoundingCreatorForm';
 import { HeroProductVisual } from '@/components/marketing/HeroProductVisual';
-import { RewardShowcase } from '@/components/marketing/RewardShowcase';
 import { AttributionTracker } from '@/components/marketing/AttributionTracker';
 import ProductVisual from '@/components/landing/ProductVisual';
 
@@ -82,13 +81,55 @@ export default function FoundingCreatorsPage() {
           </div>
         </section>
 
-        {/* Exclusive Reward Showcase Section */}
-        <RewardShowcase variant="founding-creator" />
+        {/* Founding Creator Benefits Section (Restored Specific Perks) */}
+        <section className="py-12 text-left border-b" style={{ borderColor: 'var(--lp-border)' }}>
+          <div className="max-w-3xl mb-10">
+            <span className="text-xs font-mono font-bold uppercase tracking-widest text-[#7FB0DB]">
+              PROGRAM PERKS
+            </span>
+            <h2 className="lp-heading-display text-3xl sm:text-5xl font-bold text-white mt-2">
+              Founding Creator Benefits
+            </h2>
+            <p className="text-sm sm:text-base text-slate-300 mt-1">
+              What selected members of Cohort 001 receive:
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="p-6 rounded-3xl border border-slate-800 bg-[#0F131E] space-y-2">
+              <h3 className="text-lg font-bold text-white">Free Oyinca Creator Access</h3>
+              <p className="text-sm text-slate-300 leading-relaxed">
+                Complimentary access to the full Oyinca Creator tier during the founding period and launch phase.
+              </p>
+            </div>
+
+            <div className="p-6 rounded-3xl border border-slate-800 bg-[#0F131E] space-y-2">
+              <h3 className="text-lg font-bold text-white">Direct Product Access</h3>
+              <p className="text-sm text-slate-300 leading-relaxed">
+                Direct Slack/WhatsApp channel access to the Oyinca core team to request features and shape development.
+              </p>
+            </div>
+
+            <div className="p-6 rounded-3xl border border-slate-800 bg-[#0F131E] space-y-2">
+              <h3 className="text-lg font-bold text-white">Founding Creator Recognition</h3>
+              <p className="text-sm text-slate-300 leading-relaxed">
+                Exclusive Founding Creator badge, verified referral tier status, and early access to every new platform drop.
+              </p>
+            </div>
+
+            <div className="p-6 rounded-3xl border border-slate-800 bg-[#0F131E] space-y-2">
+              <h3 className="text-lg font-bold text-white">Campaign Opportunities</h3>
+              <p className="text-sm text-slate-300 leading-relaxed">
+                Priority placement for paid brand deals, co-marketing spotlight campaigns, and affiliate revenue share.
+              </p>
+            </div>
+          </div>
+        </section>
 
         {/* 7-Day Autopilot Challenge */}
         <section className="py-4">
-          <div className="lp-card p-8 sm:p-12 text-center space-y-4 max-w-4xl mx-auto border border-[#D8B571]/20">
-            <span className="text-xs font-mono uppercase tracking-widest text-[#D8B571]">
+          <div className="p-8 sm:p-12 rounded-3xl text-center space-y-4 max-w-4xl mx-auto border border-[#7FB0DB]/20 bg-[#0F131E]">
+            <span className="text-xs font-mono uppercase tracking-widest text-[#7FB0DB]">
               COHORT EXPERIMENT
             </span>
             <h2 className="lp-heading-display text-2xl sm:text-4xl font-bold text-white">
