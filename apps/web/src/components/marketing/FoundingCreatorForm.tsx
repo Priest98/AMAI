@@ -231,7 +231,7 @@ export function FoundingCreatorForm() {
           <Trophy className="w-10 h-10" />
         </div>
 
-        <h2 className="lp-heading-display text-2xl md:text-3xl font-bold text-white">
+        <h2 className="lp-heading-display text-2xl md:text-3xl font-bold" style={{ color: 'var(--lp-text-primary)' }}>
           {status === 'ACCEPTED'
             ? "You're officially an Oyinca Founding TikTok Creator!"
             : status === 'CREATOR_REVIEW'
@@ -239,7 +239,7 @@ export function FoundingCreatorForm() {
             : 'Application Received'}
         </h2>
 
-        <p className="text-sm max-w-md mx-auto text-slate-300">
+        <p className="text-sm max-w-md mx-auto" style={{ color: 'var(--lp-text-secondary)' }}>
           {status === 'ACCEPTED'
             ? 'Your application has been selected for our initial 25 Founding Creators cohort. Our team will reach out via ' +
               result.application.preferredContact +
@@ -247,8 +247,8 @@ export function FoundingCreatorForm() {
             : 'We are reviewing applications individually for our initial cohort of 25 creators. We will contact you if selected.'}
         </p>
 
-        <div className="pt-4 border-t text-xs border-slate-800 text-slate-400">
-          Application ID: <code className="font-mono text-white">{result.application.id}</code>
+        <div className="pt-4 border-t text-xs" style={{ borderColor: 'var(--lp-border)', color: 'var(--lp-text-muted)' }}>
+          Application ID: <code className="font-mono" style={{ color: 'var(--lp-text-primary)' }}>{result.application.id}</code>
         </div>
       </div>
     );
@@ -290,10 +290,10 @@ export function FoundingCreatorForm() {
         {currentStep === 1 && (
           <div className="space-y-6 animate-fadeIn">
             <div>
-              <span className="text-xs font-mono uppercase tracking-widest text-[#7E8CA3]">
+              <span className="text-xs font-mono uppercase tracking-widest text-[#7FB0DB]">
                 01 / ABOUT YOU
               </span>
-              <h2 className="lp-heading-display text-3xl sm:text-4xl font-bold text-white mt-2">
+              <h2 className="lp-heading-display text-3xl sm:text-4xl font-bold mt-2" style={{ color: 'var(--lp-text-primary)' }}>
                 Creator Information
               </h2>
             </div>
@@ -384,10 +384,10 @@ export function FoundingCreatorForm() {
         {currentStep === 2 && (
           <div className="space-y-6 animate-fadeIn">
             <div>
-              <span className="text-xs font-mono uppercase tracking-widest text-[#7E8CA3]">
+              <span className="text-xs font-mono uppercase tracking-widest text-[#7FB0DB]">
                 02 / YOUR TIKTOK
               </span>
-              <h2 className="lp-heading-display text-3xl sm:text-4xl font-bold text-white mt-2">
+              <h2 className="lp-heading-display text-3xl sm:text-4xl font-bold mt-2" style={{ color: 'var(--lp-text-primary)' }}>
                 Your Channel Details
               </h2>
             </div>
@@ -514,20 +514,20 @@ export function FoundingCreatorForm() {
         {currentStep === 3 && (
           <div className="space-y-6 animate-fadeIn">
             <div>
-              <span className="text-xs font-mono uppercase tracking-widest text-[#7E8CA3]">
+              <span className="text-xs font-mono uppercase tracking-widest text-[#7FB0DB]">
                 03 / YOUR CONTENT
               </span>
-              <h2 className="lp-heading-display text-3xl sm:text-4xl font-bold text-white mt-2">
+              <h2 className="lp-heading-display text-3xl sm:text-4xl font-bold mt-2" style={{ color: 'var(--lp-text-primary)' }}>
                 What do you create?
               </h2>
             </div>
 
             <div className="space-y-6 pt-2">
               <div>
-                <label className="block text-sm font-bold text-white mb-1">
+                <label className="block text-sm font-bold mb-1" style={{ color: 'var(--lp-text-primary)' }}>
                   What kind of content do you create?
                 </label>
-                <p className="text-xs text-slate-400 mb-2">One or two sentences is enough.</p>
+                <p className="text-xs mb-2" style={{ color: 'var(--lp-text-secondary)' }}>One or two sentences is enough.</p>
                 <textarea
                   name="contentType"
                   required
@@ -541,10 +541,10 @@ export function FoundingCreatorForm() {
               </div>
 
               <div>
-                <label className="block text-sm font-bold text-white mb-1">
+                <label className="block text-sm font-bold mb-1" style={{ color: 'var(--lp-text-primary)' }}>
                   Share 1–3 TikToks you're proud of.
                 </label>
-                <p className="text-xs text-slate-400 mb-2">Paste the links.</p>
+                <p className="text-xs mb-2" style={{ color: 'var(--lp-text-secondary)' }}>Paste the links.</p>
                 <div className="space-y-3">
                   <input
                     type="url"
@@ -578,7 +578,7 @@ export function FoundingCreatorForm() {
               </div>
 
               <div className="pt-2">
-                <label className="block text-sm font-bold text-white mb-1">
+                <label className="block text-sm font-bold mb-1" style={{ color: 'var(--lp-text-primary)' }}>
                   What's the hardest part of keeping your TikTok running?
                 </label>
                 <p className="text-xs text-[#7FB0DB] font-mono mb-2">Select all that apply.</p>
@@ -624,10 +624,10 @@ export function FoundingCreatorForm() {
         {currentStep === 4 && (
           <div className="space-y-8 animate-fadeIn">
             <div>
-              <span className="text-xs font-mono uppercase tracking-widest text-[#7E8CA3]">
+              <span className="text-xs font-mono uppercase tracking-widest text-[#7FB0DB]">
                 04 / WHAT SHOULD OYINCA HANDLE?
               </span>
-              <h2 className="lp-heading-display text-3xl sm:text-4xl font-bold text-white mt-2">
+              <h2 className="lp-heading-display text-3xl sm:text-4xl font-bold mt-2" style={{ color: 'var(--lp-text-primary)' }}>
                 Workflow & Automation
               </h2>
             </div>
@@ -635,7 +635,7 @@ export function FoundingCreatorForm() {
             {/* Question 1: What takes up most of your time on TikTok? */}
             <div className="space-y-3">
               <div>
-                <h3 className="text-lg sm:text-xl font-bold text-white">
+                <h3 className="text-lg sm:text-xl font-bold" style={{ color: 'var(--lp-text-primary)' }}>
                   What takes up most of your time on TikTok?
                 </h3>
                 <p className="text-xs text-[#7FB0DB] font-mono mt-0.5">Select all that apply.</p>
@@ -677,9 +677,9 @@ export function FoundingCreatorForm() {
             </div>
 
             {/* Question 2: What would you love Oyinca to take off your plate? */}
-            <div className="space-y-3 pt-4 border-t border-slate-800">
+            <div className="space-y-3 pt-4 border-t" style={{ borderColor: 'var(--lp-border)' }}>
               <div>
-                <h3 className="text-lg sm:text-xl font-bold text-white">
+                <h3 className="text-lg sm:text-xl font-bold" style={{ color: 'var(--lp-text-primary)' }}>
                   What would you love Oyinca to take off your plate?
                 </h3>
                 <p className="text-xs text-[#7FB0DB] font-mono mt-0.5">Select all that apply.</p>
@@ -715,17 +715,17 @@ export function FoundingCreatorForm() {
         {currentStep === 5 && (
           <div className="space-y-8 animate-fadeIn">
             <div>
-              <span className="text-xs font-mono uppercase tracking-widest text-[#7E8CA3]">
+              <span className="text-xs font-mono uppercase tracking-widest text-[#7FB0DB]">
                 05 / READY TO BUILD WITH US?
               </span>
-              <h2 className="lp-heading-display text-3xl sm:text-4xl font-bold text-white mt-2">
+              <h2 className="lp-heading-display text-3xl sm:text-4xl font-bold mt-2" style={{ color: 'var(--lp-text-primary)' }}>
                 Program Commitment
               </h2>
             </div>
 
             {/* Question 1: If selected, can you commit to trying Oyinca for 7 days? */}
             <div className="space-y-3">
-              <h3 className="text-base sm:text-lg font-bold text-white">
+              <h3 className="text-base sm:text-lg font-bold" style={{ color: 'var(--lp-text-primary)' }}>
                 If selected, can you commit to trying Oyinca for 7 days?
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -753,8 +753,8 @@ export function FoundingCreatorForm() {
             </div>
 
             {/* Question 2: Would you be interested in joining the 7-Day Autopilot Challenge? */}
-            <div className="space-y-3 pt-4 border-t border-slate-800">
-              <h3 className="text-base sm:text-lg font-bold text-white">
+            <div className="space-y-3 pt-4 border-t" style={{ borderColor: 'var(--lp-border)' }}>
+              <h3 className="text-base sm:text-lg font-bold" style={{ color: 'var(--lp-text-primary)' }}>
                 Would you be interested in joining the 7-Day Autopilot Challenge?
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -782,12 +782,12 @@ export function FoundingCreatorForm() {
             </div>
 
             {/* Question 3: 15-20 Second Video Question */}
-            <div className="space-y-3 pt-4 border-t border-slate-800">
+            <div className="space-y-3 pt-4 border-t" style={{ borderColor: 'var(--lp-border)' }}>
               <div>
-                <h3 className="text-base sm:text-lg font-bold text-white">
+                <h3 className="text-base sm:text-lg font-bold" style={{ color: 'var(--lp-text-primary)' }}>
                   If selected, would you be open to creating a short 15–20 second video sharing your experience with Oyinca?
                 </h3>
-                <p className="text-xs text-slate-400 mt-1">Nothing overly produced. Just your honest experience using Oyinca.</p>
+                <p className="text-xs mt-1" style={{ color: 'var(--lp-text-secondary)' }}>Nothing overly produced. Just your honest experience using Oyinca.</p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">

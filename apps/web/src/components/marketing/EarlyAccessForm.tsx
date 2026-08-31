@@ -251,13 +251,13 @@ export function EarlyAccessForm({ initialReferralCode }: EarlyAccessFormProps) {
         {currentStep === 1 && (
           <div className="space-y-6 animate-fadeIn">
             <div>
-              <span className="text-xs font-mono uppercase tracking-widest text-[#7E8CA3]">
+              <span className="text-xs font-mono uppercase tracking-widest text-[#7FB0DB]">
                 01 / ABOUT YOU
               </span>
-              <h2 className="lp-heading-display text-3xl sm:text-4xl font-bold text-white mt-2">
+              <h2 className="lp-heading-display text-3xl sm:text-4xl font-bold mt-2" style={{ color: 'var(--lp-text-primary)' }}>
                 Let's start with the basics.
               </h2>
-              <p className="text-xs sm:text-sm text-slate-300 mt-1.5">
+              <p className="text-xs sm:text-sm mt-1.5" style={{ color: 'var(--lp-text-secondary)' }}>
                 Just a few details. We'll take it from here.
               </p>
             </div>
@@ -302,10 +302,10 @@ export function EarlyAccessForm({ initialReferralCode }: EarlyAccessFormProps) {
         {currentStep === 2 && (
           <div className="space-y-6 animate-fadeIn">
             <div>
-              <span className="text-xs font-mono uppercase tracking-widest text-[#7E8CA3]">
+              <span className="text-xs font-mono uppercase tracking-widest text-[#7FB0DB]">
                 02 / YOUR TIKTOK
               </span>
-              <h2 className="lp-heading-display text-3xl sm:text-4xl font-bold text-white mt-2">
+              <h2 className="lp-heading-display text-3xl sm:text-4xl font-bold mt-2" style={{ color: 'var(--lp-text-primary)' }}>
                 Tell us about your TikTok.
               </h2>
             </div>
@@ -429,13 +429,13 @@ export function EarlyAccessForm({ initialReferralCode }: EarlyAccessFormProps) {
         {currentStep === 3 && (
           <div className="space-y-6 animate-fadeIn">
             <div>
-              <span className="text-xs font-mono uppercase tracking-widest text-[#7E8CA3]">
+              <span className="text-xs font-mono uppercase tracking-widest text-[#7FB0DB]">
                 03 / YOUR CONTENT
               </span>
-              <h2 className="lp-heading-display text-3xl sm:text-4xl font-bold text-white mt-2">
+              <h2 className="lp-heading-display text-3xl sm:text-4xl font-bold mt-2" style={{ color: 'var(--lp-text-primary)' }}>
                 What kind of content do you create?
               </h2>
-              <p className="text-xs sm:text-sm text-slate-300 mt-1.5">
+              <p className="text-xs sm:text-sm mt-1.5" style={{ color: 'var(--lp-text-secondary)' }}>
                 One or two sentences is enough.
               </p>
             </div>
@@ -459,10 +459,10 @@ export function EarlyAccessForm({ initialReferralCode }: EarlyAccessFormProps) {
         {currentStep === 4 && (
           <div className="space-y-8 animate-fadeIn">
             <div>
-              <span className="text-xs font-mono uppercase tracking-widest text-[#7E8CA3]">
+              <span className="text-xs font-mono uppercase tracking-widest text-[#7FB0DB]">
                 04 / WHAT SHOULD OYINCA HANDLE?
               </span>
-              <h2 className="lp-heading-display text-3xl sm:text-4xl font-bold text-white mt-2">
+              <h2 className="lp-heading-display text-3xl sm:text-4xl font-bold mt-2" style={{ color: 'var(--lp-text-primary)' }}>
                 Your TikTok Workflow
               </h2>
             </div>
@@ -470,7 +470,7 @@ export function EarlyAccessForm({ initialReferralCode }: EarlyAccessFormProps) {
             {/* Question 1: What takes up most of your time on TikTok? */}
             <div className="space-y-3">
               <div>
-                <h3 className="text-lg sm:text-xl font-bold text-white">
+                <h3 className="text-lg sm:text-xl font-bold" style={{ color: 'var(--lp-text-primary)' }}>
                   What takes up most of your time on TikTok?
                 </h3>
                 <p className="text-xs text-[#7FB0DB] font-mono mt-0.5">Select all that apply.</p>
@@ -512,9 +512,9 @@ export function EarlyAccessForm({ initialReferralCode }: EarlyAccessFormProps) {
             </div>
 
             {/* Question 2: What would you love Oyinca to take off your plate? */}
-            <div className="space-y-3 pt-4 border-t border-slate-800">
+            <div className="space-y-3 pt-4 border-t" style={{ borderColor: 'var(--lp-border)' }}>
               <div>
-                <h3 className="text-lg sm:text-xl font-bold text-white">
+                <h3 className="text-lg sm:text-xl font-bold" style={{ color: 'var(--lp-text-primary)' }}>
                   What would you love Oyinca to take off your plate?
                 </h3>
                 <p className="text-xs text-[#7FB0DB] font-mono mt-0.5">Select all that apply.</p>
@@ -550,10 +550,10 @@ export function EarlyAccessForm({ initialReferralCode }: EarlyAccessFormProps) {
         {currentStep === 5 && (
           <div className="space-y-8 animate-fadeIn">
             <div>
-              <span className="text-xs font-mono uppercase tracking-widest text-[#7E8CA3]">
+              <span className="text-xs font-mono uppercase tracking-widest text-[#7FB0DB]">
                 05 / JOINING EARLY
               </span>
-              <h2 className="lp-heading-display text-3xl sm:text-4xl font-bold text-white mt-2">
+              <h2 className="lp-heading-display text-3xl sm:text-4xl font-bold mt-2" style={{ color: 'var(--lp-text-primary)' }}>
                 Discovery & Feedback
               </h2>
             </div>
@@ -561,7 +561,7 @@ export function EarlyAccessForm({ initialReferralCode }: EarlyAccessFormProps) {
             {/* Question 1: How did you find Oyinca? (MULTI-SELECT) */}
             <div className="space-y-3">
               <div>
-                <h3 className="text-lg sm:text-xl font-bold text-white">
+                <h3 className="text-lg sm:text-xl font-bold" style={{ color: 'var(--lp-text-primary)' }}>
                   How did you find Oyinca?
                 </h3>
                 <p className="text-xs text-[#7FB0DB] font-mono mt-0.5">Select all that apply.</p>
@@ -603,12 +603,12 @@ export function EarlyAccessForm({ initialReferralCode }: EarlyAccessFormProps) {
             </div>
 
             {/* Question 2: 15-20 Second Video Question */}
-            <div className="space-y-3 pt-4 border-t border-slate-800">
+            <div className="space-y-3 pt-4 border-t" style={{ borderColor: 'var(--lp-border)' }}>
               <div>
-                <h3 className="text-lg sm:text-xl font-bold text-white">
+                <h3 className="text-lg sm:text-xl font-bold" style={{ color: 'var(--lp-text-primary)' }}>
                   If you join early, would you be open to sharing a short 15–20 second video about your experience with Oyinca?
                 </h3>
-                <p className="text-xs text-slate-400 mt-1">Nothing polished — just your honest experience.</p>
+                <p className="text-xs mt-1" style={{ color: 'var(--lp-text-secondary)' }}>Nothing polished — just your honest experience.</p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">

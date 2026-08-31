@@ -25,7 +25,7 @@ export default async function EarlyAccessPage({
   const referralCode = params?.ref;
 
   return (
-    <div className="amai-landing min-h-screen relative font-sans text-slate-100 selection:bg-[#7FB0DB] selection:text-black">
+    <div className="amai-landing min-h-screen relative font-sans selection:bg-[#7FB0DB] selection:text-black" style={{ background: 'var(--lp-bg)', color: 'var(--lp-text-primary)' }}>
       <Suspense fallback={null}>
         <AttributionTracker pageName="early-access" />
       </Suspense>
@@ -50,9 +50,9 @@ export default async function EarlyAccessPage({
       </header>
 
       {/* Main Container — Mobile First Design Layout */}
-      <main className="pt-24 sm:pt-40 pb-20 px-4 sm:px-8 max-w-6xl mx-auto space-y-16 sm:space-y-24">
+      <main className="pt-24 sm:pt-36 pb-20 px-4 sm:px-8 max-w-6xl mx-auto space-y-12 sm:space-y-16">
         {/* Hero Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-8 items-center">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-8 items-center">
           {/* Hero Copy (Mobile & Desktop First Column) */}
           <div className="lg:col-span-5 text-left space-y-5 sm:space-y-6">
             <div className="flex items-center gap-2">
@@ -62,19 +62,19 @@ export default async function EarlyAccessPage({
               </span>
             </div>
 
-            <h1 className="lp-heading-display text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-white leading-[1.08] uppercase">
+            <h1 className="lp-heading-display text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.08] uppercase" style={{ color: 'var(--lp-text-primary)' }}>
               You create. <br />
               <span style={{ color: 'var(--lp-hero-accent)' }}>Oyinca handles the rest.</span>
             </h1>
 
-            <p className="text-sm sm:text-lg font-normal leading-relaxed max-w-xl" style={{ color: 'var(--lp-text-secondary)' }}>
+            <p className="text-sm sm:text-base font-normal leading-relaxed max-w-xl" style={{ color: 'var(--lp-text-secondary)' }}>
               Meet Oyinca, your social media manager, built to work in the background while you focus on creating.
             </p>
 
             <div className="pt-2">
               <a
                 href="#signup-form"
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-4 rounded-full text-xs sm:text-sm font-bold uppercase tracking-wider lp-btn-primary transition-transform active:scale-95 shadow-xl"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-3.5 rounded-full text-xs sm:text-sm font-bold uppercase tracking-wider lp-btn-primary transition-transform active:scale-95 shadow-xl"
               >
                 GET EARLY ACCESS
                 <ArrowRight className="w-4 h-4" />
@@ -88,66 +88,60 @@ export default async function EarlyAccessPage({
           </div>
         </div>
 
-        {/* Early Access Privileges Section (Restored Specific Early Access Rewards) */}
-        <section className="py-12 text-left border-y" style={{ borderColor: 'var(--lp-border)' }}>
-          <div className="max-w-3xl mb-10">
-            <span className="text-xs font-mono font-bold uppercase tracking-widest text-[#7FB0DB]">
-              EARLY ACCESS PRIVILEGES
+        {/* Compact Early Access Perks Section */}
+        <section className="py-6 border-y" style={{ borderColor: 'var(--lp-border)' }}>
+          <div className="mb-4">
+            <span className="text-[11px] font-mono font-bold uppercase tracking-widest text-[#7FB0DB]">
+              EARLY MEMBER PRIVILEGES
             </span>
-            <h2 className="lp-heading-display text-3xl sm:text-5xl font-bold text-white mt-2">
-              Why Join Early?
-            </h2>
-            <p className="text-sm sm:text-base text-slate-300 mt-1">
-              Unlock exclusive rewards reserved for our first members:
-            </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="p-6 sm:p-8 rounded-3xl border border-slate-800 bg-[#0F131E] space-y-3">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-[#7FB0DB]/10 text-[#7FB0DB]">
-                <Zap className="w-5 h-5" />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="p-3.5 sm:p-4 rounded-2xl border flex items-center gap-3" style={{ background: 'var(--lp-bg-soft)', borderColor: 'var(--lp-border)' }}>
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'var(--lp-cyan-soft)', color: 'var(--lp-cyan)' }}>
+                <Zap className="w-4 h-4" />
               </div>
-              <h3 className="text-lg font-bold text-white">Priority Launch Access</h3>
-              <p className="text-sm text-slate-300 leading-relaxed">
-                Get ahead of the public launch queue and start managing your social media in the background first.
-              </p>
+              <div>
+                <h3 className="text-xs sm:text-sm font-bold" style={{ color: 'var(--lp-text-primary)' }}>Priority Launch Access</h3>
+                <p className="text-[11px] sm:text-xs mt-0.5" style={{ color: 'var(--lp-text-secondary)' }}>First queue position for early product rollout.</p>
+              </div>
             </div>
 
-            <div className="p-6 sm:p-8 rounded-3xl border border-slate-800 bg-[#0F131E] space-y-3">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-[#D8B571]/10 text-[#D8B571]">
-                <Crown className="w-5 h-5" />
+            <div className="p-3.5 sm:p-4 rounded-2xl border flex items-center gap-3" style={{ background: 'var(--lp-bg-soft)', borderColor: 'var(--lp-border)' }}>
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'var(--lp-gold-soft)', color: 'var(--lp-gold)' }}>
+                <Crown className="w-4 h-4" />
               </div>
-              <h3 className="text-lg font-bold text-white">Founding Status</h3>
-              <p className="text-sm text-slate-300 leading-relaxed">
-                Be recognized as one of Oyinca's earliest users with permanent founding status and feature request priority.
-              </p>
+              <div>
+                <h3 className="text-xs sm:text-sm font-bold" style={{ color: 'var(--lp-text-primary)' }}>Founding Member Badge</h3>
+                <p className="text-[11px] sm:text-xs mt-0.5" style={{ color: 'var(--lp-text-secondary)' }}>Permanent status and direct team feedback input.</p>
+              </div>
             </div>
 
-            <div className="p-6 sm:p-8 rounded-3xl border border-slate-800 bg-[#0F131E] space-y-3">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-emerald-500/10 text-emerald-400">
-                <Gift className="w-5 h-5" />
+            <div className="p-3.5 sm:p-4 rounded-2xl border flex items-center gap-3" style={{ background: 'var(--lp-bg-soft)', borderColor: 'var(--lp-border)' }}>
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(16, 185, 129, 0.12)', color: '#10B981' }}>
+                <Gift className="w-4 h-4" />
               </div>
-              <h3 className="text-lg font-bold text-white">Referral Progression</h3>
-              <p className="text-sm text-slate-300 leading-relaxed">
-                Unlock 3 extra months of Pro features and priority queue position for every 3 creator friends you invite.
-              </p>
+              <div>
+                <h3 className="text-xs sm:text-sm font-bold" style={{ color: 'var(--lp-text-primary)' }}>Referral Rewards</h3>
+                <p className="text-[11px] sm:text-xs mt-0.5" style={{ color: 'var(--lp-text-secondary)' }}>Earn extra Pro access months by inviting creators.</p>
+              </div>
             </div>
           </div>
         </section>
 
         {/* Premium Multi-Step Form */}
-        <div id="signup-form" className="w-full pt-4 sm:pt-8 scroll-mt-24">
+        <div id="signup-form" className="w-full pt-2 sm:pt-4 scroll-mt-24">
           <EarlyAccessForm initialReferralCode={referralCode} />
         </div>
 
         {/* Status Strip Section */}
-        <div className="pt-4 sm:pt-8">
+        <div className="pt-2 sm:pt-4">
           <ProductVisual />
         </div>
       </main>
 
       {/* Footer */}
-      <footer className="w-full border-t py-10 text-center space-y-2" style={{ borderColor: 'var(--lp-border)' }}>
+      <footer className="w-full border-t py-8 text-center space-y-2" style={{ borderColor: 'var(--lp-border)' }}>
         <BrandAttribution />
         <p className="text-xs" style={{ color: 'var(--lp-text-muted)' }}>
           © 2026 Oyinca. All rights reserved.
