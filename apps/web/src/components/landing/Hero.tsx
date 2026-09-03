@@ -2,13 +2,15 @@
 import Link from "next/link";
 import { useState } from "react";
 import WorkflowPreview from "./WorkflowPreview";
-export type HeroStyle = "editorial" | "product" | "cinematic";
+import SculpturalHero from "./SculpturalHero";
+export type HeroStyle = "editorial" | "product" | "cinematic" | "sculptural";
 export default function Hero({
-  variant = "cinematic",
+  variant = "sculptural",
 }: {
   variant?: HeroStyle;
 }) {
   const [playing, setPlaying] = useState(false);
+  if (variant === "sculptural") return <SculpturalHero />;
   return (
     <section
       id="product"

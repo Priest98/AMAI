@@ -1257,3 +1257,107 @@
     transition: none !important;
   }
 }
+/* Sculptural direction: original artwork, architectural framing and warm light. */
+.oy-sculpture {
+  position: relative;
+  isolation: isolate;
+  margin: 24px;
+  height: calc(100svh - 48px);
+  min-height: 760px;
+  max-height: 1040px;
+  overflow: hidden;
+  border: 1px solid #ffffff30;
+  border-radius: 22px;
+  background: #181b20;
+  color: #f8f5ef;
+}
+.oy-sculpture-art, .oy-sculpture-shade { position:absolute; inset:0; pointer-events:none; z-index:-1; }
+.oy-sculpture-art img { width:100%; height:100%; object-fit:cover; object-position:center center; }
+.oy-sculpture-shade { background:linear-gradient(90deg,#11151af2 0%,#11151abd 27%,#11151a55 48%,transparent 68%),linear-gradient(0deg,#101419ef 0%,transparent 24%,transparent 80%,#10141955 100%); }
+.oy-sculpture-copy { position:relative; width: min(60%,780px); margin-left:clamp(28px,4vw,76px); padding-top:clamp(180px,24vh,280px); z-index:1; }
+.oy-sculpture-kicker { display:flex; align-items:center; gap:12px; color:#e1dcd2; font-size:10px; font-weight:500; line-height:1.6; letter-spacing:.15em; }
+.oy-sculpture-kicker>span { width:6px; height:6px; border-radius:50%; background:#7fb0db; box-shadow:0 0 15px #7fb0db70; }
+.oy-sculpture h1 { margin:26px 0; color:#f8f5ef; font-family:var(--font-display-var),Georgia,serif; font-size:clamp(52px,5.8vw,88px); font-weight:500; line-height:1.08; letter-spacing:-.045em; }
+.oy-sculpture h1>span { color:#9dc6e8; font-weight:400; }
+.oy-sculpture-intro { max-width:405px; color:#d6d7db; font-size:14px; line-height:1.9; }
+.oy-sculpture-actions { display:flex; align-items:center; gap:28px; flex-wrap:wrap; margin-top:32px; }
+.oy-sculpture-primary { display:inline-flex; align-items:center; gap:24px; padding:9px 10px 9px 22px; min-height:52px; color:#171b20; background:#efebe3; border:1px solid #efebe3; border-radius:100px; font-size:12px; font-weight:600; transition:background .2s; }
+.oy-sculpture-primary>span { display:grid; place-items:center; width:34px; height:34px; border-radius:50%; background:#171b20; color:#f8f5ef; font-size:19px; }
+.oy-sculpture-primary:hover { background:#9dc6e8; border-color:#9dc6e8; }
+.oy-sculpture-secondary { display:inline-flex; align-items:center; gap:18px; min-height:48px; color:#f8f5ef; font-size:12px; border-bottom:1px solid #ffffff55; }
+.oy-sculpture-secondary>span { font-size:18px; }
+.oy-sculpture-note { margin-top:20px; color:#b9bdc5; font-size:10px; line-height:1.7; }
+.oy-sculpture-grid { position:absolute; inset:0; pointer-events:none; opacity:.7; }
+.oy-sculpture-grid>span { position:absolute; right:27%; top:0; height:170px; width:1px; background:#ffffff26; }
+.oy-sculpture-grid>i { position:absolute; top:170px; right:0; width:27%; height:1px; background:#ffffff40; }
+.oy-sculpture-grid>b { position:absolute; right:calc(27% - 4px); top:161px; font-size:13px; font-weight:300; color:#ddd; }
+.oy-sculpture-caption { position:absolute; top:119px; right:4%; color:#ede9e1; font-size:9px; letter-spacing:.13em; line-height:1.7; }
+.oy-sculpture-caption>span { display:block; }
+.oy-sculpture-bottom { position:absolute; bottom:0; inset-inline:0; display:flex; align-items:center; justify-content:space-between; gap:30px; padding:24px clamp(28px,4vw,76px); border-top:1px solid #ffffff25; background:#151a2030; }
+.oy-sculpture-platform { position:relative; padding-left:17px; color:#f8f5ef; font-size:9px; font-weight:600; letter-spacing:.08em; line-height:1.7; }
+.oy-sculpture-platform>span:first-child { position:absolute; left:0; top:4px; width:5px; height:5px; background:#9dc6e8; border-radius:50%; }
+.oy-sculpture-platform>span:last-child { color:#bfc3cb; font-size:10px; font-weight:400; letter-spacing:0; }
+.oy-sculpture-flow { display:flex; flex-wrap:wrap; align-items:center; gap:38px; list-style:none; }
+.oy-sculpture-flow li { display:flex; gap:12px; color:#e3e5e9; font-size:11px; }
+.oy-sculpture-flow li>span { color:#9dc6e8; font-size:9px; }
+.oy-sculpture-scroll { width:42px; height:42px; display:grid; place-items:center; border:1px solid #ffffff55; border-radius:50%; color:#f8f5ef; font-size:18px; }
+.oy-sculpture :is(a,button):focus-visible { outline:3px solid #7fb0db; outline-offset:5px; }
+.oy-lab-bar+.oy-sculpture { height:800px; margin-top:24px; }
+@media(min-width:1800px) { .oy-sculpture { max-width:1800px; margin-inline:auto; } }
+@media(max-width:1100px) { .oy-sculpture-copy { width:70%; } .oy-sculpture-flow { gap:20px; } .oy-sculpture h1 { font-size:clamp(52px,6.4vw,78px); } .oy-nav--architectural .oy-nav-links { gap:20px; } }
+@media(max-width:760px) {
+  .oy-sculpture { margin:12px; height:auto; min-height:1060px; max-height:none; border-radius:16px; }
+  .oy-sculpture-copy { width:auto; margin:0; padding:155px 26px 0; }
+  .oy-sculpture h1 { font-size:clamp(40px,8.5vw,62px); letter-spacing:-.035em; margin:22px 0; }
+  .oy-sculpture-kicker { font-size:8px; letter-spacing:.12em; }
+  .oy-sculpture-intro { max-width:390px; font-size:13px; line-height:1.9; }
+  .oy-sculpture-art { inset:395px 0 50px; }
+  .oy-sculpture-art img { object-position:76% center; }
+  .oy-sculpture-shade { background:linear-gradient(180deg,#171b20 0%,#171b20 35%,#171b20e0 43%,transparent 60%,#171b2000 79%,#171b20 95%); }
+  .oy-sculpture-actions { gap:18px; margin-top:26px; }
+  .oy-sculpture-primary { min-height:48px; gap:18px; padding-left:18px; font-size:11px; }
+  .oy-sculpture-secondary { font-size:11px; }
+  .oy-sculpture-note { font-size:9px; margin-top:17px; }
+  .oy-sculpture-grid, .oy-sculpture-caption { display:none; }
+  .oy-sculpture-bottom { padding:20px 24px; flex-wrap:wrap; gap:18px; background:#171b20; }
+  .oy-sculpture-flow { order:3; width:100%; justify-content:space-between; gap:10px; border-top:1px solid #ffffff25; padding-top:18px; }
+  .oy-sculpture-flow li { flex-direction:column; gap:5px; font-size:9px; }
+  .oy-lab-bar+.oy-sculpture { height:auto; }
+}
+@media(max-width:360px) { .oy-sculpture-copy { padding-inline:20px; } .oy-sculpture h1 { font-size:40px; } .oy-sculpture-actions { gap:8px; } }
+/* Restored brand palette, dynamic-island navigation and consistent controls. */
+.oy-nav { transition: max-width .25s ease, top .25s ease; }
+.oy-nav nav { transition: padding .25s ease, border-radius .25s ease, box-shadow .25s ease; }
+.oy-nav.is-scrolled { max-width:1040px; top:12px; }
+.oy-nav.is-scrolled nav { padding-block:8px; box-shadow:0 12px 40px #0003; }
+.oy-nav.is-expanded nav { border-radius:28px; }
+.oy-nav a[aria-label="Oyinca home"] { min-width:44px; min-height:44px; display:flex; align-items:center; justify-content:center; }
+.oy-nav-links a, .oy-signin { display:inline-flex; align-items:center; min-height:44px; }
+.oy-nav .oy-nav-actions>button { min-width:44px; min-height:44px; }
+.oy-nav .oy-menu-toggle { padding-inline:12px; }
+.oy-mobile-nav a { min-height:48px; border-radius:10px; }
+.oy-mobile-nav a:last-child { margin-top:8px; background:var(--lp-gradient-brand); color:#08111d; font-weight:600; text-align:center; }
+.oy-sculpture-art::after { content:""; position:absolute; inset:0; background:#557da5; opacity:.38; mix-blend-mode:color; }
+.oy-sculpture-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); align-items:stretch; gap:12px; width:100%; max-width:490px; }
+.oy-sculpture-primary, .oy-sculpture-secondary { display:flex; align-items:center; justify-content:center; gap:12px; min-height:54px; padding:10px 16px; border-radius:14px; border:1px solid transparent; font-size:13px; font-weight:600; line-height:1.4; text-align:center; }
+.oy-sculpture-primary { background:linear-gradient(135deg,#9dc6e8,#5a8caf); color:#08111d; box-shadow:0 8px 26px #7fb0db20; }
+.oy-sculpture-primary>span { width:30px; height:30px; flex-shrink:0; background:#11243a; color:#f6fafd; font-size:18px; }
+.oy-sculpture-primary:hover { background:#a6ceec; border-color:transparent; }
+.oy-sculpture-secondary { background:#132135e6; border-color:#a7c6e366; color:#f6fafd; }
+.oy-sculpture-secondary:hover { background:#253a51; border-color:#a7c6e3; }
+.oy-sculpture-secondary>span { font-size:18px; flex-shrink:0; }
+.oy-sculpture-scroll { min-width:48px; min-height:48px; }
+.oy-workflow-footer button { min-height:44px; padding-inline:10px; }
+.oy-workflow-tabs button { min-height:56px; }
+.oy-currency { min-height:44px; }
+.oy-pricing-grid .lp-card>a { display:flex; align-items:center; justify-content:center; min-height:52px; padding-block:14px; line-height:1.5; }
+.oy-final .oy-button { min-height:52px; }
+@media(max-width:640px) {
+  .oy-sculpture-actions { grid-template-columns:1fr; max-width:360px; }
+  .oy-sculpture-primary, .oy-sculpture-secondary { min-height:52px; }
+  .oy-nav.is-scrolled nav { padding-block:8px; }
+  .oy-nav-actions { gap:8px; }
+}
+.oy-faq details { padding-block:10px; }
+.oy-faq summary { min-height:48px; padding-block:12px; }
+.amai-landing footer a { display:inline-flex; align-items:center; min-height:44px; }

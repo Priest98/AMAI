@@ -4,6 +4,12 @@ import Hero, { type HeroStyle } from "./Hero";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 const options = [
   {
+    id: "sculptural",
+    name: "04 / Sculptural",
+    description:
+      "A new direction combining architectural framing, sculptural geometry and atmospheric lighting.",
+  },
+  {
     id: "editorial",
     name: "01 / Editorial",
     description:
@@ -23,7 +29,7 @@ const options = [
   },
 ] as const;
 export default function HeroLab() {
-  const [variant, setVariant] = useState<HeroStyle>("cinematic");
+  const [variant, setVariant] = useState<HeroStyle>("sculptural");
   return (
     <>
       <div className="oy-lab-bar">

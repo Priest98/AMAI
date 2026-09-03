@@ -11,6 +11,13 @@ const links = [
 ];
 export default function Nav() {
   const [open, setOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const update = () => setScrolled(window.scrollY > 24);
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    return () => window.removeEventListener("scroll", update);
+  }, []);
   const header = useRef<HTMLElement>(null);
   const toggle = useRef<HTMLButtonElement>(null);
   useEffect(() => {
@@ -32,7 +39,7 @@ export default function Nav() {
     };
   }, [open]);
   return (
-    <header ref={header} className="oy-nav">
+    <header ref={header} className={`oy-nav${scrolled ? " is-scrolled" : ""}${open ? " is-expanded" : ""}`}>
       <nav aria-label="Primary">
         <Link href="/" aria-label="Oyinca home">
           <Monogram className="h-9 w-9" />
