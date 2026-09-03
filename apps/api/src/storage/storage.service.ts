@@ -1,5 +1,6 @@
+/// <reference types="multer" />
 import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
-import { put, del } from '@vercel/blob';
+import { put, del, head } from '@vercel/blob';
 
 /**
  * Real media storage backed by Vercel Blob.
@@ -14,6 +15,12 @@ export class StorageService {
 
   private get token(): string | undefined {
     return process.env.BLOB_READ_WRITE_TOKEN;
+  }
+
+  async inspectUpload(url: string) {
+    if (!this.token) throw new InternalServerErrorException('Media storage is not configured.');
+    // Authenticated store metadata, rather than client-supplied size/type.
+    return head(url, { token: this.token });
   }
 
   async uploadFile(file: Express.Multer.File, brandId: string): Promise<{ url: string; size: number; mimeType: string }> {

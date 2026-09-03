@@ -1042,6 +1042,8 @@ export class EngineService {
       throw new BadRequestException('Only failed posts can be retried.');
     }
 
+    await this.runPublishPreflight(brandId, postId, post.caption);
+
     await this.prisma.postTarget.updateMany({
       where: { postId, status: TargetStatus.FAILED },
       data: { status: TargetStatus.PENDING },

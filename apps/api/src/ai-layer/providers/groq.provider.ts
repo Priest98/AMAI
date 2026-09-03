@@ -37,7 +37,7 @@ export class GroqProvider implements AiProviderAdapter {
     // At least one GROQ_API_KEY[_N] present is enough to consider the
     // provider configured; ApiKeyManagerService is the source of truth for
     // exactly which keys exist.
-    return !!(process.env.GROQ_API_KEY && process.env.GROQ_API_KEY !== 'placeholder');
+    return Object.entries(process.env).some(([name, value]) => /^GROQ_API_KEY(?:_\d+)?$/.test(name) && !!value?.trim() && value !== 'placeholder');
   }
 
   async complete(
@@ -52,11 +52,12 @@ export class GroqProvider implements AiProviderAdapter {
     const response = await withTimeout(
       fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
+        signal: AbortSignal.timeout(options.timeoutMs),
         headers: {
           Authorization: `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ model: GroqProvider.MODEL, messages, max_tokens: maxTokens }),
+        body: JSON.stringify({ model: process.env.GROQ_MODEL || GroqProvider.MODEL, messages, max_tokens: maxTokens }),
       }),
       options.timeoutMs,
       'Groq completion',

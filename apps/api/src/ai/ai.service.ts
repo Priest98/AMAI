@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AiGatewayService } from '../ai-layer/ai-gateway.service';
 
@@ -78,11 +78,7 @@ const DEFAULT_PLATFORM_GUIDANCE = `Keep the tone natural for a short-form social
 
 /**
  * Oyinca-facing façade over the AI Layer. This class owns *what* to
- * ask for (prompts, niche defaults, output cleanup, static fallback
- * templates) and always resolves to a usable string even if every
- * provider fails -- it deliberately knows nothing about Groq, Gemini, API
- * keys, retries, or timeouts anymore. All of that now lives in
- * AiGatewayService / ApiKeyManagerService / the provider adapters (see
+ * ask for (prompts, niche defaults, and output cleanup). Caption failure throws so callers can refund the reserved credit and avoid publishing fabricated content. Provider retries live in AiGatewayService / ApiKeyManagerService / the provider adapters (see
  * ../ai-layer). This split is what makes "swap providers without touching
  * the rest of the app" real: EngineService and AiController only ever call
  * the methods below, and have never depended on how the answer was
@@ -156,9 +152,6 @@ export class AiService {
     const niche = tone || 'Content Creator';
     const isAiTopic = /ai|artificial intelligence|machine learning|automation|gpt/i.test(topic + ' ' + niche);
 
-    const nicheData = NICHE_HASHTAG_MAP[niche] || NICHE_HASHTAG_MAP['Content Creator'];
-    const defaultTags = [...nicheData.highVolume.slice(0, 2), ...nicheData.medium.slice(0, 2), ...nicheData.niche.slice(0, 2)].join(' ');
-
     const platformGuidance = PLATFORM_GUIDANCE[platform] || DEFAULT_PLATFORM_GUIDANCE;
 
     const prompt = `You are a professional social media manager specializing in the ${niche} industry.
@@ -195,7 +188,7 @@ CRITICAL OUTPUT FORMAT: Reply with ONLY the finished caption text, exactly as it
     }
 
     if (!text) {
-      text = `✨ Elevate your style and presence! Check out our latest ${topic || 'feature'} crafted specially for our ${niche} community. What do you think? Drop your thoughts below! ${defaultTags}`;
+      throw new ServiceUnavailableException('AI caption generation is temporarily unavailable. Please retry; no caption was created.');
     }
 
     this.logUsage(brandId, userId, prompt, text, result?.tokensUsed);

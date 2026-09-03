@@ -50,7 +50,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const jsonResponse = await handleUpload({
       body,
       request,
-      onBeforeGenerateToken: async () => {
+      onBeforeGenerateToken: async (pathname) => {
         if (!authHeader?.startsWith('Bearer ') && !cookieHeader) {
           throw new Error('Not authenticated.');
         }
@@ -58,6 +58,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         const forwardHeaders: Record<string, string> = {};
         if (cookieHeader) forwardHeaders.cookie = cookieHeader;
         if (authHeader) forwardHeaders.authorization = authHeader;
+        if (process.env.VERCEL === '1' && request.headers.get('x-forwarded-for')) {
+          forwardHeaders['x-forwarded-for'] = request.headers.get('x-forwarded-for')!;
+        }
         const meRes = await fetch(`http://127.0.0.1:${port}/api/auth/me`, {
           headers: forwardHeaders,
         });
@@ -65,8 +68,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           throw new Error('Not authenticated.');
         }
         const user = await meRes.json();
+        const parts = pathname.split('/');
+        if (parts.length !== 2 || !/^[a-zA-Z0-9_-]+$/.test(parts[0]) || !/^[a-zA-Z0-9._-]+$/.test(parts[1]) || parts[1] === '.' || parts[1] === '..') {
+          throw new Error('Invalid brand upload path.');
+        }
+        const policyRes = await fetch(`http://127.0.0.1:${port}/api/brands/${parts[0]}/media/upload-policy`, { headers: forwardHeaders });
+        if (!policyRes.ok) throw new Error('Upload not allowed. Check your brand access and storage limit.');
+        const policy = await policyRes.json();
         return {
           allowedContentTypes: ALLOWED_CONTENT_TYPES,
+          maximumSizeInBytes: policy.maximumSizeInBytes,
           addRandomSuffix: true,
           tokenPayload: JSON.stringify({ userId: user?.id }),
         };

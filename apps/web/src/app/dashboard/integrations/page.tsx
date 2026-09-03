@@ -50,6 +50,8 @@ interface ConnectedAccount {
   handle: string;
   accountType: string;
   status: 'CONNECTED' | 'EXPIRED' | 'DISCONNECTED';
+  health?: string;
+  needsReauth?: boolean;
   tokenExpiresAt?: string;
   createdAt: string;
   // Only populated for TikTok accounts (user.info.stats scope). Null until
@@ -245,11 +247,17 @@ export default function ConnectedAccountsPage() {
   const instagramAccounts = accounts.filter(a => a.platform?.toUpperCase() === 'INSTAGRAM');
   const tiktokAccounts = accounts.filter(a => a.platform?.toUpperCase() === 'TIKTOK');
 
-  const isInstagramConnected = instagramAccounts.length > 0 || !!localInstagram;
+  const isInstagramConnected = instagramAccounts.length > 0;
   const instagramHandle = instagramAccounts[0]?.handle || localInstagram?.handle || '@creator';
 
-  const isTikTokConnected = tiktokAccounts.length > 0 || !!localTikTok;
+  const isTikTokConnected = tiktokAccounts.length > 0;
   const tiktokHandle = tiktokAccounts[0]?.handle || localTikTok?.handle || '@creator';
+  const connectionLabel = (account?: ConnectedAccount) => {
+    if (account?.needsReauth || account?.status === 'EXPIRED') return 'Reconnect required';
+    if (account?.health === 'EXPIRING_SOON') return 'Token renewal due';
+    if (account?.health === 'UNKNOWN') return 'Connection unverified';
+    return 'Connected ✓';
+  };
 
   // Hiding everything related to Instagram for now, including already-
   // connected accounts (see lib/featureFlags.ts) -- a stricter hide than
@@ -353,7 +361,7 @@ export default function ConnectedAccountsPage() {
                             setDetailsModal({
                               title: 'Instagram Account',
                               handle: instagramHandle,
-                              status: 'Connected',
+                              status: connectionLabel(instagramAccounts[0]),
                               type: 'Creator Profile',
                               lastSynced: 'Just now',
                             });
@@ -392,7 +400,7 @@ export default function ConnectedAccountsPage() {
                 <div className="flex items-center justify-between">
                   <span className="flex items-center space-x-1.5 font-bold text-emerald-500">
                     <CheckCircle2 className="h-4 w-4" />
-                    <span>Connected ✓</span>
+                    <span>{connectionLabel(instagramAccounts[0])}</span>
                   </span>
                   <span className="font-bold truncate max-w-[140px]" style={{ color: 'var(--text-primary)' }}>{instagramHandle}</span>
                 </div>
@@ -468,7 +476,7 @@ export default function ConnectedAccountsPage() {
                             setDetailsModal({
                               title: 'TikTok Account',
                               handle: tiktokHandle,
-                              status: 'Connected',
+                              status: connectionLabel(tiktokAccounts[0]),
                               type: 'TikTok Creator',
                               lastSynced: 'Just now',
                               accountId: account?.id,
@@ -512,7 +520,7 @@ export default function ConnectedAccountsPage() {
                 <div className="flex items-center justify-between">
                   <span className="flex items-center space-x-1.5 font-bold text-emerald-500">
                     <CheckCircle2 className="h-4 w-4" />
-                    <span>Connected ✓</span>
+                    <span>{connectionLabel(tiktokAccounts[0])}</span>
                   </span>
                   <span className="font-bold truncate max-w-[140px]" style={{ color: 'var(--text-primary)' }}>{tiktokHandle}</span>
                 </div>

@@ -130,16 +130,29 @@ export class MediaService {
     }
     assertAllowedMimeType(dto.mimeType);
 
-    // Security audit fix (8.2): unlike uploadAsset() above, the bytes for
-    // this path already live in Blob storage -- fetch just the leading
-    // bytes via a Range request rather than downloading the whole file
-    // (which could be a large video) just to sniff a signature. Fails open
-    // (logs and continues) on any fetch/range problem rather than blocking
-    // a legitimate upload over an infra hiccup -- this is a defense-in-depth
-    // check layered on top of the allowlist checks above and at
-    // token-issuance time, not the sole gate.
+    const pathname = decodeURIComponent(new URL(dto.url).pathname);
+    if (!pathname.startsWith(`/${brandId}/`) || pathname.split('/').some((part) => part === '..' || part === '.')) {
+      throw new BadRequestException('This upload does not belong to this brand.');
+    }
+    const blob = await this.storage.inspectUpload(dto.url);
+    if (blob.url !== dto.url || !blob.pathname.startsWith(`${brandId}/`) || !Number.isSafeInteger(blob.size) || blob.size <= 0) {
+      throw new BadRequestException('Invalid upload metadata.');
+    }
+    if (blob.contentType.toLowerCase() !== dto.mimeType.toLowerCase()) {
+      throw new BadRequestException('Upload content type does not match storage metadata.');
+    }
+    // Re-registering an existing file must never reach rejection cleanup.
+    const existing = await this.prisma.mediaAsset.findFirst({ where: { blobUrl: dto.url } });
+    if (existing) {
+      if (existing.brandId !== brandId) throw new BadRequestException('Upload already belongs to another brand.');
+      return existing;
+    }
+    dto = { ...dto, size: blob.size };
+
+    // Verify a bounded byte prefix. Unavailable content must be retried.
     try {
       const leadingBytes = await this.fetchLeadingBytes(dto.url, 32);
+      if (!leadingBytes) throw new BadRequestException('Unable to verify file content. Please retry.');
       if (leadingBytes && !claimedMimeTypeMatchesBytes(leadingBytes, dto.mimeType)) {
         await this.storage.deleteFile(dto.url).catch(() => {});
         this.logger.warn(`Registration rejected: claimed type "${dto.mimeType}" does not match file content. brand=${brandId} url=${dto.url}`);
@@ -147,7 +160,7 @@ export class MediaService {
       }
     } catch (err) {
       if (err instanceof BadRequestException) throw err;
-      this.logger.warn(`Content-sniffing check skipped (fetch failed): ${(err as any)?.message || err}`);
+      throw new BadRequestException('Unable to verify file content. Please retry.');
     }
 
     // The bytes are already sitting in Blob storage by this point (the
@@ -170,16 +183,28 @@ export class MediaService {
   /**
    * Fetches just the first `maxBytes` of a URL via an HTTP Range request,
    * for magic-byte sniffing without downloading a potentially large file in
-   * full. Returns null (rather than throwing) if the server doesn't honor
-   * Range or the request otherwise fails -- callers treat that as "can't
-   * verify" and fail open, not as a rejection.
+   * full. Returns null on failure; registration rejects unverifiable content.
    */
   private async fetchLeadingBytes(url: string, maxBytes: number): Promise<Buffer | null> {
     try {
-      const res = await fetch(url, { headers: { Range: `bytes=0-${maxBytes - 1}` } });
+      const res = await fetch(url, { headers: { Range: `bytes=0-${maxBytes - 1}` }, signal: AbortSignal.timeout(10_000) });
       if (!res.ok && res.status !== 206) return null;
-      const arrayBuffer = await res.arrayBuffer();
-      return Buffer.from(arrayBuffer);
+      const reader = res.body?.getReader();
+      if (!reader) return null;
+      const chunks: Buffer[] = [];
+      let size = 0;
+      try {
+        while (size < maxBytes) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const chunk = Buffer.from(value.subarray(0, maxBytes - size));
+          chunks.push(chunk);
+          size += chunk.length;
+        }
+      } finally {
+        await reader.cancel();
+      }
+      return size ? Buffer.concat(chunks) : null;
     } catch {
       return null;
     }
@@ -190,6 +215,9 @@ export class MediaService {
     dto: { url: string; size?: number; mimeType: string; filename?: string; folderId?: string },
     userId?: string,
   ) {
+    if (dto.folderId && !await this.prisma.mediaFolder.findFirst({ where: { id: dto.folderId, brandId } })) {
+      throw new BadRequestException('Media folder does not belong to this brand.');
+    }
     const asset = await this.prisma.mediaAsset.create({
       data: {
         brandId,
@@ -218,6 +246,14 @@ export class MediaService {
     // the browser never gets to fire that follow-up call at all (e.g. the
     // tab closes mid-upload).
     return asset;
+  }
+
+  async getUploadPolicy(brandId: string) {
+    const organizationId = await this.entitlementsService.getOrganizationIdForBrand(brandId);
+    const { used, limit } = await this.entitlementsService.checkStorageUsage(organizationId);
+    const maximumSizeInBytes = Math.min(500 * 1024 * 1024, limit === -1 ? Infinity : Math.max(0, limit - used));
+    if (maximumSizeInBytes <= 0) throw new BadRequestException('Your storage is full. Delete media or upgrade your plan.');
+    return { maximumSizeInBytes };
   }
 
   /**

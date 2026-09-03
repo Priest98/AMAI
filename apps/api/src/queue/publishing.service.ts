@@ -263,7 +263,7 @@ export class PublishingService {
    * never block a publish attempt that might otherwise still succeed --
    * the real platform API call is always the final source of truth.
    */
-  private async ensureFreshAccessToken(
+  async ensureFreshAccessToken(
     account: { id: string; platform: Platform; accessToken: string; refreshToken: string | null; tokenExpiresAt: Date | null },
     force: boolean = false,
   ): Promise<string> {
@@ -286,6 +286,7 @@ export class PublishingService {
       const decryptedRefresh = this.encryption.decrypt(account.refreshToken!);
       const tokenRes = await fetch('https://open.tiktokapis.com/v2/oauth/token/', {
         method: 'POST',
+        signal: AbortSignal.timeout(10_000),
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
           client_key: clientKey,
@@ -675,7 +676,7 @@ export class PublishingService {
 
   /** Marks the parent Post PUBLISHED/FAILED once every target has resolved. */
   private async finalizeIfComplete(postId: string, platform: Platform, providerPostId: string | null, _mediaAssetId?: string) {
-    const remaining = await this.prisma.postTarget.count({ where: { postId, status: 'PENDING' } });
+    const remaining = await this.prisma.postTarget.count({ where: { postId, status: { in: [TargetStatus.PENDING, TargetStatus.PUBLISHING] } } });
     if (remaining > 0) return;
 
     // A post that published successfully to at least one platform is a
@@ -709,7 +710,12 @@ export class PublishingService {
     // slot"), and retryPost() deliberately never calls reservePostSlot()
     // again, so nothing here needs to re-count on success.
 
-    if (status === PostStatus.PUBLISHED) {
+    const failedCount = await this.prisma.postTarget.count({ where: { postId, status: TargetStatus.FAILED } });
+    // Retain originals until every destination succeeds so failed targets can retry.
+    if (status === PostStatus.PUBLISHED && failedCount === 0) {
+      // TikTok init returns before its asynchronous media download finishes.
+      // Keep originals until a separate retention job can confirm completion.
+      const hasTikTok = await this.prisma.postTarget.count({ where: { postId, platform: Platform.TIKTOK } }) > 0;
       // Carousel-aware: mark and clean up every image in this post, not
       // just one -- a 5-image carousel post frees all 5 blobs, not 1 with 4
       // orphaned forever. Looked up fresh here (rather than trusting the
@@ -726,11 +732,11 @@ export class PublishingService {
             platform,
             providerPostId: providerPostId || undefined,
             publishedAt: new Date(),
-            blobUrl: null,
+            blobUrl: hasTikTok ? undefined : null,
           },
         });
         // Free up storage now that the platform has its own copy of each image.
-        await Promise.all(assets.filter((a) => a.blobUrl).map((a) => this.storage.deleteFile(a.blobUrl!)));
+        if (!hasTikTok) await Promise.all(assets.filter((a) => a.blobUrl).map((a) => this.storage.deleteFile(a.blobUrl!)));
       }
     }
   }

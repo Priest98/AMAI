@@ -163,6 +163,9 @@ async function triggerProcessing(brandId: string, assetId: string): Promise<any>
     const message = body?.message || "Oyinca failed to start for this file.";
     throw new Error(Array.isArray(message) ? message.join(", ") : message);
   }
+  if (body?.status === "FAILED") {
+    throw new Error(body.lastErrorMessage || "Content generation failed. Please retry.");
+  }
   return body;
 }
 

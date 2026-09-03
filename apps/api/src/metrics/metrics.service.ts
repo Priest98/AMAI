@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EncryptionService } from '../encryption/encryption.service';
 import { Platform, TargetStatus } from '@prisma/client';
+import { PublishingService } from '../queue/publishing.service';
 
 // How far back a post is still considered worth checking. TikTok engagement
 // mostly plateaus well before this, and bounding the window keeps each sync
@@ -39,6 +40,7 @@ export class MetricsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly encryption: EncryptionService,
+    private readonly publishing: PublishingService,
   ) {}
 
   async syncTikTokMetrics(): Promise<{ accountsChecked: number; snapshotsCreated: number; accountErrors: number }> {
@@ -87,18 +89,27 @@ export class MetricsService {
     const account = await this.prisma.socialAccount.findUnique({ where: { id: socialAccountId } });
     if (!account || account.platform !== Platform.TIKTOK) return 0;
 
-    // Best-effort only: skip a known-expired connection rather than
-    // attempting a refresh here. PublishingService already proactively
-    // refreshes TikTok tokens around actual publish time, so accounts with
-    // recent activity (the only ones this job ever looks at) are usually
-    // fresh; an account that's been disconnected long enough for this to
-    // matter needs the user to reconnect it regardless.
-    if (account.tokenExpiresAt && account.tokenExpiresAt.getTime() < Date.now()) {
-      this.logger.warn(`Skipping metrics sync for account ${socialAccountId}: token expired.`);
-      return 0;
+    // Refresh expired credentials using the same path as publishing.
+    const accessToken = await this.publishing.ensureFreshAccessToken(account);
+    // Content Posting returns a publish job ID, not the public video ID
+    // used by Display API. Resolve it before matching engagement records.
+    for (const [publishId, targetId] of [...providerIdToTargetId]) {
+      if (/^\d+$/.test(publishId)) continue;
+      const response = await fetch('https://open.tiktokapis.com/v2/post/publish/status/fetch/', {
+        method: 'POST',
+        signal: AbortSignal.timeout(10_000),
+        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ publish_id: publishId }),
+      });
+      const result = await response.json();
+      if (!response.ok || result.error?.code !== 'ok') throw new Error('TikTok publish status could not be checked.');
+      const videoId = result.data?.publicaly_available_post_id?.[0];
+      if (typeof videoId === 'string' && /^\d+$/.test(videoId)) {
+        await this.prisma.postTarget.update({ where: { id: targetId }, data: { providerPostId: videoId } });
+        providerIdToTargetId.delete(publishId);
+        providerIdToTargetId.set(videoId, targetId);
+      }
     }
-
-    const accessToken = this.encryption.decrypt(account.accessToken);
     const remainingIds = new Set(providerIdToTargetId.keys());
     const statsByVideoId = new Map<string, { views: number; likes: number; comments: number; shares: number; raw: any }>();
 
@@ -144,6 +155,7 @@ export class MetricsService {
       'https://open.tiktokapis.com/v2/video/list/?fields=id,view_count,like_count,comment_count,share_count',
       {
         method: 'POST',
+        signal: AbortSignal.timeout(10_000),
         headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ max_count: 20, ...(cursor ? { cursor } : {}) }),
       },
@@ -154,6 +166,7 @@ export class MetricsService {
     }
 
     const data = await res.json();
+    if (data.error?.code !== 'ok') throw new Error(`TikTok metrics unavailable: ${data.error?.code || 'invalid response'}`);
     return {
       videos: data?.data?.videos || [],
       cursor: data?.data?.cursor ?? null,

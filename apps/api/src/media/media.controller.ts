@@ -12,6 +12,11 @@ import { RegisterAssetDto, CreateFolderDto } from './dto';
 export class MediaController {
   constructor(private readonly mediaService: MediaService) {}
 
+  @Get('upload-policy')
+  getUploadPolicy(@Param('brandId') brandId: string) {
+    return this.mediaService.getUploadPolicy(brandId);
+  }
+
   /**
    * Legacy small-file upload path (multipart form data through the
    * serverless function itself). Still used as a fallback, but Vercel's

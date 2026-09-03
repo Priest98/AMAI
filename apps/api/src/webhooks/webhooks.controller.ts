@@ -1,5 +1,5 @@
 import { Controller, Post, Body, Logger, Get, Query, Req, Headers, HttpCode, HttpStatus, UnauthorizedException } from '@nestjs/common';
-import { Request } from 'express';
+import type { Request } from 'express';
 import { WebhooksService } from './webhooks.service';
 import { Platform } from '@prisma/client';
 import * as crypto from 'crypto';

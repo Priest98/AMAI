@@ -6,6 +6,7 @@ import { Platform, ConnectionStatus, EngineEventType } from '@prisma/client';
 import * as crypto from 'crypto';
 import { getAppUrl } from '../common/app-url.util';
 import { EntitlementsService } from '../billing/entitlements.service';
+import { deriveConnectionHealth } from './connection-health';
 
 @Injectable()
 export class OAuthService {
@@ -877,6 +878,7 @@ export class OAuthService {
           platform: acc.platform,
           platformAccountId: acc.platformAccountId,
           status: acc.status,
+          ...deriveConnectionHealth(acc),
           handle: meta.handle || meta.name || acc.platformAccountId,
           accountType: meta.accountType || 'BUSINESS',
           tokenExpiresAt: acc.tokenExpiresAt,

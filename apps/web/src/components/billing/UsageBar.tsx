@@ -74,7 +74,7 @@ export default function UsageBar({ label, used, limit, formatValue, planName, un
             ) : (
               <>
                 You've reached your {planName || 'plan'} limit.{' '}
-                <Link href="/dashboard/settings?tab=billing" className="underline font-semibold">Upgrade to Pro</Link>
+                <Link href="/dashboard/settings?tab=billing" className="underline font-semibold">View plan options</Link>
               </>
             )
           )}

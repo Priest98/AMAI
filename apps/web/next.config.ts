@@ -80,7 +80,7 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
   outputFileTracingRoot: path.join(__dirname, "../../"),
   serverExternalPackages: nestAndPrismaPackages,

@@ -48,9 +48,9 @@
   "scripts": {
     "dev": "npm run dev --workspaces --if-present",
     "build": "npm run build --workspace=@marketing-os/shared-types --if-present && npm run build --workspaces --if-present",
-    "vercel-build": "npm run build --workspace=@marketing-os/shared-types && npm run build --workspace=web && npm run build --workspace=@marketing-os/api && npx prisma db push --schema apps/api/prisma/schema.prisma --skip-generate --accept-data-loss",
+    "vercel-build": "npm run build --workspace=@marketing-os/shared-types && npm run build --workspace=web && npm run build --workspace=@marketing-os/api",
     "lint": "npm run lint --workspaces --if-present",
-    "test": "npm run test --workspaces --if-present"
+    "test": "node --test tests/production-regressions.test.cjs && npm run test --workspaces --if-present"
   },
   "optionalDependencies": {
     "@tailwindcss/oxide-linux-x64-gnu": "^4.0.0",

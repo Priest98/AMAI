@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
+import { motion, type Variants } from 'framer-motion';
 import { Check } from 'lucide-react';
 import { Eyebrow } from './shared';
 import GsapReveal from './GsapReveal';
@@ -110,11 +110,11 @@ const GRID_VARIANTS = {
   hidden: {},
   show: { transition: { staggerChildren: 0.15, delayChildren: 0.05 } },
 };
-const CARD_VARIANTS = {
+const CARD_VARIANTS: Variants = {
   hidden: { opacity: 0, y: 48, scale: 0.97 },
   show: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.7, ease: [0.16, 1, 0.3, 1] } },
 };
-const POPULAR_CARD_VARIANTS = {
+const POPULAR_CARD_VARIANTS: Variants = {
   hidden: { opacity: 0, y: 48, scale: 0.92 },
   show: { opacity: 1, y: 0, scale: 1.05, transition: { duration: 0.75, ease: [0.16, 1, 0.3, 1], delay: 0.1 } },
 };

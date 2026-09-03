@@ -36,6 +36,8 @@ export async function getBackendPort(): Promise<number> {
     const { AppModule } = await import('../../../api/src/app.module');
 
     const server = express();
+    // Trust the local proxy only on Vercel, whose edge overwrites forwarded IPs.
+    if (process.env.VERCEL === '1') server.set('trust proxy', 'loopback');
 
     // The billing webhook (currently Paystack, see billing.module.ts) and
     // the Instagram/Meta comment webhook
