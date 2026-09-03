@@ -11,6 +11,8 @@ import { User, AtSign, Lock, ArrowRight, Eye, EyeOff, AlertCircle } from 'lucide
 import { API_BASE, isAuthenticated } from '@/lib/api';
 import { capture } from '@/lib/posthog';
 import BrandAttribution from '@/components/BrandAttribution';
+import PlanSelectionNotice from '@/components/PlanSelectionNotice';
+import { getSelectedPlan, planDestination } from '@/lib/plan-intent';
 
 
 export default function RegisterPage() {
@@ -26,8 +28,9 @@ export default function RegisterPage() {
   const [checkingSession, setCheckingSession] = useState(true);
 
   useEffect(() => {
+    getSelectedPlan();
     if (isAuthenticated()) {
-      router.replace('/dashboard');
+      router.replace(planDestination());
       return;
     }
     setCheckingSession(false);
@@ -67,7 +70,7 @@ export default function RegisterPage() {
 
       if (res.ok && data.success) {
         capture('signup_completed', { email });
-        router.push(`/verify-email?email=${encodeURIComponent(email)}`);
+        router.push(`/verify-email?email=${encodeURIComponent(email)}${getSelectedPlan() ? '&plan='+getSelectedPlan() : ''}`);
         return;
       }
 
@@ -86,6 +89,7 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen w-full flex flex-col items-center justify-center gap-4 p-4" style={{ color: 'var(--text-primary)' }}>
 
+      <PlanSelectionNotice />
       <motion.div
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}

@@ -5,15 +5,11 @@ import '@/styles/landing.css';
 
 import Nav from '@/components/landing/Nav';
 import Hero from '@/components/landing/Hero';
-import ProblemSection from '@/components/landing/ProblemSection';
-import TransitionSection from '@/components/landing/TransitionSection';
 import HowItWorks from '@/components/landing/HowItWorks';
-import TikTokFirstSection from '@/components/landing/TikTokFirstSection';
 import Pricing from '@/components/landing/Pricing';
 import FAQ from '@/components/landing/FAQ';
 import FinalCTA from '@/components/landing/FinalCTA';
 import Footer from '@/components/landing/Footer';
-import SmoothScrollProvider from '@/components/landing/SmoothScrollProvider';
 import { headers } from 'next/headers';
 
 /**
@@ -56,6 +52,7 @@ async function getPlansServerSide() {
     const protocol = host.startsWith('localhost') || host.startsWith('127.0.0.1') ? 'http' : 'https';
     const res = await fetch(`${protocol}://${host}/api/billing/plans`, {
       next: { revalidate: 3600 },
+      signal: AbortSignal.timeout(5000),
     });
     if (!res.ok) return null;
     return await res.json();
@@ -64,16 +61,7 @@ async function getPlansServerSide() {
   }
 }
 
-/**
- * Isolated in its own async component (rather than awaited at the top of
- * Home()) specifically so a slow/cold backend can't block the rest of the
- * page's HTML from streaming. Wrapped in <Suspense> below with the
- * ordinary client-fetching <Pricing /> as its fallback -- worst case
- * (server fetch is slow or fails) is exactly today's behavior; best case
- * (the common one, since the result is cached for an hour) the numbers are
- * already in the initial HTML and Pricing never has to fetch client-side
- * at all.
- */
+/** Stream the catalogue separately so a cold backend does not block the hero. */
 async function PricingSection() {
   const initialPlansData = await getPlansServerSide();
   return <Pricing initialData={initialPlansData} />;
@@ -90,7 +78,7 @@ export const metadata: Metadata = {
   // the visible hero/description copy instead of the tab title itself.
   title: 'Oyinca',
   description:
-    'Oyinca is your AI Social Media Manager. Give it your content and Oyinca creates, plans, schedules and publishes your TikTok content: captions, hashtags, optimization and publishing, all handled. Start free, no credit card required.',
+    'Oyinca is your AI Social Media Manager. Give it your content and Oyinca creates, plans, schedules and publishes your TikTok content: captions, hashtags and scheduling with approval controls. Start free, no credit card required.',
   keywords: [
     'AI social media manager',
     'TikTok automation',
@@ -139,7 +127,7 @@ const jsonLd = {
   applicationCategory: 'BusinessApplication',
   operatingSystem: 'Web',
   description:
-    'Oyinca is an AI Social Media Manager, powered by Turaab Technology. It creates, plans, schedules and publishes TikTok content on your behalf: captions, hashtags, optimization and publishing on autopilot. Free to start, with Pro and Agency plans for more automation and capacity.',
+    'Oyinca is an AI Social Media Manager, powered by Turaab Technology. It creates, plans, schedules and publishes TikTok content on your behalf: captions, hashtags, optimization and publishing with approval controls. Free to start, with Pro, Creator and Agency plans for more automation and capacity.',
   offers: {
     '@type': 'Offer',
     price: '0',
@@ -181,80 +169,28 @@ export default function Home() {
           Skip to main content
         </a>
 
-        {/* Nav deliberately renders OUTSIDE SmoothScrollProvider. GSAP's
-            ScrollSmoother applies a CSS transform to #smooth-content to
-            produce its eased-scroll effect, and a transformed ancestor
-            creates a new containing block for any `position: fixed`
-            descendant -- Nav's fixed pill would silently stop tracking the
-            viewport and scroll away with the page if it lived inside that
-            transformed subtree. Staying a sibling avoids the failure mode
-            entirely (see SmoothScrollProvider.tsx and landing.css's
-            #smooth-wrapper/#smooth-content comment for the full mechanics). */}
         <Nav />
 
-        {/* Single continuous background asset (glow blooms + grain +
-            vignette) now lives INSIDE SmoothScrollProvider (first child, see
-            below) rather than here -- it needs to size itself against the
-            page's full scrollable content height via `inset: 0`, and once
-            ScrollSmoother pins #smooth-wrapper to the viewport (position:
-            fixed), anything positioned outside #smooth-content would only
-            ever cover one viewport-height instead of the whole page. Inside
-            #smooth-content it scrolls at the same eased rate as everything
-            else and spans the real full height, exactly like before. */}
-        <SmoothScrollProvider>
+
         <div className="lp-ambient-bg" aria-hidden="true">
           <div className="lp-ambient-blooms" />
           <div className="lp-ambient-grain" />
           <div className="lp-ambient-vignette" />
         </div>
-        {/*
-          Content-and-UX audit pass: the page had grown to ~10 sections that
-          largely restated one idea ("Oyinca automates TikTok in the
-          background") over and over. Final structure is now exactly:
-          Hero -> Problem -> What Oyinca Does -> How It Works -> TikTok First
-          -> Pricing -> FAQ -> Final CTA -> Footer.
 
-          Removed from this list in this pass, and where their content went
-          -- nothing was hidden with CSS, each was either genuinely redundant
-          or merged into HowItWorks as real content:
-            - Features ("Everything your TikTok needs")
-                -> its four capabilities are already covered by HowItWorks'
-                   three steps and the "What Oyinca Does" paragraph; adding
-                   them again as a fourth restatement was the exact
-                   repetition this audit was meant to remove, so this one
-                   was cut rather than folded in.
-            - AutopilotSection ("Let Oyinca handle your TikTok automatically")
-                -> its 5-box flow diagram drew the same 3 steps HowItWorks
-                   already shows as cards; the Assisted/Autopilot line is
-                   now folded into HowItWorks step 2 ("Set your
-                   preferences").
-            - ProductVisual ("Your TikTok, working in the background")
-                -> real product-credibility content, not a repeat, so it
-                   survives inside HowItWorks as a short subheading +
-                   compact status row instead of its own full section.
-          Earlier removals (still valid, from the prior structure pass):
-            - SocialProof, EnginePipeline, BusinessBrainSection,
-              ContentPipelineSection, AnalyticsSection, MultiPlatformSection,
-              ApprovalControlSection, WhoForSection, AgencySection,
-              InteractiveDemo -- see git history for where each went.
-          All removed component files are left in components/landing/
-          (unused) rather than deleted, matching this codebase's existing
-          convention -- easy to re-add to this list if any is wanted back.
-        */}
         <main id="main-content">
           <Hero />
-          <ProblemSection />
-          <TransitionSection />
+
           <HowItWorks />
-          <TikTokFirstSection />
-          <Suspense fallback={<Pricing initialData={null} />}>
+
+          <Suspense fallback={<section id="pricing" className="oy-section" aria-busy="true"><h2>Loading plans...</h2></section>}>
             <PricingSection />
           </Suspense>
           <FAQ />
           <FinalCTA />
         </main>
         <Footer />
-        </SmoothScrollProvider>
+
       </div>
     </>
   );

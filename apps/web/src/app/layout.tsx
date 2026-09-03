@@ -25,7 +25,7 @@ import AnalyticsInit from '@/components/analytics/AnalyticsInit';
  */
 const inter = Inter({
   subsets: ['latin'],
-  weight: ['400', '500', '600', '700', '800'],
+  weight: 'variable',
   variable: '--font-body-var',
   display: 'swap',
   fallback: ['system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],
@@ -41,7 +41,7 @@ const inter = Inter({
  */
 const playfairDisplay = Playfair_Display({
   subsets: ['latin'],
-  weight: ['400', '500', '600', '700', '800', '900'],
+  weight: 'variable',
   style: ['normal', 'italic'],
   variable: '--font-display-var',
   display: 'swap',

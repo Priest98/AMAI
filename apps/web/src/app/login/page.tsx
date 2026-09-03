@@ -11,6 +11,8 @@ import { AtSign, Lock, ArrowRight, Eye, EyeOff, CheckCircle2, AlertCircle } from
 import { API_BASE, isAuthenticated, setSession } from '@/lib/api';
 import { capture, identify } from '@/lib/posthog';
 import BrandAttribution from '@/components/BrandAttribution';
+import PlanSelectionNotice from '@/components/PlanSelectionNotice';
+import { getSelectedPlan, planDestination } from '@/lib/plan-intent';
 
 
 export default function LoginPage() {
@@ -27,8 +29,9 @@ export default function LoginPage() {
   // Already have a valid session? Skip straight to the dashboard instead of
   // making the user look at (or resubmit) a sign-in form.
   useEffect(() => {
+    getSelectedPlan();
     if (isAuthenticated()) {
-      router.replace('/dashboard');
+      router.replace(planDestination());
       return;
     }
     setCheckingSession(false);
@@ -63,12 +66,12 @@ export default function LoginPage() {
         setSession(data.user, data.expiresAt);
         identify(email, { email });
         capture('login', { email });
-        router.push('/dashboard');
+        router.push(planDestination());
         return;
       }
 
       if (data.message && data.message.includes('UNVERIFIED_EMAIL')) {
-        router.push(`/verify-email?email=${encodeURIComponent(email)}`);
+        router.push(`/verify-email?email=${encodeURIComponent(email)}${getSelectedPlan() ? '&plan='+getSelectedPlan() : ''}`);
         return;
       }
 
@@ -87,6 +90,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen w-full flex flex-col items-center justify-center gap-4 p-4" style={{ color: 'var(--text-primary)' }}>
 
+      <PlanSelectionNotice />
       <motion.div
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}

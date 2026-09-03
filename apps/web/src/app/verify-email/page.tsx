@@ -8,6 +8,7 @@ import Button from '@/components/ui/Button';
 import { Mail, CheckCircle2, AlertCircle, RefreshCw, ArrowRight, ExternalLink } from 'lucide-react';
 import { API_BASE } from '@/lib/api';
 import BrandAttribution from '@/components/BrandAttribution';
+import PlanSelectionNotice from '@/components/PlanSelectionNotice';
 
 
 function VerifyEmailContent() {
@@ -80,6 +81,7 @@ function VerifyEmailContent() {
 
   return (
     <div className="min-h-screen w-full flex flex-col items-center justify-center gap-4 p-4" style={{ color: 'var(--text-primary)' }}>
+      <PlanSelectionNotice />
       <motion.div
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}

@@ -36,6 +36,7 @@ import ClientSwitcher from '@/components/dashboard/ClientSwitcher';
 import ProActivationModal from '@/components/dashboard/ProActivationModal';
 import { useTheme } from '@/lib/useTheme';
 import BrandAttribution from '@/components/BrandAttribution';
+import PlanSelectionNotice from '@/components/PlanSelectionNotice';
 
 interface NavSubItem {
   label: string;
@@ -497,6 +498,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
           {/* Column 2 & 3 Workspace Content */}
           <div className="lg:col-span-9">
+            <PlanSelectionNotice dashboard />
             {children}
           </div>
 
