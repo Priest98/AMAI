@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { initClientSentry } from '@/lib/sentry';
 import { initPostHog, capture } from '@/lib/posthog';
+import { applySessionReplayPolicy } from '@/lib/observability/session-replay';
 
 /**
  * Mounted once in the root layout. Initializes both Sentry (error capture)
@@ -31,6 +32,7 @@ export default function AnalyticsInit() {
     initPostHog().then(() => {
       capture('$pageview', { $current_url: pathname });
     });
+    applySessionReplayPolicy(pathname);
   }, [pathname]);
 
   return null;

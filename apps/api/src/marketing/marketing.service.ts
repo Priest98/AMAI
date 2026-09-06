@@ -1,6 +1,6 @@
 import { Injectable, ConflictException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { TelegramService } from '../common/telegram.service';
+import { NotificationService } from '../capabilities/notifications/notification.service';
 import { EarlyAccessSignupDto } from './dto/early-access-signup.dto';
 import { CreatorApplicationDto } from './dto/creator-application.dto';
 import { AttributionEventDto } from './dto/attribution-event.dto';
@@ -10,7 +10,7 @@ import * as crypto from 'crypto';
 export class MarketingService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly telegram: TelegramService,
+    private readonly notifications: NotificationService,
   ) {}
 
   /**
@@ -181,7 +181,7 @@ export class MarketingService {
       `<b>Source:</b> ${dto.heardFrom || 'Direct'}`,
       `<b>Referral Code:</b> ${referralCode}`,
     ].join('\n');
-    this.telegram.send(telegramMessage).catch(() => {});
+    this.notifications.notify({ event: 'marketing.early_access_signup', audience: 'admin', recipient: {}, title: 'New Oyinca Early Access Signup', body: telegramMessage.replace(/<[^>]+>/g, '') }).catch(() => {});
 
     return {
       isExisting: false,
@@ -294,7 +294,7 @@ export class MarketingService {
       `<b>Country:</b> ${dto.country}`,
       `<b>Contact:</b> ${dto.preferredContact}`,
     ].join('\n');
-    this.telegram.send(telegramMessage).catch(() => {});
+    this.notifications.notify({ event: 'marketing.creator_application', audience: 'admin', recipient: {}, title: 'New Founding Creator Application', body: telegramMessage.replace(/<[^>]+>/g, '') }).catch(() => {});
 
     return {
       isExisting: false,

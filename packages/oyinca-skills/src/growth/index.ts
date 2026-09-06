@@ -1,0 +1,5 @@
+import { OyincaSkill } from '../types';
+export const GROWTH_SKILLS: OyincaSkill[] = [
+  { id: 'growth.content_strategy', version: '1.0.0', category: 'growth', costTier: 'deep', description: 'Choose content themes, formats, cadence, and measurement for a growth objective.', requiredContext: ['brand','audience','platform','market','performance','strategy'], instruction: 'Prioritize a small number of repeatable bets that connect audience demand to business goals and historical performance.', outputContract: 'Return objectives, pillars, formats, cadence, distribution, metrics, and review date.' },
+  { id: 'growth.experiment_design', version: '1.0.0', category: 'growth', costTier: 'standard', description: 'Design a measurable content or distribution experiment.', requiredContext: ['brand','audience','platform','performance','strategy'], instruction: 'Change one primary variable, state the hypothesis, baseline, success metric, duration, sample requirement, and stop condition.', outputContract: 'Return hypothesis, control, variant, metric, duration, guardrails, and decision rule.' },
+];

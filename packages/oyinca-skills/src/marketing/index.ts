@@ -1,0 +1,5 @@
+import { OyincaSkill } from '../types';
+export const MARKETING_SKILLS: OyincaSkill[] = [
+  { id: 'marketing.positioning', version: '1.0.0', category: 'marketing', costTier: 'deep', description: 'Clarify the audience, problem, alternative, difference, and credible value.', requiredContext: ['brand','audience','market','strategy'], instruction: 'Identify a defensible position from supplied evidence. Separate known facts from hypotheses and avoid unsupported superiority claims.', outputContract: 'Return audience, problem, category, differentiation, proof, and positioning statement.' },
+  { id: 'marketing.customer_research', version: '1.0.0', category: 'marketing', costTier: 'deep', description: 'Synthesize audience language, questions, pains, desires, and objections.', requiredContext: ['brand','audience','market','performance'], instruction: 'Group repeated evidence into themes, retain source links, mark uncertainty, and do not treat isolated comments as universal truth.', outputContract: 'Return evidence-backed themes, language, questions, objections, and research gaps.' },
+];

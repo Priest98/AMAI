@@ -8,6 +8,8 @@ import { BusinessBrainService } from '../business-brain/business-brain.service';
 import { EntitlementsService } from '../billing/entitlements.service';
 import { MediaOptimizationService } from '../media-optimization/media-optimization.service';
 import { toPublicConnection, deriveConnectionHealth } from '../oauth/connection-health';
+import { BrainDecisionTraceService } from '../capabilities/observability/brain-decision-trace.service';
+import { randomUUID } from 'node:crypto';
 import {
   EngineState,
   ApprovalMode,
@@ -71,6 +73,7 @@ export class EngineService {
     private businessBrainService: BusinessBrainService,
     private entitlementsService: EntitlementsService,
     private mediaOptimizationService: MediaOptimizationService,
+    private decisionTrace: BrainDecisionTraceService,
   ) {}
 
   // ─────────────────────────────────────────────────────────────
@@ -315,6 +318,8 @@ export class EngineService {
   }
 
   async processMediaAsset(mediaAssetId: string) {
+    const decisionStartedAt = Date.now();
+    const decisionCorrelationId = randomUUID();
     const asset = await this.prisma.mediaAsset.findUnique({ where: { id: mediaAssetId } });
     if (!asset || !asset.brandId) {
       throw new NotFoundException('Media asset not found or not linked to a brand.');
@@ -492,8 +497,29 @@ export class EngineService {
       ]);
       caption = captionResult.caption;
       hashtags = Array.from(new Set(hashtagResult.allHashtags)).slice(0, 8);
+      this.decisionTrace.record({
+        organizationId: aiGenerationOrgId,
+        brandId,
+        correlationId: decisionCorrelationId,
+        objective: 'Analyze uploaded media and prepare platform content',
+        decision: 'generate_platform_content',
+        reasonCodes: ['media_uploaded', connectedAccounts.length ? 'connected_platforms_available' : 'no_connected_platforms'],
+        contextSections: brainContext ? ['brand'] : [],
+        latencyMs: Date.now() - decisionStartedAt,
+        outcome: 'succeeded',
+      }).catch(() => {});
       this.logger.log(`[${asset.id}] Caption generated (${caption.length} chars), ${hashtags.length} hashtags generated`);
     } catch (err) {
+      this.decisionTrace.record({
+        organizationId: aiGenerationOrgId,
+        brandId,
+        correlationId: decisionCorrelationId,
+        objective: 'Analyze uploaded media and prepare platform content',
+        decision: 'generate_platform_content',
+        reasonCodes: ['media_uploaded', 'generation_failed'],
+        latencyMs: Date.now() - decisionStartedAt,
+        outcome: 'failed',
+      }).catch(() => {});
       // The reserved credit was never actually spent on a completed
       // generation -- release it before letting the error propagate, so a
       // failed attempt doesn't count against the org's monthly AI quota.

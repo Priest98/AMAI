@@ -24,6 +24,15 @@ export function initPostHog(): Promise<void> {
       // navigations.
       capture_pageview: false,
       persistence: 'localStorage+cookie',
+      // Replay is opt-in and route-gated by session-replay.ts. Starting it
+      // automatically would record private product surfaces before the
+      // privacy policy has evaluated the current route.
+      disable_session_recording: true,
+      session_recording: {
+        maskAllInputs: true,
+        maskTextSelector: '*',
+        blockSelector: '[data-private], [data-session-replay-block]',
+      },
     });
     posthogInstance = posthog;
   });
@@ -32,12 +41,27 @@ export function initPostHog(): Promise<void> {
 
 export function capture(event: string, properties?: Record<string, unknown>) {
   if (!posthogInstance) return;
-  posthogInstance.capture(event, properties);
+  posthogInstance.capture(event, sanitizeProperties(properties));
 }
 
 export function identify(userId: string, properties?: Record<string, unknown>) {
   if (!posthogInstance) return;
-  posthogInstance.identify(userId, properties);
+  posthogInstance.identify(userId, sanitizeProperties(properties));
+}
+
+export function startSessionReplay(): void { posthogInstance?.startSessionRecording(); }
+export function stopSessionReplay(): void { posthogInstance?.stopSessionRecording(); }
+
+const PRIVATE_PROPERTY = /(email|password|passcode|token|secret|authorization|cookie|card|payment|message|caption|prompt|completion|media|file|url)/i;
+
+/** Analytics accepts identifiers and coarse states, never user content. */
+export function sanitizeProperties(properties?: Record<string, unknown>): Record<string, unknown> | undefined {
+  if (!properties) return undefined;
+  return Object.fromEntries(Object.entries(properties).flatMap(([key, value]) => {
+    if (PRIVATE_PROPERTY.test(key)) return [];
+    if (value === null || ['string', 'number', 'boolean'].includes(typeof value)) return [[key, value]];
+    return [];
+  }));
 }
 
 /**

@@ -73,6 +73,8 @@ model Organization {
   members      OrganizationMember[]
   subscription Subscription?
   usageRecords UsageRecord[]
+  marketIntelligenceSnapshots MarketIntelligenceSnapshot[]
+  brainDecisions BrainDecision[]
 }
 
 enum PlanTier {
@@ -284,8 +286,66 @@ model Brand {
   businessBrain       BusinessBrain?
   memoryEntries       MemoryEntry[]
   products            Product[]
+  marketIntelligenceSnapshots MarketIntelligenceSnapshot[]
+  brainDecisions       BrainDecision[]
 
   @@index([organizationId], map: "idx_brand_org")
+}
+
+/// Tenant-scoped, reusable research output. Raw source bodies are not stored;
+/// payload contains normalized signals and provenance only.
+model MarketIntelligenceSnapshot {
+  id             String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  organizationId String
+  brandId        String
+  provider       String
+  queryHash      String
+  topic          String
+  timeWindow     String
+  payload        Json
+  sourceSummary  Json
+  confidence     Float?
+  status         String
+  generatedAt    DateTime @db.Timestamptz(6)
+  expiresAt      DateTime @db.Timestamptz(6)
+  createdAt      DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  brand        Brand        @relation(fields: [brandId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([organizationId, brandId, provider, queryHash])
+  @@index([organizationId, brandId, queryHash, expiresAt], map: "idx_market_intelligence_lookup")
+  @@index([brandId, generatedAt], map: "idx_market_intelligence_brand_generated")
+}
+
+/// Structured decision metadata only. Prompts, completions, private
+/// chain-of-thought, OAuth credentials, and raw customer content never
+/// belong in this table.
+model BrainDecision {
+  id              String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  organizationId  String
+  brandId         String
+  correlationId   String   @unique
+  objective        String
+  decision         String
+  reasonCodes      String[] @default([])
+  skillsUsed       String[] @default([])
+  providersUsed    String[] @default([])
+  model            String?
+  contextSections  String[] @default([])
+  latencyMs        Int
+  tokensUsed       Int?
+  estimatedCostUsd Float?
+  outcome          String
+  createdAt        DateTime @default(now()) @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  brand        Brand        @relation(fields: [brandId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([organizationId, createdAt], map: "idx_brain_decision_org_created")
+  @@index([brandId, createdAt], map: "idx_brain_decision_brand_created")
+  @@index([outcome, createdAt], map: "idx_brain_decision_outcome_created")
 }
 
 /// The one structural gap flagged in the $1M ARR blueprint's audit: there
@@ -1263,4 +1323,3 @@ model MarketingAttributionEvent {
   @@index([utmSource], map: "idx_attr_utm_source")
   @@index([createdAt], map: "idx_attr_created")
 }
-

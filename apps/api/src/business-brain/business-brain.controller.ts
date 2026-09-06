@@ -7,6 +7,10 @@ import { EntitlementsService } from '../billing/entitlements.service';
 import { BusinessBrainService } from './business-brain.service';
 import type { UpdateBusinessBrainDto } from './business-brain.service';
 import { AiService } from '../ai/ai.service';
+import { ContextPackService } from './context/context-pack.service';
+import { SkillSelectorService } from './skills/skill-selector.service';
+import { BrainDecisionTraceService } from '../capabilities/observability/brain-decision-trace.service';
+import { randomUUID } from 'node:crypto';
 
 @UseGuards(JwtAuthGuard, BrandAccessGuard)
 @Controller('brands/:brandId/business-brain')
@@ -15,6 +19,9 @@ export class BusinessBrainController {
     private readonly businessBrainService: BusinessBrainService,
     private readonly aiService: AiService,
     private readonly entitlementsService: EntitlementsService,
+    private readonly contextPackService: ContextPackService,
+    private readonly skillSelector: SkillSelectorService,
+    private readonly decisionTrace: BrainDecisionTraceService,
   ) {}
 
   @Get()
@@ -60,10 +67,16 @@ export class BusinessBrainController {
   @RequireEntitlement('generate_ai_content')
   @Post('content-ideas')
   async contentIdeas(@Param('brandId') brandId: string) {
-    const [brain, context] = await Promise.all([
+    const startedAt = Date.now();
+    const correlationId = randomUUID();
+    const skillEnabled = process.env.MARKETING_SKILLS_ENABLED === 'true';
+    const selectedSkill = skillEnabled ? this.skillSelector.select('generate content ideas and strategy') : null;
+    const [brain, legacyContext, contextPack] = await Promise.all([
       this.businessBrainService.getOrCreate(brandId),
       this.businessBrainService.buildPromptContext(brandId),
+      selectedSkill ? this.contextPackService.build(brandId, 'Generate five specific content ideas', selectedSkill.requiredContext) : Promise.resolve(null),
     ]);
+    const context = selectedSkill && contextPack?.sections.length ? this.contextPackService.renderForSkill(contextPack, selectedSkill) : legacyContext;
     if (!context) {
       return { ideas: [], reason: 'Fill in your Business Brain first so ideas are grounded in your actual business.' };
     }
@@ -80,6 +93,7 @@ export class BusinessBrainController {
     try {
       ideas = await this.aiService.generateContentIdeas(brandId, 'amai_engine', context, brain.contentPillars);
     } catch (err) {
+      this.decisionTrace.record({ organizationId, brandId, correlationId, objective: 'Generate five specific content ideas', decision: 'generate_content_ideas', reasonCodes: ['user_requested_content_ideas'], skillsUsed: selectedSkill ? [`${selectedSkill.id}.${selectedSkill.version}`] : [], contextSections: contextPack?.sections.map((section) => section.kind) ?? ['brand'], latencyMs: Date.now() - startedAt, outcome: 'failed' }).catch(() => {});
       await this.entitlementsService.releaseAiGeneration(organizationId).catch(() => {});
       throw err;
     }
@@ -89,6 +103,7 @@ export class BusinessBrainController {
     if (ideas.length === 0) {
       await this.entitlementsService.releaseAiGeneration(organizationId).catch(() => {});
     }
+    this.decisionTrace.record({ organizationId, brandId, correlationId, objective: 'Generate five specific content ideas', decision: 'generate_content_ideas', reasonCodes: ['user_requested_content_ideas', ideas.length ? 'grounded_context_available' : 'provider_returned_no_output'], skillsUsed: selectedSkill ? [`${selectedSkill.id}.${selectedSkill.version}`] : [], contextSections: contextPack?.sections.map((section) => section.kind) ?? ['brand'], latencyMs: Date.now() - startedAt, outcome: ideas.length ? 'succeeded' : 'no_output' }).catch(() => {});
     return { ideas };
   }
 }

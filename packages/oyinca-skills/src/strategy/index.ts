@@ -1,0 +1,5 @@
+import { OyincaSkill } from '../types';
+export const STRATEGY_SKILLS: OyincaSkill[] = [
+  { id: 'strategy.competitor_analysis', version: '1.0.0', category: 'strategy', costTier: 'deep', description: 'Find competitor content patterns, gaps, and opportunities without imitation.', requiredContext: ['brand','audience','market','performance','strategy'], instruction: 'Compare observable themes, formats, frequency, engagement signals, and positioning. Cite evidence and convert gaps into original opportunities.', outputContract: 'Return patterns, strengths, gaps, opportunities, risks, and sources.' },
+  { id: 'strategy.campaign_planning', version: '1.0.0', category: 'strategy', costTier: 'deep', description: 'Turn a goal into a sequenced social campaign.', requiredContext: ['brand','audience','platform','content','market','performance','strategy'], instruction: 'Define one measurable objective, audience journey, core message, content sequence, timing, approval points, metrics, and contingency.', outputContract: 'Return a campaign brief and sequenced content plan.' },
+];
