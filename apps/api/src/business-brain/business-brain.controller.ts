@@ -89,7 +89,7 @@ export class BusinessBrainController {
     // race-safe enforcement point; the guard above is now purely a UX
     // fast-fail, not the real gate.
     const organizationId = await this.entitlementsService.reserveAiGeneration(brandId);
-    let ideas: Awaited<ReturnType<typeof this.aiService.generateContentIdeas>>;
+    let ideas: Awaited<ReturnType<AiService['generateContentIdeas']>>;
     try {
       ideas = await this.aiService.generateContentIdeas(brandId, 'amai_engine', context, brain.contentPillars);
     } catch (err) {
