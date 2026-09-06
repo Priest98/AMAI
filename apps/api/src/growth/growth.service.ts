@@ -1,15 +1,14 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { GoogleGenAI } from '@google/genai';
 import { PrismaService } from '../prisma/prisma.service';
+import { AiService } from '../ai/ai.service';
 
 @Injectable()
 export class GrowthService {
   private readonly logger = new Logger(GrowthService.name);
-  private readonly ai: GoogleGenAI;
-
-  constructor(private readonly prisma: PrismaService) {
-    this.ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-  }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly ai: AiService,
+  ) {}
 
   /**
    * Generates an algorithm-compliant reply to a comment.
@@ -31,11 +30,7 @@ Generate a short, engaging, and ${tone} reply to this comment (under 150 charact
 Do not use hashtags. Try to sound human.`;
 
     try {
-      const response = await this.ai.models.generateContent({
-        model: 'gemini-flash-latest',
-        contents: prompt,
-      });
-      return response.text ? response.text.trim() : '';
+      return (await this.ai.generateText('comment reply', prompt, 80, brandId)) || '';
     } catch (err) {
       this.logger.error(`Failed to generate comment reply: ${err}`);
       return '';
@@ -59,11 +54,7 @@ Raw Caption: "${rawCaption}"
 Provide only the rewritten caption.`;
 
     try {
-      const response = await this.ai.models.generateContent({
-        model: 'gemini-flash-latest',
-        contents: prompt,
-      });
-      return response.text ? response.text.trim() : rawCaption;
+      return (await this.ai.generateText('caption optimization', prompt, 300, brandId)) || rawCaption;
     } catch (err) {
       this.logger.error(`Failed to optimize caption: ${err}`);
       return rawCaption;

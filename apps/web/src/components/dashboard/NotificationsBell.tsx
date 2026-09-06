@@ -14,6 +14,9 @@ import {
   Wand2,
 } from "lucide-react";
 import { useEngineEvents, EngineEvent } from "@/lib/useEngineEvents";
+import { brandFetch } from "@/lib/api";
+
+const READ_STORAGE_KEY = "oyinca:read-notification-ids";
 
 /**
  * Real, in-app notifications for automation events -- not decorative. Every
@@ -82,6 +85,23 @@ export default function NotificationsBell() {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    let cancelled = false;
+    const readIds = new Set<string>(JSON.parse(localStorage.getItem(READ_STORAGE_KEY) || "[]"));
+    brandFetch<EngineEvent[]>("/engine/activity")
+      .then((events) => {
+        if (cancelled) return;
+        setItems(
+          events
+            .filter((event) => NOTIFIABLE_TYPES.has(event.type))
+            .slice(0, 20)
+            .map((event) => ({ ...event, read: readIds.has(event.id) })),
+        );
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
   useEngineEvents((event: EngineEvent) => {
     if (!NOTIFIABLE_TYPES.has(event.type)) return;
     setItems((prev) => [{ ...event, read: false }, ...prev].slice(0, 20));
@@ -99,7 +119,11 @@ export default function NotificationsBell() {
 
   const unreadCount = items.filter((n) => !n.read).length;
 
-  const markAllRead = () => setItems((prev) => prev.map((n) => ({ ...n, read: true })));
+  const markAllRead = () => setItems((prev) => {
+    const next = prev.map((n) => ({ ...n, read: true }));
+    localStorage.setItem(READ_STORAGE_KEY, JSON.stringify(next.map((n) => n.id).slice(0, 100)));
+    return next;
+  });
 
   const toggleOpen = () => {
     setOpen((prev) => {

@@ -163,7 +163,7 @@ export class PublishingService {
               // function was killed mid-publish). publishOne re-checks the
               // claim atomically, so listing one here can't double-publish.
               (t.status === TargetStatus.PUBLISHING &&
-                (!t.claimedAt || t.claimedAt.getTime() < Date.now() - STALE_CLAIM_MS)),
+                !!t.claimedAt && t.claimedAt.getTime() < Date.now() - STALE_CLAIM_MS),
           );
       for (const t of pendingTargets) targetIds.push(t.id);
     }
@@ -556,19 +556,31 @@ export class PublishingService {
         }
       }
 
+      // TikTok returns a publish job id before its asynchronous processing
+      // has completed. Keep that target in PUBLISHING with no active claim;
+      // MetricsService will resolve the job to a public video id and call
+      // confirmTikTokPublication. Instagram returns the final media id here.
+      const awaitingTikTokConfirmation =
+        target.platform === Platform.TIKTOK && !/^\d+$/.test(providerPostId);
+      const persistedStatus = awaitingTikTokConfirmation ? TargetStatus.PUBLISHING : TargetStatus.PUBLISHED;
+
       await this.prisma.$transaction([
-        this.prisma.postTarget.update({ where: { id: target.id }, data: { status: TargetStatus.PUBLISHED, claimedAt: null, providerPostId } }),
+        this.prisma.postTarget.update({ where: { id: target.id }, data: { status: persistedStatus, claimedAt: null, providerPostId } }),
         this.prisma.publishingLog.create({
-          data: { postTargetId: target.id, status: TargetStatus.PUBLISHED, apiResponse: JSON.stringify({ providerPostId }) },
+          data: { postTargetId: target.id, status: persistedStatus, apiResponse: JSON.stringify({ providerPostId }) },
         }),
       ]);
 
       const event = await this.prisma.engineEvent.create({
-        data: { brandId: target.post.brandId, type: EngineEventType.PUBLISH_SUCCEEDED, postId: target.postId, message: `Published to ${target.platform}.` },
+        data: awaitingTikTokConfirmation
+          ? { brandId: target.post.brandId, type: EngineEventType.PUBLISH_STARTED, postId: target.postId, message: 'TikTok accepted the upload and is processing it.' }
+          : { brandId: target.post.brandId, type: EngineEventType.PUBLISH_SUCCEEDED, postId: target.postId, message: `Published to ${target.platform}.` },
       });
       this.events.emit('engine.activity', event);
 
-      await this.finalizeIfComplete(target.postId, target.platform, providerPostId, mediaAsset.id);
+      if (!awaitingTikTokConfirmation) {
+        await this.finalizeIfComplete(target.postId, target.platform, providerPostId, mediaAsset.id);
+      }
     } catch (error: any) {
       const message = error?.message || 'Publish failed for an unknown reason.';
       this.logger.error(`Publish failed for target ${target.id} (${target.platform}): ${message}`);
@@ -639,6 +651,57 @@ export class PublishingService {
 
       throw error;
     }
+  }
+
+  /** Completes the second half of TikTok's asynchronous publishing flow once
+   * its status API returns the final public post id. Idempotent so repeated
+   * metrics/status sweeps cannot emit duplicate success transitions. */
+  async confirmTikTokPublication(postTargetId: string, publicPostId?: string): Promise<void> {
+    const target = await this.prisma.postTarget.findUnique({
+      where: { id: postTargetId },
+      include: { post: true },
+    });
+    if (!target || target.platform !== Platform.TIKTOK) return;
+    if (target.status === TargetStatus.PUBLISHED) return;
+
+    await this.prisma.$transaction([
+      this.prisma.postTarget.update({
+        where: { id: postTargetId },
+        data: { status: TargetStatus.PUBLISHED, ...(publicPostId ? { providerPostId: publicPostId } : {}), claimedAt: null },
+      }),
+      this.prisma.publishingLog.create({
+        data: { postTargetId, status: TargetStatus.PUBLISHED, apiResponse: JSON.stringify({ providerPostId: publicPostId || null, confirmed: true }) },
+      }),
+    ]);
+    const event = await this.prisma.engineEvent.create({
+      data: { brandId: target.post.brandId, type: EngineEventType.PUBLISH_SUCCEEDED, postId: target.postId, message: 'Published to TIKTOK.' },
+    });
+    this.events.emit('engine.activity', event);
+    await this.finalizeIfComplete(target.postId, Platform.TIKTOK, publicPostId || target.providerPostId);
+  }
+
+  /** Reconciles TikTok's asynchronous terminal failure into Oyinca's own
+   * state. Idempotent because metrics/QStash may observe the same terminal
+   * status more than once before the next query snapshot is refreshed. */
+  async failTikTokPublication(postTargetId: string, reason: string): Promise<void> {
+    const target = await this.prisma.postTarget.findUnique({ where: { id: postTargetId }, include: { post: true } });
+    if (!target || target.platform !== Platform.TIKTOK || target.status === TargetStatus.FAILED) return;
+
+    const message = `TikTok publishing failed: ${reason}`;
+    await this.prisma.$transaction([
+      this.prisma.postTarget.update({
+        where: { id: postTargetId },
+        data: { status: TargetStatus.FAILED, claimedAt: null },
+      }),
+      this.prisma.publishingLog.create({
+        data: { postTargetId, status: TargetStatus.FAILED, errorMessage: message },
+      }),
+    ]);
+    const event = await this.prisma.engineEvent.create({
+      data: { brandId: target.post.brandId, type: EngineEventType.PUBLISH_FAILED, postId: target.postId, message },
+    });
+    this.events.emit('engine.activity', event);
+    await this.finalizeIfComplete(target.postId, Platform.TIKTOK, null);
   }
 
   /**

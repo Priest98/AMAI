@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { brandFetch, getCurrentUser } from '@/lib/api';
+import { apiFetch, brandFetch, getCurrentUser, logout } from '@/lib/api';
 import { getBillingSummary, startCheckout, openBillingPortal, devSetPlan, formatBytes, getPlans, BillingSummary, PlanPricing, PlanTier as BillingPlanTier } from '@/lib/billing';
 import { detectCurrency, formatPrice, CURRENCY_SYMBOLS, type Currency } from '@/lib/currency';
 import UsageBar from '@/components/billing/UsageBar';
@@ -24,6 +24,7 @@ import {
   Building2,
   Lock,
   Layers,
+  X,
 } from 'lucide-react';
 
 type ApprovalMode = 'MANUAL' | 'AUTO';
@@ -61,6 +62,16 @@ interface BusinessBrain {
   hashtagCount: number;
   useEmojis: boolean;
   ctaStyle: string | null;
+}
+
+interface MemoryEntry {
+  id: string;
+  type: string;
+  key: string;
+  value: string;
+  confidence: number;
+  source: string | null;
+  createdAt: string;
 }
 
 const EMPTY_BRAIN: BusinessBrain = {
@@ -275,6 +286,7 @@ export default function SettingsPage() {
   const [userEmail, setUserEmail] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
+  const [privacyAction, setPrivacyAction] = useState<'export' | 'delete' | null>(null);
 
   const [brain, setBrain] = useState<BusinessBrain>(EMPTY_BRAIN);
   const [brainSaving, setBrainSaving] = useState(false);
@@ -291,6 +303,7 @@ export default function SettingsPage() {
   const [contentIdeas, setContentIdeas] = useState<{ pillar: string | null; idea: string; why: string }[] | null>(null);
   const [ideasLoading, setIdeasLoading] = useState(false);
   const [ideasMessage, setIdeasMessage] = useState('');
+  const [memoryEntries, setMemoryEntries] = useState<MemoryEntry[]>([]);
 
   useEffect(() => {
     const user = getCurrentUser();
@@ -299,8 +312,9 @@ export default function SettingsPage() {
     Promise.all([
       brandFetch<{ approvalMode: ApprovalMode; defaultTone: string }>('/engine/state'),
       brandFetch<BusinessBrain>('/business-brain'),
+      brandFetch<MemoryEntry[]>('/business-brain/memory'),
     ])
-      .then(([cfg, brainData]) => {
+      .then(([cfg, brainData, memories]) => {
         setApprovalModeState(cfg.approvalMode);
         if (cfg.defaultTone) setGlobalPersona(cfg.defaultTone);
 
@@ -312,6 +326,7 @@ export default function SettingsPage() {
         setAvoidText((brainData.avoidTopics || []).join(', '));
         setBannedPhrasesText((brainData.bannedPhrases || []).join(', '));
         setCompetitorHandlesText((brainData.competitorHandles || []).join(', '));
+        setMemoryEntries(memories);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -350,6 +365,50 @@ export default function SettingsPage() {
   };
 
   const flash = (msg: string) => { setMessage(msg); setTimeout(() => setMessage(''), 3000); };
+
+  const exportMyData = async () => {
+    setPrivacyAction('export');
+    try {
+      const data = await apiFetch('/auth/export');
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `oyinca-data-${new Date().toISOString().slice(0, 10)}.json`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+      flash('Your Oyinca data export has been downloaded.');
+    } catch (error: any) {
+      flash(error.message || "Couldn't export your data.");
+    } finally {
+      setPrivacyAction(null);
+    }
+  };
+
+  const deleteMyAccount = async () => {
+    const confirmation = window.prompt('This permanently deletes your Oyinca account and solo workspaces. Type DELETE to continue.');
+    if (confirmation !== 'DELETE') return;
+    setPrivacyAction('delete');
+    try {
+      await apiFetch('/auth/account', { method: 'DELETE' });
+      await logout();
+    } catch (error: any) {
+      flash(error.message || "Couldn't delete your account.");
+      setPrivacyAction(null);
+    }
+  };
+
+  const dismissMemory = async (id: string) => {
+    const previous = memoryEntries;
+    setMemoryEntries((entries) => entries.filter((entry) => entry.id !== id));
+    try {
+      await brandFetch(`/business-brain/memory/${id}/dismiss`, { method: 'POST', body: JSON.stringify({}) });
+      flash('Memory removed. Oyinca will stop using it in future content.');
+    } catch {
+      setMemoryEntries(previous);
+      flash("Couldn't remove that memory. Try again.");
+    }
+  };
 
   /**
    * P1 AI content intelligence: concrete ideas grounded in whatever's
@@ -850,6 +909,34 @@ export default function SettingsPage() {
                 </p>
                 <ProductsManager />
               </BrainSection>
+
+              <BrainSection title="What Oyinca has learned">
+                <p className="text-body-sm -mt-2" style={{ color: 'var(--text-secondary)' }}>
+                  Corrections and preferences learned from your approvals. Remove anything that should no longer guide future posts.
+                </p>
+                {memoryEntries.length === 0 ? (
+                  <div className="surface-tile p-4 text-body-sm" style={{ color: 'var(--text-muted)' }}>
+                    No learned preferences yet. Oyinca learns when you edit, approve, or reject generated posts.
+                  </div>
+                ) : (
+                  <ul className="space-y-2">
+                    {memoryEntries.map((entry) => (
+                      <li key={entry.id} className="surface-tile p-3.5 flex items-start gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-caption font-bold uppercase" style={{ color: 'var(--accent-secondary)' }}>{entry.type.replaceAll('_', ' ')}</span>
+                            <span className="text-caption" style={{ color: 'var(--text-muted)' }}>{Math.round(entry.confidence * 100)}% confidence</span>
+                          </div>
+                          <p className="text-body-sm mt-1 break-words" style={{ color: 'var(--text-primary)' }}>{entry.value}</p>
+                        </div>
+                        <button type="button" onClick={() => dismissMemory(entry.id)} className="btn-icon-glass h-9 w-9 shrink-0 flex items-center justify-center" aria-label="Remove learned preference">
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </BrainSection>
             </div>
 
             {/* Content idea suggestions -- grounded in the Business Brain
@@ -1126,6 +1213,7 @@ export default function SettingsPage() {
       )}
 
       {activeTab === 'profile' && (
+        <div className="space-y-6">
         <div className="exec-card card-pad space-y-5">
           <div className="space-y-4">
             <h3 className="text-h3" style={{ color: 'var(--text-primary)' }}>Your Account</h3>
@@ -1139,6 +1227,22 @@ export default function SettingsPage() {
               />
             </div>
           </div>
+        </div>
+        <div className="exec-card card-pad space-y-5">
+          <div>
+            <h3 className="text-h3" style={{ color: 'var(--text-primary)' }}>Privacy &amp; data</h3>
+            <p className="text-body-sm mt-2" style={{ color: 'var(--text-secondary)' }}>Download a portable copy of your workspace or permanently delete your account.</p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <button type="button" onClick={exportMyData} disabled={privacyAction !== null} className="btn-secondary px-4 py-2.5 rounded-[var(--radius-md)] text-body-sm font-bold touch-target disabled:opacity-60">
+              {privacyAction === 'export' ? 'Preparing…' : 'Download my data'}
+            </button>
+            <button type="button" onClick={deleteMyAccount} disabled={privacyAction !== null} className="px-4 py-2.5 rounded-[var(--radius-md)] text-body-sm font-bold touch-target border disabled:opacity-60" style={{ color: 'var(--accent-error)', borderColor: 'var(--accent-error)', backgroundColor: 'transparent' }}>
+              {privacyAction === 'delete' ? 'Deleting…' : 'Delete account'}
+            </button>
+          </div>
+          <p className="text-caption" style={{ color: 'var(--text-muted)' }}>Paid subscriptions must be cancelled first. Shared workspaces must be transferred or emptied before deletion.</p>
+        </div>
         </div>
       )}
 

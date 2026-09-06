@@ -1,5 +1,7 @@
-import { Controller, Post, Get, Patch, Body, Param, Query } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { MarketingService } from './marketing.service';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { PlatformAdminGuard } from '../auth/platform-admin.guard';
 import { EarlyAccessSignupDto } from './dto/early-access-signup.dto';
 import { CreatorApplicationDto } from './dto/creator-application.dto';
 import { AttributionEventDto } from './dto/attribution-event.dto';
@@ -28,21 +30,25 @@ export class MarketingController {
     return this.marketingService.recordAttributionEvent(dto);
   }
 
+  @UseGuards(JwtAuthGuard, PlatformAdminGuard)
   @Get('admin/stats')
   async getAdminStats() {
     return this.marketingService.getAdminStats();
   }
 
+  @UseGuards(JwtAuthGuard, PlatformAdminGuard)
   @Get('admin/early-access')
   async getAdminEarlyAccessList(@Query('search') search?: string, @Query('limit') limit = '50', @Query('page') page = '1') {
     return this.marketingService.getAdminEarlyAccessList(search, parseInt(limit, 10), parseInt(page, 10));
   }
 
+  @UseGuards(JwtAuthGuard, PlatformAdminGuard)
   @Get('admin/creators')
   async getAdminCreatorsList(@Query('status') status?: string, @Query('limit') limit = '50', @Query('page') page = '1') {
     return this.marketingService.getAdminCreatorsList(status, parseInt(limit, 10), parseInt(page, 10));
   }
 
+  @UseGuards(JwtAuthGuard, PlatformAdminGuard)
   @Patch('admin/creators/:id')
   async updateCreatorStatus(
     @Param('id') id: string,

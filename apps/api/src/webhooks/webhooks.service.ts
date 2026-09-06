@@ -37,10 +37,24 @@ export class WebhooksService {
 
     const brandId = socialAccount.brandId;
 
+    // Webhook payloads do not consistently include the post caption. Resolve
+    // it from the published target we already own so reply generation sees
+    // the actual conversation context. Keep the caller value only as a
+    // fallback for providers/events that cannot yet be matched.
+    const sourceTarget = await this.prisma.postTarget.findFirst({
+      where: {
+        socialAccountId: socialAccount.id,
+        platform,
+        providerPostId: originalPostId,
+      },
+      select: { post: { select: { caption: true } } },
+    });
+    const resolvedPostCaption = sourceTarget?.post?.caption?.trim() || postCaption;
+
     const aiReplyText = await this.growthService.generateCommentReply(
       brandId,
       originalCommentText,
-      postCaption
+      resolvedPostCaption
     );
 
     if (!aiReplyText) {

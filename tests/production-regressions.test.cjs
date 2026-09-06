@@ -1,4 +1,6 @@
 const path = require('node:path');
+const fs = require('node:fs');
+const root = path.join(__dirname, '..');
 require('ts-node').register({ project: path.join(__dirname, '../apps/api/tsconfig.json'), transpileOnly: true });
 require('reflect-metadata');
 const { test } = require('node:test');
@@ -95,15 +97,118 @@ test('TikTok job ID resolves to video ID before engagement matching', async (t) 
     postPerformance: { createMany: async ({ data }) => { snapshots = data; } },
   };
   t.mock.method(global, 'fetch', async () => ({ ok: true, json: async () => ({ error: { code: 'ok' }, data: { publicaly_available_post_id: ['123456'] } }) }));
-  const service = new MetricsService(prisma, {}, { ensureFreshAccessToken: async () => 'test-token' });
+  const service = new MetricsService(prisma, {}, {
+    ensureFreshAccessToken: async () => 'test-token',
+    confirmTikTokPublication: async (_, videoId) => { savedId = videoId; },
+  });
   service.fetchTikTokVideoPage = async () => ({ videos: [{ id: '123456', view_count: 42 }], hasMore: false });
-  assert.equal(await service.syncOneAccount('account', new Map([['v_pub_job', 'target']])), 1);
+  assert.equal(await service.syncOneAccount('account', new Map([['v_pub_job', { targetId: 'target', createdAt: new Date() }]])), 1);
   assert.equal(savedId, '123456');
   assert.equal(snapshots[0].views, 42);
   assert.equal(snapshots[0].postTargetId, 'target');
 });
 
+test('TikTok terminal failures and private publish completion leave no target stuck publishing', async (t) => {
+  const calls = [];
+  const prisma = {
+    socialAccount: { findUnique: async () => ({ platform: 'TIKTOK' }) },
+    postPerformance: { createMany: async () => {} },
+  };
+  let status = 'FAILED';
+  t.mock.method(global, 'fetch', async () => ({ ok: true, json: async () => ({ error: { code: 'ok' }, data: { status, fail_reason: 'spam_risk' } }) }));
+  const publishing = {
+    ensureFreshAccessToken: async () => 'test-token',
+    failTikTokPublication: async (id, reason) => calls.push(['failed', id, reason]),
+    confirmTikTokPublication: async (id, publicId) => calls.push(['published', id, publicId]),
+  };
+  const service = new MetricsService(prisma, {}, publishing);
+  service.fetchTikTokVideoPage = async () => ({ videos: [], hasMore: false });
+  const target = { targetId: 'target', createdAt: new Date() };
+  await service.syncOneAccount('account', new Map([['v_pub_job', target]]));
+  status = 'PUBLISH_COMPLETE';
+  await service.syncOneAccount('account', new Map([['v_pub_job_2', target]]));
+  assert.deepEqual(calls, [
+    ['failed', 'target', 'spam_risk'],
+    ['published', 'target', undefined],
+  ]);
+});
+
+test('TikTok metrics sweep includes processing submissions that do not have publishedAt yet', () => {
+  const source = fs.readFileSync(path.join(root, 'apps/api/src/metrics/metrics.service.ts'), 'utf8');
+  assert.match(source, /status: \{ in: \[TargetStatus\.PUBLISHING, TargetStatus\.PUBLISHED\] \}/);
+  assert.match(source, /\{ status: 'PUBLISHING', createdAt: \{ gte: cutoff \} \}/);
+});
+
 test('TikTok HTTP 200 API errors are reported as errors', async (t) => {
   t.mock.method(global, 'fetch', async () => ({ ok: true, json: async () => ({ error: { code: 'access_token_invalid' } }) }));
   await assert.rejects(new MetricsService().fetchTikTokVideoPage('test-token'), /access_token_invalid/);
+});
+
+test('marketing administration routes require authenticated platform-admin access', () => {
+  const source = fs.readFileSync(path.join(root, 'apps/api/src/marketing/marketing.controller.ts'), 'utf8');
+  const adminRoutes = [
+    "@Get('admin/stats')",
+    "@Get('admin/early-access')",
+    "@Get('admin/creators')",
+    "@Patch('admin/creators/:id')",
+  ];
+
+  for (const route of adminRoutes) {
+    const routeIndex = source.indexOf(route);
+    assert.notEqual(routeIndex, -1, `${route} should exist`);
+    const decoratorWindow = source.slice(Math.max(0, routeIndex - 100), routeIndex);
+    assert.match(
+      decoratorWindow,
+      /@UseGuards\(JwtAuthGuard, PlatformAdminGuard\)/,
+      `${route} must require both authentication and platform-admin authorization`,
+    );
+  }
+});
+
+test('Paystack first subscription can associate by verified customer email only when the organization is unambiguous', () => {
+  const provider = fs.readFileSync(path.join(root, 'apps/api/src/billing/providers/paystack-provider.service.ts'), 'utf8');
+  const billing = fs.readFileSync(path.join(root, 'apps/api/src/billing/billing.service.ts'), 'utf8');
+  assert.match(provider, /customerEmail: typeof sub\.customer\?\.email/);
+  assert.match(billing, /providerName === 'paystack' && normalized\.customerEmail/);
+  assert.match(billing, /take: 2/);
+  assert.match(billing, /if \(candidates\.length === 1\)/);
+  assert.match(billing, /candidates\.length > 1/);
+});
+
+test('email verification and password-reset tokens are hashed before database lookup or storage', () => {
+  const source = fs.readFileSync(path.join(root, 'apps/api/src/auth/auth.service.ts'), 'utf8');
+  assert.match(source, /hashOneTimeToken\(token: string\)/);
+  assert.match(source, /verificationToken: this\.hashOneTimeToken\(verificationToken\)/);
+  assert.match(source, /verificationToken: this\.hashOneTimeToken\(dto\.token\)/);
+  assert.match(source, /passwordResetToken: this\.hashOneTimeToken\(passwordResetToken\)/);
+  assert.match(source, /passwordResetToken: this\.hashOneTimeToken\(dto\.token\)/);
+});
+
+test('durable recovery cron processes persisted media jobs and retains daily Vercel backstops for QStash', () => {
+  const jobs = fs.readFileSync(path.join(root, 'apps/api/src/engine/engine-jobs.service.ts'), 'utf8');
+  const cron = fs.readFileSync(path.join(root, 'apps/api/src/cron/cron.controller.ts'), 'utf8');
+  const vercel = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'));
+  assert.match(jobs, /async processPendingMedia\(\)/);
+  assert.match(jobs, /status: MediaStatus\.PENDING/);
+  assert.match(cron, /@Get\('process-media'\)/);
+  assert.match(cron, /@Post\('process-media'\)/);
+  assert.equal(vercel.crons.find((entry) => entry.path === '/api/cron/publish-due')?.schedule, '0 12 * * *');
+  assert.equal(vercel.crons.find((entry) => entry.path === '/api/cron/process-media')?.schedule, '30 12 * * *');
+});
+
+test('approval edits and rejected generations are persisted as Brain corrections', () => {
+  const source = fs.readFileSync(path.join(root, 'apps/api/src/engine/engine.service.ts'), 'utf8');
+  assert.match(source, /approval_edit_\$\{postId\}/);
+  assert.match(source, /rejected_generation_\$\{postId\}/);
+  assert.match(source, /type: MemoryEntryType\.CORRECTION/);
+});
+
+test('integration readiness distinguishes connection, approval, testing, and ready state', () => {
+  const api = fs.readFileSync(path.join(root, 'apps/api/src/oauth/oauth.service.ts'), 'utf8');
+  const ui = fs.readFileSync(path.join(root, 'apps/web/src/app/dashboard/integrations/page.tsx'), 'utf8');
+  assert.match(api, /productionApproved:/);
+  assert.match(api, /testedAccountIds\.has\(acc\.id\)/);
+  assert.match(ui, /Approval pending/);
+  assert.match(ui, /Connected · test required/);
+  assert.match(ui, /Ready ✓/);
 });

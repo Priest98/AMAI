@@ -145,6 +145,27 @@ export class AiService {
     }).catch(() => {});
   }
 
+  /** Shared text-generation path for non-caption features such as comment
+   * replies. Keeping this here ensures provider fallback, timeouts, key
+   * health and usage logging apply to every AI-consuming feature. */
+  async generateText(
+    label: string,
+    prompt: string,
+    maxTokens: number,
+    brandId?: string,
+    userId: string = 'amai_engine',
+  ): Promise<string | null> {
+    const result = await this.aiGateway.generate({
+      label,
+      maxTokens,
+      messages: [{ role: 'user', content: prompt }],
+    });
+    if (!result?.text?.trim()) return null;
+    const text = result.text.trim();
+    this.logUsage(brandId, userId, prompt, text, result.tokensUsed);
+    return text;
+  }
+
   /**
    * Context-Aware & Niche-Specific AI Caption Generation
    */

@@ -114,6 +114,7 @@ const nextConfig: NextConfig = {
     return config;
   },
   images: {
+    qualities: [75, 90],
     // Media Library thumbnails are served straight from Vercel Blob
     // storage (see apps/api/src/storage/storage.service.ts). Allow-listing
     // the host lets next/image resize/re-encode them on the fly instead of

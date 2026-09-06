@@ -291,6 +291,7 @@ export class PaystackProviderService implements PaymentProvider {
     return {
       providerCustomerId: sub.customer?.customer_code || '',
       providerSubscriptionId: subscriptionCode,
+      customerEmail: typeof sub.customer?.email === 'string' ? sub.customer.email.toLowerCase().trim() : undefined,
       plan: planInfo.plan,
       currency: planInfo.currency,
       billingInterval: planInfo.billingInterval,

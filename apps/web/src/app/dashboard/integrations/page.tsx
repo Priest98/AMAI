@@ -54,6 +54,14 @@ interface ConnectedAccount {
   needsReauth?: boolean;
   tokenExpiresAt?: string;
   createdAt: string;
+  readiness?: {
+    connected: boolean;
+    configured: boolean;
+    authorized: boolean;
+    tested: boolean;
+    productionApproved: boolean;
+    ready: boolean;
+  };
   // Only populated for TikTok accounts (user.info.stats scope). Null until
   // a stats fetch has completed at least once (connect time or the details
   // modal's on-demand refresh).
@@ -255,6 +263,9 @@ export default function ConnectedAccountsPage() {
   const connectionLabel = (account?: ConnectedAccount) => {
     if (account?.needsReauth || account?.status === 'EXPIRED') return 'Reconnect required';
     if (account?.health === 'EXPIRING_SOON') return 'Token renewal due';
+    if (account?.readiness && !account.readiness.productionApproved) return 'Approval pending';
+    if (account?.readiness && !account.readiness.tested) return 'Connected · test required';
+    if (account?.readiness?.ready) return 'Ready ✓';
     if (account?.health === 'UNKNOWN') return 'Connection unverified';
     return 'Connected ✓';
   };

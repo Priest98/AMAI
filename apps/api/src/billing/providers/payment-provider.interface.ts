@@ -30,6 +30,12 @@ export interface NormalizedSubscriptionEvent {
    * subscription id in that case. See BillingService.applySubscriptionEvent.
    */
   organizationId?: string;
+  /**
+   * Provider-verified customer email. Paystack subscription objects do not
+   * retain transaction metadata, so this is a guarded first-webhook fallback
+   * for accounts that belong to exactly one Oyinca organization.
+   */
+  customerEmail?: string;
   billingInterval: BillingInterval;
   plan: PlanTier;
   /** Derived from the provider's own Price/line-item currency, not guessed -- what the customer is actually being charged in. */

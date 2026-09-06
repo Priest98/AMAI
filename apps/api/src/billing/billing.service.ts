@@ -259,6 +259,31 @@ export class BillingService {
       });
     }
 
+    // Paystack does not copy Initialize Transaction metadata onto its
+    // Subscription object. On the first subscription webhook there is
+    // therefore no stored provider id to match yet. Its canonical customer
+    // object does carry a verified email, so use that only when the email
+    // resolves to exactly one organization membership. Refusing ambiguous
+    // matches prevents a user who belongs to multiple workspaces from having
+    // a payment attached to an arbitrary one.
+    if (!existing && providerName === 'paystack' && normalized.customerEmail) {
+      const candidates = await this.prisma.subscription.findMany({
+        where: {
+          organization: {
+            members: { some: { user: { email: normalized.customerEmail } } },
+          },
+        },
+        take: 2,
+      });
+      if (candidates.length === 1) {
+        existing = candidates[0];
+      } else if (candidates.length > 1) {
+        this.logger.warn(
+          `[billing_event] Paystack customer email matched multiple Oyinca organizations; refusing an ambiguous first-subscription association.`,
+        );
+      }
+    }
+
     if (!existing) {
       this.logger.warn(
         `[billing_event] Webhook for provider subscription ${normalized.providerSubscriptionId} / customer ${normalized.providerCustomerId} matched no local Subscription row -- was the checkout session's metadata.organizationId set correctly?`,

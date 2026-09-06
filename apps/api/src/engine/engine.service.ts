@@ -20,6 +20,7 @@ import {
   Platform,
   SchedulingPlatform,
   ScheduleStartOption,
+  MemoryEntryType,
 } from '@prisma/client';
 
 export interface MediaUploadedEvent {
@@ -969,6 +970,29 @@ export class EngineService {
       },
     });
 
+    // Explicit edits are stronger preference signals than inferred
+    // performance. Store concise, dismissible corrections so future prompts
+    // can reflect what the user actually chose.
+    const corrections: string[] = [];
+    if (overrides?.caption !== undefined && overrides.caption.trim() !== post.caption.trim()) {
+      corrections.push('The user rewrote Oyinca’s caption before approval; prefer the edited wording and structure shown in this post.');
+    }
+    if (overrides?.hashtags && JSON.stringify(overrides.hashtags) !== JSON.stringify(post.hashtags)) {
+      corrections.push(`The user selected these hashtags during approval: ${overrides.hashtags.join(' ') || 'none'}.`);
+    }
+    if (overrides?.ctaText !== undefined && overrides.ctaText !== post.ctaText) {
+      corrections.push(`The user changed the call to action to: ${overrides.ctaText || 'no call to action'}.`);
+    }
+    await Promise.allSettled(corrections.map((value, index) =>
+      this.businessBrainService.recordMemory(brandId, {
+        type: MemoryEntryType.CORRECTION,
+        key: `approval_edit_${postId}_${index}`,
+        value,
+        confidence: 0.9,
+        sourcePostId: postId,
+      }),
+    ));
+
     await this.prisma.mediaAsset.updateMany({
       where: { linkedPostId: postId },
       data: { status: MediaStatus.SCHEDULED },
@@ -1028,6 +1052,15 @@ export class EngineService {
     });
 
     await this.logEvent(brandId, EngineEventType.POST_REJECTED, { postId, message: 'Post rejected/cancelled.' });
+    if (post.status === PostStatus.NEEDS_APPROVAL) {
+      await this.businessBrainService.recordMemory(brandId, {
+        type: MemoryEntryType.CORRECTION,
+        key: `rejected_generation_${postId}`,
+        value: 'The user rejected this generated post. Avoid closely repeating its caption approach and content framing.',
+        confidence: 0.75,
+        sourcePostId: postId,
+      }).catch(() => {});
+    }
     return updated;
   }
 

@@ -31,6 +31,44 @@ export class EngineJobsService {
     private mediaOptimizationService: MediaOptimizationService,
   ) {}
 
+  /**
+   * Database-backed recovery worker for uploads whose browser-triggered
+   * processing request never arrived or whose serverless invocation died.
+   * MediaAsset is the durable job record; EngineService owns the atomic
+   * PENDING/stale-PROCESSING claim, so overlapping cron calls remain safe.
+   */
+  async processPendingMedia(): Promise<{ found: number; processed: number; failed: number }> {
+    const staleBefore = new Date(Date.now() - 2 * 60 * 1000);
+    const jobs = await this.prisma.mediaAsset.findMany({
+      where: {
+        blobUrl: { not: null },
+        OR: [
+          { status: MediaStatus.PENDING },
+          { status: MediaStatus.PROCESSING, updatedAt: { lt: staleBefore } },
+        ],
+      },
+      orderBy: { createdAt: 'asc' },
+      // One AI pipeline can consume most of a serverless invocation. A
+      // frequent cron drains the backlog safely without starting work that
+      // the platform will kill before it can finish.
+      take: 1,
+      select: { id: true },
+    });
+
+    let processed = 0;
+    let failed = 0;
+    for (const job of jobs) {
+      try {
+        await this.engineService.handleMediaUploaded({ mediaAssetId: job.id });
+        processed++;
+      } catch (error: any) {
+        failed++;
+        this.logger.warn(`Pending-media recovery failed for ${job.id}: ${error?.message || error}`);
+      }
+    }
+    return { found: jobs.length, processed, failed };
+  }
+
   async syncAllGoogleDrive() {
     const configs = await this.prisma.amaiEngineConfig.findMany({
       where: { googleRefreshToken: { not: null } },

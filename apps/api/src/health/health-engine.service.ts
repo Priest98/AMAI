@@ -86,6 +86,19 @@ export class HealthEngineService {
     return results;
   }
 
+  /** Persists the outcome of a QStash/Vercel scheduled operation in the
+   * same health history used by the admin operations panel. */
+  async recordSchedulerRun(subsystem: string, startedAt: number, result?: unknown, error?: unknown): Promise<void> {
+    await this.persistAndRaise({
+      subsystem: `scheduler_${subsystem}`,
+      status: error ? HealthStatus.DOWN : HealthStatus.OK,
+      responseTimeMs: Date.now() - startedAt,
+      message: error ? `${subsystem} failed` : `${subsystem} completed`,
+      error: error instanceof Error ? error.message : error ? String(error) : undefined,
+      metadata: result && typeof result === 'object' ? result as Record<string, unknown> : undefined,
+    });
+  }
+
   // ------------------------------------------------------------------
   // Individual checks
   // ------------------------------------------------------------------

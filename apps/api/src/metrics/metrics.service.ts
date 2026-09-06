@@ -16,6 +16,7 @@ const TRACKING_WINDOW_DAYS = 30;
 // have every tracked video well within this many pages; this is a hard
 // ceiling so one very active account can't blow out the whole run's cost.
 const MAX_PAGES_PER_ACCOUNT = 5;
+const TIKTOK_RECONCILIATION_TIMEOUT_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Turns "Oyinca published this" into "here's how it actually performed" --
@@ -49,11 +50,18 @@ export class MetricsService {
     const trackableTargets = await this.prisma.postTarget.findMany({
       where: {
         platform: Platform.TIKTOK,
-        status: TargetStatus.PUBLISHED,
+        status: { in: [TargetStatus.PUBLISHING, TargetStatus.PUBLISHED] },
         providerPostId: { not: null },
-        post: { publishedAt: { gte: cutoff } },
+        post: {
+          OR: [
+            { publishedAt: { gte: cutoff } },
+            // A newly submitted TikTok job deliberately has no publishedAt
+            // until status reconciliation confirms a public post id.
+            { status: 'PUBLISHING', createdAt: { gte: cutoff } },
+          ],
+        },
       },
-      select: { id: true, providerPostId: true, socialAccountId: true },
+      select: { id: true, providerPostId: true, socialAccountId: true, lastAttemptAt: true },
     });
 
     if (trackableTargets.length === 0) {
@@ -62,11 +70,11 @@ export class MetricsService {
 
     // Group by account so each account's video.list is paginated at most
     // once per run, regardless of how many tracked posts it has.
-    const targetsByAccount = new Map<string, Map<string, string>>(); // accountId -> (providerPostId -> postTargetId)
+    const targetsByAccount = new Map<string, Map<string, { targetId: string; createdAt: Date }>>();
     for (const t of trackableTargets) {
       if (!t.providerPostId) continue;
       if (!targetsByAccount.has(t.socialAccountId)) targetsByAccount.set(t.socialAccountId, new Map());
-      targetsByAccount.get(t.socialAccountId)!.set(t.providerPostId, t.id);
+      targetsByAccount.get(t.socialAccountId)!.set(t.providerPostId, { targetId: t.id, createdAt: t.lastAttemptAt || new Date() });
     }
 
     let snapshotsCreated = 0;
@@ -85,7 +93,10 @@ export class MetricsService {
     return { accountsChecked: targetsByAccount.size, snapshotsCreated, accountErrors };
   }
 
-  private async syncOneAccount(socialAccountId: string, providerIdToTargetId: Map<string, string>): Promise<number> {
+  private async syncOneAccount(
+    socialAccountId: string,
+    providerIdToTarget: Map<string, { targetId: string; createdAt: Date }>,
+  ): Promise<number> {
     const account = await this.prisma.socialAccount.findUnique({ where: { id: socialAccountId } });
     if (!account || account.platform !== Platform.TIKTOK) return 0;
 
@@ -93,7 +104,7 @@ export class MetricsService {
     const accessToken = await this.publishing.ensureFreshAccessToken(account);
     // Content Posting returns a publish job ID, not the public video ID
     // used by Display API. Resolve it before matching engagement records.
-    for (const [publishId, targetId] of [...providerIdToTargetId]) {
+    for (const [publishId, target] of [...providerIdToTarget]) {
       if (/^\d+$/.test(publishId)) continue;
       const response = await fetch('https://open.tiktokapis.com/v2/post/publish/status/fetch/', {
         method: 'POST',
@@ -103,14 +114,35 @@ export class MetricsService {
       });
       const result = await response.json();
       if (!response.ok || result.error?.code !== 'ok') throw new Error('TikTok publish status could not be checked.');
-      const videoId = result.data?.publicaly_available_post_id?.[0];
+      const status = result.data?.status;
+      if (status === 'FAILED') {
+        await this.publishing.failTikTokPublication(target.targetId, result.data?.fail_reason || 'TikTok rejected the post.');
+        providerIdToTarget.delete(publishId);
+        continue;
+      }
+
+      const videoIdValue = result.data?.publicaly_available_post_id?.[0];
+      const videoId = videoIdValue == null ? undefined : String(videoIdValue);
       if (typeof videoId === 'string' && /^\d+$/.test(videoId)) {
-        await this.prisma.postTarget.update({ where: { id: targetId }, data: { providerPostId: videoId } });
-        providerIdToTargetId.delete(publishId);
-        providerIdToTargetId.set(videoId, targetId);
+        await this.publishing.confirmTikTokPublication(target.targetId, videoId);
+        providerIdToTarget.delete(publishId);
+        providerIdToTarget.set(videoId, target);
+      } else if (status === 'PUBLISH_COMPLETE' || status === 'SEND_TO_USER_INBOX') {
+        // Private/SELF_ONLY posts do not receive a publicly available post
+        // id. The status itself is still a terminal success, so do not leave
+        // the target stuck in PUBLISHING forever waiting for an id TikTok
+        // deliberately will never return.
+        await this.publishing.confirmTikTokPublication(target.targetId);
+        providerIdToTarget.delete(publishId);
+      } else if (Date.now() - target.createdAt.getTime() > TIKTOK_RECONCILIATION_TIMEOUT_MS) {
+        await this.publishing.failTikTokPublication(
+          target.targetId,
+          'TikTok did not finish processing this post within 24 hours. Retry the post or reconnect the account.',
+        );
+        providerIdToTarget.delete(publishId);
       }
     }
-    const remainingIds = new Set(providerIdToTargetId.keys());
+    const remainingIds = new Set(providerIdToTarget.keys());
     const statsByVideoId = new Map<string, { views: number; likes: number; comments: number; shares: number; raw: any }>();
 
     let cursor: number | undefined;
@@ -135,7 +167,7 @@ export class MetricsService {
     if (statsByVideoId.size === 0) return 0;
 
     const rows = Array.from(statsByVideoId.entries()).map(([videoId, stats]) => ({
-      postTargetId: providerIdToTargetId.get(videoId)!,
+      postTargetId: providerIdToTarget.get(videoId)!.targetId,
       views: stats.views,
       likes: stats.likes,
       comments: stats.comments,

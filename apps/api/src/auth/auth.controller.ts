@@ -1,4 +1,4 @@
-import { Controller, Post, Patch, Get, Body, Req, Res, UseGuards } from '@nestjs/common';
+import { Controller, Post, Patch, Get, Delete, Body, Req, Res, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
@@ -99,5 +99,19 @@ export class AuthController {
     @Body() dto: UpdateOnboardingDto,
   ) {
     return this.authService.updateOnboarding(req.user.id, dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('export')
+  async exportAccount(@Req() req: any) {
+    return this.authService.exportAccount(req.user.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('account')
+  async deleteAccount(@Req() req: any, @Res({ passthrough: true }) res: Response) {
+    const result = await this.authService.deleteAccount(req.user.id);
+    res.clearCookie(AUTH_COOKIE_NAME, { path: '/' });
+    return result;
   }
 }

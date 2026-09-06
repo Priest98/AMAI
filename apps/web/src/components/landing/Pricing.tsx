@@ -36,7 +36,7 @@ const CARD_COPY: Record<PlanTier, Omit<CardCopy, "tier">> = {
       "Basic Business Brain",
       "Google Drive integration",
     ],
-    cta: "Start Free",
+    cta: "Meet Oyinca",
   },
   PRO: {
     badge: "MORE AUTOMATION",
@@ -50,7 +50,7 @@ const CARD_COPY: Record<PlanTier, Omit<CardCopy, "tier">> = {
       "Content repurposing",
       "Priority processing",
     ],
-    cta: "Start Pro",
+    cta: "Give Oyinca more to handle",
     highlighted: true,
   },
   CREATOR: {
@@ -64,7 +64,7 @@ const CARD_COPY: Record<PlanTier, Omit<CardCopy, "tier">> = {
       "Cross-account intelligence",
       "Priority processing",
     ],
-    cta: "Start Creator",
+    cta: "Build with Oyinca",
     highlighted: true,
   },
   AGENCY: {
@@ -79,7 +79,7 @@ const CARD_COPY: Record<PlanTier, Omit<CardCopy, "tier">> = {
       "Client-level analytics",
       "White-label where supported",
     ],
-    cta: "Start Agency",
+    cta: "Bring Oyinca to your team",
   },
 };
 
@@ -162,7 +162,7 @@ export default function Pricing({
         <GsapReveal className="text-center max-w-2xl mx-auto">
           <Eyebrow>Simple Pricing</Eyebrow>
           <h2 className="lp-heading-display mt-6 text-3xl sm:text-4xl lg:text-5xl">
-            Start free. Upgrade when you need more TikTok.
+            Meet Oyinca today. Give her more to handle as you grow.
           </h2>
           <p
             className="mt-5 text-sm leading-relaxed"

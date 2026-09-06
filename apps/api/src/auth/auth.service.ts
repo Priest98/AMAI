@@ -7,6 +7,7 @@ import { JwtService } from '@nestjs/jwt';
 import { Role, PlanTier, SubscriptionStatus } from '@prisma/client';
 import { getAppUrl } from '../common/app-url.util';
 import { EmailService } from '../email/email.service';
+import { StorageService } from '../storage/storage.service';
 
 @Injectable()
 export class AuthService {
@@ -16,7 +17,12 @@ export class AuthService {
     private prisma: PrismaService,
     private jwtService: JwtService,
     private emailService: EmailService,
+    private storageService: StorageService,
   ) {}
+
+  private hashOneTimeToken(token: string): string {
+    return crypto.createHash('sha256').update(token).digest('hex');
+  }
 
   private emailShell(bodyHtml: string): string {
     return `
@@ -160,7 +166,7 @@ export class AuthService {
             // (Vercel sets NODE_ENV=production) always requires real
             // verification -- this can never weaken that.
             emailVerified: process.env.NODE_ENV === 'development',
-            verificationToken,
+            verificationToken: this.hashOneTimeToken(verificationToken),
             verificationTokenExpiresAt,
             role: Role.OWNER,
           },
@@ -225,7 +231,7 @@ export class AuthService {
     try {
       const user = await this.prisma.user.findFirst({
         where: {
-          verificationToken: dto.token,
+          verificationToken: this.hashOneTimeToken(dto.token),
         },
       });
 
@@ -273,7 +279,7 @@ export class AuthService {
 
         await this.prisma.user.update({
           where: { id: user.id },
-          data: { verificationToken, verificationTokenExpiresAt },
+          data: { verificationToken: this.hashOneTimeToken(verificationToken), verificationTokenExpiresAt },
         });
 
         const appUrl = getAppUrl();
@@ -301,7 +307,7 @@ export class AuthService {
       if (user) {
         await this.prisma.user.update({
           where: { id: user.id },
-          data: { passwordResetToken, passwordResetExpiresAt },
+          data: { passwordResetToken: this.hashOneTimeToken(passwordResetToken), passwordResetExpiresAt },
         });
 
         const appUrl = getAppUrl();
@@ -323,7 +329,7 @@ export class AuthService {
 
   async resetPassword(dto: ResetPasswordDto) {
     const user = await this.prisma.user.findUnique({
-      where: { passwordResetToken: dto.token },
+      where: { passwordResetToken: this.hashOneTimeToken(dto.token) },
     });
 
     if (!user || !user.passwordResetExpiresAt || user.passwordResetExpiresAt < new Date()) {
@@ -466,5 +472,67 @@ export class AuthService {
       hasSkippedOnboarding: user.onboardingSkipped,
       onboardingCompletedAt: user.onboardingCompletedAt,
     };
+  }
+
+  /** Portable, secret-free copy of the customer's Oyinca workspace. */
+  async exportAccount(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException();
+    const memberships = await this.prisma.organizationMember.findMany({
+      where: { userId },
+      include: {
+        organization: {
+          include: {
+            brands: {
+              include: {
+                businessBrain: true,
+                memoryEntries: true,
+                products: true,
+                mediaAssets: true,
+                posts: { include: { targets: true, media: true } },
+                socialAccounts: { select: { id: true, platform: true, platformAccountId: true, metadata: true, status: true, createdAt: true, updatedAt: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+    return {
+      exportedAt: new Date().toISOString(),
+      account: this.toSafeUser(user),
+      workspaces: memberships.map((membership) => ({ role: membership.role, ...membership.organization })),
+    };
+  }
+
+  /** Deletes a solo-owned account and its stored media. Paid subscriptions
+   * and shared workspaces must be resolved first so deletion cannot keep
+   * billing a now-inaccessible account or erase another member's work. */
+  async deleteAccount(userId: string) {
+    const owned = await this.prisma.organization.findMany({
+      where: { ownerId: userId },
+      include: {
+        members: true,
+        subscription: true,
+        brands: { include: { mediaAssets: { include: { optimizedVersions: true } } } },
+      },
+    });
+    if (owned.some((org) => org.members.some((member) => member.userId !== userId))) {
+      throw new BadRequestException('Transfer or remove the other workspace members before deleting your account.');
+    }
+    if (owned.some((org) => org.subscription && org.subscription.plan !== PlanTier.FREE && ['ACTIVE', 'TRIALING', 'PAST_DUE'].includes(org.subscription.status))) {
+      throw new BadRequestException('Cancel your paid subscription from Billing before deleting your account.');
+    }
+
+    const urls = owned.flatMap((org) => org.brands.flatMap((brand) => brand.mediaAssets.flatMap((asset) => [
+      asset.blobUrl,
+      ...asset.optimizedVersions.flatMap((version) => [version.blobUrl, version.thumbnailUrl]),
+    ]))).filter((url): url is string => !!url);
+    await Promise.allSettled(urls.map((url) => this.storageService.deleteFile(url)));
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.organization.deleteMany({ where: { ownerId: userId } });
+      await tx.user.delete({ where: { id: userId } });
+    });
+    return { success: true };
   }
 }

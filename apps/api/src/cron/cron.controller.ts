@@ -55,9 +55,21 @@ export class CronController {
     }
   }
 
+  private async trackedRun<T>(name: string, work: () => Promise<T>): Promise<T> {
+    const startedAt = Date.now();
+    try {
+      const result = await work();
+      await this.healthEngineService.recordSchedulerRun(name, startedAt, result).catch(() => {});
+      return result;
+    } catch (error) {
+      await this.healthEngineService.recordSchedulerRun(name, startedAt, undefined, error).catch(() => {});
+      throw error;
+    }
+  }
+
   private async runPublishDue(authHeader?: string) {
     this.assertAuthorized(authHeader);
-    const result = await this.publishingService.publishDuePosts();
+    const result = await this.trackedRun('publish_due', () => this.publishingService.publishDuePosts());
     this.logger.log(`publish-due: ${JSON.stringify(result)}`);
     return { success: true, ...result };
   }
@@ -74,7 +86,7 @@ export class CronController {
 
   private async runSyncDrive(authHeader?: string) {
     this.assertAuthorized(authHeader);
-    const result = await this.engineJobsService.syncAllGoogleDrive();
+    const result = await this.trackedRun('sync_drive', () => this.engineJobsService.syncAllGoogleDrive());
     this.logger.log(`sync-drive: ${JSON.stringify(result)}`);
     return { success: true, ...result };
   }
@@ -87,6 +99,23 @@ export class CronController {
   @Post('sync-drive')
   async syncDrivePost(@Headers('authorization') authHeader?: string) {
     return this.runSyncDrive(authHeader);
+  }
+
+  private async runProcessMedia(authHeader?: string) {
+    this.assertAuthorized(authHeader);
+    const result = await this.trackedRun('process_media', () => this.engineJobsService.processPendingMedia());
+    this.logger.log(`process-media: ${JSON.stringify(result)}`);
+    return { success: true, ...result };
+  }
+
+  @Get('process-media')
+  async processMediaGet(@Headers('authorization') authHeader?: string) {
+    return this.runProcessMedia(authHeader);
+  }
+
+  @Post('process-media')
+  async processMediaPost(@Headers('authorization') authHeader?: string) {
+    return this.runProcessMedia(authHeader);
   }
 
   // Phase 15/17 note: heartbeat staleness is checked FIRST, against the
@@ -143,8 +172,10 @@ export class CronController {
   // data rather than trailing a full day behind on a separate schedule.
   private async runSyncPostMetrics(authHeader?: string) {
     this.assertAuthorized(authHeader);
-    const metrics = await this.metricsService.syncTikTokMetrics();
-    const learning = await this.learningService.runForAllBrands();
+    const { metrics, learning } = await this.trackedRun('sync_post_metrics', async () => ({
+      metrics: await this.metricsService.syncTikTokMetrics(),
+      learning: await this.learningService.runForAllBrands(),
+    }));
     this.logger.log(`sync-post-metrics: ${JSON.stringify(metrics)}; learning: ${JSON.stringify(learning)}`);
     return { success: true, metrics, learning };
   }

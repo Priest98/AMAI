@@ -2,7 +2,7 @@ import { Injectable, BadRequestException, NotFoundException, Logger } from '@nes
 import { PrismaService } from '../prisma/prisma.service';
 import { EncryptionService } from '../encryption/encryption.service';
 import { EngineService } from '../engine/engine.service';
-import { Platform, ConnectionStatus, EngineEventType } from '@prisma/client';
+import { Platform, ConnectionStatus, EngineEventType, TargetStatus } from '@prisma/client';
 import * as crypto from 'crypto';
 import { getAppUrl } from '../common/app-url.util';
 import { EntitlementsService } from '../billing/entitlements.service';
@@ -862,23 +862,43 @@ export class OAuthService {
   // ─────────────────────────────────────────────────────────────
 
   async getConnectedAccounts(brandId: string) {
-    const socialAccounts = await this.prisma.socialAccount.findMany({
-      where: { brandId },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    const engineConfig = await this.prisma.amaiEngineConfig.findUnique({ where: { brandId } });
+    const [socialAccounts, engineConfig, successfulTargets] = await Promise.all([
+      this.prisma.socialAccount.findMany({ where: { brandId }, orderBy: { createdAt: 'desc' } }),
+      this.prisma.amaiEngineConfig.findUnique({ where: { brandId } }),
+      this.prisma.postTarget.findMany({
+        where: { post: { brandId }, status: TargetStatus.PUBLISHED, providerPostId: { not: null } },
+        select: { socialAccountId: true },
+        distinct: ['socialAccountId'],
+      }),
+    ]);
+    const testedAccountIds = new Set(successfulTargets.map((target) => target.socialAccountId));
 
     return {
       socialAccounts: socialAccounts.map((acc) => {
         let meta: any = {};
         try { meta = JSON.parse(acc.metadata || '{}'); } catch {}
+        const connection = deriveConnectionHealth(acc);
+        const configured = acc.platform === Platform.TIKTOK
+          ? !!process.env.TIKTOK_CLIENT_KEY
+          : !!(process.env.META_APP_ID || process.env.INSTAGRAM_CLIENT_ID);
+        const tested = testedAccountIds.has(acc.id);
+        const authorized = connection.health === 'CONNECTED' || connection.health === 'EXPIRING_SOON' || connection.health === 'UNKNOWN';
         return {
           id: acc.id,
           platform: acc.platform,
           platformAccountId: acc.platformAccountId,
           status: acc.status,
-          ...deriveConnectionHealth(acc),
+          ...connection,
+          readiness: {
+            connected: acc.status === ConnectionStatus.CONNECTED,
+            configured,
+            authorized,
+            tested,
+            productionApproved: acc.platform === Platform.TIKTOK
+              ? process.env.TIKTOK_CONTENT_AUDITED === 'true'
+              : process.env.INSTAGRAM_CONTENT_APPROVED === 'true',
+            ready: configured && authorized && tested,
+          },
           handle: meta.handle || meta.name || acc.platformAccountId,
           accountType: meta.accountType || 'BUSINESS',
           tokenExpiresAt: acc.tokenExpiresAt,
