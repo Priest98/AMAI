@@ -101,12 +101,14 @@ export default function NotificationsBell() {
     brandFetch<EngineEvent[]>("/engine/activity")
       .then((events) => {
         if (cancelled) return;
-        setItems(
-          events
-            .filter((event) => NOTIFIABLE_TYPES.has(event.type))
-            .slice(0, 20)
-            .map((event) => ({ ...event, read: readIds.has(event.id) })),
-        );
+        const next = events
+          .filter((event) => NOTIFIABLE_TYPES.has(event.type))
+          .slice(0, 20)
+          .map((event) => ({ ...event, read: open || readIds.has(event.id) }));
+        setItems(next);
+        if (open) {
+          try { localStorage.setItem(`${READ_STORAGE_KEY}:${getBrandId()}`, JSON.stringify(next.map((event) => event.id).slice(0, 100))); } catch { /* Keep in-memory read state if storage is unavailable. */ }
+        }
       })
       .catch(() => { if (!cancelled) setLoadError(true); })
       .finally(() => { if (!cancelled) setLoading(false); });
@@ -120,11 +122,11 @@ export default function NotificationsBell() {
 
   const unreadCount = items.filter((n) => !n.read).length;
 
-  const markAllRead = () => setItems((prev) => {
-    const next = prev.map((n) => ({ ...n, read: true }));
+  const markAllRead = () => {
+    const next = items.map((n) => ({ ...n, read: true }));
     try { localStorage.setItem(`${READ_STORAGE_KEY}:${getBrandId()}`, JSON.stringify(next.map((n) => n.id).slice(0, 100))); } catch { /* Keep in-memory read state if storage is unavailable. */ }
-    return next;
-  });
+    setItems(next);
+  };
 
   const toggleOpen = () => {
     if (!open) markAllRead();
