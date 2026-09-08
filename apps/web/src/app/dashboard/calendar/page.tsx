@@ -1,4 +1,5 @@
 "use client";
+import Modal from "@/components/ui/Modal";
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import SectionHeader from '@/components/ui/SectionHeader';
@@ -13,7 +14,6 @@ import {
   Video,
   Image as ImageIcon,
   Loader2,
-  X,
   Trash2,
   Save,
   CheckCircle2,
@@ -94,18 +94,21 @@ export default function CalendarPage() {
   const [loading, setLoading] = useState(true);
   const [weekStart, setWeekStart] = useState(() => new Date());
   const [message, setMessage] = useState('');
+  const [loadError, setLoadError] = useState('');
   const [dragOverKey, setDragOverKey] = useState<string | null>(null);
   const [editPost, setEditPost] = useState<CalendarPost | null>(null);
   const [editCaption, setEditCaption] = useState('');
   const [editHashtags, setEditHashtags] = useState('');
   const [editTime, setEditTime] = useState('');
+  const [originalTime, setOriginalTime] = useState('');
   const [saving, setSaving] = useState(false);
 
   const timeZone = config?.timeZone || 'UTC';
 
-  const flash = (msg: string) => { setMessage(msg); setTimeout(() => setMessage(''), 3500); };
+  const flash = (msg: string) => setMessage(msg);
 
   const load = useCallback(async () => {
+    setLoadError('');
     try {
       const [cfg, needsApproval, scheduled, published, failed] = await Promise.all([
         brandFetch<EngineConfig>('/engine/state'),
@@ -117,7 +120,7 @@ export default function CalendarPage() {
       setConfig(cfg);
       setPosts([...(needsApproval || []), ...(scheduled || []), ...(published || []), ...(failed || [])]);
     } catch (e: any) {
-      flash(e.message || 'Could not load the publishing calendar.');
+      setLoadError('Your calendar could not be loaded. Your scheduled posts have not changed.');
     } finally {
       setLoading(false);
     }
@@ -169,6 +172,8 @@ export default function CalendarPage() {
     const hh = parts.find((p) => p.type === 'hour')?.value ?? '12';
     const mm = parts.find((p) => p.type === 'minute')?.value ?? '00';
     setEditTime(`${hh === '24' ? '00' : hh}:${mm}`);
+    setOriginalTime(`${hh === '24' ? '00' : hh}:${mm}`);
+    setMessage('');
   };
 
   const closeEdit = () => setEditPost(null);
@@ -246,7 +251,7 @@ export default function CalendarPage() {
       {message && (
         <div className="p-3.5 rounded-[var(--radius-lg)] border text-xs font-semibold flex justify-between items-center" style={{ backgroundColor: 'var(--accent-success-subtle)', borderColor: 'var(--accent-success)', color: 'var(--accent-success)' }}>
           <span>{message}</span>
-          <button onClick={() => setMessage('')} className="hover:opacity-70">✕</button>
+          <button aria-label="Dismiss message" onClick={() => setMessage('')} className="hover:opacity-70">✕</button>
         </div>
       )}
 
@@ -272,7 +277,9 @@ export default function CalendarPage() {
         </button>
       </div>
 
-      {loading ? (
+      {loadError ? (
+        <div role="alert" className="py-8 space-y-4"><p>{loadError}</p><button className="btn-secondary touch-target px-4" onClick={() => { setLoading(true); void load(); }}>Retry calendar</button></div>
+      ) : loading ? (
         <div className="py-16 flex items-center justify-center text-xs" style={{ color: 'var(--text-secondary)' }}>
           <Loader2 className="h-4 w-4 animate-spin mr-2" /> Loading…
         </div>
@@ -372,18 +379,9 @@ export default function CalendarPage() {
 
       {/* ── Edit modal ── */}
       {editPost && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(10, 11, 20, 0.55)', backdropFilter: 'blur(4px)' }} onClick={closeEdit}>
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="glass-panel w-full max-w-lg rounded-[var(--radius-xl)] p-6 space-y-4 max-h-[85vh] overflow-y-auto"
-          >
-            <div className="flex items-center justify-between">
-              <h3 className="text-h3" style={{ color: 'var(--text-primary)' }}>Edit Post</h3>
-              <button onClick={closeEdit} className="w-8 h-8 rounded-full flex items-center justify-center transition hover:opacity-80" style={{ backgroundColor: 'var(--hover-surface)', color: 'var(--text-secondary)' }}>
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
+        <Modal open={!!editPost} onClose={() => { if (!saving) closeEdit(); }} title="Review post" maxWidth="560px">
+          <div className="space-y-4">
+            {message && <p role="status" className="text-sm">{message}</p>}
             <span className={`inline-block text-[10px] font-bold px-2 py-1 rounded border ${STATUS_COLOR[editPost.status]}`}>
               {STATUS_LABEL[editPost.status]}
             </span>
@@ -392,10 +390,11 @@ export default function CalendarPage() {
               <label className="block text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Caption</label>
               <textarea
                 rows={4}
+                aria-label="Caption"
                 value={editCaption}
                 onChange={(e) => setEditCaption(e.target.value)}
-                disabled={editPost.status === 'PUBLISHED' || editPost.status === 'FAILED'}
-                className="w-full rounded-xl p-3 text-xs border outline-none focus:border-blue-500/50 transition disabled:opacity-50"
+                disabled={saving || editPost.status === 'PUBLISHED' || editPost.status === 'FAILED'}
+                className="w-full rounded-xl p-3 text-base border outline-none focus:border-blue-500/50 transition disabled:opacity-50"
                 style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-primary)' }}
               />
             </div>
@@ -404,10 +403,11 @@ export default function CalendarPage() {
               <label className="block text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Hashtags</label>
               <input
                 type="text"
+                aria-label="Hashtags"
                 value={editHashtags}
                 onChange={(e) => setEditHashtags(e.target.value)}
-                disabled={editPost.status === 'PUBLISHED' || editPost.status === 'FAILED'}
-                className="w-full rounded-xl p-2.5 text-xs font-mono border outline-none focus:border-blue-500/50 transition disabled:opacity-50"
+                disabled={saving || editPost.status === 'PUBLISHED' || editPost.status === 'FAILED'}
+                className="w-full rounded-xl p-2.5 text-base font-mono border outline-none focus:border-blue-500/50 transition disabled:opacity-50"
                 style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-primary)' }}
               />
             </div>
@@ -416,20 +416,22 @@ export default function CalendarPage() {
               <label className="block text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Time ({timeZone})</label>
               <input
                 type="time"
+                aria-label="Publishing time"
                 value={editTime}
                 onChange={(e) => setEditTime(e.target.value)}
-                disabled={editPost.status === 'PUBLISHED' || editPost.status === 'FAILED'}
-                className="w-full rounded-xl p-2.5 text-xs border outline-none focus:border-blue-500/50 transition disabled:opacity-50 touch-target"
+                disabled={saving || editPost.status === 'PUBLISHED' || editPost.status === 'FAILED'}
+                className="w-full rounded-xl p-2.5 text-base border outline-none focus:border-blue-500/50 transition disabled:opacity-50 touch-target"
                 style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-primary)' }}
               />
             </div>
 
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Save any edits before approving this post.</p>
             <div className="flex flex-wrap justify-end gap-2 pt-2">
               {(editPost.status === 'SCHEDULED' || editPost.status === 'NEEDS_APPROVAL') && (
                 <button
                   onClick={deletePost}
                   disabled={saving}
-                  className="px-3 py-2 rounded-lg text-xs font-bold border text-red-400 border-red-500/20 bg-red-500/10 hover:bg-red-500/20 flex items-center gap-1.5 disabled:opacity-50"
+                  className="touch-target px-3 py-2 rounded-lg text-xs font-bold border text-red-400 border-red-500/20 bg-red-500/10 hover:bg-red-500/20 flex items-center gap-1.5 disabled:opacity-50"
                 >
                   <Trash2 className="h-3.5 w-3.5" /> Delete
                 </button>
@@ -438,7 +440,7 @@ export default function CalendarPage() {
                 <button
                   onClick={saveEdit}
                   disabled={saving}
-                  className="px-3 py-2 rounded-lg text-xs font-bold border flex items-center gap-1.5 disabled:opacity-50"
+                  className="touch-target px-3 py-2 rounded-lg text-xs font-bold border flex items-center gap-1.5 disabled:opacity-50"
                   style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-primary)' }}
                 >
                   {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />} Save
@@ -447,15 +449,15 @@ export default function CalendarPage() {
               {editPost.status === 'NEEDS_APPROVAL' && (
                 <button
                   onClick={approvePost}
-                  disabled={saving}
-                  className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1.5 shadow-md disabled:opacity-50"
+                  disabled={saving || editTime !== originalTime || editCaption !== editPost.caption || editHashtags !== (editPost.hashtags?.join(' ') || '')}
+                  className="touch-target px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1.5 shadow-md disabled:opacity-50"
                 >
                   {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />} Approve
                 </button>
               )}
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

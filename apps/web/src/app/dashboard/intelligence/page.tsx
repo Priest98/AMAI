@@ -156,7 +156,7 @@ export default function IntelligencePage() {
       {loading ? (
         <div className="exec-card p-8 animate-pulse h-48" style={{ backgroundColor: 'var(--bg-surface-raised)' }} />
       ) : error ? (
-        <div className="exec-card p-8 text-center space-y-3">
+        <div role="alert" className="exec-card p-8 text-center space-y-3">
           <p className="text-body-sm" style={{ color: 'var(--text-secondary)' }}>Couldn't load Oyinca Intelligence. Try again.</p>
           <button onClick={load} className="btn-secondary px-4 py-2 rounded-[var(--radius-md)] text-body-sm font-semibold touch-target">
             Retry

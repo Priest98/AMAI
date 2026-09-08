@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useRef } from 'react';
+import * as Dialog from '@radix-ui/react-dialog';
 import { Gem, ArrowRight, ArrowLeft } from 'lucide-react';
 
 /** Subset of UpdateBusinessBrainDto this wizard actually captures -- the
@@ -18,8 +18,9 @@ export interface BrainCaptureResult {
 }
 
 interface BrainCaptureWizardProps {
-  onFinish: (result: BrainCaptureResult) => void;
-  onSkip: (partial: Partial<BrainCaptureResult>) => void;
+  onSave: (partial: Partial<BrainCaptureResult>) => Promise<void>;
+  onFinish: (result: BrainCaptureResult) => Promise<void>;
+  onSkip: (partial: Partial<BrainCaptureResult>) => Promise<void>;
 }
 
 function parseTagList(text: string): string[] {
@@ -28,8 +29,20 @@ function parseTagList(text: string): string[] {
 
 const TOTAL_SCREENS = 5; // intro + 4 question screens
 
-export default function BrainCaptureWizard({ onFinish, onSkip }: BrainCaptureWizardProps) {
+export default function BrainCaptureWizard({ onFinish, onSkip, onSave }: BrainCaptureWizardProps) {
   const [screen, setScreen] = useState(0);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const busy = useRef(false);
+  const runSave = async (action: () => Promise<void>) => {
+    if (busy.current) return;
+    busy.current = true;
+    setSaving(true);
+    setSaveError('');
+    try { await action(); }
+    catch { setSaveError('Your details could not be saved. They are still here. Check your connection and try again.'); }
+    finally { busy.current = false; setSaving(false); }
+  };
   const [businessDescription, setBusinessDescription] = useState('');
   const [targetAudience, setTargetAudience] = useState('');
   const [brandVoice, setBrandVoice] = useState('');
@@ -44,28 +57,23 @@ export default function BrainCaptureWizard({ onFinish, onSkip }: BrainCaptureWiz
     contentPillars: parseTagList(contentPillarsText),
   });
 
-  const handleSkip = () => onSkip(currentSnapshot());
-  const goNext = () => setScreen((s) => Math.min(s + 1, TOTAL_SCREENS - 1));
+  const handleSkip = () => runSave(() => onSkip(currentSnapshot()));
+  const goNext = () => runSave(async () => { await onSave(currentSnapshot()); setScreen((s) => Math.min(s + 1, TOTAL_SCREENS - 1)); });
   const goBack = () => setScreen((s) => Math.max(s - 1, 0));
-  const handleFinish = () => onFinish(currentSnapshot());
+  const handleFinish = () => runSave(() => onFinish(currentSnapshot()));
 
   return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-      >
-        <motion.div
-          key={screen}
-          initial={{ opacity: 0, y: 16, scale: 0.97 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: -8, scale: 0.98 }}
-          transition={{ type: 'spring', stiffness: 320, damping: 28 }}
-          className="w-full max-w-md rounded-[28px] p-8 sm:p-10 space-y-6 border shadow-2xl relative overflow-hidden"
-          style={{ backgroundColor: 'var(--card-bg)', borderColor: 'var(--card-border)', boxShadow: 'var(--card-shadow)' }}
-        >
+    <Dialog.Root open>
+      <Dialog.Portal>
+        <Dialog.Overlay className="oy-dialog-overlay" />
+        <Dialog.Content className="oy-dialog" aria-describedby="capture-description"
+          onEscapeKeyDown={(event) => event.preventDefault()}
+          onPointerDownOutside={(event) => event.preventDefault()}>
+          <Dialog.Title className="sr-only">Teach Oyinca about your brand</Dialog.Title>
+          <p id="capture-description" className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>Your answers are saved when you continue. You can update them in Settings.</p>
+          {saveError && <p role="alert" className="text-sm mb-4" style={{ color: 'var(--accent-error)' }}>{saveError}</p>}
+          <p role="status" className="text-sm mb-2">{saving ? 'Saving your details…' : screen > 0 ? `Question ${screen} of 4` : ''}</p>
+          <fieldset disabled={saving} aria-busy={saving} className="min-w-0 disabled:opacity-70">
           {/* Ambient brand glow, same treatment as the old welcome modal. */}
           <div
             className="pointer-events-none absolute -top-24 -right-24 h-56 w-56 rounded-full blur-3xl opacity-30"
@@ -97,7 +105,7 @@ export default function BrainCaptureWizard({ onFinish, onSkip }: BrainCaptureWiz
               <div className="space-y-5">
                 <div className="space-y-2">
                   <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight" style={{ color: 'var(--text-primary)' }}>
-                    Hi, I&rsquo;m Oyinca 👋
+                    Hi, I&rsquo;m Oyinca
                   </h2>
                   <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
                     I&rsquo;m your AI Social Media Manager. Before I write a single caption, I want to actually
@@ -136,10 +144,11 @@ export default function BrainCaptureWizard({ onFinish, onSkip }: BrainCaptureWiz
                 <textarea
                   autoFocus
                   rows={3}
+                  aria-label="Business description"
                   value={businessDescription}
                   onChange={(e) => setBusinessDescription(e.target.value)}
                   placeholder="e.g. We make handmade leather bags for people who want something that lasts."
-                  className="w-full rounded-2xl border px-4 py-3 text-sm resize-none"
+                  className="w-full rounded-2xl border px-4 py-3 text-base resize-none"
                   style={{ borderColor: 'var(--card-border)', backgroundColor: 'var(--bg-surface-sunken)', color: 'var(--text-primary)' }}
                 />
                 <StepNav onBack={goBack} onNext={goNext} onSkip={handleSkip} />
@@ -155,10 +164,11 @@ export default function BrainCaptureWizard({ onFinish, onSkip }: BrainCaptureWiz
                 <textarea
                   autoFocus
                   rows={3}
+                  aria-label="Target audience"
                   value={targetAudience}
                   onChange={(e) => setTargetAudience(e.target.value)}
                   placeholder="e.g. Busy professionals in their 20s-30s who value quality over trends."
-                  className="w-full rounded-2xl border px-4 py-3 text-sm resize-none"
+                  className="w-full rounded-2xl border px-4 py-3 text-base resize-none"
                   style={{ borderColor: 'var(--card-border)', backgroundColor: 'var(--bg-surface-sunken)', color: 'var(--text-primary)' }}
                 />
                 <StepNav onBack={goBack} onNext={goNext} onSkip={handleSkip} />
@@ -174,18 +184,20 @@ export default function BrainCaptureWizard({ onFinish, onSkip }: BrainCaptureWiz
                 <input
                   autoFocus
                   type="text"
+                  aria-label="Brand voice"
                   value={brandVoice}
                   onChange={(e) => setBrandVoice(e.target.value)}
                   placeholder="e.g. Calm, confident, a little playful"
-                  className="w-full rounded-2xl border px-4 py-3 text-sm"
+                  className="w-full rounded-2xl border px-4 py-3 text-base"
                   style={{ borderColor: 'var(--card-border)', backgroundColor: 'var(--bg-surface-sunken)', color: 'var(--text-primary)' }}
                 />
                 <input
                   type="text"
+                  aria-label="Brand personality (optional)"
                   value={brandPersonalityText}
                   onChange={(e) => setBrandPersonalityText(e.target.value)}
                   placeholder="A few personality words, comma-separated (optional)"
-                  className="w-full rounded-2xl border px-4 py-3 text-sm"
+                  className="w-full rounded-2xl border px-4 py-3 text-base"
                   style={{ borderColor: 'var(--card-border)', backgroundColor: 'var(--bg-surface-sunken)', color: 'var(--text-primary)' }}
                 />
                 <StepNav onBack={goBack} onNext={goNext} onSkip={handleSkip} />
@@ -201,10 +213,11 @@ export default function BrainCaptureWizard({ onFinish, onSkip }: BrainCaptureWiz
                 <input
                   autoFocus
                   type="text"
+                  aria-label="Content themes"
                   value={contentPillarsText}
                   onChange={(e) => setContentPillarsText(e.target.value)}
                   placeholder="e.g. Product tips, customer stories, behind the scenes"
-                  className="w-full rounded-2xl border px-4 py-3 text-sm"
+                  className="w-full rounded-2xl border px-4 py-3 text-base"
                   style={{ borderColor: 'var(--card-border)', backgroundColor: 'var(--bg-surface-sunken)', color: 'var(--text-primary)' }}
                 />
                 <div className="flex items-center gap-3 pt-1">
@@ -221,13 +234,13 @@ export default function BrainCaptureWizard({ onFinish, onSkip }: BrainCaptureWiz
                     className="flex-1 py-3.5 px-6 rounded-2xl text-white font-bold text-sm shadow-xl transition flex items-center justify-center space-x-2 touch-target"
                     style={{ background: 'var(--gradient-primary-cta)', boxShadow: '0 10px 25px -5px rgba(124, 58, 237, 0.4)' }}
                   >
-                    <span>Start creating</span>
+                    <span>Connect your account</span>
                     <ArrowRight className="h-4 w-4" />
                   </button>
                 </div>
                 <button
                   onClick={handleSkip}
-                  className="w-full text-center text-xs font-semibold pt-1"
+                  className="w-full touch-target text-center text-sm font-semibold pt-1"
                   style={{ color: 'var(--text-muted)' }}
                 >
                   Skip for now
@@ -235,13 +248,14 @@ export default function BrainCaptureWizard({ onFinish, onSkip }: BrainCaptureWiz
               </div>
             )}
           </div>
-        </motion.div>
-      </motion.div>
-    </AnimatePresence>
+          </fieldset>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }
 
-function StepNav({ onBack, onNext, onSkip }: { onBack: () => void; onNext: () => void; onSkip: () => void }) {
+function StepNav({ onBack, onNext, onSkip }: { onBack: () => void; onNext: () => Promise<void>; onSkip: () => void }) {
   return (
     <div className="space-y-2 pt-1">
       <div className="flex items-center gap-3">
@@ -264,7 +278,7 @@ function StepNav({ onBack, onNext, onSkip }: { onBack: () => void; onNext: () =>
       </div>
       <button
         onClick={onSkip}
-        className="w-full text-center text-xs font-semibold pt-1"
+        className="w-full touch-target text-center text-sm font-semibold pt-1"
         style={{ color: 'var(--text-muted)' }}
       >
         Skip for now

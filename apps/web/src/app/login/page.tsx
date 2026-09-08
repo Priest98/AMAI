@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
 import { Logo } from '@/components/logo';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
@@ -91,11 +90,8 @@ export default function LoginPage() {
     <div className="min-h-screen w-full flex flex-col items-center justify-center gap-4 p-4" style={{ color: 'var(--text-primary)' }}>
 
       <PlanSelectionNotice />
-      <motion.div
-        initial={{ opacity: 0, y: 15 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-        className="glass-panel w-full max-w-md rounded-[var(--radius-xl)] p-8 sm:p-10 space-y-8 relative overflow-hidden"
+      <div
+        className="oy-auth-panel w-full max-w-md rounded-[var(--radius-xl)] p-6 sm:p-10 space-y-8 relative overflow-hidden"
       >
         {/* Brand Header */}
         <div className="flex items-start justify-between gap-3">
@@ -108,7 +104,7 @@ export default function LoginPage() {
                 Welcome back to Oyinca
               </h1>
               <p className="text-body-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-                Sign in to manage your AI social media publishing workspace.
+                Your content, approvals and schedule are waiting.
               </p>
             </div>
           </div>
@@ -117,7 +113,7 @@ export default function LoginPage() {
 
         {/* Error Feedback */}
         {error && (
-          <div className="p-4 rounded-[var(--radius-lg)] border text-xs font-semibold flex items-center space-x-2" style={{ backgroundColor: 'var(--accent-error-subtle)', borderColor: 'var(--accent-error)', color: 'var(--accent-error)' }}>
+          <div role="alert" className="p-4 rounded-[var(--radius-lg)] border text-sm font-semibold flex items-center space-x-2" style={{ backgroundColor: 'var(--accent-error-subtle)', borderColor: 'var(--accent-error)', color: 'var(--accent-error)' }}>
             <AlertCircle className="h-4 w-4 flex-shrink-0" />
             <span>{error}</span>
           </div>
@@ -127,7 +123,9 @@ export default function LoginPage() {
         <form onSubmit={handleLogin} className="space-y-5">
 
           <Input
-            label="Email Address"
+            label="Email address"
+            name="email"
+            autoComplete="email"
             type="email"
             required
             value={email}
@@ -138,7 +136,7 @@ export default function LoginPage() {
 
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <label className="text-overline block">Password</label>
+              <label htmlFor="password" className="text-overline block">Password</label>
               <Link href="/forgot-password" className="text-xs font-semibold hover:underline" style={{ color: 'var(--accent-secondary)' }}>
                 Forgot password?
               </Link>
@@ -148,6 +146,9 @@ export default function LoginPage() {
                 <Lock className="h-4 w-4" />
               </span>
               <input
+                id="password"
+                name="password"
+                autoComplete="current-password"
                 type={showPassword ? 'text' : 'password'}
                 required
                 value={password}
@@ -158,7 +159,9 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3.5"
+                className="absolute right-1 touch-target flex items-center justify-center"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                aria-pressed={showPassword}
                 style={{ color: 'var(--text-muted)' }}
               >
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -167,7 +170,7 @@ export default function LoginPage() {
           </div>
 
           <div className="flex items-center justify-between pt-1">
-            <label className="flex items-center space-x-2 text-xs font-semibold cursor-pointer" style={{ color: 'var(--text-secondary)' }}>
+            <label className="flex min-h-11 items-center space-x-2 text-sm cursor-pointer" style={{ color: 'var(--text-secondary)' }}>
               <input
                 type="checkbox"
                 checked={rememberMe}
@@ -180,7 +183,7 @@ export default function LoginPage() {
           </div>
 
           <Button type="submit" variant="primary" fullWidth loading={loading} icon={<ArrowRight className="h-4 w-4" />}>
-            Sign In to Dashboard
+            Sign in
           </Button>
         </form>
 
@@ -192,7 +195,7 @@ export default function LoginPage() {
           </Link>
         </p>
 
-      </motion.div>
+      </div>
 
       <BrandAttribution />
     </div>

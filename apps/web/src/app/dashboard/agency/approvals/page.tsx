@@ -6,6 +6,7 @@ import { CheckSquare, ArrowRight } from 'lucide-react';
 import { getAgencyApprovalQueue, AgencyQueuePost } from '@/lib/agency';
 import { setActiveClientId } from '@/lib/api';
 import AgencyUpgradePrompt from '@/components/dashboard/AgencyUpgradePrompt';
+import RetryPanel from '@/components/ui/RetryPanel';
 
 /**
  * Portfolio approval queue: everything awaiting review across every client,
@@ -26,8 +27,12 @@ export default function AgencyApprovalsPage() {
   const [error, setError] = useState<string | null>(null);
   const [needsUpgrade, setNeedsUpgrade] = useState(false);
   const [clientFilter, setClientFilter] = useState<string>('all');
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
+    setLoading(true);
+    setError(null);
+    setNeedsUpgrade(false);
     getAgencyApprovalQueue()
       .then((r) => setPosts(r.posts))
       .catch((err: any) => {
@@ -38,7 +43,7 @@ export default function AgencyApprovalsPage() {
         }
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [retry]);
 
   const clients = useMemo(() => {
     const seen = new Map<string, string>();
@@ -72,7 +77,7 @@ export default function AgencyApprovalsPage() {
       />
     );
   }
-  if (error) return <div className="exec-card card-pad text-center text-body-sm" style={{ color: 'var(--text-secondary)' }}>{error}</div>;
+  if (error) return <RetryPanel message={error} onRetry={() => setRetry((value) => value + 1)} label="Retry approvals" />;
 
   return (
     <div className="space-y-6">

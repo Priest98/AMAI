@@ -2,11 +2,13 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Zap, Gem, ArrowRight, TrendingUp, Plus, X } from 'lucide-react';
+import { Zap, Gem, ArrowRight, TrendingUp, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { getCreatorOverview, CreatorOverview, HEALTH_META, healthColor, createClient } from '@/lib/agency';
 import { getBillingSummary, BillingSummary } from '@/lib/billing';
 import { setActiveClientId } from '@/lib/api';
+import Modal from '@/components/ui/Modal';
+import RetryPanel from '@/components/ui/RetryPanel';
 
 /**
  * Inline "add second account" dialog -- deliberately NOT a link to
@@ -43,19 +45,11 @@ function AddAccountDialog({ onClose, onCreated }: { onClose: () => void; onCreat
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" style={{ backgroundColor: 'rgba(10,11,20,0.6)' }}>
-      <div className="exec-card card-pad w-full max-w-md space-y-5" role="dialog" aria-modal="true" aria-labelledby="add-account-title">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h2 id="add-account-title" className="text-h3" style={{ color: 'var(--text-primary)' }}>Add your second account</h2>
-            <p className="text-body-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-              You'll connect its TikTok account and start posting separately from your first one right after.
-            </p>
-          </div>
-          <button onClick={onClose} aria-label="Close" className="btn-icon-glass h-9 w-9 flex items-center justify-center touch-target">
-            <X className="h-4 w-4" style={{ color: 'var(--text-secondary)' }} />
-          </button>
-        </div>
+    <Modal open onClose={onClose} title="Add your second account" maxWidth="448px">
+      <div className="space-y-5">
+        <p className="text-body-sm" style={{ color: 'var(--text-secondary)' }}>
+          You'll connect its TikTok account and start posting separately from your first one right after.
+        </p>
 
         <form onSubmit={submit} className="space-y-4">
           <div>
@@ -64,7 +58,6 @@ function AddAccountDialog({ onClose, onCreated }: { onClose: () => void; onCreat
             </label>
             <input
               id="account-name"
-              autoFocus
               className="input-field w-full h-11 px-3.5 mt-2"
               placeholder="e.g. My Second Brand"
               value={name}
@@ -72,7 +65,7 @@ function AddAccountDialog({ onClose, onCreated }: { onClose: () => void; onCreat
             />
           </div>
 
-          {error && <p className="text-body-sm" style={{ color: 'var(--accent-error)' }}>{error}</p>}
+          {error && <p className="text-body-sm" role="alert" style={{ color: 'var(--accent-error)' }}>{error}</p>}
 
           <div className="flex flex-wrap gap-3">
             <button
@@ -88,7 +81,7 @@ function AddAccountDialog({ onClose, onCreated }: { onClose: () => void; onCreat
           </div>
         </form>
       </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -112,6 +105,7 @@ export default function CreatorCommandCenterPage() {
 
   const load = () => {
     setLoading(true);
+    setError(null);
     Promise.all([getCreatorOverview(), getBillingSummary()])
       .then(([o, b]) => { setOverview(o); setBilling(b); })
       .catch(() => setError("Couldn't load your Command Center. Try again."))
@@ -133,9 +127,7 @@ export default function CreatorCommandCenterPage() {
 
   if (error) {
     return (
-      <div className="exec-card card-pad text-center">
-        <p className="text-body-sm" style={{ color: 'var(--text-secondary)' }}>{error}</p>
-      </div>
+      <RetryPanel message={error} onRetry={load} label="Retry Command Center" />
     );
   }
 

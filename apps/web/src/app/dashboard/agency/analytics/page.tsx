@@ -6,6 +6,7 @@ import { Info, ArrowRight, Download } from 'lucide-react';
 import { getAgencyAnalytics, AgencyAnalytics } from '@/lib/agency';
 import { setActiveClientId } from '@/lib/api';
 import AgencyUpgradePrompt from '@/components/dashboard/AgencyUpgradePrompt';
+import RetryPanel from '@/components/ui/RetryPanel';
 
 /**
  * P1 agency reporting foundation. Client-side CSV of exactly what's
@@ -67,9 +68,12 @@ export default function AgencyAnalyticsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [needsUpgrade, setNeedsUpgrade] = useState(false);
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     setLoading(true);
+    setError(null);
+    setNeedsUpgrade(false);
     getAgencyAnalytics(days)
       .then(setData)
       .catch((err: any) => {
@@ -80,7 +84,7 @@ export default function AgencyAnalyticsPage() {
         }
       })
       .finally(() => setLoading(false));
-  }, [days]);
+  }, [days, retry]);
 
   const openClient = (id: string) => {
     setActiveClientId(id);
@@ -96,7 +100,7 @@ export default function AgencyAnalyticsPage() {
       />
     );
   }
-  if (error) return <div className="exec-card card-pad text-center text-body-sm" style={{ color: 'var(--text-secondary)' }}>{error}</div>;
+  if (error) return <RetryPanel message={error} onRetry={() => setRetry((value) => value + 1)} label="Retry analytics" />;
 
   const d = data!;
 

@@ -35,11 +35,12 @@ const NAV_ITEMS = [
   { href: '/dashboard/admin/audit-log', label: 'Audit log' },
 ];
 
-type GateState = 'checking' | 'allowed' | 'denied';
+type GateState = 'checking' | 'allowed' | 'denied' | 'unavailable';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [gate, setGate] = useState<GateState>('checking');
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -49,15 +50,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       })
       .catch((err: any) => {
         if (cancelled) return;
-        // Any failure defaults to denied -- fails closed on network errors
-        // too, not just a real 403, since there's no safe reason to show
-        // admin chrome when we can't confirm access.
-        setGate('denied');
+        setGate(err?.status === 401 || err?.status === 403 ? 'denied' : 'unavailable');
       });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [retry]);
 
   if (gate === 'checking') {
     return (
@@ -74,6 +72,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <p className="text-body-sm" style={{ color: 'var(--text-secondary)' }}>
           This area is restricted to Oyinca administrators.
         </p>
+      </div>
+    );
+  }
+
+  if (gate === 'unavailable') {
+    return (
+      <div className="p-10 max-w-md mx-auto text-center" role="alert">
+        <ShieldAlert className="h-6 w-6 mx-auto mb-3" style={{ color: 'var(--accent-warning)' }} />
+        <p className="text-body-sm" style={{ color: 'var(--text-secondary)' }}>Admin access could not be checked.</p>
+        <button type="button" onClick={() => { setGate('checking'); setRetry((value) => value + 1); }} className="btn-secondary mt-4 px-4 py-2.5 rounded-[var(--radius-md)] text-body-sm font-bold touch-target">
+          Retry access check
+        </button>
       </div>
     );
   }

@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { AlertTriangle, CheckCircle2, ShieldAlert } from 'lucide-react';
+import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
+import RetryPanel from '@/components/ui/RetryPanel';
 
 /**
  * Oyinca's own internal operating view -- not a customer-facing page.
@@ -56,13 +57,16 @@ export default function AdminOverviewPage() {
   const [data, setData] = useState<AdminOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
+    setLoading(true);
+    setError(null);
     apiFetch<AdminOverview>('/admin/overview')
       .then(setData)
       .catch((e: any) => setError(e?.message || "Couldn't load the admin overview."))
       .finally(() => setLoading(false));
-  }, []);
+  }, [retry]);
 
   if (loading) {
     return <div className="p-10 text-center text-body-sm" style={{ color: 'var(--text-secondary)' }}>Loading…</div>;
@@ -70,10 +74,7 @@ export default function AdminOverviewPage() {
 
   if (error || !data) {
     return (
-      <div className="p-10 max-w-md mx-auto text-center">
-        <ShieldAlert className="h-6 w-6 mx-auto mb-3" style={{ color: 'var(--accent-error)' }} />
-        <p className="text-body-sm" style={{ color: 'var(--text-secondary)' }}>{error || 'Not available.'}</p>
-      </div>
+      <RetryPanel message={error || 'The admin overview is not available.'} onRetry={() => setRetry((value) => value + 1)} label="Retry overview" />
     );
   }
 

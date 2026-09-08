@@ -22,6 +22,7 @@ import { INSTAGRAM_ENABLED } from '@/lib/featureFlags';
 import StatCard from '@/components/ui/StatCard';
 import EmptyState from '@/components/ui/EmptyState';
 import { SkeletonListRows } from '@/components/ui/Skeleton';
+import Modal from '@/components/ui/Modal';
 
 interface TikTokStats {
   followerCount: number | null;
@@ -71,6 +72,7 @@ interface ConnectedAccount {
 export default function ConnectedAccountsPage() {
   const [accounts, setAccounts] = useState<ConnectedAccount[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
   // Local Storage Persistent Fallbacks
@@ -130,6 +132,7 @@ export default function ConnectedAccountsPage() {
 
   const fetchAccounts = async () => {
     setLoading(true);
+    setLoadError(false);
     try {
       // Passes the ClientSwitcher's currently-active client explicitly --
       // without it the backend falls back to the JWT's fixed brandId
@@ -141,7 +144,7 @@ export default function ConnectedAccountsPage() {
       const data = await apiFetch<{ socialAccounts?: any[] }>(`/oauth/accounts?brandId=${encodeURIComponent(getBrandId())}`);
       setAccounts(data.socialAccounts || []);
     } catch (err) {
-      console.error('Failed to fetch connected accounts', err);
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -275,6 +278,8 @@ export default function ConnectedAccountsPage() {
   // the previous "unless already connected" carve-out. Nothing server-side
   // changes: flipping INSTAGRAM_ENABLED back on needs zero backend work.
   const showInstagramCard = INSTAGRAM_ENABLED;
+
+  if (loading || loadError) return <section className="p-6 space-y-4" aria-busy={loading}><h1 className="text-h1">Connected accounts</h1><p role={loadError ? 'alert' : 'status'}>{loadError ? 'Account status could not be checked. Your connections have not been changed.' : 'Checking your connected accounts…'}</p>{loadError && <button className="btn-secondary touch-target px-4" onClick={fetchAccounts}>Retry connections</button>}</section>;
 
   return (
     <div className="space-y-6 sm:space-y-8 max-w-7xl mx-auto">
@@ -566,21 +571,9 @@ export default function ConnectedAccountsPage() {
       </div>
 
       {/* Details Modal */}
-      <AnimatePresence>
-        {detailsModal && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="glass-panel rounded-[var(--radius-xl)] max-w-md w-full p-6 space-y-6"
-            >
-              <div className="flex items-center justify-between">
-                <h3 className="text-h3" style={{ color: 'var(--text-primary)' }}>{detailsModal.title}</h3>
-                <button onClick={() => setDetailsModal(null)} className="touch-target" style={{ color: 'var(--text-secondary)' }}>
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
+      {detailsModal && (
+        <Modal open onClose={() => setDetailsModal(null)} title={detailsModal.title} maxWidth="448px">
+          <div className="space-y-6">
 
               <div className="space-y-3 text-xs">
                 <div className="surface-tile p-3.5 flex justify-between">
@@ -694,10 +687,9 @@ export default function ConnectedAccountsPage() {
               >
                 Close
               </button>
-            </motion.div>
           </div>
-        )}
-      </AnimatePresence>
+        </Modal>
+      )}
     </div>
   );
 }

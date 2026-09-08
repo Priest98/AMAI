@@ -1,10 +1,11 @@
 @import "tailwindcss";
 @import "../styles/theme-fixes.css";
+@import "../styles/tokens.css";
 
 /*
  * Oyinca Design System v2 — Light & Dark
  *
- * Typography: Plus Jakarta Sans (product/UI, ~90%) + Instrument Serif
+ * Typography: Inter (product/UI, ~90%) + Playfair Display
  * (display/brand, ~10%). Both loaded once in layout.tsx via next/font/google
  * (self-hosted at build time, full Latin glyph coverage, real weight range
  * 400-800 on the body face -- see layout.tsx for why this replaced the
@@ -16,139 +17,6 @@
  * hierarchy. Real elevation (5 levels) instead of one flat shadow reused
  * everywhere -- depth communicates hierarchy without adding visual noise.
  */
-
-:root,
-.light {
-  /* ---- Surfaces & elevation ----
-   * Neutral base drawn from a warm ivory/parchment palette rather than a
-   * cool blue-white -- the previous #F6FAFD/#FFFFFF pairing measured as
-   * genuinely harsh/glare-y on long sessions (a near-pure white base with
-   * a blue cast reads colder and brighter than the same luminance in a
-   * warm tone). Shifted every surface a few points toward cream while
-   * keeping the navy/steel-blue palette carrying all brand accent duty
-   * unchanged, so the identity doesn't change, just the base's warmth. */
-  --bg-base: #FAF6EF;
-  --bg-surface: #FDFBF6;
-  --bg-surface-raised: #FFFDF8;
-  --bg-surface-sunken: #F1EADD;
-  --hover-surface: #EFE6D6;
-  --card-bg: #FDFBF6;
-  --card-border: #E6DDC9;
-  --card-hover-border: #D8CBAE;
-
-  --elevation-1: 0 1px 2px 0 rgba(10, 25, 49, 0.05);
-  --elevation-2: 0 1px 2px 0 rgba(10, 25, 49, 0.05), 0 4px 10px -4px rgba(10, 25, 49, 0.08);
-  --elevation-3: 0 2px 4px -1px rgba(10, 25, 49, 0.06), 0 8px 20px -6px rgba(10, 25, 49, 0.11);
-  --elevation-4: 0 4px 8px -2px rgba(10, 25, 49, 0.07), 0 16px 32px -10px rgba(10, 25, 49, 0.15);
-  --elevation-5: 0 8px 16px -4px rgba(10, 25, 49, 0.09), 0 28px 56px -16px rgba(10, 25, 49, 0.22);
-  --card-shadow: var(--elevation-2);
-
-  --glass-bg: rgba(250, 246, 239, 0.72);
-  --glass-border: rgba(250, 246, 239, 0.5);
-
-  /* ---- Glass Design System ----
-   * Card/input/button surfaces get real translucency + blur instead of a
-   * flat opaque fill. Light mode stays airy and soft, now with a warm
-   * ivory highlight instead of stark white, rather than a dark-mode glass
-   * panel with the colors merely inverted. */
-  --glass-blur: 20px;
-  --glass-blur-sm: 12px;
-  --glass-card-bg: rgba(250, 246, 239, 0.64);
-  --glass-card-bg-hover: rgba(250, 246, 239, 0.8);
-  --glass-card-border: rgba(10, 25, 49, 0.10);
-  --glass-highlight: rgba(250, 246, 239, 0.6);
-  --glass-glow: rgba(74, 127, 167, 0.28);
-  --glass-input-bg: rgba(250, 246, 239, 0.55);
-
-  /* ---- Brand & accents: navy blue carries the identity, gunmetal
-     anchors dark elements, steel blue is the primary interactive accent ---- */
-  --accent-primary: #0A1931;
-  --accent-secondary: #4A7FA7;
-  --accent-primary-subtle: rgba(10, 25, 49, 0.07);
-  --accent-secondary-subtle: rgba(74, 127, 167, 0.12);
-  --accent-success: #0F9D64;
-  --accent-warning: #D97706;
-  --accent-error: #DC2626;
-  --accent-success-subtle: rgba(15, 157, 100, 0.10);
-  --accent-warning-subtle: rgba(217, 119, 6, 0.10);
-  --accent-error-subtle: rgba(220, 38, 38, 0.10);
-
-  /* ---- Text ---- */
-  --text-primary: #0A1931;
-  --text-secondary: #3D4A5C;
-  --text-muted: #8891A0;
-  --text-on-accent: #FAF6EF;
-
-  --gradient-primary-cta: linear-gradient(135deg, #0A1931 0%, #4A7FA7 100%);
-  --gradient-gold-cta: linear-gradient(135deg, #0A1931 0%, #4A7FA7 100%);
-  --gradient-mesh-subtle: radial-gradient(60% 60% at 15% 10%, rgba(74, 127, 167, 0.08) 0%, transparent 60%),
-    radial-gradient(50% 50% at 100% 0%, rgba(10, 25, 49, 0.05) 0%, transparent 60%);
-
-  /* Oyinca typography: Plus Jakarta Sans (product) + Instrument Serif (brand).
-     Plus Jakarta Sans drives both body and headings; Instrument Serif is
-     display only, applied selectively via --font-display. */
-  --font-sans: var(--font-body-var), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-heading: var(--font-body-var), var(--font-sans);
-  --font-display: var(--font-display-var), var(--font-body-var), var(--font-sans);
-  --font-mono: 'Geist Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
-}
-
-.dark {
-  /* Gunmetal as the dark base, steel/sky blue brightened for legibility */
-  --bg-base: #21242F;
-  --bg-surface: #2A2E3C;
-  --bg-surface-raised: #333748;
-  --bg-surface-sunken: #1A1D26;
-  --hover-surface: #3B4054;
-  --card-bg: #2A2E3C;
-  --card-border: rgba(179, 207, 229, 0.10);
-  --card-hover-border: rgba(179, 207, 229, 0.20);
-
-  --elevation-1: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
-  --elevation-2: 0 1px 2px 0 rgba(0, 0, 0, 0.3), 0 4px 12px -4px rgba(0, 0, 0, 0.45);
-  --elevation-3: 0 2px 4px -1px rgba(0, 0, 0, 0.35), 0 10px 24px -8px rgba(0, 0, 0, 0.5);
-  --elevation-4: 0 4px 10px -2px rgba(0, 0, 0, 0.4), 0 20px 40px -12px rgba(0, 0, 0, 0.55);
-  --elevation-5: 0 10px 20px -4px rgba(0, 0, 0, 0.45), 0 32px 64px -18px rgba(0, 0, 0, 0.65);
-  --card-shadow: var(--elevation-2);
-
-  --glass-bg: rgba(42, 46, 60, 0.72);
-  --glass-border: rgba(179, 207, 229, 0.12);
-
-  /* ---- Glass Design System ----
-   * Dark mode reads rich and deep rather than a bright-mode panel with
-   * colors flipped: lower base opacity so the ambient gradient mesh shows
-   * through, a cool steel-blue highlight instead of flat white, and a
-   * brighter glow so hover states stay legible against a dark backdrop. */
-  --glass-blur: 20px;
-  --glass-blur-sm: 12px;
-  --glass-card-bg: rgba(42, 46, 60, 0.56);
-  --glass-card-bg-hover: rgba(51, 55, 72, 0.68);
-  --glass-card-border: rgba(179, 207, 229, 0.14);
-  --glass-highlight: rgba(179, 207, 229, 0.08);
-  --glass-glow: rgba(127, 176, 219, 0.35);
-  --glass-input-bg: rgba(26, 29, 38, 0.55);
-
-  --accent-primary: #6C93B8;
-  --accent-secondary: #7FB0DB;
-  --accent-primary-subtle: rgba(108, 147, 184, 0.16);
-  --accent-secondary-subtle: rgba(127, 176, 219, 0.18);
-  --accent-success: #34D399;
-  --accent-warning: #FBBF24;
-  --accent-error: #F87171;
-  --accent-success-subtle: rgba(52, 211, 153, 0.14);
-  --accent-warning-subtle: rgba(251, 191, 36, 0.14);
-  --accent-error-subtle: rgba(248, 113, 113, 0.14);
-
-  --text-primary: #F6FAFD;
-  --text-secondary: #B3CFE5;
-  --text-muted: #8B95A8;
-  --text-on-accent: #0A1931;
-
-  --gradient-primary-cta: linear-gradient(135deg, #1A3D63 0%, #4A7FA7 100%);
-  --gradient-gold-cta: linear-gradient(135deg, #1A3D63 0%, #4A7FA7 100%);
-  --gradient-mesh-subtle: radial-gradient(60% 60% at 15% 10%, rgba(127, 176, 219, 0.12) 0%, transparent 60%),
-    radial-gradient(50% 50% at 100% 0%, rgba(26, 61, 99, 0.14) 0%, transparent 60%);
-}
 
 /* This block previously re-declared each token as var(--same-name) --
    e.g. --font-display: var(--font-display) -- intending to re-expose the
@@ -163,9 +31,9 @@
    string, not a var() into a next/font runtime variable) had no runtime
    dependency for Tailwind's build step to fail to resolve.
    Effect was mostly invisible sitewide (headings/body already inherit
-   Plus Jakarta Sans from further up, so an empty --font-heading/--font-sans
+   Inter from further up, so an empty --font-heading/--font-sans
    silently falls through to that same visual result) -- except the two
-   moments that specifically wanted the *different* Instrument Serif face
+   moments that specifically wanted the *different* Playfair Display face
    (Hero + FinalCTA's .lp-hero-display), where it was directly visible:
    both headlines rendered in the body sans instead of the display serif.
    Fixed by pointing each theme key at its real source value directly,
@@ -295,23 +163,8 @@ input, select, textarea {
   border-radius: 4px;
 }
 
-/* 36px was below every mobile touch-target guideline (WCAG 2.5.8 asks 24px
-   minimum, Apple/Material both recommend 44px). Desktop keeps the compact
-   36px because a mouse is precise; any coarse pointer (finger) gets a real
-   44px hit area. Using a pointer media query rather than a width breakpoint
-   means a touchscreen laptop is treated correctly too. */
-.touch-target {
-  min-height: 36px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-@media (pointer: coarse) {
-  .touch-target {
-    min-height: 44px;
-    min-width: 44px;
-  }
-}
+/* Consistent targets across mouse, keyboard and touch. */
+.touch-target { min-height: var(--control-height); min-width: var(--control-height); display: inline-flex; align-items: center; justify-content: center; }
 
 /* =============================== Typography ================================ */
 .text-display {
@@ -430,7 +283,7 @@ input, select, textarea {
    that intensifies on hover/press rather than a flat color swap. */
 .btn-primary-gradient {
   background: var(--gradient-primary-cta);
-  color: var(--text-on-accent);
+  color: #FFFFFF;
   border-radius: var(--radius-md);
   font-weight: 600;
   box-shadow: 0 4px 14px -2px var(--glass-glow), inset 0 1px 0 0 rgba(255, 255, 255, 0.28);
@@ -617,3 +470,11 @@ input, select, textarea {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(74, 127, 167, 0.25); border-radius: var(--radius-full); }
 ::-webkit-scrollbar-thumb:hover { background: rgba(74, 127, 167, 0.45); }
+
+/* Accessible shared surfaces; retain existing component APIs. */
+.oy-auth-panel, .oy-dialog { background: var(--bg-surface); border: 1px solid var(--card-border); box-shadow: var(--elevation-3); }
+.oy-dialog-overlay { position: fixed; inset: 0; z-index: 200; background: rgb(10 19 31 / 65%); }
+.oy-dialog { position: fixed; z-index: 201; left: 50%; top: 50%; transform: translate(-50%, -50%); width: calc(100% - 32px); max-height: calc(100dvh - 32px); overflow-y: auto; overscroll-behavior: contain; padding: 24px; border-radius: var(--radius-xl); color: var(--text-primary); }
+.oy-auth-panel .input-field { font-size: 16px; min-height: var(--control-height); }
+.oy-auth-panel a { text-underline-offset: 4px; }
+:where(button, a, input, select, textarea, summary):focus-visible { outline: 2px solid var(--accent-secondary); outline-offset: 4px; }

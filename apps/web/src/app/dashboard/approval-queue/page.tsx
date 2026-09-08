@@ -86,16 +86,18 @@ export default function ApprovalQueuePage() {
   const [editDate, setEditDate] = useState('');
   const [editTime, setEditTime] = useState('');
   const [message, setMessage] = useState('');
+  const [loadError, setLoadError] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [liveProgress, setLiveProgress] = useState<string | null>(null);
 
   const loadPosts = useCallback(async () => {
+    setLoadError('');
     try {
       const data = await brandFetch<QueuePost[]>('/posts?status=NEEDS_APPROVAL');
       setPosts(Array.isArray(data) ? data : []);
     } catch (e: any) {
-      setMessage(e.message || 'Could not load the Approval Queue.');
+      setLoadError('Your review queue could not be loaded. Try again to see which posts need approval.');
     } finally {
       setLoading(false);
     }
@@ -328,13 +330,14 @@ export default function ApprovalQueuePage() {
       {message && (
         <div className="p-3.5 rounded-[var(--radius-lg)] border text-xs font-semibold flex justify-between items-center" style={{ backgroundColor: 'var(--accent-success-subtle)', borderColor: 'var(--accent-success)', color: 'var(--accent-success)' }}>
           <span>{message}</span>
-          <button onClick={() => setMessage('')} className="hover:opacity-70">✕</button>
+          <button aria-label="Dismiss message" onClick={() => setMessage('')} className="hover:opacity-70">✕</button>
         </div>
       )}
 
       {/* Tabs Bar */}
-      <div className="flex items-center space-x-2 border-b pb-3" style={{ borderColor: 'var(--card-border)' }}>
+      <div className="flex flex-wrap items-center gap-2 border-b pb-3" style={{ borderColor: 'var(--card-border)' }}>
         <button
+          aria-pressed={activeTab === 'posts'}
           onClick={() => setActiveTab('posts')}
           className="px-4 py-2 rounded-[var(--radius-md)] text-xs font-bold transition-all duration-200 flex items-center space-x-2 touch-target"
           style={activeTab === 'posts'
@@ -346,6 +349,7 @@ export default function ApprovalQueuePage() {
         </button>
 
         <button
+          aria-pressed={activeTab === 'replies'}
           onClick={() => setActiveTab('replies')}
           className="px-4 py-2 rounded-[var(--radius-md)] text-xs font-bold transition-all duration-200 flex items-center space-x-2 touch-target"
           style={activeTab === 'replies'
@@ -359,6 +363,8 @@ export default function ApprovalQueuePage() {
 
       {activeTab === 'replies' ? (
         <PendingRepliesList />
+      ) : loadError ? (
+        <div role="alert" className="py-8 space-y-4"><p>{loadError}</p><button className="btn-secondary touch-target px-4" onClick={() => { setLoading(true); void loadPosts(); }}>Retry queue</button></div>
       ) : loading ? (
         <div className="py-16 flex items-center justify-center text-xs" style={{ color: 'var(--text-secondary)' }}>
           <Loader2 className="h-4 w-4 animate-spin mr-2" /> Loading…
@@ -458,7 +464,7 @@ export default function ApprovalQueuePage() {
                         <label className="block text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Caption</label>
                         <textarea
                           rows={4}
-                          value={editCaption}
+                          aria-label="Caption" value={editCaption}
                           onChange={(e) => setEditCaption(e.target.value)}
                           className="w-full rounded-xl p-3 text-xs border outline-none focus:border-blue-500/50 transition"
                           style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-primary)' }}
@@ -470,7 +476,7 @@ export default function ApprovalQueuePage() {
                           <label className="block text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Hashtags</label>
                           <input
                             type="text"
-                            value={editHashtags}
+                            aria-label="Hashtags" value={editHashtags}
                             onChange={(e) => setEditHashtags(e.target.value)}
                             placeholder="#oyinca #contentcreator"
                             className="w-full rounded-xl p-2.5 text-xs font-mono border outline-none focus:border-blue-500/50 transition"
@@ -481,7 +487,7 @@ export default function ApprovalQueuePage() {
                           <label className="block text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Call To Action</label>
                           <input
                             type="text"
-                            value={editCta}
+                            aria-label="Call to action" value={editCta}
                             onChange={(e) => setEditCta(e.target.value)}
                             placeholder="Link in bio!"
                             className="w-full rounded-xl p-2.5 text-xs border outline-none focus:border-blue-500/50 transition"
@@ -522,7 +528,7 @@ export default function ApprovalQueuePage() {
                           <label className="block text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Publish Date</label>
                           <input
                             type="date"
-                            value={editDate}
+                            aria-label="Publish date" value={editDate}
                             onChange={(e) => setEditDate(e.target.value)}
                             className="w-full rounded-xl p-2.5 text-xs border outline-none focus:border-blue-500/50 transition touch-target"
                             style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-primary)' }}
@@ -532,7 +538,7 @@ export default function ApprovalQueuePage() {
                           <label className="block text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Publish Time</label>
                           <input
                             type="time"
-                            value={editTime}
+                            aria-label="Publish time" value={editTime}
                             onChange={(e) => setEditTime(e.target.value)}
                             className="w-full rounded-xl p-2.5 text-xs border outline-none focus:border-blue-500/50 transition touch-target"
                             style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-primary)' }}

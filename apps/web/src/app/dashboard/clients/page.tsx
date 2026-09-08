@@ -2,10 +2,12 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Plus, ArrowRight, X } from 'lucide-react';
+import { Search, Plus, ArrowRight } from 'lucide-react';
 import { getPortfolio, createClient, Portfolio, PortfolioClient, HEALTH_META, healthColor, expiryLabel } from '@/lib/agency';
 import { setActiveClientId } from '@/lib/api';
 import AgencyUpgradePrompt from '@/components/dashboard/AgencyUpgradePrompt';
+import Modal from '@/components/ui/Modal';
+import RetryPanel from '@/components/ui/RetryPanel';
 
 /**
  * Client management. Search, triage and open a client, or add a new one.
@@ -40,19 +42,11 @@ function AddClientDialog({ onClose, onCreated }: { onClose: () => void; onCreate
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" style={{ backgroundColor: 'rgba(10,11,20,0.6)' }}>
-      <div className="exec-card card-pad w-full max-w-md space-y-5" role="dialog" aria-modal="true" aria-labelledby="add-client-title">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h2 id="add-client-title" className="text-h3" style={{ color: 'var(--text-primary)' }}>Add client</h2>
-            <p className="text-body-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-              You can connect their social accounts after creating them.
-            </p>
-          </div>
-          <button onClick={onClose} aria-label="Close" className="btn-icon-glass h-9 w-9 flex items-center justify-center touch-target">
-            <X className="h-4 w-4" style={{ color: 'var(--text-secondary)' }} />
-          </button>
-        </div>
+    <Modal open onClose={onClose} title="Add client" maxWidth="448px">
+      <div className="space-y-5">
+        <p className="text-body-sm" style={{ color: 'var(--text-secondary)' }}>
+          You can connect their social accounts after creating them.
+        </p>
 
         <form onSubmit={submit} className="space-y-4">
           <div>
@@ -61,7 +55,6 @@ function AddClientDialog({ onClose, onCreated }: { onClose: () => void; onCreate
             </label>
             <input
               id="client-name"
-              autoFocus
               className="input-field w-full h-11 px-3.5 mt-2"
               placeholder="e.g. Luxe Fashion"
               value={name}
@@ -70,7 +63,7 @@ function AddClientDialog({ onClose, onCreated }: { onClose: () => void; onCreate
           </div>
 
           {error && (
-            <p className="text-body-sm" style={{ color: 'var(--accent-error)' }}>{error}</p>
+            <p className="text-body-sm" role="alert" style={{ color: 'var(--accent-error)' }}>{error}</p>
           )}
 
           <div className="flex flex-wrap gap-3">
@@ -87,7 +80,7 @@ function AddClientDialog({ onClose, onCreated }: { onClose: () => void; onCreate
           </div>
         </form>
       </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -155,6 +148,7 @@ export default function ClientsPage() {
 
   const load = () => {
     setLoading(true);
+    setError(null);
     setNeedsUpgrade(false);
     getPortfolio()
       .then(setPortfolio)
@@ -197,7 +191,7 @@ export default function ClientsPage() {
     );
   }
   if (error) {
-    return <div className="exec-card card-pad text-center text-body-sm" style={{ color: 'var(--text-secondary)' }}>{error}</div>;
+    return <RetryPanel message={error} onRetry={load} label="Retry clients" />;
   }
 
   return (

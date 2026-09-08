@@ -1,6 +1,6 @@
 "use client";
 
-import React, { forwardRef } from "react";
+import React, { forwardRef, useId } from "react";
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
@@ -16,10 +16,11 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
  * that only want the field itself.
  */
 const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
-  { label, error, hint, leadingIcon, className = "", id, ...rest },
+  { label, error, hint, leadingIcon, className = "", id, 'aria-describedby': describedBy, ...rest },
   ref
 ) {
-  const inputId = id || rest.name;
+  const generatedId = useId();
+  const inputId = id || generatedId;
   return (
     <div className="space-y-1.5">
       {label && (
@@ -38,7 +39,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
           id={inputId}
           className={`input-field w-full text-body py-3 ${leadingIcon ? "pl-10 pr-3.5" : "px-3.5"} ${error ? "!border-[var(--accent-error)]" : ""} ${className}`}
           aria-invalid={!!error}
-          aria-describedby={error ? `${inputId}-error` : hint ? `${inputId}-hint` : undefined}
+          aria-describedby={[describedBy, error ? `${inputId}-error` : hint ? `${inputId}-hint` : null].filter(Boolean).join(' ') || undefined}
           {...rest}
         />
       </div>

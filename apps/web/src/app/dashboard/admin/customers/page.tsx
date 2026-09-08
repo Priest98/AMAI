@@ -2,9 +2,9 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ShieldAlert } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import Badge from '@/components/ui/Badge';
+import RetryPanel from '@/components/ui/RetryPanel';
 
 interface CustomerRow {
   id: string;
@@ -39,15 +39,17 @@ export default function CustomersPage() {
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     setLoading(true);
+    setError(null);
     const qs = new URLSearchParams({ page: String(page), limit: '25', ...(search ? { search } : {}) });
     apiFetch<CustomersResponse>(`/admin/customers?${qs.toString()}`)
       .then(setData)
       .catch((e: any) => setError(e?.message || "Couldn't load customers."))
       .finally(() => setLoading(false));
-  }, [page, search]);
+  }, [page, search, retry]);
 
   return (
     <div className="page-shell space-y-6">
@@ -57,6 +59,7 @@ export default function CustomersPage() {
       </div>
 
       <input
+        aria-label="Search customers"
         type="text"
         placeholder="Search by name or slug…"
         value={search}
@@ -71,10 +74,7 @@ export default function CustomersPage() {
       {loading ? (
         <div className="p-10 text-center text-body-sm" style={{ color: 'var(--text-secondary)' }}>Loading…</div>
       ) : error || !data ? (
-        <div className="p-10 max-w-md mx-auto text-center">
-          <ShieldAlert className="h-6 w-6 mx-auto mb-3" style={{ color: 'var(--accent-error)' }} />
-          <p className="text-body-sm" style={{ color: 'var(--text-secondary)' }}>{error || 'Not available.'}</p>
-        </div>
+        <RetryPanel message={error || 'Customers are not available.'} onRetry={() => setRetry((value) => value + 1)} label="Retry customers" />
       ) : data.customers.length === 0 ? (
         <div className="exec-card card-pad text-center text-body-sm" style={{ color: 'var(--text-secondary)' }}>
           No customers match.

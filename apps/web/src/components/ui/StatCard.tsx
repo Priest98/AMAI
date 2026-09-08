@@ -26,20 +26,21 @@ export default function StatCard({
   return (
     <div className="exec-card exec-card-interactive p-4 sm:p-5 flex flex-col justify-between">
       <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-2.5 min-w-0">
+        <div className="flex flex-wrap items-center gap-2 min-w-0">
           <div
             className="h-8 w-8 rounded-[var(--radius-md)] flex items-center justify-center flex-shrink-0"
             style={{ backgroundColor: "var(--bg-surface-sunken)" }}
           >
             {icon}
           </div>
-          <span className="text-caption truncate" style={{ color: "var(--text-secondary)" }}>
+          <span className="text-caption break-words" style={{ color: "var(--text-secondary)" }}>
             {label}
           </span>
         </div>
 
         {onExpand && (
           <button
+            aria-label={`View ${label}`}
             onClick={onExpand}
             className="w-6 h-6 rounded-[var(--radius-sm)] flex items-center justify-center text-xs transition hover:opacity-80 touch-target flex-shrink-0"
             style={{ backgroundColor: "var(--bg-surface-sunken)", color: "var(--text-secondary)" }}
@@ -50,10 +51,10 @@ export default function StatCard({
       </div>
 
       <div className="mt-4 flex flex-col space-y-1 min-w-0">
-        <div className="text-numeric text-2xl sm:text-3xl font-bold leading-tight truncate" style={{ color: valueColor }}>
+        <div className="text-numeric text-2xl sm:text-3xl font-bold leading-tight break-words" style={{ color: valueColor }}>
           {numericValue !== null ? <CountUp value={numericValue} /> : value}
         </div>
-        <div className="text-body-sm leading-tight truncate" style={{ color: "var(--text-secondary)" }}>
+        <div className="text-body-sm leading-tight break-words" style={{ color: "var(--text-secondary)" }}>
           {helperText}
         </div>
       </div>

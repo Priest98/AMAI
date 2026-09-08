@@ -19,7 +19,7 @@ export default function SculpturalHero() {
         <p className="oy-cinematic-label"><span /> OYINCA / AI SOCIAL MEDIA MANAGER</p>
         <h1 id="hero-title">
           Welcome to the <em>Future</em>
-          <br />of Social Media Management.
+          <br />{' '}of Social Media Management.
         </h1>
         <Link href="/register?plan=FREE" className="oy-meet-cta">
           Meet Oyinca <span aria-hidden="true">→</span>

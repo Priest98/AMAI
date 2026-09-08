@@ -2,9 +2,9 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ShieldAlert } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import Badge from '@/components/ui/Badge';
+import RetryPanel from '@/components/ui/RetryPanel';
 
 interface ErrorGroupRow {
   id: string;
@@ -43,9 +43,11 @@ export default function ErrorsPage() {
   const [showResolved, setShowResolved] = useState(false);
   const [subsystem, setSubsystem] = useState('');
   const [source, setSource] = useState('');
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     setLoading(true);
+    setError(null);
     const qs = new URLSearchParams({ page: String(page), limit: '25', resolved: String(showResolved) });
     if (subsystem) qs.set('subsystem', subsystem);
     if (source) qs.set('source', source);
@@ -53,7 +55,7 @@ export default function ErrorsPage() {
       .then(setData)
       .catch((e: any) => setError(e?.message || "Couldn't load errors."))
       .finally(() => setLoading(false));
-  }, [page, showResolved, subsystem, source]);
+  }, [page, showResolved, subsystem, source, retry]);
 
   return (
     <div className="page-shell space-y-6">
@@ -66,6 +68,7 @@ export default function ErrorsPage() {
         </div>
         <div className="flex items-center gap-3 flex-wrap">
           <select
+            aria-label="Filter by source"
             value={source}
             onChange={(e) => { setPage(1); setSource(e.target.value); }}
             className="text-caption px-2 py-1.5 rounded-[var(--radius-md)] border bg-transparent"
@@ -76,6 +79,7 @@ export default function ErrorsPage() {
             <option value="HEALTH_CHECK">Health checks</option>
           </select>
           <select
+            aria-label="Filter by subsystem"
             value={subsystem}
             onChange={(e) => { setPage(1); setSubsystem(e.target.value); }}
             className="text-caption px-2 py-1.5 rounded-[var(--radius-md)] border bg-transparent"
@@ -106,10 +110,7 @@ export default function ErrorsPage() {
       {loading ? (
         <div className="p-10 text-center text-body-sm" style={{ color: 'var(--text-secondary)' }}>Loading…</div>
       ) : error || !data ? (
-        <div className="p-10 max-w-md mx-auto text-center">
-          <ShieldAlert className="h-6 w-6 mx-auto mb-3" style={{ color: 'var(--accent-error)' }} />
-          <p className="text-body-sm" style={{ color: 'var(--text-secondary)' }}>{error || 'Not available.'}</p>
-        </div>
+        <RetryPanel message={error || 'Incidents are not available.'} onRetry={() => setRetry((value) => value + 1)} label="Retry incidents" />
       ) : data.groups.length === 0 ? (
         <div className="exec-card card-pad text-center text-body-sm" style={{ color: 'var(--text-secondary)' }}>
           {showResolved ? 'No resolved errors.' : 'No unresolved errors -- clean.'}

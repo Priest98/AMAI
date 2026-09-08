@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
 import { Logo } from '@/components/logo';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
@@ -90,11 +89,8 @@ export default function RegisterPage() {
     <div className="min-h-screen w-full flex flex-col items-center justify-center gap-4 p-4" style={{ color: 'var(--text-primary)' }}>
 
       <PlanSelectionNotice />
-      <motion.div
-        initial={{ opacity: 0, y: 15 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-        className="glass-panel w-full max-w-md rounded-[var(--radius-xl)] p-8 sm:p-10 space-y-8 relative overflow-hidden"
+      <div
+        className="oy-auth-panel w-full max-w-md rounded-[var(--radius-xl)] p-6 sm:p-10 space-y-8 relative overflow-hidden"
       >
         {/* Brand Header */}
         <div className="flex items-start justify-between gap-3">
@@ -104,10 +100,10 @@ export default function RegisterPage() {
             </Link>
             <div>
               <h1 className="text-h1" style={{ color: 'var(--text-primary)' }}>
-                Create your Oyinca Account
+                Meet your social media manager
               </h1>
               <p className="text-body-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-                Start automating your content pipeline with AI intelligence.
+                Give your content an AI social media manager.
               </p>
             </div>
           </div>
@@ -116,7 +112,7 @@ export default function RegisterPage() {
 
         {/* Error Feedback */}
         {error && (
-          <div className="p-4 rounded-[var(--radius-lg)] border text-xs font-semibold flex items-center space-x-2" style={{ backgroundColor: 'var(--accent-error-subtle)', borderColor: 'var(--accent-error)', color: 'var(--accent-error)' }}>
+          <div role="alert" className="p-4 rounded-[var(--radius-lg)] border text-sm font-semibold flex items-center space-x-2" style={{ backgroundColor: 'var(--accent-error-subtle)', borderColor: 'var(--accent-error)', color: 'var(--accent-error)' }}>
             <AlertCircle className="h-4 w-4 flex-shrink-0" />
             <span>{error}</span>
           </div>
@@ -126,7 +122,9 @@ export default function RegisterPage() {
         <form onSubmit={handleRegister} className="space-y-4">
 
           <Input
-            label="Full Name"
+            label="Full name"
+            name="fullName"
+            autoComplete="name"
             type="text"
             required
             value={fullName}
@@ -136,7 +134,9 @@ export default function RegisterPage() {
           />
 
           <Input
-            label="Email Address"
+            label="Email address"
+            name="email"
+            autoComplete="email"
             type="email"
             required
             value={email}
@@ -146,12 +146,15 @@ export default function RegisterPage() {
           />
 
           <div className="space-y-1.5">
-            <label className="text-overline block">Password</label>
+            <label htmlFor="password" className="text-overline block">Password</label>
             <div className="relative flex items-center">
               <span className="absolute left-3.5 flex items-center pointer-events-none" style={{ color: 'var(--text-muted)' }}>
                 <Lock className="h-4 w-4" />
               </span>
               <input
+                id="password"
+                name="password"
+                autoComplete="new-password"
                 type={showPassword ? 'text' : 'password'}
                 required
                 value={password}
@@ -162,7 +165,9 @@ export default function RegisterPage() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3.5"
+                className="absolute right-1 touch-target flex items-center justify-center"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                aria-pressed={showPassword}
                 style={{ color: 'var(--text-muted)' }}
               >
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -171,7 +176,9 @@ export default function RegisterPage() {
           </div>
 
           <Input
-            label="Confirm Password"
+            label="Confirm password"
+            name="confirmPassword"
+            autoComplete="new-password"
             type={showPassword ? 'text' : 'password'}
             required
             value={confirmPassword}
@@ -193,7 +200,7 @@ export default function RegisterPage() {
                 />
               </div>
               <p className="text-caption" style={{ color: 'var(--text-muted)' }}>
-                {isPasswordStrong ? '✅ Strong password' : isPasswordLong ? '⚠️ Add a number for a stronger password' : '❌ Minimum 8 characters required'}
+                {isPasswordStrong ? 'Strong password' : isPasswordLong ? 'Add a number for a stronger password' : 'Minimum 8 characters required'}
               </p>
             </div>
           )}
@@ -213,7 +220,7 @@ export default function RegisterPage() {
           </Link>
         </p>
 
-      </motion.div>
+      </div>
 
       <BrandAttribution />
     </div>

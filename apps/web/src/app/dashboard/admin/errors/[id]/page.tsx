@@ -2,9 +2,9 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { ShieldAlert } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import Badge from '@/components/ui/Badge';
+import RetryPanel from '@/components/ui/RetryPanel';
 
 interface ErrorEventRow {
   id: string;
@@ -53,6 +53,7 @@ export default function ErrorDetailPage() {
   const load = () => {
     if (!id) return;
     setLoading(true);
+    setError(null);
     apiFetch<ErrorGroupDetail>(`/admin/errors/${id}`)
       .then(setData)
       .catch((e: any) => setError(e?.message || "Couldn't load this error."))
@@ -105,10 +106,7 @@ export default function ErrorDetailPage() {
 
   if (error || !data) {
     return (
-      <div className="p-10 max-w-md mx-auto text-center">
-        <ShieldAlert className="h-6 w-6 mx-auto mb-3" style={{ color: 'var(--accent-error)' }} />
-        <p className="text-body-sm" style={{ color: 'var(--text-secondary)' }}>{error || 'Not available.'}</p>
-      </div>
+      <RetryPanel message={error || 'This incident is not available.'} onRetry={load} label="Retry incident" />
     );
   }
 

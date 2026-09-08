@@ -1,51 +1,24 @@
 import type { Metadata } from 'next';
-import { Inter, Playfair_Display } from 'next/font/google';
+import localFont from 'next/font/local';
 import './globals.css';
 import AnalyticsInit from '@/components/analytics/AnalyticsInit';
 
-/**
- * Oyinca typography system (luxury rebrand): Inter (product/UI/body) +
- * Playfair Display (display/brand headlines).
- *
- * Loaded once here at the root so every route -- dashboard, auth pages and
- * the marketing site -- shares one typographic identity. Both are fetched
- * via next/font/google, which downloads the files at build time and
- * self-hosts them from our own domain (no runtime request to Google) while
- * giving each a complete Latin glyph set and a real weight range.
- *
- * Replaces the previous Plus Jakarta Sans + Instrument Serif pairing as
- * part of the "premium/luxurious" landing-page rebrand: Inter reads as a
- * cleaner, more neutral workhorse sans at body sizes (leading-relaxed
- * paragraphs), and Playfair Display's high-contrast serif strokes read as
- * editorial/high-end at large display sizes in a way a geometric sans
- * can't. Variable names (--font-body-var / --font-display-var) are
- * unchanged from the prior pair so every existing var(--font-body-var) /
- * var(--font-display-var) reference across landing.css and the app keeps
- * working without a find-and-replace.
- */
-const inter = Inter({
-  subsets: ['latin'],
-  weight: 'variable',
+/** Keep the existing font identity, served locally without build-time network requests. */
+const inter = localFont({
+  src: '../../../../node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2',
+  weight: '100 900',
   variable: '--font-body-var',
   display: 'swap',
   fallback: ['system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],
 });
-
-/**
- * PLAYFAIR DISPLAY is the display/brand face -- used for every major
- * landing-page headline (Hero, section headings, Final CTA) per the
- * luxury-rebrand brief, not just two isolated moments like the previous
- * Instrument Serif treatment. High-contrast serif strokes and a full
- * weight range (400-800) give it real presence at 5xl-7xl sizes without
- * tipping into a purely decorative display face.
- */
-const playfairDisplay = Playfair_Display({
-  subsets: ['latin'],
-  weight: 'variable',
-  style: ['normal', 'italic'],
+const playfairDisplay = localFont({
+  src: [
+    { path: '../../../../node_modules/@fontsource-variable/playfair-display/files/playfair-display-latin-wght-normal.woff2', weight: '400 900', style: 'normal' },
+    { path: '../../../../node_modules/@fontsource-variable/playfair-display/files/playfair-display-latin-wght-italic.woff2', weight: '400 900', style: 'italic' },
+  ],
   variable: '--font-display-var',
   display: 'swap',
-  fallback: ['var(--font-body-var)', 'system-ui', 'serif'],
+  fallback: ['Georgia', 'serif'],
 });
 
 export const metadata: Metadata = {

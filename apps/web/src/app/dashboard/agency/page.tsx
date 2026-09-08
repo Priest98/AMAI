@@ -16,6 +16,7 @@ import {
 import { getPortfolio, Portfolio, PortfolioClient, HEALTH_META, healthColor, expiryLabel, getOrgMembers, OrgMember } from '@/lib/agency';
 import { getBillingSummary, BillingSummary } from '@/lib/billing';
 import { setActiveClientId } from '@/lib/api';
+import RetryPanel from '@/components/ui/RetryPanel';
 
 /**
  * Agency command centre. Answers, in order: how many clients, what needs
@@ -98,13 +99,16 @@ export default function AgencyDashboardPage() {
   const [billing, setBilling] = useState<BillingSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
+    setLoading(true);
+    setError(null);
     Promise.all([getPortfolio(), getBillingSummary()])
       .then(([p, b]) => { setPortfolio(p); setBilling(b); })
       .catch(() => setError("Couldn't load your portfolio. Try again."))
       .finally(() => setLoading(false));
-  }, []);
+  }, [retry]);
 
   // Entitlement is enforced server-side; this only decides what to render.
   const hasAgency = billing?.entitlements?.clientManagement === true;
@@ -120,9 +124,7 @@ export default function AgencyDashboardPage() {
 
   if (error) {
     return (
-      <div className="exec-card card-pad text-center">
-        <p className="text-body-sm" style={{ color: 'var(--text-secondary)' }}>{error}</p>
-      </div>
+      <RetryPanel message={error} onRetry={() => setRetry((value) => value + 1)} label="Retry portfolio" />
     );
   }
 
@@ -282,10 +284,15 @@ export default function AgencyDashboardPage() {
  */
 function TeamSection() {
   const [members, setMembers] = useState<OrgMember[] | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
-    getOrgMembers().then(setMembers).catch(() => setMembers([]));
-  }, []);
+    setFailed(false);
+    getOrgMembers().then(setMembers).catch(() => setFailed(true));
+  }, [retry]);
+
+  if (failed) return <RetryPanel message="Couldn't load team members." onRetry={() => setRetry((value) => value + 1)} label="Retry team" />;
 
   if (!members || members.length === 0) return null;
 

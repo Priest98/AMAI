@@ -51,13 +51,14 @@ export default function Button({
 
   return (
     <button
+      aria-busy={loading || undefined}
       disabled={disabled || loading}
       className={`touch-target inline-flex items-center justify-center rounded-[var(--radius-md)] font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${SIZE_CLASSES[size]} ${VARIANT_CLASSES[variant]} ${fullWidth ? "w-full" : ""} ${className}`}
       style={dangerStyle}
       {...rest}
     >
       {loading ? (
-        <Loader2 className="h-4 w-4 animate-spin" />
+        <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
       ) : (
         icon && <span className="flex-shrink-0">{icon}</span>
       )}

@@ -50,7 +50,7 @@ const CARD_COPY: Record<PlanTier, Omit<CardCopy, "tier">> = {
       "Content repurposing",
       "Priority processing",
     ],
-    cta: "Give Oyinca more to handle",
+    cta: "Choose Pro",
     highlighted: true,
   },
   CREATOR: {
@@ -64,8 +64,7 @@ const CARD_COPY: Record<PlanTier, Omit<CardCopy, "tier">> = {
       "Cross-account intelligence",
       "Priority processing",
     ],
-    cta: "Build with Oyinca",
-    highlighted: true,
+    cta: "Choose Creator",
   },
   AGENCY: {
     heading: "For teams managing TikTok for multiple clients.",
@@ -79,7 +78,7 @@ const CARD_COPY: Record<PlanTier, Omit<CardCopy, "tier">> = {
       "Client-level analytics",
       "White-label where supported",
     ],
-    cta: "Bring Oyinca to your team",
+    cta: "Choose Agency",
   },
 };
 
@@ -162,7 +161,7 @@ export default function Pricing({
         <GsapReveal className="text-center max-w-2xl mx-auto">
           <Eyebrow>Simple Pricing</Eyebrow>
           <h2 className="lp-heading-display mt-6 text-3xl sm:text-4xl lg:text-5xl">
-            Meet Oyinca today. Give her more to handle as you grow.
+            Start free. Grow at your pace.
           </h2>
           <p
             className="mt-5 text-sm leading-relaxed"
@@ -193,7 +192,8 @@ export default function Pricing({
             Current prices could not be loaded.{" "}
             <button
               type="button"
-              className="underline p-2"
+              className="underline p-2 touch-target"
+              aria-busy={retrying}
               disabled={retrying}
               onClick={retryPlans}
             >

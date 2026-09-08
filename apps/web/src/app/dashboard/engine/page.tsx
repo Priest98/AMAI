@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
+import Modal from '@/components/ui/Modal';
 import { motion, AnimatePresence } from 'framer-motion';
 import GlassmorphicToggle from '@/components/ui/GlassmorphicToggle';
 import EngineWorkflowVisualization from '@/components/engine/EngineWorkflowVisualization';
@@ -66,11 +67,13 @@ export default function AmaiEnginePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
+  const [loadError, setLoadError] = useState(false);
   const [showAutoConfirm, setShowAutoConfirm] = useState(false);
   const [activity, setActivity] = useState<EngineEvent[]>([]);
   const [billing, setBilling] = useState<BillingSummary | null>(null);
 
   const load = useCallback(async () => {
+    setLoadError(false);
     try {
       const [cfg, events, billingSummary] = await Promise.all([
         brandFetch<EngineConfig>('/engine/state'),
@@ -81,7 +84,7 @@ export default function AmaiEnginePage() {
       setActivity(events);
       setBilling(billingSummary);
     } catch (e: any) {
-      setMessage(e.message || 'Could not load Oyinca status.');
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -101,16 +104,16 @@ export default function AmaiEnginePage() {
 
   const showToast = (msg: string) => {
     setMessage(msg);
-    setTimeout(() => setMessage(''), 3000);
+
   };
 
   const toggleState = async (checked: boolean) => {
-    if (!config) return;
+    if (!config || saving) return;
     const next: EngineState = checked ? 'ACTIVE' : 'PAUSED';
-    setConfig({ ...config, state: next });
     setSaving(true);
     try {
       await brandFetch('/engine/state', { method: 'PATCH', body: JSON.stringify({ state: next }) });
+      setConfig({ ...config, state: next });
       showToast(next === 'ACTIVE' ? 'Oyinca is now Active.' : 'Oyinca is now Paused.');
     } catch (e: any) {
       showToast(e.message || 'Could not update Oyinca.');
@@ -121,28 +124,31 @@ export default function AmaiEnginePage() {
   };
 
   const applyApprovalMode = async (mode: ApprovalMode) => {
-    if (!config) return;
+    if (!config || saving) return;
     const previous = config.approvalMode;
-    setConfig({ ...config, approvalMode: mode });
     setSaving(true);
     try {
       await brandFetch('/engine/approval-mode', { method: 'PATCH', body: JSON.stringify({ approvalMode: mode }) });
+      setConfig({ ...config, approvalMode: mode });
+      setShowAutoConfirm(false);
       showToast(mode === 'AUTO' ? 'Autopilot enabled.' : 'Assisted mode enabled.');
     } catch (e: any) {
       showToast(e.message || 'Could not update approval mode.');
       setConfig((c) => (c ? { ...c, approvalMode: previous } : c)); // revert the optimistic flip -- e.g. a Free plan 403
     } finally {
       setSaving(false);
-      setShowAutoConfirm(false);
     }
   };
 
   const setApprovalMode = (mode: ApprovalMode) => {
+    if (saving) return;
+    if (mode === 'AUTO' && !billing) { showToast('Plan details could not be verified. Reload the page before enabling Autopilot.'); return; }
     if (mode === 'AUTO' && autopilotLocked) {
       showToast("Autopilot is a Pro feature. Upgrade to let Oyinca auto-publish without a review step.");
       return;
     }
     if (mode === 'AUTO' && config?.approvalMode !== 'AUTO') {
+      setMessage('');
       setShowAutoConfirm(true);
       return;
     }
@@ -150,13 +156,14 @@ export default function AmaiEnginePage() {
   };
 
   const setTone = async (tone: string) => {
-    if (!config) return;
-    setConfig({ ...config, defaultTone: tone });
+    if (!config || saving) return;
+    setSaving(true);
     try {
       await brandFetch('/engine/config', { method: 'PATCH', body: JSON.stringify({ defaultTone: tone }) });
+      setConfig({ ...config, defaultTone: tone });
     } catch (e: any) {
       showToast(e.message || 'Could not update persona.');
-    }
+    } finally { setSaving(false); }
   };
 
   // One-time nudge: if the saved time zone is still the default (meaning
@@ -174,7 +181,7 @@ export default function AmaiEnginePage() {
   }, [config?.id]);
 
   const savePostingSchedule = async (patch: Partial<Pick<EngineConfig, 'postsPerDay' | 'scheduleStartFrom' | 'customStartDate' | 'timeZone' | 'schedulingPlatform'>>) => {
-    if (!config) return;
+    if (!config || saving) return;
     const next = { ...config, ...patch };
     setConfig(next);
     setSaving(true);
@@ -192,6 +199,8 @@ export default function AmaiEnginePage() {
     return <div className="p-10 text-center text-xs" style={{ color: 'var(--text-secondary)' }}>Loading Oyinca…</div>;
   }
 
+  if (loadError || !config) return <section className="p-6 space-y-4"><h1 className="text-h1">Oyinca Autopilot</h1><p role="alert">Publishing status could not be loaded. No settings have been changed.</p><button className="btn-secondary touch-target px-4" onClick={() => { setLoading(true); void load(); }}>Retry status</button></section>;
+
   const isActive = config?.state === 'ACTIVE';
 
   return (
@@ -206,13 +215,15 @@ export default function AmaiEnginePage() {
       {/* Live pipeline + subsystem health. Placed directly under the
           heading because "is Oyinca working right now" is the first question
           this page exists to answer. */}
+      <p className="text-sm" role="status">{saving ? 'Saving settings…' : config.approvalMode === 'AUTO' ? 'Automatic approval is enabled. Switch to Assisted mode to review new posts first.' : 'Assisted mode: prepared posts wait for your approval.'}</p>
+      {!billing && <p role="status" className="text-sm">Plan details are unavailable. Reload to verify access before enabling Autopilot.</p>}
       <ControlCenter />
 
       <AnimatePresence>
         {message && (
           <motion.div
             initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-            className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold"
+            role="status" className="p-3.5 rounded-xl border text-sm"
           >
             {message}
           </motion.div>
@@ -263,6 +274,8 @@ export default function AmaiEnginePage() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <button
+            disabled={saving}
+            aria-pressed={config?.approvalMode === 'MANUAL'}
             onClick={() => setApprovalMode('MANUAL')}
             className={`flex flex-col p-4 rounded-xl border text-left transition touch-target ${
               config?.approvalMode === 'MANUAL' ? 'border-emerald-500/60 bg-emerald-500/10' : ''
@@ -279,6 +292,8 @@ export default function AmaiEnginePage() {
           </button>
 
           <button
+            disabled={saving || !billing}
+            aria-pressed={config?.approvalMode === 'AUTO'}
             onClick={() => setApprovalMode('AUTO')}
             className={`flex flex-col p-4 rounded-xl border text-left transition touch-target ${
               config?.approvalMode === 'AUTO' ? 'border-amber-500/60 bg-amber-500/10' : ''
@@ -496,45 +511,15 @@ export default function AmaiEnginePage() {
         )}
       </div>
 
-      {/* ── Auto Approval confirmation modal ── */}
-      <AnimatePresence>
-        {showAutoConfirm && (
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[200] flex items-center justify-center p-4"
-            style={{ backgroundColor: 'rgba(10, 11, 20, 0.55)', backdropFilter: 'blur(4px)' }}
-            onClick={() => setShowAutoConfirm(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.96, opacity: 0, y: 8 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.97, opacity: 0, y: 4 }}
-              onClick={(e) => e.stopPropagation()}
-              className="glass-panel w-full max-w-sm rounded-[var(--radius-xl)] p-6 space-y-4"
-            >
-              <div className="h-10 w-10 rounded-[var(--radius-lg)] flex items-center justify-center" style={{ backgroundColor: 'var(--accent-warning-subtle)', color: 'var(--accent-warning)' }}>
-                <AlertTriangle className="h-5 w-5" />
-              </div>
-              <div>
-                <h3 className="text-h3" style={{ color: 'var(--text-primary)' }}>Enable Autopilot?</h3>
-                <p className="text-body-sm mt-1.5 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                  New posts will publish automatically at the AI-selected best time, with no review step. You can switch back to Assisted mode anytime.
-                </p>
-              </div>
-              <div className="flex items-center justify-end space-x-2 pt-1">
-                <button onClick={() => setShowAutoConfirm(false)} className="px-4 py-2 rounded-[var(--radius-md)] text-xs font-bold" style={{ color: 'var(--text-secondary)' }}>
-                  Cancel
-                </button>
-                <button
-                  onClick={() => applyApprovalMode('AUTO')}
-                  className="px-4 py-2 rounded-[var(--radius-md)] text-xs font-bold shadow-md"
-                  style={{ backgroundColor: 'var(--accent-warning)', color: '#1A1300' }}
-                >
-                  Enable Autopilot
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <Modal open={showAutoConfirm} onClose={() => { if (!saving) setShowAutoConfirm(false); }} title="Enable Autopilot?">
+        <p className="text-body-sm mb-4">New posts will publish automatically according to your schedule, without a review step. You can switch back to Assisted mode anytime.</p>
+        <p className="text-sm mb-4">Schedule: {config.postsPerDay} posts per day · {config.timeZone} · {config.schedulingPlatform}</p>
+        {message && <p role="status" className="text-sm mb-4">{message}</p>}
+        <div className="flex flex-wrap justify-end gap-3">
+          <button disabled={saving} onClick={() => setShowAutoConfirm(false)} className="btn-secondary touch-target px-4">Cancel</button>
+          <button disabled={saving} aria-busy={saving} onClick={() => applyApprovalMode('AUTO')} className="btn-primary-gradient touch-target px-4">{saving ? 'Saving…' : 'Enable Autopilot'}</button>
+        </div>
+      </Modal>
     </div>
   );
 }

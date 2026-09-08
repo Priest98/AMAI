@@ -111,43 +111,26 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     goToStep(0);
   }, [goToStep]);
 
-  // Persists whatever Business Brain fields the wizard actually collected --
-  // called on both a full finish and a mid-wizard skip, since a user who
-  // typed something real into 2 of 4 screens before bailing shouldn't lose
-  // it. A brand-new user's brain is always empty going in, so writing blank
-  // strings/arrays for untouched fields here can never clobber real data.
-  const persistBrainCapture = useCallback((result: Partial<BrainCaptureResult>) => {
-    const hasAnyContent =
-      !!result.businessDescription || !!result.targetAudience || !!result.brandVoice ||
-      (result.brandPersonality && result.brandPersonality.length > 0) ||
-      (result.contentPillars && result.contentPillars.length > 0);
-    if (!hasAnyContent) return;
-    brandFetch('/business-brain', {
-      method: 'PATCH',
-      body: JSON.stringify({
-        businessDescription: result.businessDescription || null,
-        targetAudience: result.targetAudience || null,
-        brandVoice: result.brandVoice || null,
-        brandPersonality: result.brandPersonality || [],
-        contentPillars: result.contentPillars || [],
-      }),
-    }).catch(() => {});
+  // Persist only supplied fields; a skipped question must not erase existing context.
+  const persistBrainCapture = useCallback(async (result: Partial<BrainCaptureResult>) => {
+    const fields = Object.fromEntries(Object.entries(result).filter(([, value]) =>
+      Array.isArray(value) ? value.length > 0 : typeof value === 'string' && value.trim().length > 0
+    ));
+    if (!Object.keys(fields).length) return;
+    await brandFetch('/business-brain', { method: 'PATCH', body: JSON.stringify(fields) });
   }, []);
 
-  const finishCapture = useCallback((result: BrainCaptureResult) => {
-    persistBrainCapture(result);
+  const finishCapture = useCallback(async (result: BrainCaptureResult) => {
+    await persistBrainCapture(result);
+    await apiFetch('/auth/onboarding', { method: 'PATCH', body: JSON.stringify({ completed: true }) });
     setPhase('idle');
-    apiFetch('/auth/onboarding', { method: 'PATCH', body: JSON.stringify({ completed: true }) }).catch(() => {});
-    // Natural next action after telling Oyinca about your business is
-    // connecting the platform it'll actually publish to.
     router.push('/dashboard/integrations');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [persistBrainCapture, router]);
 
-  const skipCapture = useCallback((partial: Partial<BrainCaptureResult>) => {
-    persistBrainCapture(partial);
+  const skipCapture = useCallback(async (partial: Partial<BrainCaptureResult>) => {
+    await persistBrainCapture(partial);
+    await apiFetch('/auth/onboarding', { method: 'PATCH', body: JSON.stringify({ skipped: true }) });
     setPhase('idle');
-    apiFetch('/auth/onboarding', { method: 'PATCH', body: JSON.stringify({ skipped: true }) }).catch(() => {});
   }, [persistBrainCapture]);
 
   // This provider sits at the dashboard layout level (same as
@@ -173,7 +156,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   return (
     <OnboardingContext.Provider value={value}>
       {children}
-      {phase === 'capturing' && <BrainCaptureWizard onFinish={finishCapture} onSkip={skipCapture} />}
+      {phase === 'capturing' && <BrainCaptureWizard onSave={persistBrainCapture} onFinish={finishCapture} onSkip={skipCapture} />}
       {phase === 'touring' && (
         <TourOverlay
           step={TOUR_STEPS[stepIndex]}

@@ -507,17 +507,19 @@ export default function MediaLibraryPage() {
           <div className="inline-flex rounded-xl border p-1 gap-1" style={{ backgroundColor: 'var(--bg-surface-sunken)', borderColor: 'var(--card-border)' }}>
             <button
               type="button"
+              aria-pressed={composerMode === 'single'}
               onClick={() => setComposerMode('single')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center space-x-1.5 transition ${composerMode === 'single' ? 'btn-emerald-cta' : ''}`}
+              className={`touch-target px-3 py-1.5 rounded-lg text-xs font-bold flex items-center space-x-1.5 transition ${composerMode === 'single' ? 'btn-emerald-cta' : ''}`}
               style={composerMode !== 'single' ? { color: 'var(--text-secondary)' } : undefined}
             >
               <ImageIcon className="h-3.5 w-3.5" />
-              <span>Single Image</span>
+              <span>Single post</span>
             </button>
             <button
               type="button"
+              aria-pressed={composerMode === 'carousel'}
               onClick={() => setComposerMode('carousel')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center space-x-1.5 transition ${composerMode === 'carousel' ? 'btn-emerald-cta' : ''}`}
+              className={`touch-target px-3 py-1.5 rounded-lg text-xs font-bold flex items-center space-x-1.5 transition ${composerMode === 'carousel' ? 'btn-emerald-cta' : ''}`}
               style={composerMode !== 'carousel' ? { color: 'var(--text-secondary)' } : undefined}
             >
               <Images className="h-3.5 w-3.5" />
@@ -527,11 +529,11 @@ export default function MediaLibraryPage() {
         </div>
 
         {composerMode === 'single' ? (
-          <p className="text-[11px] -mt-2" style={{ color: 'var(--text-secondary)' }}>
-            Each file becomes its own post automatically: 1 image, 1 caption, 1 hashtag set.
+          <p className="text-sm -mt-2" style={{ color: 'var(--text-secondary)' }}>
+            Each photo or video becomes its own post, with its own caption and hashtags.
           </p>
         ) : (
-          <p className="text-[11px] -mt-2" style={{ color: 'var(--text-secondary)' }}>
+          <p className="text-sm -mt-2" style={{ color: 'var(--text-secondary)' }}>
             Upload 2–5 photos and/or videos, in any mix and order (or select from the library below) to combine into ONE post with one caption and one hashtag set.
           </p>
         )}

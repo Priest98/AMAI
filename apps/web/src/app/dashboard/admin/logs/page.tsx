@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { ShieldAlert } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import Badge from '@/components/ui/Badge';
+import RetryPanel from '@/components/ui/RetryPanel';
 
 interface LogEvent {
   id: string;
@@ -28,15 +28,17 @@ export default function LogsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     setLoading(true);
+    setError(null);
     const qs = new URLSearchParams({ page: String(page), limit: '50' });
     apiFetch<LogsResponse>(`/admin/logs?${qs.toString()}`)
       .then(setData)
       .catch((e: any) => setError(e?.message || "Couldn't load logs."))
       .finally(() => setLoading(false));
-  }, [page]);
+  }, [page, retry]);
 
   return (
     <div className="page-shell space-y-6">
@@ -51,10 +53,7 @@ export default function LogsPage() {
       {loading ? (
         <div className="p-10 text-center text-body-sm" style={{ color: 'var(--text-secondary)' }}>Loading…</div>
       ) : error || !data ? (
-        <div className="p-10 max-w-md mx-auto text-center">
-          <ShieldAlert className="h-6 w-6 mx-auto mb-3" style={{ color: 'var(--accent-error)' }} />
-          <p className="text-body-sm" style={{ color: 'var(--text-secondary)' }}>{error || 'Not available.'}</p>
-        </div>
+        <RetryPanel message={error || 'Logs are not available.'} onRetry={() => setRetry((value) => value + 1)} label="Retry logs" />
       ) : data.events.length === 0 ? (
         <div className="exec-card card-pad text-center text-body-sm" style={{ color: 'var(--text-secondary)' }}>
           No events captured yet.

@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { AlertTriangle, CheckCircle2, ShieldAlert, RefreshCw } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, RefreshCw } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import Badge from '@/components/ui/Badge';
+import RetryPanel from '@/components/ui/RetryPanel';
 
 /**
  * Two data sources, both real:
@@ -88,25 +89,30 @@ export default function SystemHealthPage() {
   const [running, setRunning] = useState(false);
   const [sendingReport, setSendingReport] = useState(false);
   const [reportStatus, setReportStatus] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [retry, setRetry] = useState(0);
 
   const loadHealth = () => apiFetch<HealthSnapshot>('/admin/health').then(setHealth).catch(() => setHealth(null));
 
   useEffect(() => {
+    setLoading(true);
+    setError(null);
     Promise.all([
       apiFetch<AdminOverview>('/admin/overview').then(setData),
       loadHealth(),
     ])
       .catch((e: any) => setError(e?.message || "Couldn't load system health."))
       .finally(() => setLoading(false));
-  }, []);
+  }, [retry]);
 
   const runNow = async () => {
     setRunning(true);
+    setActionError(null);
     try {
       await apiFetch('/admin/health/run-now', { method: 'POST' });
       await loadHealth();
     } catch (e: any) {
-      setError(e?.message || 'Failed to run health check.');
+      setActionError(e?.message || 'Failed to run health check.');
     } finally {
       setRunning(false);
     }
@@ -131,10 +137,7 @@ export default function SystemHealthPage() {
 
   if (error || !data) {
     return (
-      <div className="p-10 max-w-md mx-auto text-center">
-        <ShieldAlert className="h-6 w-6 mx-auto mb-3" style={{ color: 'var(--accent-error)' }} />
-        <p className="text-body-sm" style={{ color: 'var(--text-secondary)' }}>{error || 'Not available.'}</p>
-      </div>
+      <RetryPanel message={error || 'System health is not available.'} onRetry={() => setRetry((value) => value + 1)} label="Retry system health" />
     );
   }
 
@@ -186,8 +189,9 @@ export default function SystemHealthPage() {
       </div>
 
       {reportStatus && (
-        <p className="text-caption" style={{ color: 'var(--text-secondary)' }}>{reportStatus}</p>
+        <p className="text-caption" role="status" style={{ color: 'var(--text-secondary)' }}>{reportStatus}</p>
       )}
+      {actionError && <p className="text-caption" role="alert" style={{ color: 'var(--accent-error)' }}>{actionError}</p>}
 
       <div className="space-y-3">
         <div className="flex items-center justify-between">

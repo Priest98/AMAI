@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { CalendarClock } from 'lucide-react';
 import { getAgencyCalendar, AgencyCalendarPost } from '@/lib/agency';
 import AgencyUpgradePrompt from '@/components/dashboard/AgencyUpgradePrompt';
+import RetryPanel from '@/components/ui/RetryPanel';
 
 /**
  * Portfolio calendar: what is publishing across every client, grouped by
@@ -26,8 +27,12 @@ export default function AgencyCalendarPage() {
   const [error, setError] = useState<string | null>(null);
   const [needsUpgrade, setNeedsUpgrade] = useState(false);
   const [hidden, setHidden] = useState<Set<string>>(new Set());
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
+    setLoading(true);
+    setError(null);
+    setNeedsUpgrade(false);
     getAgencyCalendar(30)
       .then((r) => setPosts(r.posts))
       .catch((err: any) => {
@@ -38,7 +43,7 @@ export default function AgencyCalendarPage() {
         }
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [retry]);
 
   const clients = useMemo(() => {
     const seen = new Map<string, string>();
@@ -75,7 +80,7 @@ export default function AgencyCalendarPage() {
       />
     );
   }
-  if (error) return <div className="exec-card card-pad text-center text-body-sm" style={{ color: 'var(--text-secondary)' }}>{error}</div>;
+  if (error) return <RetryPanel message={error} onRetry={() => setRetry((value) => value + 1)} label="Retry calendar" />;
 
   const todayKey = dayKey(new Date());
   const tomorrowKey = dayKey(new Date(Date.now() + DAY_MS));

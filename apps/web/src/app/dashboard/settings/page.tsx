@@ -195,6 +195,7 @@ export default function SettingsPage() {
 
   const [billing, setBilling] = useState<BillingSummary | null>(null);
   const [billingLoading, setBillingLoading] = useState(true);
+  const [billingError, setBillingError] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState<'PRO' | 'CREATOR' | 'AGENCY' | null>(null);
   const [portalLoading, setPortalLoading] = useState(false);
   const [devPlanLoading, setDevPlanLoading] = useState(false);
@@ -224,9 +225,10 @@ export default function SettingsPage() {
 
   const loadBilling = () => {
     setBillingLoading(true);
+    setBillingError(false);
     getBillingSummary()
       .then(setBilling)
-      .catch(() => {})
+      .catch(() => setBillingError(true))
       .finally(() => setBillingLoading(false));
   };
 
@@ -286,6 +288,8 @@ export default function SettingsPage() {
   const [userEmail, setUserEmail] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [retrySettings, setRetrySettings] = useState(0);
   const [privacyAction, setPrivacyAction] = useState<'export' | 'delete' | null>(null);
 
   const [brain, setBrain] = useState<BusinessBrain>(EMPTY_BRAIN);
@@ -306,6 +310,8 @@ export default function SettingsPage() {
   const [memoryEntries, setMemoryEntries] = useState<MemoryEntry[]>([]);
 
   useEffect(() => {
+    setLoading(true);
+    setLoadError(false);
     const user = getCurrentUser();
     if (user) setUserEmail(user.email);
 
@@ -328,11 +334,12 @@ export default function SettingsPage() {
         setCompetitorHandlesText((brainData.competitorHandles || []).join(', '));
         setMemoryEntries(memories);
       })
-      .catch(() => {})
+      .catch(() => setLoadError(true))
       .finally(() => setLoading(false));
-  }, []);
+  }, [retrySettings]);
 
   const saveBrain = async () => {
+    if (loading || loadError || brainSaving) return;
     setBrainSaving(true);
     try {
       const dto = {
@@ -364,7 +371,7 @@ export default function SettingsPage() {
     }
   };
 
-  const flash = (msg: string) => { setMessage(msg); setTimeout(() => setMessage(''), 3000); };
+  const flash = (msg: string) => setMessage(msg);
 
   const exportMyData = async () => {
     setPrivacyAction('export');
@@ -456,6 +463,8 @@ export default function SettingsPage() {
     }
   };
 
+  if (loadError) return <section className="p-6 space-y-4"><h1 className="text-h1">Settings</h1><p role="alert">Your settings could not be loaded. No saved brand details have been changed.</p><button className="btn-secondary touch-target px-4" onClick={() => setRetrySettings((value) => value + 1)}>Retry settings</button></section>;
+
   if (loading) {
     return <div className="p-10 text-center text-xs" style={{ color: 'var(--text-secondary)' }}>Loading settings…</div>;
   }
@@ -478,10 +487,9 @@ export default function SettingsPage() {
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="p-3.5 rounded-[var(--radius-lg)] border text-xs font-semibold flex items-center space-x-2"
-            style={{ backgroundColor: 'var(--accent-success-subtle)', borderColor: 'var(--accent-success)', color: 'var(--accent-success)' }}
+            role="status" className="p-3.5 rounded-[var(--radius-lg)] border text-sm flex items-center space-x-2"
+            style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--card-border)', color: 'var(--text-primary)' }}
           >
-            <Check className="h-4 w-4" />
             <span>{message}</span>
           </motion.div>
         )}
@@ -513,6 +521,16 @@ export default function SettingsPage() {
               key={tab.id}
               role="tab"
               aria-selected={isActive}
+              tabIndex={isActive ? 0 : -1}
+              onKeyDown={(event) => {
+                if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+                event.preventDefault();
+                const tabs = Array.from(event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]') || []);
+                const index = tabs.indexOf(event.currentTarget);
+                const next = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+                tabs[next]?.focus();
+                tabs[next]?.click();
+              }}
               onClick={() => setActiveTab(tab.id as any)}
               className="relative shrink-0 md:shrink md:flex-1 py-2.5 px-3.5 rounded-[var(--radius-md)] text-body-sm font-bold transition-all duration-200 flex items-center justify-center gap-2 touch-target whitespace-nowrap"
               style={{ color: isActive ? 'var(--text-primary)' : 'var(--text-muted)' }}
@@ -1012,7 +1030,8 @@ export default function SettingsPage() {
             <div className="exec-card p-8 text-center text-xs" style={{ color: 'var(--text-secondary)' }}>Loading billing…</div>
           )}
 
-          {!billingLoading && billing && (
+          {!billingLoading && billingError && <div role="alert" className="exec-card p-6 space-y-3"><p>Billing details could not be loaded. No plan or payment changes have been made.</p><button className="btn-secondary touch-target px-4" onClick={loadBilling}>Retry billing</button></div>}
+          {!billingLoading && !billingError && billing && (
             <>
               {billing.status === 'PAST_DUE' && (
                 <div className="exec-card p-4 flex items-center justify-between gap-4" style={{ borderColor: 'var(--accent-warning)', backgroundColor: 'var(--accent-warning-subtle)' }}>

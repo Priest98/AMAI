@@ -1,4 +1,5 @@
 "use client";
+import Link from 'next/link';
 import React, { useState, useEffect, useCallback } from 'react';
 import { brandFetch } from '@/lib/api';
 import { useEngineEvents, EngineEvent } from '@/lib/useEngineEvents';
@@ -33,27 +34,32 @@ export default function AnalyticsPage() {
   const [counts, setCounts] = useState({ pending: 0, scheduled: 0, published: 0, failed: 0 });
   const [logs, setLogs] = useState<EngineEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   const load = useCallback(async () => {
+    setLoadError(false);
     try {
-      const [pending, scheduled, published, failed, events] = await Promise.all([
-        brandFetch<CountedPost[]>('/posts?status=NEEDS_APPROVAL'),
-        brandFetch<CountedPost[]>('/posts?status=SCHEDULED'),
-        brandFetch<CountedPost[]>('/posts?status=PUBLISHED'),
+      const [stats, failed, events] = await Promise.all([
+        brandFetch<{needsApprovalCount:number; scheduledCount:number; publishedCount:number}>('/posts/stats'),
         brandFetch<CountedPost[]>('/posts?status=FAILED'),
         brandFetch<EngineEvent[]>('/engine/activity'),
       ]);
-      setCounts({ pending: pending.length, scheduled: scheduled.length, published: published.length, failed: failed.length });
+      setCounts({ pending: stats.needsApprovalCount, scheduled: stats.scheduledCount, published: stats.publishedCount, failed: failed.length });
       setLogs(events);
     } catch (e) {
-      console.error('Failed to load analytics', e);
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => { load(); }, [load]);
-  useEngineEvents((event) => setLogs((prev) => [event, ...prev].slice(0, 50)));
+  useEngineEvents((event) => {
+    setLogs((prev) => [event, ...prev.filter((entry) => entry.id !== event.id)].slice(0, 50));
+    if (['POST_APPROVED', 'POST_REJECTED', 'APPROVAL_QUEUED', 'AUTO_SCHEDULED', 'PUBLISH_SUCCEEDED', 'PUBLISH_FAILED'].includes(event.type)) void load();
+  });
+
+  if (loading || loadError) return <section className="max-w-5xl mx-auto p-6 space-y-4" aria-busy={loading}><h1 className="text-h1">Analytics</h1><p role={loadError ? 'alert' : 'status'}>{loadError ? 'Analytics could not be loaded. Try again to see current figures.' : 'Loading publishing activity…'}</p>{loadError && <button className="btn-secondary touch-target px-4" onClick={() => { setLoading(true); void load(); }}>Retry analytics</button>}</section>;
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-24 sm:pb-12">
@@ -61,6 +67,13 @@ export default function AnalyticsPage() {
         <h1 className="text-h1" style={{ color: 'var(--text-primary)' }}>Analytics</h1>
         <p className="text-body-sm mt-1" style={{ color: 'var(--text-secondary)' }}>How your content is moving through Oyinca.</p>
       </div>
+
+      <section className="border-y py-5 space-y-3" style={{ borderColor: 'var(--card-border)' }}>
+        <h2 className="text-h3">{counts.failed > 0 ? 'Some posts need attention' : counts.pending > 0 ? 'Your next step is review' : counts.scheduled > 0 ? 'Your publishing plan is moving' : 'Build your publishing history'}</h2>
+        <p className="text-body-sm">{counts.failed > 0 ? `${counts.failed} posts failed. Review their status before retrying.` : counts.pending > 0 ? `${counts.pending} posts are waiting for approval.` : counts.scheduled > 0 ? `${counts.scheduled} posts are scheduled. Check the calendar for timing.` : 'Upload content to start preparing your next posts.'}</p>
+        <Link className="touch-target underline font-semibold" href={counts.failed > 0 ? '/dashboard/calendar' : counts.pending > 0 ? '/dashboard/approval-queue' : counts.scheduled > 0 ? '/dashboard/calendar' : '/dashboard/media'}>{counts.failed > 0 ? 'Review calendar' : counts.pending > 0 ? 'Review posts' : counts.scheduled > 0 ? 'View calendar' : 'Upload content'}</Link>
+        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>These totals describe publishing activity, not audience reach or engagement.</p>
+      </section>
 
       <Reveal className="glass-shell p-4 sm:p-5 grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard icon={<Clock className="h-4 w-4" style={{ color: 'var(--accent-warning)' }} />} label="Awaiting Approval" value={String(counts.pending)} helperText="In the queue" />

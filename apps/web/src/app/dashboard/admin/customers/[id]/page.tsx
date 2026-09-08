@@ -2,9 +2,9 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { ShieldAlert } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import Badge from '@/components/ui/Badge';
+import RetryPanel from '@/components/ui/RetryPanel';
 
 interface CustomerDetail {
   id: string;
@@ -41,14 +41,17 @@ export default function CustomerDetailPage() {
   const [data, setData] = useState<CustomerDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     if (!id) return;
+    setLoading(true);
+    setError(null);
     apiFetch<CustomerDetail>(`/admin/customers/${id}`)
       .then(setData)
       .catch((e: any) => setError(e?.message || "Couldn't load this customer."))
       .finally(() => setLoading(false));
-  }, [id]);
+  }, [id, retry]);
 
   if (loading) {
     return <div className="p-10 text-center text-body-sm" style={{ color: 'var(--text-secondary)' }}>Loading…</div>;
@@ -56,10 +59,7 @@ export default function CustomerDetailPage() {
 
   if (error || !data) {
     return (
-      <div className="p-10 max-w-md mx-auto text-center">
-        <ShieldAlert className="h-6 w-6 mx-auto mb-3" style={{ color: 'var(--accent-error)' }} />
-        <p className="text-body-sm" style={{ color: 'var(--text-secondary)' }}>{error || 'Not available.'}</p>
-      </div>
+      <RetryPanel message={error || 'This customer is not available.'} onRetry={() => setRetry((value) => value + 1)} label="Retry customer" />
     );
   }
 

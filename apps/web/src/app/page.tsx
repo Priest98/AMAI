@@ -3,6 +3,7 @@ import type { CSSProperties } from 'react';
 import { Suspense } from 'react';
 import '@/styles/landing.css';
 
+import AcquisitionMotion from '@/components/landing/AcquisitionMotion';
 import Nav from '@/components/landing/Nav';
 import Hero from '@/components/landing/Hero';
 import HowItWorks from '@/components/landing/HowItWorks';
@@ -170,6 +171,7 @@ export default function Home() {
         </a>
 
         <Nav />
+        <AcquisitionMotion />
 
 
         <div className="lp-ambient-bg" aria-hidden="true">

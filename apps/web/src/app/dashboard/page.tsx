@@ -1,7 +1,6 @@
 "use client";
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { motion } from 'framer-motion';
 import StatCard from "@/components/ui/StatCard";
 import Badge from "@/components/ui/Badge";
@@ -115,6 +114,8 @@ export default function DashboardPage() {
   const [googleDriveConnected, setGoogleDriveConnected] = useState(false);
   const [mediaCount, setMediaCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [performanceError, setPerformanceError] = useState(false);
   const [billing, setBilling] = useState<BillingSummary | null>(null);
   const [insights, setInsights] = useState<CalendarInsightsData | null>(null);
   const [performance, setPerformance] = useState<PerformanceSummary | LockedPerformanceSummary | null>(null);
@@ -130,7 +131,7 @@ export default function DashboardPage() {
     // (see PostsService.getPerformanceSummary) -- absent entirely (not
     // zeroed) until TikTok is connected and the metrics-sync cron has had a
     // chance to capture at least one snapshot.
-    brandFetch<PerformanceSummary | LockedPerformanceSummary>('/posts/performance-summary').then(setPerformance).catch(() => {});
+    brandFetch<PerformanceSummary | LockedPerformanceSummary>('/posts/performance-summary').then(setPerformance).catch(() => setPerformanceError(true));
   }, []);
 
   // Previously this fired 6 separate requests on every mount and every SSE
@@ -139,11 +140,12 @@ export default function DashboardPage() {
   // counts-only `/posts/stats` call instead of transferring full
   // caption/hashtag/target/media rows the dashboard never renders.
   const fetchLiveData = useCallback(async () => {
+    setLoadError(false);
     try {
       const [config, stats, accounts] = await Promise.all([
         brandFetch<{ state: 'ACTIVE' | 'PAUSED'; approvalMode: 'MANUAL' | 'AUTO' }>('/engine/state'),
         brandFetch<DashStats>('/posts/stats'),
-        apiFetch<any>('/oauth/accounts').catch(() => null),
+        apiFetch<any>('/oauth/accounts'),
       ]);
 
       setEngineState(config.state);
@@ -162,7 +164,7 @@ export default function DashboardPage() {
       setConnectedAccounts(accountSummaries);
       setGoogleDriveConnected(accounts?.googleDrive?.status === 'CONNECTED');
     } catch (e) {
-      console.error('Failed to fetch dashboard data', e);
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -186,44 +188,34 @@ export default function DashboardPage() {
     return 'Good evening';
   })();
 
+  if (loading || loadError) return (
+    <section className="max-w-3xl mx-auto py-12 px-4 space-y-4" aria-busy={loading}>
+      <h1 className="text-h1">Your workspace</h1>
+      <p role={loadError ? 'alert' : 'status'} style={{ color: 'var(--text-secondary)' }}>
+        {loadError ? 'We could not load your workspace. Your posts and settings have not changed.' : 'Loading your posts and publishing status…'}
+      </p>
+      {loadError && <button className="btn-primary-gradient touch-target px-5" onClick={() => { setLoading(true); void fetchLiveData(); }}>Try again</button>}
+    </section>
+  );
+
   return (
     <motion.div
       variants={containerVariants}
-      initial="hidden"
+      initial={false}
       animate="show"
       className="space-y-8 max-w-7xl mx-auto pb-24 sm:pb-12"
     >
       <div className="relative overflow-hidden rounded-[28px]">
-        {/* Subtle Higgsfield-generated ambient accent -- deliberately faint
-            (low opacity + gradient fade into the page background) since this
-            is a working tool, not a marketing surface: it should read as
-            premium atmosphere, never compete with the KPI numbers or engine
-            visualization below it. */}
-        <div className="absolute inset-0 -z-10" aria-hidden="true">
-          <Image
-            src="https://d8j0ntlcm91z4.cloudfront.net/user_3HXsou9653KJM9YD320GPTi1aul/hf_20260806_150052_8d115273-ebd0-4397-8a29-2bc3f9a0ac2c.png"
-            alt=""
-            fill
-            priority
-            sizes="100vw"
-            className="object-cover opacity-25"
-          />
-          <div
-            className="absolute inset-0"
-            style={{ background: 'linear-gradient(to bottom, transparent 0%, var(--bg-base) 92%)' }}
-          />
-        </div>
-
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-1 py-6 sm:py-8">
           <div>
             <h1
               className="text-3xl sm:text-4xl font-bold tracking-tight"
               style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-heading)', letterSpacing: '-0.02em' }}
             >
-              {greeting}. I&rsquo;ve been working on your TikTok.
+              {greeting}. Here is your workspace.
             </h1>
             <p className="text-body-sm mt-2" style={{ color: 'var(--text-secondary)' }}>
-              Here&rsquo;s today&rsquo;s briefing.
+              {pendingCount > 0 ? `${pendingCount} posts need your review.` : scheduledCount > 0 ? `${scheduledCount} posts are scheduled.` : 'Add your content to get started.'}
             </p>
           </div>
 
@@ -244,10 +236,15 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ── Oyinca — live and center-stage on the flagship page ── */}
-      <motion.div variants={itemVariants}>
-        <EngineWorkflowVisualization />
-      </motion.div>
+      <section className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-y py-6" style={{ borderColor: 'var(--card-border)' }} aria-labelledby="next-action-title">
+        <div>
+          <h2 id="next-action-title" className="text-h3">{pendingCount > 0 ? 'Your review comes next' : scheduledCount > 0 ? 'Your publishing plan is ready' : mediaCount === 0 ? 'Give Oyinca something to work with' : 'Prepare your next post'}</h2>
+          <p className="text-body-sm mt-2" style={{ color: 'var(--text-secondary)' }}>{pendingCount > 0 ? 'Check the prepared captions and timing before approving.' : scheduledCount > 0 ? 'Review upcoming posts and make changes to the schedule.' : mediaCount === 0 ? 'Upload a photo or video to begin preparing content.' : 'Choose content from your library and prepare it for review.'}</p>
+        </div>
+        <Link className="btn-primary-gradient touch-target px-5 py-3 shrink-0" href={pendingCount > 0 ? '/dashboard/approval-queue' : scheduledCount > 0 ? '/dashboard/calendar' : '/dashboard/media'}>
+          {pendingCount > 0 ? 'Review posts' : scheduledCount > 0 ? 'View calendar' : mediaCount === 0 ? 'Upload content' : 'Open library'}
+        </Link>
+      </section>
 
       {/* "Today's Briefing" -- the Oyinca-spec framing for what used to be a
           bare KPI grid: same real numbers (approval queue, scheduled,
@@ -283,6 +280,11 @@ export default function DashboardPage() {
         />
       </div>
 
+      <details className="exec-card p-5">
+        <summary className="touch-target cursor-pointer font-semibold">Publishing workflow</summary>
+        <EngineWorkflowVisualization />
+      </details>
+
       {/* "Performance This Week" -- real week-over-week engagement growth
           computed from PostPerformance snapshots (see
           PostsService.getPerformanceSummary), not per-post static totals
@@ -307,7 +309,7 @@ export default function DashboardPage() {
 
           {!performance || !performance.hasData ? (
             <p className="text-body-sm" style={{ color: 'var(--text-secondary)' }}>
-              No performance data yet &mdash; once a post has been live for a bit and Oyinca has synced its stats, real engagement growth will show up here.
+              {performanceError ? 'Performance could not be loaded. Refresh the page to try again.' : 'Performance appears after published posts have synced their results.'}
             </p>
           ) : (
             <>

@@ -1,9 +1,11 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { ShieldAlert, Pencil } from 'lucide-react';
+import { Pencil } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { formatPrice, CURRENCY_SYMBOLS, type Currency } from '@/lib/currency';
+import Modal from '@/components/ui/Modal';
+import RetryPanel from '@/components/ui/RetryPanel';
 
 type PlanTier = 'PRO' | 'CREATOR' | 'AGENCY';
 type BillingInterval = 'MONTHLY' | 'ANNUAL';
@@ -42,6 +44,7 @@ export default function AdminPricingPage() {
 
   const load = () => {
     setLoading(true);
+    setError(null);
     apiFetch<{ prices: PriceRow[] }>('/admin/pricing')
       .then((d) => setRows(d.prices))
       .catch((e: any) => setError(e?.message || "Couldn't load pricing."))
@@ -66,16 +69,13 @@ export default function AdminPricingPage() {
       {loading ? (
         <div className="p-10 text-center text-body-sm" style={{ color: 'var(--text-secondary)' }}>Loading…</div>
       ) : error || !rows ? (
-        <div className="p-10 max-w-md mx-auto text-center">
-          <ShieldAlert className="h-6 w-6 mx-auto mb-3" style={{ color: 'var(--accent-error)' }} />
-          <p className="text-body-sm" style={{ color: 'var(--text-secondary)' }}>{error || 'Not available.'}</p>
-        </div>
+        <RetryPanel message={error || 'Pricing is not available.'} onRetry={load} label="Retry pricing" />
       ) : (
         <div className="space-y-8">
           {TIERS.map((tier) => (
             <div key={tier} className="space-y-3">
               <h2 className="text-h3" style={{ color: 'var(--text-primary)' }}>{TIER_LABELS[tier]}</h2>
-              <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${CURRENCIES.length}, minmax(0, 1fr))` }}>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 {CURRENCIES.map((currency) => (
                   <div key={currency} className="exec-card card-pad space-y-3">
                     <p className="text-caption font-bold" style={{ color: 'var(--text-muted)' }}>
@@ -188,12 +188,9 @@ function EditPriceModal({ row, onClose, onSaved }: { row: PriceRow; onClose: () 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-      <div className="exec-card card-pad max-w-sm w-full space-y-4" style={{ backgroundColor: 'var(--bg-surface)' }}>
+    <Modal open onClose={onClose} title={`${TIER_LABELS[row.tier]} · ${row.currency} · ${row.billingInterval === 'MONTHLY' ? 'Monthly' : 'Annual'}`} maxWidth="448px">
+      <div className="space-y-4">
         <div>
-          <h3 className="text-h3" style={{ color: 'var(--text-primary)' }}>
-            {TIER_LABELS[row.tier]} · {row.currency} · {row.billingInterval === 'MONTHLY' ? 'Monthly' : 'Annual'}
-          </h3>
           <p className="text-caption mt-1" style={{ color: 'var(--accent-warning)' }}>
             This creates a new live {row.currency === 'NGN' ? 'Paystack Plan' : 'Stripe Price'}. New checkouts use it immediately; existing subscribers are unaffected.
           </p>
@@ -201,7 +198,7 @@ function EditPriceModal({ row, onClose, onSaved }: { row: PriceRow; onClose: () 
 
         <label className="block">
           <span className="text-caption font-bold" style={{ color: 'var(--text-muted)' }}>Regular price (display "was" price)</span>
-          <input
+          <input aria-label="Regular price"
             type="number"
             min={0}
             value={regularAmount}
@@ -213,7 +210,7 @@ function EditPriceModal({ row, onClose, onSaved }: { row: PriceRow; onClose: () 
 
         <label className="block">
           <span className="text-caption font-bold" style={{ color: 'var(--text-muted)' }}>New-user price (leave blank for no promo -- this is the amount actually charged)</span>
-          <input
+          <input aria-label="New-user price"
             type="number"
             min={0}
             value={newUserAmount}
@@ -223,7 +220,7 @@ function EditPriceModal({ row, onClose, onSaved }: { row: PriceRow; onClose: () 
           />
         </label>
 
-        {error && <p className="text-caption" style={{ color: 'var(--accent-error)' }}>{error}</p>}
+        {error && <p className="text-caption" role="alert" style={{ color: 'var(--accent-error)' }}>{error}</p>}
 
         <label className="flex items-start gap-2">
           <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} className="mt-0.5" />
@@ -246,6 +243,6 @@ function EditPriceModal({ row, onClose, onSaved }: { row: PriceRow; onClose: () 
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

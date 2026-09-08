@@ -1527,3 +1527,14 @@
 @media(max-width:360px){.oy-cinematic-copy{top:110px}.oy-cinematic-copy h1{font-size:42px}.oy-meet-cta{top:calc(100svh - 275px)}.oy-cinematic-micro{display:none}}
 @media(prefers-reduced-motion:no-preference){.oy-cinematic-image img{animation:oy-human-breathe 12s ease-in-out infinite alternate}.oy-cinematic-hero:after{animation:oy-cinema-light 10s ease-in-out infinite alternate}.oy-cinematic-atmosphere i:nth-child(1){animation:oy-cinema-orbit 22s linear infinite}.oy-cinematic-atmosphere i:nth-child(2){animation:oy-cinema-orbit 16s linear infinite reverse}.oy-meet-cta{transition:background .2s,box-shadow .2s,transform .15s}.oy-discover>span{animation:oy-discover-pulse 2.8s ease-in-out infinite}}
 @keyframes oy-human-breathe{to{transform:scale(1.045) translate3d(-.3%,.25%,0)}}@keyframes oy-cinema-light{to{transform:translate3d(2%,1%,0) scale(1.03)}}@keyframes oy-cinema-orbit{to{transform:rotate(360deg)}}@keyframes oy-discover-pulse{50%{transform:translateY(4px);border-color:#e8ba85}}
+
+/* Acquisition story: editorial context, one clear decision per section. */
+.oy-demo-label { max-width: var(--content-width); margin: 0 auto 16px; color: var(--text-secondary); font-size: 14px; }
+.oy-understanding { max-width: var(--content-width); margin: 0 auto; padding: var(--section-gap) var(--page-gutter); display: grid; grid-template-columns: 1fr 1.15fr; gap: 64px; }
+.oy-understanding h2 { font-family: var(--font-display-var), serif; font-size: clamp(36px, 4vw, 56px); line-height: 1.15; margin-top: 20px; }
+.oy-context-list article { display: flex; gap: 24px; padding: 28px 0; border-bottom: 1px solid var(--card-border); }
+.oy-context-list article:first-child { padding-top: 0; }
+.oy-context-list article > span { font-size: 12px; color: var(--text-muted); padding-top: 5px; }
+.oy-context-list h3 { font-size: 20px; margin-bottom: 12px; }
+.oy-context-list p { font-size: 16px; line-height: 1.7; color: var(--text-secondary); }
+@media (max-width: 767px) { .oy-understanding { grid-template-columns: 1fr; gap: 36px; } }

@@ -2,10 +2,10 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { motion, AnimatePresence } from 'framer-motion';
 import { getBillingSummary, markProActivationSeen, type BillingSummary } from '@/lib/billing';
 import { brandFetch } from '@/lib/api';
 import { CheckCircle2, Gem, ArrowRight } from 'lucide-react';
+import Modal from '@/components/ui/Modal';
 
 interface ContentIntelligence {
   hasEnoughData: boolean;
@@ -74,17 +74,8 @@ export default function ProActivationModal() {
   ];
 
   return (
-    <AnimatePresence>
-      {visible && (
-        <motion.div
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[300] flex items-center justify-center p-4"
-          style={{ backgroundColor: 'rgba(10, 11, 20, 0.7)', backdropFilter: 'blur(6px)' }}
-        >
-          <motion.div
-            initial={{ scale: 0.96, opacity: 0, y: 12 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.97, opacity: 0, y: 6 }}
-            className="glass-panel w-full max-w-lg rounded-[var(--radius-xl)] p-6 sm:p-8 space-y-6 max-h-[90vh] overflow-y-auto"
-          >
+    <Modal open={visible} onClose={dismiss} title={`Welcome to ${planName}`} maxWidth="512px">
+      <div className="space-y-6">
             <div className="space-y-2">
               <span
                 className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider"
@@ -93,9 +84,9 @@ export default function ProActivationModal() {
                 <Gem className="h-3 w-3" />
                 Welcome to {planName}
               </span>
-              <h2 className="text-h1" style={{ color: 'var(--text-primary)' }}>
+              <p className="text-h1" style={{ color: 'var(--text-primary)' }}>
                 Your social media manager is now online.
-              </h2>
+              </p>
               <p className="text-body-sm" style={{ color: 'var(--text-secondary)' }}>
                 Let's put Oyinca to work.
               </p>
@@ -149,9 +140,7 @@ export default function ProActivationModal() {
                 Not now
               </button>
             </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+      </div>
+    </Modal>
   );
 }

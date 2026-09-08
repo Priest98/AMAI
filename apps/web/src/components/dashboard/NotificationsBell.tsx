@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
+import Modal from "@/components/ui/Modal";
 import {
   Bell,
   CheckCircle2,
@@ -14,7 +14,7 @@ import {
   Wand2,
 } from "lucide-react";
 import { useEngineEvents, EngineEvent } from "@/lib/useEngineEvents";
-import { brandFetch } from "@/lib/api";
+import { brandFetch, getBrandId } from "@/lib/api";
 
 const READ_STORAGE_KEY = "oyinca:read-notification-ids";
 
@@ -84,10 +84,20 @@ export default function NotificationsBell() {
   const [items, setItems] = useState<Notification[]>([]);
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
-    const readIds = new Set<string>(JSON.parse(localStorage.getItem(READ_STORAGE_KEY) || "[]"));
+    setLoading(true);
+    setLoadError(false);
+    let stored: string[] = [];
+    try {
+      const parsed: unknown = JSON.parse(localStorage.getItem(`${READ_STORAGE_KEY}:${getBrandId()}`) || '[]');
+      if (Array.isArray(parsed)) stored = parsed.filter((id): id is string => typeof id === 'string');
+    } catch { /* Browser storage is optional; events still load. */ }
+    const readIds = new Set(stored);
     brandFetch<EngineEvent[]>("/engine/activity")
       .then((events) => {
         if (cancelled) return;
@@ -98,39 +108,27 @@ export default function NotificationsBell() {
             .map((event) => ({ ...event, read: readIds.has(event.id) })),
         );
       })
-      .catch(() => {});
+      .catch(() => { if (!cancelled) setLoadError(true); })
+      .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, []);
+  }, [retry]);
 
   useEngineEvents((event: EngineEvent) => {
     if (!NOTIFIABLE_TYPES.has(event.type)) return;
-    setItems((prev) => [{ ...event, read: false }, ...prev].slice(0, 20));
+    setItems((prev) => [{ ...event, read: false }, ...prev.filter((item) => item.id !== event.id)].slice(0, 20));
   });
-
-  useEffect(() => {
-    const onClickOutside = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", onClickOutside);
-    return () => document.removeEventListener("mousedown", onClickOutside);
-  }, []);
 
   const unreadCount = items.filter((n) => !n.read).length;
 
   const markAllRead = () => setItems((prev) => {
     const next = prev.map((n) => ({ ...n, read: true }));
-    localStorage.setItem(READ_STORAGE_KEY, JSON.stringify(next.map((n) => n.id).slice(0, 100)));
+    try { localStorage.setItem(`${READ_STORAGE_KEY}:${getBrandId()}`, JSON.stringify(next.map((n) => n.id).slice(0, 100))); } catch { /* Keep in-memory read state if storage is unavailable. */ }
     return next;
   });
 
   const toggleOpen = () => {
-    setOpen((prev) => {
-      const next = !prev;
-      if (next) markAllRead();
-      return next;
-    });
+    if (!open) markAllRead();
+    setOpen(!open);
   };
 
   return (
@@ -140,6 +138,8 @@ export default function NotificationsBell() {
         className="btn-icon-glass relative h-8 w-8 flex items-center justify-center touch-target"
         style={{ color: "var(--text-primary)" }}
         aria-label="Notifications"
+        aria-haspopup="dialog"
+        aria-expanded={open}
       >
         <Bell className="h-3.5 w-3.5" />
         {unreadCount > 0 && (
@@ -152,23 +152,8 @@ export default function NotificationsBell() {
         )}
       </button>
 
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.96, y: -6 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.97, y: -4 }}
-            transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
-            className="glass-panel absolute right-0 top-11 w-80 max-h-96 overflow-y-auto rounded-[var(--radius-lg)] p-2 z-50"
-          >
-            <div className="flex items-center justify-between px-2.5 py-2">
-              <span className="text-overline">Notifications</span>
-              {items.length > 0 && (
-                <Radio className="h-3 w-3" style={{ color: "var(--accent-success)" }} />
-              )}
-            </div>
-
-            {items.length === 0 ? (
+      <Modal open={open} onClose={() => setOpen(false)} title="Notifications">
+            {loading ? <p role="status" className="text-sm p-4">Loading notifications…</p> : loadError ? <div role="alert" className="space-y-3 p-4"><p>Notifications could not be loaded.</p><button className="btn-secondary touch-target px-4" onClick={() => setRetry((value) => value + 1)}>Retry notifications</button></div> : items.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
                 <Gem className="h-5 w-5 mb-2" style={{ color: "var(--text-muted)" }} />
                 <p className="text-caption" style={{ color: "var(--text-muted)" }}>
@@ -212,9 +197,7 @@ export default function NotificationsBell() {
                 })}
               </ul>
             )}
-          </motion.div>
-        )}
-      </AnimatePresence>
+      </Modal>
     </div>
   );
 }
