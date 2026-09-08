@@ -10,6 +10,8 @@ import { MediaOptimizationService } from '../media-optimization/media-optimizati
 import { toPublicConnection, deriveConnectionHealth } from '../oauth/connection-health';
 import { BrainDecisionTraceService } from '../capabilities/observability/brain-decision-trace.service';
 import { randomUUID } from 'node:crypto';
+import { OyincaBrainService } from '../business-brain/oyinca-brain.service';
+import type { BrainEvaluation } from '../business-brain/oyinca-brain.types';
 import {
   EngineState,
   ApprovalMode,
@@ -74,6 +76,7 @@ export class EngineService {
     private entitlementsService: EntitlementsService,
     private mediaOptimizationService: MediaOptimizationService,
     private decisionTrace: BrainDecisionTraceService,
+    private oyincaBrain: OyincaBrainService,
   ) {}
 
   // ─────────────────────────────────────────────────────────────
@@ -431,6 +434,8 @@ export class EngineService {
     let topic: string;
     let caption: string;
     let hashtags: string[];
+    let brainEvaluation: BrainEvaluation | null = null;
+    let contentAnalysisId: string | undefined;
     let connectedAccounts: { id: string; platform: Platform }[] = [];
     try {
       if (asset.visionTopic) {
@@ -453,14 +458,19 @@ export class EngineService {
         // downstream fails. Never persists the filename-derived fallback --
         // only a real Gemini vision result counts as "vision analysis".
         if (visionTopic) {
-          this.prisma.mediaAsset
+          await this.prisma.mediaAsset
             .update({ where: { id: asset.id }, data: { visionTopic, visionAnalyzedAt: new Date() } })
             .catch((e) => this.logger.warn(`[${asset.id}] Failed to persist vision analysis: ${e?.message || e}`));
+          asset.visionTopic = visionTopic;
         }
       } else {
         topic = this.deriveTopicFromFilename(asset.filename, asset.batchName);
       }
       this.logger.log(`[${asset.id}] Media analyzed: topic="${topic}"`);
+      contentAnalysisId = (await this.oyincaBrain.analyze(brandId, asset.id).catch((error) => {
+        this.logger.warn(`[${asset.id}] Structured analysis unavailable; continuing safely: ${error?.message || error}`);
+        return null;
+      }))?.analysisId;
 
       const allConnectedAccounts = await this.prisma.socialAccount.findMany({
         where: { brandId, status: ConnectionStatus.CONNECTED },
@@ -497,6 +507,12 @@ export class EngineService {
       ]);
       caption = captionResult.caption;
       hashtags = Array.from(new Set(hashtagResult.allHashtags)).slice(0, 8);
+      brainEvaluation = await this.oyincaBrain.evaluate(brandId, {
+        caption,
+        hashtags,
+        cta: '',
+        confidence: asset.visionTopic ? 0.85 : 0.68,
+      }).catch(() => null);
       this.decisionTrace.record({
         organizationId: aiGenerationOrgId,
         brandId,
@@ -505,6 +521,9 @@ export class EngineService {
         decision: 'generate_platform_content',
         reasonCodes: ['media_uploaded', connectedAccounts.length ? 'connected_platforms_available' : 'no_connected_platforms'],
         contextSections: brainContext ? ['brand'] : [],
+        confidence: brainEvaluation?.overallConfidence,
+        evaluation: brainEvaluation ? { action: brainEvaluation.action, policy: brainEvaluation.policy, brandFit: brainEvaluation.brandFit, audienceFit: brainEvaluation.audienceFit, repetitionRisk: brainEvaluation.repetitionRisk } : undefined,
+        contentAnalysisId,
         latencyMs: Date.now() - decisionStartedAt,
         outcome: 'succeeded',
       }).catch(() => {});
@@ -561,6 +580,9 @@ export class EngineService {
       config.state === EngineState.ACTIVE &&
       config.approvalMode === ApprovalMode.AUTO &&
       engineEntitlements.autopilotLevel === 'advanced';
+    // Brain confidence may only reduce autonomy. It can never override the
+    // user's approval setting or plan permissions to enable publishing.
+    if (!brainEvaluation || brainEvaluation.action !== 'accept') willAutoPublish = false;
     const postStatus = willAutoPublish ? PostStatus.SCHEDULED : PostStatus.NEEDS_APPROVAL;
 
     // AI Content Intelligence (foundation): tag this post with whichever
@@ -632,6 +654,7 @@ export class EngineService {
       // instead of asserting it -- a genuine safety net costs nothing here.
       throw new Error(`[${asset.id}] Failed to create post: exhausted ${MAX_SLOT_RETRIES} slot retries without a definitive success or failure.`);
     }
+    await this.prisma.brainDecision.updateMany({ where: { correlationId: decisionCorrelationId, brandId }, data: { postId: post.id } }).catch(() => {});
 
     this.logger.log(`[${asset.id}] Content scheduled: scheduledAt=${scheduledAt.toISOString()} priority=${priorityUsed} score=${optimalScore}`);
     this.logEvent(brandId, EngineEventType.BEST_TIME_DETERMINED, {
@@ -1018,6 +1041,15 @@ export class EngineService {
         sourcePostId: postId,
       }),
     ));
+    const feedbackWrites: Promise<unknown>[] = [this.oyincaBrain.recordFeedback(brandId, {
+      type: 'APPROVED', idempotencyKey: `approval:${postId}`, postId,
+      metadata: { publishNow: !!overrides?.publishNow },
+    })];
+    if (overrides?.caption !== undefined && overrides.caption.trim() !== post.caption.trim()) feedbackWrites.push(this.oyincaBrain.recordFeedback(brandId, { type: 'CAPTION_EDITED', idempotencyKey: `approval-caption:${postId}`, postId, before: post.caption, after: overrides.caption }));
+    if (overrides?.hashtags && JSON.stringify(overrides.hashtags) !== JSON.stringify(post.hashtags)) feedbackWrites.push(this.oyincaBrain.recordFeedback(brandId, { type: 'HASHTAGS_EDITED', idempotencyKey: `approval-hashtags:${postId}`, postId, before: post.hashtags, after: overrides.hashtags }));
+    if (overrides?.ctaText !== undefined && overrides.ctaText !== post.ctaText) feedbackWrites.push(this.oyincaBrain.recordFeedback(brandId, { type: 'CTA_EDITED', idempotencyKey: `approval-cta:${postId}`, postId, before: post.ctaText, after: overrides.ctaText }));
+    if (overrides?.scheduledAt && overrides.scheduledAt !== post.scheduledAt?.toISOString()) feedbackWrites.push(this.oyincaBrain.recordFeedback(brandId, { type: 'SCHEDULE_CHANGED', idempotencyKey: `approval-schedule:${postId}`, postId, before: post.scheduledAt?.toISOString(), after: overrides.scheduledAt }));
+    await Promise.allSettled(feedbackWrites);
 
     await this.prisma.mediaAsset.updateMany({
       where: { linkedPostId: postId },
@@ -1086,6 +1118,7 @@ export class EngineService {
         confidence: 0.75,
         sourcePostId: postId,
       }).catch(() => {});
+      await this.oyincaBrain.recordFeedback(brandId, { type: 'POST_REJECTED', idempotencyKey: `rejection:${postId}`, postId, before: post.caption, metadata: { previousStatus: post.status } }).catch(() => {});
     }
     return updated;
   }
@@ -1159,6 +1192,12 @@ export class EngineService {
     });
 
     await this.logEvent(brandId, EngineEventType.POST_EDITED, { postId, message: 'Post edited.' });
+    const edits: Promise<unknown>[] = [];
+    if (dto.caption !== undefined && dto.caption.trim() !== post.caption.trim()) edits.push(this.oyincaBrain.recordFeedback(brandId, { type: 'CAPTION_EDITED', idempotencyKey: `edit-caption:${postId}:${post.updatedAt.toISOString()}`, postId, before: post.caption, after: dto.caption }));
+    if (dto.hashtags && JSON.stringify(dto.hashtags) !== JSON.stringify(post.hashtags)) edits.push(this.oyincaBrain.recordFeedback(brandId, { type: 'HASHTAGS_EDITED', idempotencyKey: `edit-hashtags:${postId}:${post.updatedAt.toISOString()}`, postId, before: post.hashtags, after: dto.hashtags }));
+    if (dto.ctaText !== undefined && dto.ctaText !== post.ctaText) edits.push(this.oyincaBrain.recordFeedback(brandId, { type: 'CTA_EDITED', idempotencyKey: `edit-cta:${postId}:${post.updatedAt.toISOString()}`, postId, before: post.ctaText, after: dto.ctaText }));
+    if (dto.scheduledAt && dto.scheduledAt !== post.scheduledAt?.toISOString()) edits.push(this.oyincaBrain.recordFeedback(brandId, { type: 'SCHEDULE_CHANGED', idempotencyKey: `edit-schedule:${postId}:${post.updatedAt.toISOString()}`, postId, before: post.scheduledAt?.toISOString(), after: dto.scheduledAt }));
+    await Promise.allSettled(edits);
 
     // If it was already scheduled and the time changed, the next
     // /api/cron/publish-due run will naturally pick it up at the new time —

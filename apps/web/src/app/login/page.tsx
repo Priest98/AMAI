@@ -6,7 +6,7 @@ import { Logo } from '@/components/logo';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
 import ThemeToggle from '@/components/ui/ThemeToggle';
-import { AtSign, Lock, ArrowRight, Eye, EyeOff, CheckCircle2, AlertCircle } from 'lucide-react';
+import { AtSign, Lock, ArrowRight, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { API_BASE, isAuthenticated, setSession } from '@/lib/api';
 import { capture, identify } from '@/lib/posthog';
 import BrandAttribution from '@/components/BrandAttribution';
@@ -29,6 +29,8 @@ export default function LoginPage() {
   // making the user look at (or resubmit) a sign-in form.
   useEffect(() => {
     getSelectedPlan();
+    const message = new URLSearchParams(window.location.search).get('error');
+    if (message) setError(message);
     if (isAuthenticated()) {
       router.replace(planDestination());
       return;
@@ -101,10 +103,10 @@ export default function LoginPage() {
             </Link>
             <div>
               <h1 className="text-h1" style={{ color: 'var(--text-primary)' }}>
-                Welcome back to Oyinca
+                Your social media.<br />Finally, managed.
               </h1>
               <p className="text-body-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-                Your content, approvals and schedule are waiting.
+                Enter with TikTok and meet your social media manager.
               </p>
             </div>
           </div>
@@ -118,6 +120,22 @@ export default function LoginPage() {
             <span>{error}</span>
           </div>
         )}
+
+        <a
+          href={`${API_BASE}/oauth/tiktok/login`}
+          className="flex min-h-12 w-full items-center justify-center gap-3 rounded-[var(--radius-lg)] bg-black px-5 py-3 font-bold text-white shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+          aria-label="Continue with TikTok"
+        >
+          <span className="relative grid h-6 w-6 place-items-center rounded-full border-2 border-white text-[11px] font-black before:absolute before:-left-1 before:top-0 before:h-full before:w-full before:rounded-full before:border-2 before:border-cyan-300 after:absolute after:left-1 after:top-0 after:h-full after:w-full after:rounded-full after:border-2 after:border-rose-400">♪</span>
+          Continue with TikTok
+          <ArrowRight className="h-4 w-4" />
+        </a>
+
+        <div className="flex items-center gap-3" aria-hidden="true">
+          <span className="h-px flex-1" style={{ backgroundColor: 'var(--card-border)' }} />
+          <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>or use email</span>
+          <span className="h-px flex-1" style={{ backgroundColor: 'var(--card-border)' }} />
+        </div>
 
         {/* Email / Password Login Form */}
         <form onSubmit={handleLogin} className="space-y-5">

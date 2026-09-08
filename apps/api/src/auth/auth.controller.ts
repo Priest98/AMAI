@@ -89,7 +89,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Get('me')
   async me(@Req() req: any) {
-    return this.authService.toSafeUser(req.user);
+    return this.authService.getMe(req.user.id, req.user);
   }
 
   @UseGuards(JwtAuthGuard)

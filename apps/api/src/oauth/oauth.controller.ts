@@ -4,6 +4,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PrismaService } from '../prisma/prisma.service';
 import { getAppUrl } from '../common/app-url.util';
 import { UpdateGoogleFolderDto, RefreshAccountDto, RenameAccountDto } from './dto';
+import { AUTH_COOKIE_NAME } from '../common/cookies.util';
 
 @Controller('oauth')
 export class OAuthController {
@@ -226,6 +227,18 @@ export class OAuthController {
   // TIKTOK ENDPOINTS
   // ─────────────────────────────────────────────────────────────
 
+  @Get('tiktok/login')
+  async getTikTokLogin(@Res() res: any) {
+    try {
+      const { url } = await this.oauthService.getTikTokAuthUrl({ intent: 'LOGIN' });
+      this.logger.log(JSON.stringify({ event: 'tiktok_auth_started', provider: 'TIKTOK' }));
+      return res.redirect(url);
+    } catch (err: any) {
+      this.logger.error(`TikTok sign-in failed: ${err?.message || err}`);
+      return res.redirect(`${this.appUrl}/login?error=${encodeURIComponent('TikTok sign-in is unavailable right now. Please try again.')}`);
+    }
+  }
+
   // See getGoogleConnect's doc comment: full navigation, authenticated via
   // the `?token=` fallback, brand membership re-verified server-side.
   @UseGuards(JwtAuthGuard)
@@ -234,8 +247,8 @@ export class OAuthController {
     try {
       const targetBrand = brandId || req.user.brandId;
       await this.assertBrandAccess(req.user.id, targetBrand);
-      const authUrl = this.oauthService.getTikTokAuthUrl(targetBrand);
-      return res.redirect(authUrl);
+      const { url } = await this.oauthService.getTikTokAuthUrl({ intent: 'LINK', userId: req.user.id, brandId: targetBrand });
+      return res.redirect(url);
     } catch (err: any) {
       this.logger.error(`TikTok connect failed: ${err?.message || err}`);
       return res.redirect(
@@ -249,11 +262,12 @@ export class OAuthController {
     @Query('code') code: string,
     @Query('state') state: string,
     @Query('error') error: string,
+    @Query('error_description') errorDescription: string,
     @Res() res: any,
   ) {
     if (error) {
       return res.redirect(
-        `${this.appUrl}/dashboard/integrations?error=${encodeURIComponent(`TikTok OAuth denied: ${error}`)}`,
+        `${this.appUrl}/login?error=${encodeURIComponent(errorDescription || 'TikTok authorization was cancelled.')}`,
       );
     }
 
@@ -265,11 +279,18 @@ export class OAuthController {
 
     try {
       const result = await this.oauthService.handleTikTokCallback(code, state);
+      if (result.session) {
+        res.cookie(AUTH_COOKIE_NAME, result.session.accessToken, {
+          httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/', maxAge: result.session.maxAgeMs,
+        });
+        return res.redirect(`${this.appUrl}/auth/tiktok/complete?expiresAt=${encodeURIComponent(result.session.expiresAt.toISOString())}`);
+      }
       return res.redirect(
         `${this.appUrl}/dashboard/integrations?success=true&platform=TikTok&account=${encodeURIComponent(result.handle)}`,
       );
     } catch (err: any) {
       this.logger.error(`TikTok callback failed: ${err?.message || err}`);
+      this.logger.warn(JSON.stringify({ event: 'tiktok_auth_failed', provider: 'TIKTOK', errorCode: err?.status || 'callback_failed' }));
       return res.redirect(
         `${this.appUrl}/dashboard/integrations?error=${encodeURIComponent('We could not connect your TikTok account. Please try again.')}`,
       );

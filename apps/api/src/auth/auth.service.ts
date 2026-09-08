@@ -371,7 +371,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email address or password.');
     }
 
-    const isPasswordValid = await bcrypt.compare(dto.password, user.passwordHash);
+    const isPasswordValid = user.passwordHash ? await bcrypt.compare(dto.password, user.passwordHash) : false;
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid email address or password.');
     }
@@ -388,7 +388,7 @@ export class AuthService {
     return this.generateAuthResponse(user, dto.rememberMe !== false);
   }
 
-  private async generateAuthResponse(user: any, rememberMe: boolean = true) {
+  async generateAuthResponse(user: any, rememberMe: boolean = true) {
     let brandId = 'primary_brand';
     try {
       const membership = await this.prisma.organizationMember.findFirst({
@@ -424,6 +424,75 @@ export class AuthService {
       accessToken: this.jwtService.sign(payload, { expiresIn }),
       expiresAt,
       maxAgeMs: expiresInDays * 24 * 60 * 60 * 1000,
+    };
+  }
+
+  async resolveTikTokUser(profile: { openId: string; unionId?: string; displayName?: string; avatarUrl?: string }) {
+    const existing = await this.prisma.authIdentity.findUnique({
+      where: { provider_providerAccountId: { provider: 'TIKTOK', providerAccountId: profile.openId } },
+      include: { user: true },
+    });
+    if (existing) {
+      await this.prisma.user.update({ where: { id: existing.userId }, data: { lastLogin: new Date() } });
+      return { user: existing.user, created: false };
+    }
+
+    try {
+      const user = await this.prisma.$transaction(async (tx) => {
+      const suffix = crypto.createHash('sha256').update(profile.openId).digest('hex').slice(0, 24);
+      const user = await tx.user.create({
+        data: {
+          email: `tiktok+${suffix}@identity.oyinca.invalid`,
+          passwordHash: null,
+          fullName: profile.displayName || 'TikTok creator',
+          avatar: profile.avatarUrl,
+          emailVerified: false,
+          role: Role.OWNER,
+          lastLogin: new Date(),
+        },
+      });
+      const org = await tx.organization.create({
+        data: {
+          name: `${profile.displayName || 'TikTok'} Workspace`,
+          slug: `tiktok-${suffix}`,
+          ownerId: user.id,
+          members: { create: { userId: user.id, role: Role.OWNER } },
+          subscription: { create: { plan: PlanTier.FREE, status: SubscriptionStatus.ACTIVE } },
+        },
+      });
+      await tx.brand.create({ data: { name: profile.displayName || 'My TikTok Brand', organizationId: org.id } });
+      await tx.authIdentity.create({
+        data: { userId: user.id, provider: 'TIKTOK', providerAccountId: profile.openId, providerUnionId: profile.unionId, profile },
+      });
+      return user;
+      });
+      return { user, created: true };
+    } catch (error) {
+      const winner = await this.prisma.authIdentity.findUnique({
+        where: { provider_providerAccountId: { provider: 'TIKTOK', providerAccountId: profile.openId } },
+        include: { user: true },
+      });
+      if (winner) return { user: winner.user, created: false };
+      throw error;
+    }
+  }
+
+  async getMe(userId: string, sessionUser?: any) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { authIdentities: { where: { provider: 'TIKTOK' }, take: 1 } },
+    });
+    if (!user) throw new UnauthorizedException();
+    const identity = user.authIdentities[0];
+    const safe = this.toSafeUser({ ...user, authIdentities: undefined, brandId: sessionUser?.brandId });
+    return {
+      ...safe,
+      tiktokIdentity: identity ? {
+        displayName: (identity.profile as any)?.displayName || user.fullName,
+        avatarUrl: (identity.profile as any)?.avatarUrl || user.avatar,
+        username: (identity.profile as any)?.username || null,
+        connected: true,
+      } : null,
     };
   }
 

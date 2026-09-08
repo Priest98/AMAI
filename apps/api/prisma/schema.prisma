@@ -17,7 +17,7 @@ datasource db {
 model User {
   id                         String               @id @default(dbgenerated("(gen_random_uuid())::text"))
   email                      String               @unique
-  passwordHash               String
+  passwordHash               String?
   fullName                   String?
   avatar                     String?
   role                       Role                 @default(OWNER)
@@ -44,6 +44,38 @@ model User {
   updatedAt                  DateTime             @default(now()) @updatedAt @db.Timestamptz(6)
   memberships                OrganizationMember[]
   auditLogs                  AuditLog[]
+  authIdentities             AuthIdentity[]
+  oauthTransactions          OAuthTransaction[]
+}
+
+model AuthIdentity {
+  id                String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  userId            String
+  provider          String
+  providerAccountId String
+  providerUnionId   String?
+  profile           Json?
+  createdAt         DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model OAuthTransaction {
+  id        String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  stateHash String    @unique
+  provider  String
+  intent    String
+  userId    String?
+  brandId   String?
+  expiresAt DateTime  @db.Timestamptz(6)
+  consumedAt DateTime? @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  user      User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([provider, expiresAt])
 }
 
 // Platform-wide admin permission tier, distinct from any organization's
@@ -75,6 +107,10 @@ model Organization {
   usageRecords UsageRecord[]
   marketIntelligenceSnapshots MarketIntelligenceSnapshot[]
   brainDecisions BrainDecision[]
+  brainEvents BrainEvent[]
+  learnedInsights LearnedInsight[]
+  learningRuns LearningRun[]
+  contentAnalyses ContentAnalysis[]
 }
 
 enum PlanTier {
@@ -288,6 +324,10 @@ model Brand {
   products            Product[]
   marketIntelligenceSnapshots MarketIntelligenceSnapshot[]
   brainDecisions       BrainDecision[]
+  brainEvents          BrainEvent[]
+  learnedInsights      LearnedInsight[]
+  learningRuns         LearningRun[]
+  contentAnalyses      ContentAnalysis[]
 
   @@index([organizationId], map: "idx_brand_org")
 }
@@ -338,14 +378,132 @@ model BrainDecision {
   tokensUsed       Int?
   estimatedCostUsd Float?
   outcome          String
+  confidence       Float?
+  evaluation       Json?
+  evidence         Json?
+  postId           String?
+  contentAnalysisId String?
   createdAt        DateTime @default(now()) @db.Timestamptz(6)
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   brand        Brand        @relation(fields: [brandId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  post         Post?        @relation(fields: [postId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  contentAnalysis ContentAnalysis? @relation(fields: [contentAnalysisId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  events       BrainEvent[]
 
   @@index([organizationId, createdAt], map: "idx_brain_decision_org_created")
   @@index([brandId, createdAt], map: "idx_brain_decision_brand_created")
   @@index([outcome, createdAt], map: "idx_brain_decision_outcome_created")
+  @@index([postId], map: "idx_brain_decision_post")
+}
+
+/// Cached, structured understanding of one immutable uploaded asset.
+model ContentAnalysis {
+  id             String   @id @default(cuid())
+  organizationId String
+  brandId        String
+  mediaAssetId   String
+  schemaVersion  Int      @default(1)
+  fingerprint    String
+  analysis       Json
+  confidence     Float
+  provider       String?
+  model          String?
+  latencyMs      Int?
+  createdAt      DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  brand        Brand        @relation(fields: [brandId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  mediaAsset   MediaAsset   @relation(fields: [mediaAssetId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  decisions    BrainDecision[]
+
+  @@unique([brandId, mediaAssetId, fingerprint])
+  @@index([organizationId, brandId, createdAt], map: "idx_content_analysis_tenant_created")
+}
+
+/// Immutable experience/feedback/outcome record. Payloads are structured and
+/// intentionally exclude prompts, credentials and hidden reasoning.
+model BrainEvent {
+  id             String   @id @default(cuid())
+  organizationId String
+  brandId        String
+  type           String
+  source         String
+  idempotencyKey String
+  postId         String?
+  decisionId     String?
+  payload        Json
+  occurredAt     DateTime @default(now()) @db.Timestamptz(6)
+  createdAt      DateTime @default(now()) @db.Timestamptz(6)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  brand        Brand        @relation(fields: [brandId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  post         Post?        @relation(fields: [postId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  decision     BrainDecision? @relation(fields: [decisionId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  insightEvidence InsightEvidence[]
+
+  @@unique([brandId, idempotencyKey])
+  @@index([organizationId, brandId, type, occurredAt], map: "idx_brain_event_tenant_type_time")
+  @@index([postId], map: "idx_brain_event_post")
+}
+
+model LearnedInsight {
+  id               String   @id @default(cuid())
+  organizationId   String
+  brandId          String
+  key              String
+  insightType      String
+  insight          String
+  confidence       Float    @default(0.5)
+  evidenceCount    Int      @default(0)
+  contradictionCount Int    @default(0)
+  authority        String   @default("INFERRED")
+  status           String   @default("ACTIVE")
+  firstObservedAt  DateTime @default(now()) @db.Timestamptz(6)
+  lastObservedAt   DateTime @default(now()) @db.Timestamptz(6)
+  lastValidatedAt  DateTime? @db.Timestamptz(6)
+  expiresAt        DateTime? @db.Timestamptz(6)
+  supersededById   String?
+  createdAt        DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  brand        Brand        @relation(fields: [brandId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  evidence     InsightEvidence[]
+
+  @@unique([brandId, key])
+  @@index([organizationId, brandId, status, confidence], map: "idx_learned_insight_tenant_active")
+  @@index([expiresAt], map: "idx_learned_insight_expiry")
+}
+
+model InsightEvidence {
+  id         String   @id @default(cuid())
+  insightId  String
+  eventId    String
+  direction  String
+  weight     Float    @default(1)
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+  insight LearnedInsight @relation(fields: [insightId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  event   BrainEvent     @relation(fields: [eventId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([insightId, eventId])
+  @@index([eventId], map: "idx_insight_evidence_event")
+}
+
+model LearningRun {
+  id             String   @id @default(cuid())
+  organizationId String
+  brandId        String
+  status         String
+  trigger        String
+  eventsConsidered Int    @default(0)
+  insightsCreated Int     @default(0)
+  insightsUpdated Int     @default(0)
+  errorCode      String?
+  startedAt      DateTime @default(now()) @db.Timestamptz(6)
+  completedAt    DateTime? @db.Timestamptz(6)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  brand        Brand        @relation(fields: [brandId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([organizationId, brandId, startedAt], map: "idx_learning_run_tenant_started")
 }
 
 /// The one structural gap flagged in the $1M ARR blueprint's audit: there
@@ -500,6 +658,7 @@ model SocialAccount {
   refreshToken      String?
   tokenExpiresAt    DateTime?        @db.Timestamptz(6)
   metadata          String?
+  grantedScopes     String[]         @default([])
   status            ConnectionStatus @default(CONNECTED)
   createdAt         DateTime         @default(now()) @db.Timestamptz(6)
   updatedAt         DateTime         @default(now()) @updatedAt @db.Timestamptz(6)
@@ -573,6 +732,7 @@ model MediaAsset {
   folder    MediaFolder? @relation(fields: [folderId], references: [id], onUpdate: NoAction)
   postMedia PostMedia[]
   optimizedVersions OptimizedMediaAsset[]
+  contentAnalyses ContentAnalysis[]
 
   @@index([userId])
   @@index([userId, batchId])
@@ -666,6 +826,8 @@ model Post {
   brand            Brand        @relation(fields: [brandId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   media            PostMedia[]
   targets          PostTarget[]
+  brainDecisions   BrainDecision[]
+  brainEvents      BrainEvent[]
 
   // Closes a real check-then-write race in SchedulingService.assignNextSlot:
   // it checks isSlotTaken() (a separate count() query) and only later does

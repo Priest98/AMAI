@@ -56,6 +56,7 @@ export interface AiCompletionResult {
  */
 export interface AiProviderAdapter {
   readonly name: string;
+  readonly model?: string;
   /** Whether multiple API keys can be round-robined for this provider
    *  (true for key-based REST providers like Groq; false for providers
    *  where the SDK/client is constructed once with a single key, like the

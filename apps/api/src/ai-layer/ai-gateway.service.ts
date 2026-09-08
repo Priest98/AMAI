@@ -19,6 +19,8 @@ export interface AiGatewayResult {
   elapsedMs: number;
   /** Real token count reported by the provider, when it reported one — see AiCompletionResult.tokensUsed. */
   tokensUsed?: number;
+  model?: string;
+  estimatedCostUsd?: number;
 }
 
 const DEFAULT_TIMEOUT_MS = 10_000;
@@ -92,7 +94,7 @@ export class AiGatewayService {
         const result = await this.tryMultiKeyProvider(provider, providerName, req, timeoutMs);
         if (result) {
           this.logger.log(`[${req.label}] request completed via ${providerName} in ${Date.now() - start}ms`);
-          return { ...result, elapsedMs: Date.now() - start };
+          return { ...result, model: provider.model, estimatedCostUsd: this.estimateCost(providerName, result.tokensUsed), elapsedMs: Date.now() - start };
         }
         continue;
       }
@@ -102,7 +104,7 @@ export class AiGatewayService {
         const result = await provider.complete(req.messages, { maxTokens: req.maxTokens, timeoutMs });
         this.logger.log(`[${req.label}] response received from ${providerName} in ${Date.now() - attemptStart}ms`);
         this.logger.log(`[${req.label}] request completed via ${providerName} in ${Date.now() - start}ms`);
-        return { text: result.text, provider: providerName, elapsedMs: Date.now() - start, tokensUsed: result.tokensUsed };
+        return { text: result.text, provider: providerName, model: provider.model, estimatedCostUsd: this.estimateCost(providerName, result.tokensUsed), elapsedMs: Date.now() - start, tokensUsed: result.tokensUsed };
       } catch (error: any) {
         const message = error?.message || `Unknown ${providerName} error`;
         this.logger.warn(`[${req.label}] failure handled: ${providerName} — ${message}`);
@@ -111,6 +113,13 @@ export class AiGatewayService {
 
     this.logger.warn(`[${req.label}] request completed with no provider able to answer, in ${Date.now() - start}ms`);
     return null;
+  }
+
+  private estimateCost(provider: string, tokensUsed?: number): number | undefined {
+    if (tokensUsed == null) return undefined;
+    const configured = Number(process.env[`AI_ESTIMATED_COST_PER_MILLION_TOKENS_${provider.toUpperCase()}`]);
+    if (!Number.isFinite(configured) || configured < 0) return undefined;
+    return Number(((tokensUsed / 1_000_000) * configured).toFixed(8));
   }
 
   private async tryMultiKeyProvider(

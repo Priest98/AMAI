@@ -28,6 +28,11 @@ export class BrainDecisionTraceService {
         latencyMs: Math.max(0, Math.round(input.latencyMs)),
         tokensUsed: input.tokensUsed == null ? undefined : Math.max(0, Math.round(input.tokensUsed)),
         estimatedCostUsd: input.estimatedCostUsd == null ? undefined : Math.max(0, input.estimatedCostUsd),
+        confidence: input.confidence == null ? undefined : Math.max(0, Math.min(1, input.confidence)),
+        evaluation: input.evaluation as any,
+        evidence: input.evidence as any,
+        postId: input.postId,
+        contentAnalysisId: input.contentAnalysisId,
         outcome: input.outcome,
       } });
       return true;
@@ -37,4 +42,3 @@ export class BrainDecisionTraceService {
     }
   }
 }
-

@@ -24,6 +24,7 @@ import { withTimeout } from '../util/with-timeout';
 @Injectable()
 export class GroqProvider implements AiProviderAdapter {
   readonly name = 'groq';
+  readonly model = process.env.GROQ_MODEL || GroqProvider.MODEL;
   readonly supportsMultipleKeys = true;
   private readonly logger = new Logger(GroqProvider.name);
   private static readonly MODEL = 'qwen/qwen3.6-27b';

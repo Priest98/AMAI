@@ -6,6 +6,7 @@ import { apiFetch, brandFetch } from '@/lib/api';
 import { TOUR_STEPS, TOTAL_STEPS, TourStep } from './tourSteps';
 import TourOverlay from './TourOverlay';
 import BrainCaptureWizard, { BrainCaptureResult } from './BrainCaptureWizard';
+import { capture } from '@/lib/posthog';
 
 // 'welcome' is gone as an automatic first-run phase -- replaced by
 // 'capturing' (see BrainCaptureWizard). The mechanical click-through
@@ -36,6 +37,7 @@ export function useOnboarding() {
 interface MeResponse {
   onboardingCompleted?: boolean;
   onboardingSkipped?: boolean;
+  tiktokIdentity?: { displayName?: string; username?: string; connected: boolean } | null;
 }
 
 export function OnboardingProvider({ children }: { children: React.ReactNode }) {
@@ -43,6 +45,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   const pathname = usePathname();
   const [phase, setPhase] = useState<Phase>('loading');
   const [stepIndex, setStepIndex] = useState(0);
+  const [tiktokIdentity, setTikTokIdentity] = useState<MeResponse['tiktokIdentity']>(null);
 
   // Only checked once per dashboard session (this provider is mounted once
   // at the dashboard layout level and persists across nested navigations),
@@ -54,7 +57,9 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     apiFetch<MeResponse>('/auth/me')
       .then((me) => {
         if (cancelled) return;
+        setTikTokIdentity(me.tiktokIdentity || null);
         if (!me.onboardingCompleted && !me.onboardingSkipped) {
+          capture('onboarding_started', { source: me.tiktokIdentity ? 'tiktok' : 'email' });
           setPhase('capturing');
         } else {
           setPhase('idle');
@@ -123,9 +128,10 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   const finishCapture = useCallback(async (result: BrainCaptureResult) => {
     await persistBrainCapture(result);
     await apiFetch('/auth/onboarding', { method: 'PATCH', body: JSON.stringify({ completed: true }) });
+    capture('onboarding_completed', { source: tiktokIdentity ? 'tiktok' : 'email' });
     setPhase('idle');
-    router.push('/dashboard/integrations');
-  }, [persistBrainCapture, router]);
+    router.push('/dashboard');
+  }, [persistBrainCapture, router, tiktokIdentity]);
 
   const skipCapture = useCallback(async (partial: Partial<BrainCaptureResult>) => {
     await persistBrainCapture(partial);
@@ -156,7 +162,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   return (
     <OnboardingContext.Provider value={value}>
       {children}
-      {phase === 'capturing' && <BrainCaptureWizard onSave={persistBrainCapture} onFinish={finishCapture} onSkip={skipCapture} />}
+      {phase === 'capturing' && <BrainCaptureWizard tiktokIdentity={tiktokIdentity} onSave={persistBrainCapture} onFinish={finishCapture} onSkip={skipCapture} />}
       {phase === 'touring' && (
         <TourOverlay
           step={TOUR_STEPS[stepIndex]}

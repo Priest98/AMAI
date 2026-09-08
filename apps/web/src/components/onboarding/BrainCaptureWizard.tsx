@@ -18,6 +18,7 @@ export interface BrainCaptureResult {
 }
 
 interface BrainCaptureWizardProps {
+  tiktokIdentity?: { displayName?: string; username?: string; connected: boolean } | null;
   onSave: (partial: Partial<BrainCaptureResult>) => Promise<void>;
   onFinish: (result: BrainCaptureResult) => Promise<void>;
   onSkip: (partial: Partial<BrainCaptureResult>) => Promise<void>;
@@ -29,7 +30,7 @@ function parseTagList(text: string): string[] {
 
 const TOTAL_SCREENS = 5; // intro + 4 question screens
 
-export default function BrainCaptureWizard({ onFinish, onSkip, onSave }: BrainCaptureWizardProps) {
+export default function BrainCaptureWizard({ tiktokIdentity, onFinish, onSkip, onSave }: BrainCaptureWizardProps) {
   const [screen, setScreen] = useState(0);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
@@ -105,14 +106,15 @@ export default function BrainCaptureWizard({ onFinish, onSkip, onSave }: BrainCa
               <div className="space-y-5">
                 <div className="space-y-2">
                   <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight" style={{ color: 'var(--text-primary)' }}>
-                    Hi, I&rsquo;m Oyinca
+                    {tiktokIdentity?.displayName ? `Welcome, ${tiktokIdentity.displayName}` : 'Hi, I’m Oyinca'}
                   </h2>
                   <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                    I&rsquo;m your AI Social Media Manager. Before I write a single caption, I want to actually
-                    understand your business, so what I create sounds like you, not something generic.
+                    {tiktokIdentity?.connected
+                      ? `${tiktokIdentity.username ? `@${tiktokIdentity.username.replace(/^@/, '')} · ` : ''}TikTok connected ✓ Let’s teach Oyinca how you create.`
+                      : 'I’m your AI Social Media Manager. Teach me the essentials so your content sounds like you.'}
                   </p>
                   <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                    Four quick questions, about two minutes. You can always change these later in Settings.
+                    Four quick questions. You can change every answer later in Settings.
                   </p>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-3 pt-1">

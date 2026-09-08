@@ -11,6 +11,7 @@ import { ContextPackService } from './context/context-pack.service';
 import { SkillSelectorService } from './skills/skill-selector.service';
 import { BrainDecisionTraceService } from '../capabilities/observability/brain-decision-trace.service';
 import { randomUUID } from 'node:crypto';
+import { OyincaBrainService } from './oyinca-brain.service';
 
 @UseGuards(JwtAuthGuard, BrandAccessGuard)
 @Controller('brands/:brandId/business-brain')
@@ -22,7 +23,41 @@ export class BusinessBrainController {
     private readonly contextPackService: ContextPackService,
     private readonly skillSelector: SkillSelectorService,
     private readonly decisionTrace: BrainDecisionTraceService,
+    private readonly brain: OyincaBrainService,
   ) {}
+
+  @Post('v1/analyze')
+  analyze(@Param('brandId') brandId: string, @Body() body: { mediaAssetId: string }) {
+    return this.brain.analyze(brandId, body.mediaAssetId);
+  }
+
+  @Post('v1/decide')
+  @Throttle({ default: { limit: 15, ttl: 60_000 } })
+  @UseGuards(EntitlementGuard)
+  @RequireEntitlement('generate_ai_content')
+  decide(@Param('brandId') brandId: string, @Body() body: { objective: string; contentAnalysisId?: string; platform?: string }) {
+    return this.brain.decide(brandId, body);
+  }
+
+  @Post('v1/evaluate')
+  evaluate(@Param('brandId') brandId: string, @Body() body: any) {
+    return this.brain.evaluate(brandId, body);
+  }
+
+  @Post('v1/feedback')
+  feedback(@Param('brandId') brandId: string, @Body() body: any) {
+    return this.brain.recordFeedback(brandId, body);
+  }
+
+  @Get('v1/insights')
+  insights(@Param('brandId') brandId: string) {
+    return this.brain.listInsights(brandId);
+  }
+
+  @Post('v1/learn')
+  learn(@Param('brandId') brandId: string) {
+    return this.brain.learn(brandId, 'manual');
+  }
 
   @Get()
   async get(@Param('brandId') brandId: string) {

@@ -4,6 +4,7 @@ import { EngineJobsService } from '../engine/engine-jobs.service';
 import { HealthEngineService } from '../health/health-engine.service';
 import { MetricsService } from '../metrics/metrics.service';
 import { LearningService } from '../metrics/learning.service';
+import { OyincaBrainService } from '../business-brain/oyinca-brain.service';
 
 /**
  * Endpoints that trigger publishing/Drive-sync on a schedule. These replace
@@ -46,6 +47,7 @@ export class CronController {
     private readonly healthEngineService: HealthEngineService,
     private readonly metricsService: MetricsService,
     private readonly learningService: LearningService,
+    private readonly oyincaBrain: OyincaBrainService,
   ) {}
 
   private assertAuthorized(authHeader?: string) {
@@ -172,12 +174,13 @@ export class CronController {
   // data rather than trailing a full day behind on a separate schedule.
   private async runSyncPostMetrics(authHeader?: string) {
     this.assertAuthorized(authHeader);
-    const { metrics, learning } = await this.trackedRun('sync_post_metrics', async () => ({
+    const { metrics, learning, brain } = await this.trackedRun('sync_post_metrics', async () => ({
       metrics: await this.metricsService.syncTikTokMetrics(),
       learning: await this.learningService.runForAllBrands(),
+      brain: await this.oyincaBrain.learnAllBrands('qstash_metrics_sync'),
     }));
-    this.logger.log(`sync-post-metrics: ${JSON.stringify(metrics)}; learning: ${JSON.stringify(learning)}`);
-    return { success: true, metrics, learning };
+    this.logger.log(`sync-post-metrics: ${JSON.stringify(metrics)}; learning: ${JSON.stringify(learning)}; brain: ${JSON.stringify(brain)}`);
+    return { success: true, metrics, learning, brain };
   }
 
   @Get('sync-post-metrics')

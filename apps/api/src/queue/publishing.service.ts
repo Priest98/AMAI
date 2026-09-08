@@ -8,6 +8,7 @@ import { MediaOptimizationService } from '../media-optimization/media-optimizati
 import { Platform, TargetStatus, PostStatus, MediaStatus, EngineEventType, ConnectionStatus } from '@prisma/client';
 import { EntitlementsService } from '../billing/entitlements.service';
 import { getAppUrl } from '../common/app-url.util';
+import { deriveTikTokCapabilities } from '../oauth/tiktok-capabilities';
 
 const MAX_PUBLISH_ATTEMPTS = 3;
 
@@ -488,6 +489,12 @@ export class PublishingService {
         }
       }
 
+      if (target.platform === Platform.TIKTOK) {
+        const capabilities = deriveTikTokCapabilities(target.socialAccount.grantedScopes || []);
+        if (!capabilities.canDirectPost) {
+          throw new Error('TikTok direct publishing is not authorized for this account. Reconnect TikTok and approve publishing access.');
+        }
+      }
       const accessToken = await this.ensureFreshAccessToken(target.socialAccount);
 
       {

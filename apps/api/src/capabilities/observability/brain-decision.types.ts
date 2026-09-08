@@ -12,6 +12,10 @@ export interface BrainDecisionRecord {
   latencyMs: number;
   tokensUsed?: number;
   estimatedCostUsd?: number;
+  confidence?: number;
+  evaluation?: Record<string, unknown>;
+  evidence?: unknown[];
+  postId?: string;
+  contentAnalysisId?: string;
   outcome: 'succeeded' | 'failed' | 'no_output' | 'skipped';
 }
-

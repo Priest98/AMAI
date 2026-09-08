@@ -7,6 +7,8 @@ import * as crypto from 'crypto';
 import { getAppUrl } from '../common/app-url.util';
 import { EntitlementsService } from '../billing/entitlements.service';
 import { deriveConnectionHealth } from './connection-health';
+import { AuthService } from '../auth/auth.service';
+import { deriveTikTokCapabilities } from './tiktok-capabilities';
 
 @Injectable()
 export class OAuthService {
@@ -19,6 +21,7 @@ export class OAuthService {
     private encryption: EncryptionService,
     private engineService: EngineService,
     private entitlementsService: EntitlementsService,
+    private authService: AuthService,
   ) {}
 
   /**
@@ -579,7 +582,11 @@ export class OAuthService {
   // TIKTOK OAUTH
   // ─────────────────────────────────────────────────────────────
 
-  getTikTokAuthUrl(brandId: string): string {
+  private hashOAuthState(state: string): string {
+    return crypto.createHash('sha256').update(state).digest('hex');
+  }
+
+  async getTikTokAuthUrl(options: { intent: 'LOGIN' | 'LINK'; userId?: string; brandId?: string }): Promise<{ url: string; state: string }> {
     const clientKey = process.env.TIKTOK_CLIENT_KEY;
     if (!clientKey) {
       throw new BadRequestException(
@@ -593,23 +600,41 @@ export class OAuthService {
     // dashboard (getTikTokStats below) -- previously requested via the
     // /user/info/ fields param without ever declaring the matching scope,
     // which is what TikTok's app-review flagged as a scope/usage mismatch.
-    const scope = encodeURIComponent('user.info.basic,user.info.profile,user.info.stats,video.list,video.publish,video.upload');
-    const state = encodeURIComponent(this.buildState(brandId));
+    const requestedScopes = options.intent === 'LOGIN'
+      ? ['user.info.basic']
+      : ['user.info.basic', 'user.info.profile', 'user.info.stats', 'video.list', 'video.publish', 'video.upload'];
+    const scope = encodeURIComponent(requestedScopes.join(','));
+    const state = crypto.randomBytes(32).toString('base64url');
+    await this.prisma.oAuthTransaction.create({
+      data: {
+        stateHash: this.hashOAuthState(state), provider: 'TIKTOK', intent: options.intent,
+        userId: options.userId, brandId: options.brandId,
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+      },
+    });
 
     // TikTok uses https://www.tiktok.com/v2/auth/authorize/ (not open.tiktokapis.com)
-    return (
+    const url = (
       `https://www.tiktok.com/v2/auth/authorize/` +
       `?client_key=${clientKey}` +
       `&scope=${scope}` +
       `&response_type=code` +
       `&redirect_uri=${redirectUri}` +
-      `&state=${state}`
+      `&state=${encodeURIComponent(state)}`
     );
+    return { url, state };
   }
 
   async handleTikTokCallback(code: string, stateStr: string) {
-    const { brandId: rawBrandId } = this.parseState(stateStr);
-    const brandId = await this.ensureBrand(rawBrandId);
+    const stateHash = this.hashOAuthState(stateStr || '');
+    const transaction = await this.prisma.oAuthTransaction.findUnique({ where: { stateHash } });
+    if (!transaction || transaction.provider !== 'TIKTOK' || transaction.consumedAt || transaction.expiresAt <= new Date()) {
+      throw new BadRequestException('This TikTok sign-in request is invalid or has expired. Please start again.');
+    }
+    const consumed = await this.prisma.oAuthTransaction.updateMany({
+      where: { id: transaction.id, consumedAt: null }, data: { consumedAt: new Date() },
+    });
+    if (consumed.count !== 1) throw new BadRequestException('This TikTok sign-in request has already been used.');
 
     const clientKey = process.env.TIKTOK_CLIENT_KEY;
     const clientSecret = process.env.TIKTOK_CLIENT_SECRET;
@@ -642,6 +667,8 @@ export class OAuthService {
     const accessToken: string = tokenData.access_token;
     const refreshToken: string = tokenData.refresh_token || '';
     const openId: string = tokenData.open_id;
+    const grantedScopes = String(tokenData.scope || 'user.info.basic').split(',').map((scope: string) => scope.trim()).filter(Boolean);
+    if (!openId) throw new BadRequestException('TikTok did not return a stable account identifier.');
     const expiresIn: number = tokenData.expires_in || 86400;
     const expiresAt = new Date(Date.now() + expiresIn * 1000);
 
@@ -650,7 +677,10 @@ export class OAuthService {
     // existing profile fields, so a stats snapshot is captured at connect
     // time in addition to being refreshable on demand via getTikTokStats.
     let handle = `@tiktok_user`;
-    let platformAccountId = openId || `tk_${Date.now()}`;
+    let platformAccountId = openId;
+    let displayName = 'TikTok creator';
+    let avatarUrl: string | undefined;
+    let unionId: string | undefined;
     let stats: {
       followerCount: number | null;
       followingCount: number | null;
@@ -660,7 +690,7 @@ export class OAuthService {
     } | null = null;
 
     const userRes = await fetch(
-      'https://open.tiktokapis.com/v2/user/info/?fields=open_id,display_name,username,follower_count,following_count,likes_count,video_count',
+      'https://open.tiktokapis.com/v2/user/info/?fields=open_id,union_id,display_name,username,avatar_url,follower_count,following_count,likes_count,video_count',
       { headers: { Authorization: `Bearer ${accessToken}` } },
     );
 
@@ -669,6 +699,9 @@ export class OAuthService {
       const user = userData?.data?.user;
       if (user) {
         platformAccountId = user.open_id || platformAccountId;
+        unionId = user.union_id || undefined;
+        displayName = user.display_name || user.username || displayName;
+        avatarUrl = user.avatar_url || undefined;
         handle = `@${user.username || user.display_name || 'tiktok_user'}`;
         stats = {
           followerCount: user.follower_count ?? null,
@@ -679,6 +712,30 @@ export class OAuthService {
         };
       }
     }
+
+    let user: any;
+    let brandId = transaction.brandId || '';
+    if (transaction.intent === 'LOGIN') {
+      const resolved = await this.authService.resolveTikTokUser({ openId: platformAccountId, unionId, displayName, avatarUrl });
+      user = resolved.user;
+      if (resolved.created) this.logger.log(JSON.stringify({ event: 'oyinca_account_created_from_tiktok', provider: 'TIKTOK', userId: user.id }));
+      const membership = await this.prisma.organizationMember.findFirst({
+        where: { userId: user.id }, include: { organization: { include: { brands: { take: 1, orderBy: { createdAt: 'asc' } } } } },
+      });
+      brandId = membership?.organization.brands[0]?.id || '';
+    } else {
+      if (!transaction.userId || !brandId) throw new BadRequestException('Invalid TikTok account-link request.');
+      const identity = await this.prisma.authIdentity.findUnique({
+        where: { provider_providerAccountId: { provider: 'TIKTOK', providerAccountId: platformAccountId } },
+      });
+      if (identity && identity.userId !== transaction.userId) throw new BadRequestException('This TikTok account belongs to another Oyinca user.');
+      await this.prisma.authIdentity.upsert({
+        where: { provider_providerAccountId: { provider: 'TIKTOK', providerAccountId: platformAccountId } },
+        update: { providerUnionId: unionId, profile: { openId: platformAccountId, unionId, displayName, avatarUrl } },
+        create: { userId: transaction.userId, provider: 'TIKTOK', providerAccountId: platformAccountId, providerUnionId: unionId, profile: { openId: platformAccountId, unionId, displayName, avatarUrl } },
+      });
+    }
+    if (!brandId) throw new BadRequestException('Your Oyinca workspace could not be resolved.');
 
     const encryptedAccess = this.encryption.encrypt(accessToken);
     const encryptedRefresh = refreshToken ? this.encryption.encrypt(refreshToken) : null;
@@ -691,6 +748,7 @@ export class OAuthService {
         accessToken: encryptedAccess,
         refreshToken: encryptedRefresh,
         tokenExpiresAt: expiresAt,
+        grantedScopes,
         status: ConnectionStatus.CONNECTED,
         metadata: JSON.stringify({ handle, accountType: 'CREATOR', connectedAt: new Date().toISOString(), stats }),
       },
@@ -701,15 +759,22 @@ export class OAuthService {
         accessToken: encryptedAccess,
         refreshToken: encryptedRefresh,
         tokenExpiresAt: expiresAt,
+        grantedScopes,
         status: ConnectionStatus.CONNECTED,
         metadata: JSON.stringify({ handle, accountType: 'CREATOR', connectedAt: new Date().toISOString(), stats }),
       },
     });
 
     this.logger.log(`TikTok connected: ${handle} (${platformAccountId}) for brand ${brandId}`);
+    this.logger.log(JSON.stringify({ event: transaction.intent === 'LOGIN' ? 'tiktok_auth_completed' : 'tiktok_account_linked', provider: 'TIKTOK', userId: user?.id || transaction.userId, brandId, grantedScopes }));
     await this.engineService.logEvent(brandId, EngineEventType.ACCOUNT_CONNECTED, { message: `TikTok connected (${handle}).` });
 
-    return { success: true, platform: 'TikTok', handle, platformAccountId, brandId };
+    return {
+      success: true, platform: 'TikTok', handle, platformAccountId, brandId,
+      intent: transaction.intent,
+      capabilities: deriveTikTokCapabilities(grantedScopes),
+      session: user ? await this.authService.generateAuthResponse(user, true) : undefined,
+    };
   }
 
   async refreshTikTokToken(accountId: string) {
@@ -908,6 +973,7 @@ export class OAuthService {
           // GET /oauth/tiktok/:accountId/stats. Null for non-TikTok
           // accounts and for TikTok accounts connected before this existed.
           stats: meta.stats || null,
+          capabilities: acc.platform === Platform.TIKTOK ? deriveTikTokCapabilities(acc.grantedScopes || []) : null,
         };
       }),
       googleDrive: engineConfig && engineConfig.googleRefreshToken

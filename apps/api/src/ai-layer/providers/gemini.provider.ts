@@ -27,6 +27,7 @@ const MODEL = 'gemini-flash-latest';
 @Injectable()
 export class GeminiProvider implements AiProviderAdapter {
   readonly name = 'gemini';
+  readonly model = MODEL;
   readonly supportsMultipleKeys = false;
   private readonly logger = new Logger(GeminiProvider.name);
   private client: GoogleGenAI;
