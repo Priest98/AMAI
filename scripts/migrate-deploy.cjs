@@ -39,7 +39,8 @@ async function main() {
       ];
       for (const [table, migration] of baseline) {
         if (!tables.has(table)) {
-          throw new Error(`Cannot baseline ${migration}: expected production table ${table} is missing.`);
+          console.log(`Applying missing additive migration ${migration}.`);
+          runPrisma(['db', 'execute', '--file', `apps/api/prisma/migrations/${migration}/migration.sql`, ...schemaArgs]);
         }
         runPrisma(['migrate', 'resolve', '--applied', migration, ...schemaArgs]);
       }
