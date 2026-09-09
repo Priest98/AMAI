@@ -1,0 +1,47 @@
+[
+  {
+    "name": "landing-desktop",
+    "url": "/",
+    "width": 1440,
+    "height": 1000,
+    "status": 200,
+    "overflow": false,
+    "errors": [],
+    "scrollWidth": 1440,
+    "clientWidth": 1440,
+    "title": "Oyinca",
+    "h1": "You create.Oyinca managesthe rest.",
+    "buttons": 5,
+    "links": 29
+  },
+  {
+    "name": "landing-mobile",
+    "url": "/",
+    "width": 360,
+    "height": 800,
+    "status": 200,
+    "overflow": false,
+    "errors": [],
+    "scrollWidth": 360,
+    "clientWidth": 360,
+    "title": "Oyinca",
+    "h1": "You create.Oyinca managesthe rest.",
+    "buttons": 5,
+    "links": 29
+  },
+  {
+    "name": "login-mobile",
+    "url": "/login",
+    "width": 390,
+    "height": 844,
+    "status": 200,
+    "overflow": false,
+    "errors": [],
+    "scrollWidth": 390,
+    "clientWidth": 390,
+    "title": "Oyinca: Your AI Social Media Manager",
+    "h1": "Your social media.Finally, managed.",
+    "buttons": 3,
+    "links": 4
+  }
+]

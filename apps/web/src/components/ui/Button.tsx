@@ -15,9 +15,9 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const SIZE_CLASSES: Record<ButtonSize, string> = {
-  sm: "text-xs px-3 py-1.5 gap-1.5",
-  md: "text-sm px-4 py-2.5 gap-2",
-  lg: "text-sm px-6 py-3.5 gap-2",
+  sm: "min-h-[var(--control-height-compact)] text-xs px-3 py-2 gap-1.5",
+  md: "min-h-[var(--control-height)] text-sm px-4 py-2.5 gap-2",
+  lg: "min-h-[var(--control-height-prominent)] text-sm px-6 py-3 gap-2",
 };
 
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {

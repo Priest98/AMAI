@@ -135,7 +135,24 @@
 
 :root {
   --control-height: 44px;
+  --control-height-compact: 40px;
+  --control-height-prominent: 48px;
   --content-width: 1200px;
+  --content-width-wide: 1440px;
+  --content-width-prose: 65ch;
+  --content-width-form: 440px;
   --page-gutter: clamp(20px, 4vw, 64px);
   --section-gap: clamp(64px, 8vw, 112px);
+
+  /* Semantic aliases: components consume intent, themes own color values. */
+  --surface-canvas: var(--bg-base);
+  --surface-panel: var(--bg-surface);
+  --surface-raised: var(--bg-surface-raised);
+  --surface-recessed: var(--bg-surface-sunken);
+  --surface-interactive-hover: var(--hover-surface);
+  --border-subtle: var(--card-border);
+  --border-interactive: var(--card-hover-border);
+  --action-primary: var(--accent-primary);
+  --action-secondary: var(--accent-secondary);
+  --focus-ring: var(--accent-secondary);
 }

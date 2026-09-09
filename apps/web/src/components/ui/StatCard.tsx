@@ -24,7 +24,7 @@ export default function StatCard({
   // drop-in upgrade rather than a breaking prop-shape change.
   const numericValue = /^-?\d+$/.test(value) ? Number(value) : null;
   return (
-    <div className="exec-card exec-card-interactive p-4 sm:p-5 flex flex-col justify-between">
+    <div className={`exec-card p-4 sm:p-5 flex flex-col justify-between ${onExpand ? "exec-card-interactive" : ""}`}>
       <div className="flex items-center justify-between">
         <div className="flex flex-wrap items-center gap-2 min-w-0">
           <div

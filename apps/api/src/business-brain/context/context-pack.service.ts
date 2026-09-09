@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type { ContextSection, OyincaSkill } from '@marketing-os/oyinca-skills';
+import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { OyincaContextPack, ContextPackSection } from './context-pack.types';
 const MAX_CONTEXT_CHARACTERS = 12_000;
@@ -7,7 +8,16 @@ const MAX_CONTEXT_CHARACTERS = 12_000;
 export class ContextPackService {
   constructor(private readonly prisma: PrismaService) {}
   async build(brandId: string, objective: string, required: ContextSection[]): Promise<OyincaContextPack> {
-    const brand = await this.prisma.brand.findUnique({ where: { id: brandId }, include: { businessBrain: true, products: { where: { active: true }, orderBy: { createdAt: 'desc' }, take: 20 }, socialAccounts: { where: { status: 'CONNECTED' }, select: { id: true, platform: true }, take: 10 }, learnedInsights: { where: { status: 'ACTIVE', confidence: { gte: 0.5 }, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] }, orderBy: [{ authority: 'asc' }, { confidence: 'desc' }], take: 8 } } });
+    return this.buildInternal(brandId, objective, required);
+  }
+  async buildScoped(organizationId: string, brandId: string, objective: string, required: ContextSection[]): Promise<OyincaContextPack> {
+    return this.buildInternal(brandId, objective, required, organizationId);
+  }
+  private async buildInternal(brandId: string, objective: string, required: ContextSection[], organizationId?: string): Promise<OyincaContextPack> {
+    const include: Prisma.BrandInclude = { businessBrain: true, products: { where: { active: true }, orderBy: { createdAt: 'desc' }, take: 20 }, socialAccounts: { where: { status: 'CONNECTED' }, select: { id: true, platform: true }, take: 10 }, learnedInsights: { where: { status: 'ACTIVE', confidence: { gte: 0.5 }, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] }, orderBy: [{ authority: 'asc' }, { confidence: 'desc' }], take: 8 } };
+    const brand = organizationId
+      ? await this.prisma.brand.findFirst({ where: { id: brandId, organizationId }, include })
+      : await this.prisma.brand.findUnique({ where: { id: brandId }, include });
     if (!brand) return this.empty(brandId, objective);
     const brain = brand.businessBrain;
     const sections: ContextPackSection[] = [];

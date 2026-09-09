@@ -7,7 +7,7 @@ interface SkeletonProps {
 
 /** Design System v2 loading primitive -- shimmering placeholder block. */
 export function Skeleton({ className = "", style }: SkeletonProps) {
-  return <div className={`skeleton ${className}`} style={style} />;
+  return <div aria-hidden="true" className={`skeleton ${className}`} style={style} />;
 }
 
 /** A row of skeleton cards, sized like the app's standard grid tiles. */

@@ -11,6 +11,7 @@ import { toPublicConnection, deriveConnectionHealth } from '../oauth/connection-
 import { BrainDecisionTraceService } from '../capabilities/observability/brain-decision-trace.service';
 import { randomUUID } from 'node:crypto';
 import { OyincaBrainService } from '../business-brain/oyinca-brain.service';
+import { ContextResolverService } from '../business-brain/context/context-resolver.service';
 import type { BrainEvaluation } from '../business-brain/oyinca-brain.types';
 import {
   EngineState,
@@ -77,6 +78,7 @@ export class EngineService {
     private mediaOptimizationService: MediaOptimizationService,
     private decisionTrace: BrainDecisionTraceService,
     private oyincaBrain: OyincaBrainService,
+    private contextResolver: ContextResolverService,
   ) {}
 
   // ─────────────────────────────────────────────────────────────
@@ -496,7 +498,14 @@ export class EngineService {
       // goals, things to avoid) every AI generation step below should reflect
       // instead of writing something generic. Returns '' if nothing's been
       // configured yet, so this is always safe to pass through unconditionally.
-      const brainContext = await this.businessBrainService.buildPromptContext(brandId);
+      const resolvedContext = await this.contextResolver.resolve({
+        organizationId: aiGenerationOrgId,
+        brandId,
+        task: 'generate_caption',
+        objective: `Generate a ${platformLabel} caption for uploaded content`,
+        taskContext: { topic, platform: platformLabel, tone: config.defaultTone || 'friendly' },
+      });
+      const brainContext = this.contextResolver.render(resolvedContext);
 
       // 2-3. Generate caption and hashtags — independent of each other, run
       // concurrently rather than one after another to cut real wall-clock
@@ -520,7 +529,7 @@ export class EngineService {
         objective: 'Analyze uploaded media and prepare platform content',
         decision: 'generate_platform_content',
         reasonCodes: ['media_uploaded', connectedAccounts.length ? 'connected_platforms_available' : 'no_connected_platforms'],
-        contextSections: brainContext ? ['brand'] : [],
+        contextSections: resolvedContext.items.map((item) => item.uri),
         confidence: brainEvaluation?.overallConfidence,
         evaluation: brainEvaluation ? { action: brainEvaluation.action, policy: brainEvaluation.policy, brandFit: brainEvaluation.brandFit, audienceFit: brainEvaluation.audienceFit, repetitionRisk: brainEvaluation.repetitionRisk } : undefined,
         contentAnalysisId,
@@ -851,7 +860,14 @@ export class EngineService {
         ? connectedAccounts.map((a) => a.platform).join(', ')
         : 'Instagram & TikTok';
 
-      const brainContext = await this.businessBrainService.buildPromptContext(brandId);
+      const resolvedContext = await this.contextResolver.resolve({
+        organizationId: aiGenerationOrgId,
+        brandId,
+        task: 'generate_caption',
+        objective: `Generate one ${platformLabel} caption for a composed media post`,
+        taskContext: { topic, platform: platformLabel, tone: config.defaultTone || 'friendly' },
+      });
+      const brainContext = this.contextResolver.render(resolvedContext);
 
       // One caption + one hashtag set for the entire batch -- never per-image.
       const [captionResult, hashtagResult] = await Promise.all([

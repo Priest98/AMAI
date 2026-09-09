@@ -51,7 +51,7 @@
     "migrate:deploy": "node scripts/migrate-deploy.cjs",
     "vercel-build": "npm run migrate:deploy && npm run build --workspace=@marketing-os/shared-types && npm run build --workspace=@marketing-os/oyinca-skills && npm run build --workspace=web && npm run build --workspace=@marketing-os/api",
     "lint": "npm run lint --workspaces --if-present",
-    "test": "node --test tests/production-regressions.test.cjs tests/capability-registry.test.cjs tests/market-intelligence.test.cjs tests/oyinca-skills.test.cjs tests/notifications.test.cjs tests/privacy-observability.test.cjs tests/oyinca-brain.test.cjs tests/tiktok-native-auth.test.cjs && npm run test --workspaces --if-present"
+    "test": "node --test tests/production-regressions.test.cjs tests/capability-registry.test.cjs tests/market-intelligence.test.cjs tests/oyinca-skills.test.cjs tests/notifications.test.cjs tests/privacy-observability.test.cjs tests/oyinca-brain.test.cjs tests/tiktok-native-auth.test.cjs tests/repository-context.test.cjs tests/design-system.test.cjs && npm run test --workspaces --if-present"
   },
   "optionalDependencies": {
     "@tailwindcss/oxide-linux-x64-gnu": "^4.0.0",

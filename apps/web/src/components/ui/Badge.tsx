@@ -3,6 +3,7 @@ import React from "react";
 interface BadgeProps {
   children: React.ReactNode;
   variant?: "purple" | "success" | "warning" | "neutral";
+  className?: string;
 }
 
 const VARIANT_CLASSES: Record<NonNullable<BadgeProps["variant"]>, string> = {
@@ -12,10 +13,10 @@ const VARIANT_CLASSES: Record<NonNullable<BadgeProps["variant"]>, string> = {
   neutral: "bg-[var(--glass-card-bg)] text-[var(--text-secondary)] border border-[var(--glass-card-border)]",
 };
 
-export default function Badge({ children, variant = "neutral" }: BadgeProps) {
+export default function Badge({ children, variant = "neutral", className = "" }: BadgeProps) {
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold backdrop-blur-sm ${VARIANT_CLASSES[variant]}`}
+      className={`inline-flex min-h-6 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${VARIANT_CLASSES[variant]} ${className}`}
     >
       {children}
     </span>
