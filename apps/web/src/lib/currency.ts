@@ -1,5 +1,3 @@
-"use client";
-
 /**
  * Best-effort visitor currency detection from signals the browser already
  * exposes -- no geo-IP API call, so it's free, has zero external
@@ -32,6 +30,12 @@ const REGION_CURRENCY_MAP: Record<string, Currency> = {
   NG: 'NGN',
   GB: 'GBP',
 };
+
+/** Maps the request's country-level hosting signal to a supported checkout currency. */
+export function currencyForCountry(country: string | null | undefined): Currency {
+  if (!country) return DEFAULT_CURRENCY;
+  return REGION_CURRENCY_MAP[country.trim().toUpperCase()] ?? DEFAULT_CURRENCY;
+}
 
 /** Reads the browser's timezone/locale once and returns the currency to price in. Defaults to USD for every other location, per product decision. */
 export function detectCurrency(): Currency {

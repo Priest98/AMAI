@@ -12,6 +12,8 @@ import FAQ from '@/components/landing/FAQ';
 import FinalCTA from '@/components/landing/FinalCTA';
 import Footer from '@/components/landing/Footer';
 import { headers } from 'next/headers';
+import { currencyForCountry } from '@/lib/currency';
+import ManagedMoment from '@/components/landing/ManagedMoment';
 
 /**
  * Fetches the plan catalogue server-side so it's already baked into the
@@ -64,8 +66,14 @@ async function getPlansServerSide() {
 
 /** Stream the catalogue separately so a cold backend does not block the hero. */
 async function PricingSection() {
+  const h = await headers();
+  const country =
+    h.get('x-vercel-ip-country') ||
+    h.get('cf-ipcountry') ||
+    h.get('x-country-code');
+  const currency = currencyForCountry(country);
   const initialPlansData = await getPlansServerSide();
-  return <Pricing initialData={initialPlansData} />;
+  return <Pricing initialData={initialPlansData} currency={currency} />;
 }
 
 export const metadata: Metadata = {
@@ -184,6 +192,7 @@ export default function Home() {
           <Hero />
 
           <HowItWorks />
+          <ManagedMoment />
 
           <Suspense fallback={<section id="pricing" className="oy-section" aria-busy="true"><h2>Loading plans...</h2></section>}>
             <PricingSection />

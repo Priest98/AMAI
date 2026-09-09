@@ -8,7 +8,7 @@ import { Eyebrow } from "./shared";
 import GsapReveal from "./GsapReveal";
 import { getPlans } from "@/lib/billing";
 import type { PlanEntitlements, PlanPricing, PlanTier } from "@/lib/billing";
-import { detectCurrency, formatPrice, type Currency } from "@/lib/currency";
+import { formatPrice, type Currency } from "@/lib/currency";
 
 type PlansResponse = {
   plans: PlanEntitlements[];
@@ -97,8 +97,10 @@ function toByTier(data: PlansResponse): Record<PlanTier, PlanEntitlements> {
 
 export default function Pricing({
   initialData,
+  currency,
 }: {
   initialData?: PlansResponse | null;
+  currency: Currency;
 }) {
   const [plans, setPlans] = useState<Record<PlanTier, PlanEntitlements> | null>(
     initialData ? toByTier(initialData) : null,
@@ -107,7 +109,6 @@ export default function Pricing({
     PlanTier,
     Record<Currency, PlanPricing>
   > | null>(initialData?.pricing ?? null);
-  const [currency, setCurrency] = useState<Currency>("USD");
   const [loadError, setLoadError] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const retryPlans = async () => {
@@ -125,7 +126,6 @@ export default function Pricing({
   };
 
   useEffect(() => {
-    setCurrency(detectCurrency());
     if (initialData) return;
     getPlans()
       .then((data) => {
@@ -133,7 +133,7 @@ export default function Pricing({
         setPricing(data.pricing);
       })
       .catch(() => setLoadError(true));
-  }, []);
+  }, [initialData]);
 
   const dynamicBullets = (tier: PlanTier): string[] => {
     if (!plans) return [];
@@ -154,8 +154,9 @@ export default function Pricing({
   return (
     <section
       id="pricing"
-      className="relative py-24 sm:py-32 lg:py-40"
-      aria-label="Pricing"
+      className="oy-pricing-section relative py-24 sm:py-32 lg:py-40"
+      aria-label={`Pricing in ${currency}`}
+      data-pricing-currency={currency}
     >
       <div className="max-w-7xl mx-auto px-5 sm:px-8">
         <GsapReveal className="text-center max-w-2xl mx-auto">
@@ -172,21 +173,6 @@ export default function Pricing({
           </p>
         </GsapReveal>
 
-        <div className="mt-8 text-center">
-          <label htmlFor="pricing-currency">Show prices in </label>
-          <select
-            id="pricing-currency"
-            value={currency}
-            onChange={(e) => setCurrency(e.target.value as Currency)}
-            className="oy-currency"
-          >
-            {(["USD", "GBP", "NGN"] as Currency[]).map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        </div>
         {loadError && (
           <p role="status" className="mt-6 text-center text-sm">
             Current prices could not be loaded.{" "}
@@ -208,12 +194,7 @@ export default function Pricing({
             return (
               <div
                 key={tier}
-                className={`lp-card lp-card-sheen h-full p-6 sm:p-8 flex flex-col relative ${copy.highlighted ? "lp-glow-border-gold" : ""}`}
-                style={
-                  copy.highlighted
-                    ? { borderColor: "var(--lp-gold)" }
-                    : undefined
-                }
+                className={`lp-card lp-card-sheen oy-price-card h-full p-6 sm:p-8 flex flex-col relative ${copy.highlighted ? "is-featured" : ""}`}
               >
                 {copy.badge && (
                   <span

@@ -39,10 +39,11 @@ export default function Nav() {
     };
   }, [open]);
   return (
-    <header ref={header} className={`oy-nav${scrolled ? " is-scrolled" : ""}${open ? " is-expanded" : ""}`}>
+    <header ref={header} className={`oy-nav oy-cinema-nav${scrolled ? " is-scrolled" : ""}${open ? " is-expanded" : ""}`}>
       <nav aria-label="Primary">
-        <Link href="/" aria-label="Oyinca home">
+        <Link href="/" aria-label="Oyinca home" className="oy-cinema-logo">
           <Monogram className="h-9 w-9" />
+          <span>OYINCA</span>
         </Link>
         <div className="oy-nav-links">
           {links.map(([href, label]) => (

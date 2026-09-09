@@ -1528,6 +1528,125 @@
 @media(prefers-reduced-motion:no-preference){.oy-cinematic-image img{animation:oy-human-breathe 12s ease-in-out infinite alternate}.oy-cinematic-hero:after{animation:oy-cinema-light 10s ease-in-out infinite alternate}.oy-cinematic-atmosphere i:nth-child(1){animation:oy-cinema-orbit 22s linear infinite}.oy-cinematic-atmosphere i:nth-child(2){animation:oy-cinema-orbit 16s linear infinite reverse}.oy-meet-cta{transition:background .2s,box-shadow .2s,transform .15s}.oy-discover>span{animation:oy-discover-pulse 2.8s ease-in-out infinite}}
 @keyframes oy-human-breathe{to{transform:scale(1.045) translate3d(-.3%,.25%,0)}}@keyframes oy-cinema-light{to{transform:translate3d(2%,1%,0) scale(1.03)}}@keyframes oy-cinema-orbit{to{transform:rotate(360deg)}}@keyframes oy-discover-pulse{50%{transform:translateY(4px);border-color:#e8ba85}}
 
+/* 2026 cinematic launch system: a quiet product film, editorial pacing, and
+   fully token-driven regional pricing in both themes. */
+.oy-hero--cinematic {
+  isolation: isolate;
+  min-height: max(720px, 100svh);
+  padding: clamp(132px, 16vh, 190px) max(6vw, 24px) 96px;
+  overflow: hidden;
+  background: #071019;
+}
+.oy-hero--cinematic .oy-hero-grid { max-width: 1440px; margin-inline: auto; }
+.oy-hero--cinematic .oy-hero-copy { position: relative; z-index: 2; max-width: 760px; }
+.oy-hero--cinematic h1 {
+  max-width: 850px;
+  font-family: var(--font-display-var), Georgia, serif;
+  font-size: clamp(58px, 7.4vw, 116px);
+  font-weight: 430;
+  line-height: .92;
+  letter-spacing: -.055em;
+  text-wrap: balance;
+}
+.oy-hero--cinematic h1 em { color: #efc18f; font-weight: inherit; }
+.oy-hero--cinematic .oy-hero-intro { max-width: 480px; font-size: clamp(16px, 1.3vw, 20px); line-height: 1.6; }
+.oy-hero--cinematic .oy-cinema { inset: 0; background: #071019; }
+.oy-hero--cinematic .oy-cinema img,
+.oy-hero--cinematic .oy-cinema video {
+  inset: 0 0 0 auto;
+  width: min(66vw, 1120px);
+  height: 100%;
+  object-position: center 28%;
+  filter: saturate(.82) contrast(1.05);
+}
+.oy-hero--cinematic .oy-cinema > div {
+  background:
+    linear-gradient(90deg, #071019 6%, #071019f5 28%, #07101992 52%, #07101918 78%),
+    linear-gradient(0deg, #071019d9 0%, transparent 35%, #07101945 100%);
+}
+.oy-hero-film-note {
+  position: absolute;
+  right: max(4vw, 24px);
+  bottom: 34px;
+  z-index: 2;
+  margin: 0;
+  color: #d9c8b3;
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+}
+.oy-pricing-section {
+  background:
+    radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--lp-cyan) 9%, transparent), transparent 36%),
+    var(--lp-bg);
+  color: var(--lp-text-primary);
+  border-block: 1px solid var(--lp-border);
+}
+.oy-pricing-section .oy-pricing-grid .oy-price-card {
+  background: color-mix(in srgb, var(--lp-surface) 94%, transparent) !important;
+  border-color: var(--lp-border-strong) !important;
+  box-shadow: 0 24px 70px color-mix(in srgb, var(--lp-bg) 36%, transparent);
+}
+.oy-pricing-section .oy-pricing-grid .oy-price-card:hover {
+  border-color: color-mix(in srgb, var(--lp-cyan) 48%, var(--lp-border-strong)) !important;
+  box-shadow: 0 30px 85px color-mix(in srgb, var(--lp-bg) 48%, transparent);
+}
+.oy-pricing-section .oy-pricing-grid .oy-price-card.is-featured {
+  border-color: var(--lp-gold) !important;
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--lp-gold) 7%, var(--lp-surface)), var(--lp-surface)) !important;
+  box-shadow: 0 0 0 1px var(--lp-gold-soft), 0 30px 90px color-mix(in srgb, var(--lp-gold) 12%, transparent);
+}
+.light .oy-hero--cinematic { background: #eee8dd; color: #102631; }
+.light .oy-hero--cinematic .oy-cinema { background: #eee8dd; }
+.light .oy-hero--cinematic .oy-cinema img,
+.light .oy-hero--cinematic .oy-cinema video { filter: saturate(.68) contrast(.92) brightness(1.06); }
+.light .oy-hero--cinematic .oy-cinema > div {
+  background:
+    linear-gradient(90deg, #f2ece2 7%, #f2ece2f3 30%, #f2ece29e 54%, #f2ece21a 80%),
+    linear-gradient(0deg, #eee8ddc9 0%, transparent 38%, #eee8dd4a 100%);
+}
+.light .oy-hero--cinematic h1 { color: #102631; }
+.light .oy-hero--cinematic h1 em { color: #995f39; }
+.light .oy-hero--cinematic .oy-eyebrow,
+.light .oy-hero--cinematic .oy-hero-intro,
+.light .oy-hero--cinematic .oy-hero-note,
+.light .oy-hero-film-note { color: #425e68; }
+.light .oy-pricing-section .oy-pricing-grid .oy-price-card {
+  box-shadow: 0 22px 65px rgba(45, 60, 67, .10);
+}
+@media (max-width: 900px) {
+  .oy-hero--cinematic { min-height: 820px; align-items: flex-start; padding-top: 126px; }
+  .oy-hero--cinematic .oy-hero-copy { max-width: min(72vw, 620px); }
+  .oy-hero--cinematic .oy-cinema img,
+  .oy-hero--cinematic .oy-cinema video { width: 76%; object-position: 56% center; }
+}
+@media (max-width: 700px) {
+  .oy-hero--cinematic { min-height: 760px; padding: 112px 20px 88px; align-items: flex-start; }
+  .oy-hero--cinematic .oy-hero-copy { max-width: none; }
+  .oy-hero--cinematic h1 { max-width: 390px; font-size: clamp(48px, 14vw, 68px); }
+  .oy-hero--cinematic .oy-hero-intro { max-width: 330px; font-size: 15px; }
+  .oy-hero--cinematic .oy-cinema img,
+  .oy-hero--cinematic .oy-cinema video { width: 100%; object-position: 55% center; }
+  .oy-hero--cinematic .oy-cinema > div {
+    background: linear-gradient(180deg, #071019e8 0%, #0710194b 36%, #071019b5 67%, #071019fa 100%);
+  }
+  .light .oy-hero--cinematic .oy-cinema > div {
+    background: linear-gradient(180deg, #f2ece2e8 0%, #f2ece23d 35%, #eee8ddb8 68%, #eee8ddfa 100%);
+  }
+  .oy-hero-film-note { right: 20px; bottom: 22px; }
+}
+@media (max-width: 360px) {
+  .oy-hero--cinematic { min-height: 720px; padding-inline: 16px; }
+  .oy-hero--cinematic h1 { font-size: 46px; }
+  .oy-hero-film-note { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .oy-hero--cinematic .oy-cinema video { display: none; }
+  .oy-price-card { transition: none !important; }
+}
+
 /* Acquisition story: editorial context, one clear decision per section. */
 .oy-demo-label { max-width: var(--content-width); margin: 0 auto 16px; color: var(--text-secondary); font-size: 14px; }
 .oy-understanding { max-width: var(--content-width); margin: 0 auto; padding: var(--section-gap) var(--page-gutter); display: grid; grid-template-columns: 1fr 1.15fr; gap: 64px; }
