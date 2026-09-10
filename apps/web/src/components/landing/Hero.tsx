@@ -51,11 +51,21 @@ export default function Hero(_props: { variant?: HeroStyle }) {
     if (!video || !section) return;
     const preference = matchMedia('(prefers-reduced-motion: reduce)');
     let visible = true;
+    // Mirror the declarative media contract onto the live element. This
+    // protects continuous playback when React reuses the node across theme
+    // and responsive updates and makes the intended browser state explicit.
+    video.autoplay = true;
+    video.defaultMuted = true;
+    video.muted = true;
+    video.loop = true;
+    video.playsInline = true;
+    video.controls = false;
+    video.preload = 'metadata';
     const sync = () => {
       setReduced(preference.matches);
       if (preference.matches) { video.pause(); setBeat(-1); return; }
       if (!video.src) video.src = `/hero-film/${matchMedia('(max-width: 700px)').matches ? 'mobile' : 'desktop'}/oyinca-film.mp4`;
-      if (visible && !document.hidden && !stopped.current && !video.ended) {
+      if (visible && !document.hidden && !stopped.current) {
         void video.play().catch(() => { setBeat(-1); setPlaying(false); });
       } else video.pause();
     };
@@ -91,10 +101,10 @@ export default function Hero(_props: { variant?: HeroStyle }) {
       <figure className="oy-film-stage">
         <div className="oy-film-frame">
           <picture className={ready ? 'oy-film-poster is-covered' : 'oy-film-poster'}><source media="(max-width: 700px)" srcSet="/hero-film/posters/mobile.jpg" /><img src="/hero-film/posters/desktop.jpg" alt="Oyinca's real scheduled-post interface showing three example posts queued for TikTok." width="1440" height="950" fetchPriority="high" /></picture>
-          <video ref={film} muted playsInline preload="none" aria-hidden="true" className={ready ? 'is-ready' : ''}
+          <video ref={film} autoPlay muted loop playsInline preload="metadata" aria-hidden="true" className={ready ? 'is-ready' : ''}
             onPlaying={() => { setReady(true); setPlaying(true); }} onPause={() => setPlaying(false)}
             onTimeUpdate={() => { const t = film.current?.currentTime ?? 0; seekOpening.current(t); setBeat(t >= 14 ? -1 : Math.max(0,beats.filter(b => t >= b.at).length-1)); }}
-            onEnded={finish} onError={() => { setReady(false); finish(); }} />
+            onError={() => { setReady(false); finish(); }} />
         </div>
       </figure>
       {!reduced && <div className="oy-film-controls"><button type="button" onClick={toggle}>{playing ? 'Pause film' : beat === -1 ? 'Replay film' : 'Resume film'}</button>{beat !== -1 && <button type="button" onClick={finish}>Skip intro →</button>}</div>}
