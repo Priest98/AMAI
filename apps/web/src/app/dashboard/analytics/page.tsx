@@ -9,8 +9,6 @@ import { SkeletonListRows } from '@/components/ui/Skeleton';
 import { Reveal } from '@/components/ui/Reveal';
 import { CheckCircle2, XCircle, CalendarClock, Clock, Loader2, Activity } from 'lucide-react';
 
-interface CountedPost { id: string; status: string; }
-
 const EVENT_LABEL: Record<string, string> = {
   MEDIA_UPLOADED: 'Media uploaded',
   ANALYSIS_STARTED: 'Analysing content',
@@ -34,18 +32,24 @@ export default function AnalyticsPage() {
   const [counts, setCounts] = useState({ pending: 0, scheduled: 0, published: 0, failed: 0 });
   const [logs, setLogs] = useState<EngineEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activityLoading, setActivityLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
 
   const load = useCallback(async () => {
     setLoadError(false);
+    setLoading(true);
+
+    // Activity is useful context, but it should never delay the headline
+    // publishing metrics or the next-action recommendation.
+    setActivityLoading(true);
+    void brandFetch<EngineEvent[]>('/engine/activity')
+      .then(setLogs)
+      .catch(() => {})
+      .finally(() => setActivityLoading(false));
+
     try {
-      const [stats, failed, events] = await Promise.all([
-        brandFetch<{needsApprovalCount:number; scheduledCount:number; publishedCount:number}>('/posts/stats'),
-        brandFetch<CountedPost[]>('/posts?status=FAILED'),
-        brandFetch<EngineEvent[]>('/engine/activity'),
-      ]);
-      setCounts({ pending: stats.needsApprovalCount, scheduled: stats.scheduledCount, published: stats.publishedCount, failed: failed.length });
-      setLogs(events);
+      const stats = await brandFetch<{needsApprovalCount:number; scheduledCount:number; publishedCount:number; failedCount:number}>('/posts/stats');
+      setCounts({ pending: stats.needsApprovalCount, scheduled: stats.scheduledCount, published: stats.publishedCount, failed: stats.failedCount });
     } catch (e) {
       setLoadError(true);
     } finally {
@@ -88,7 +92,7 @@ export default function AnalyticsPage() {
           <h2 className="text-h3" style={{ color: 'var(--text-primary)' }}>Oyinca Activity Log</h2>
         </div>
 
-        {loading ? (
+        {activityLoading ? (
           <div className="p-5"><SkeletonListRows count={4} /></div>
         ) : logs.length === 0 ? (
           <EmptyState

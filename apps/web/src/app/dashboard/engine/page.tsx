@@ -74,15 +74,21 @@ export default function AmaiEnginePage() {
 
   const load = useCallback(async () => {
     setLoadError(false);
+    setLoading(true);
+
+    // Engine state is the only request required to make this page useful.
+    // Activity and billing enrich the view independently so a slow secondary
+    // service cannot hold the entire control surface behind a loading screen.
+    void brandFetch<EngineEvent[]>('/engine/activity')
+      .then(setActivity)
+      .catch(() => {});
+    void getBillingSummary()
+      .then(setBilling)
+      .catch(() => setBilling(null));
+
     try {
-      const [cfg, events, billingSummary] = await Promise.all([
-        brandFetch<EngineConfig>('/engine/state'),
-        brandFetch<EngineEvent[]>('/engine/activity'),
-        getBillingSummary().catch(() => null), // non-critical -- page still works if this fails, just without the plan-aware lock
-      ]);
+      const cfg = await brandFetch<EngineConfig>('/engine/state');
       setConfig(cfg);
-      setActivity(events);
-      setBilling(billingSummary);
     } catch (e: any) {
       setLoadError(true);
     } finally {
@@ -195,11 +201,7 @@ export default function AmaiEnginePage() {
     }
   };
 
-  if (loading) {
-    return <div className="p-10 text-center text-xs" style={{ color: 'var(--text-secondary)' }}>Loading Oyinca…</div>;
-  }
-
-  if (loadError || !config) return <section className="p-6 space-y-4"><h1 className="text-h1">Oyinca Autopilot</h1><p role="alert">Publishing status could not be loaded. No settings have been changed.</p><button className="btn-secondary touch-target px-4" onClick={() => { setLoading(true); void load(); }}>Retry status</button></section>;
+  if (loading || loadError || !config) return <section className="max-w-4xl mx-auto p-6 space-y-4" aria-busy={loading}><h1 className="text-h1">Oyinca Autopilot</h1><p role={loadError ? 'alert' : 'status'}>{loadError ? 'Publishing status could not be loaded. No settings have been changed.' : 'Loading publishing controls…'}</p>{loadError && <button className="btn-secondary touch-target px-4" onClick={() => void load()}>Retry status</button>}</section>;
 
   const isActive = config?.state === 'ACTIVE';
 

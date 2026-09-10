@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -157,6 +157,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // full protected layout flash on screen before the redirect kicks in.
   const [isAuthChecked, setIsAuthChecked] = useState(false);
 
+  // Next prefetches visible links in production. These intent handlers also
+  // cover links inside the mobile drawer and bottom bar before a tap commits
+  // the navigation, while keeping the initial dashboard request budget small.
+  const prefetchRoute = useCallback((href: string) => {
+    if (href !== pathname) router.prefetch(href);
+  }, [pathname, router]);
+
   useEffect(() => {
     // Auth guard — getCurrentUser() already treats a missing or expired
     // token as "not logged in" and clears it, so a single check covers both.
@@ -280,7 +287,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <Menu className="h-5 w-5" />
           </button>
 
-          <Link href="/dashboard" className="flex items-center space-x-2">
+          <Link href="/dashboard" onPointerEnter={() => prefetchRoute('/dashboard')} onFocus={() => prefetchRoute('/dashboard')} className="flex items-center space-x-2">
             <Logo variant="full" className="h-7" />
           </Link>
 
@@ -377,6 +384,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                             href={item.href}
                             data-tour={NAV_TOUR_IDS[item.href]}
                             onClick={() => setIsMobileOpen(false)}
+                            onPointerEnter={() => prefetchRoute(item.href)}
+                            onFocus={() => prefetchRoute(item.href)}
+                            onTouchStart={() => prefetchRoute(item.href)}
                             className="flex items-center justify-between px-3 py-2.5 rounded-[var(--radius-md)] text-body-sm font-semibold transition-all duration-200 touch-target"
                             style={{
                               backgroundColor: isActive ? 'var(--accent-secondary-subtle)' : 'transparent',
@@ -463,6 +473,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                             color: isActive ? 'var(--accent-secondary)' : 'var(--text-secondary)',
                           }}
                           onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = 'var(--hover-surface)'; }}
+                          onPointerEnter={() => prefetchRoute(item.href)}
+                          onFocus={() => prefetchRoute(item.href)}
                           onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = 'transparent'; }}
                         >
                           <span className="flex items-center space-x-2.5 min-w-0">
@@ -534,6 +546,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 className="flex items-center justify-center h-11 w-11 rounded-full -translate-y-2 transition-transform active:scale-95 touch-target"
                 style={{ background: 'var(--gradient-primary-cta)', color: 'var(--text-on-accent)', boxShadow: 'var(--elevation-3)' }}
                 title="Upload New Media"
+                onPointerEnter={() => prefetchRoute(tab.href)}
+                onFocus={() => prefetchRoute(tab.href)}
+                onTouchStart={() => prefetchRoute(tab.href)}
               >
                 <Plus className="h-6 w-6" />
               </Link>
@@ -547,6 +562,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               aria-current={isActive ? 'page' : undefined}
               className="flex flex-col items-center justify-center gap-1 w-14 h-12 rounded-[var(--radius-sm)] transition-all duration-200 touch-target"
               style={{ color: isActive ? 'var(--accent-secondary)' : 'var(--text-muted)' }}
+              onPointerEnter={() => prefetchRoute(tab.href)}
+              onFocus={() => prefetchRoute(tab.href)}
+              onTouchStart={() => prefetchRoute(tab.href)}
             >
               <Icon className={`h-[18px] w-[18px] ${isActive ? 'scale-110' : ''}`} />
               {/* 9px was effectively unreadable; 10px with normal tracking

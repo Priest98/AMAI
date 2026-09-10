@@ -208,10 +208,11 @@ export class PostsService {
     // pays this call's up-to-20s worst case before it can even start.
     this.opportunisticPublish(brandId).catch(() => {});
 
-    const [needsApprovalCount, scheduledCount, publishedCount, mediaCount, pendingPreview] = await Promise.all([
+    const [needsApprovalCount, scheduledCount, publishedCount, failedCount, mediaCount, pendingPreview] = await Promise.all([
       this.prisma.post.count({ where: { brandId, status: PostStatus.NEEDS_APPROVAL } }),
       this.prisma.post.count({ where: { brandId, status: PostStatus.SCHEDULED } }),
       this.prisma.post.count({ where: { brandId, status: PostStatus.PUBLISHED } }),
+      this.prisma.post.count({ where: { brandId, status: PostStatus.FAILED } }),
       this.prisma.mediaAsset.count({ where: { brandId } }),
       this.prisma.post.findMany({
         where: { brandId, status: PostStatus.NEEDS_APPROVAL },
@@ -221,7 +222,7 @@ export class PostsService {
       }),
     ]);
 
-    return { needsApprovalCount, scheduledCount, publishedCount, mediaCount, pendingPreview };
+    return { needsApprovalCount, scheduledCount, publishedCount, failedCount, mediaCount, pendingPreview };
   }
 
   /**
