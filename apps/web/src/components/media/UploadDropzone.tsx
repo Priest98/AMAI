@@ -467,18 +467,20 @@ export default function UploadDropzone({ onUploaded, mode = 'single', onCarousel
                 )}
 
                 {item.status === "error" && (
-                  <div className="flex items-center space-x-2 min-w-0">
-                    <span className="text-red-500 font-semibold flex items-center space-x-1 min-w-0">
+                  <div className="flex items-start gap-2 min-w-0 max-w-[280px]">
+                    <span className="text-red-500 font-semibold flex items-start gap-1 min-w-0" title={item.error}>
                       <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-                      <span className="truncate max-w-[160px]">{item.error}</span>
+                      <span className="whitespace-normal leading-relaxed">
+                        {item.assetId ? "Media uploaded. Caption generation failed." : item.error}
+                      </span>
                     </span>
                     <button
                       onClick={() => retryProcessing(item)}
                       className="p-1 rounded bg-red-500/10 hover:bg-red-500/20 text-red-400 font-bold text-[10px] flex items-center space-x-1 shrink-0"
-                      title="Retry"
+                      title={item.assetId ? "Retry caption generation" : "Retry upload"}
                     >
                       <RotateCcw className="h-3 w-3" />
-                      <span>Retry</span>
+                      <span>{item.assetId ? "Retry caption" : "Retry upload"}</span>
                     </button>
                   </div>
                 )}

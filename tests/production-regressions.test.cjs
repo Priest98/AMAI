@@ -9,6 +9,42 @@ const { AiService } = require('../apps/api/src/ai/ai.service');
 const { PublishingService } = require('../apps/api/src/queue/publishing.service');
 const { MediaService } = require('../apps/api/src/media/media.service');
 const { MetricsService } = require('../apps/api/src/metrics/metrics.service');
+const { GroqProvider } = require('../apps/api/src/ai-layer/providers/groq.provider');
+
+test('Groq product copy disables reasoning and honors the requested output budget', async (t) => {
+  const previousModel = process.env.GROQ_MODEL;
+  process.env.GROQ_MODEL = 'qwen/qwen3.6-27b';
+  let requestBody;
+  t.mock.method(global, 'fetch', async (_url, init) => {
+    requestBody = JSON.parse(init.body);
+    return { ok: true, json: async () => ({ choices: [{ message: { content: 'Ready caption.' } }], usage: { total_tokens: 24 } }) };
+  });
+  const result = await new GroqProvider().complete([{ role: 'user', content: 'Write a caption.' }], { maxTokens: 300, timeoutMs: 1_000 }, 'test-key');
+  assert.equal(result.text, 'Ready caption.');
+  assert.equal(requestBody.reasoning_effort, 'none');
+  assert.equal(requestBody.reasoning_format, 'hidden');
+  assert.equal(requestBody.max_completion_tokens, 300);
+  assert.equal('max_tokens' in requestBody, false);
+  if (previousModel === undefined) delete process.env.GROQ_MODEL;
+  else process.env.GROQ_MODEL = previousModel;
+});
+
+test('caption retry reuses an uploaded failed asset without rerunning video optimization', async () => {
+  let pipelineRuns = 0;
+  let optimizationRuns = 0;
+  const asset = { id: 'asset', brandId: 'brand', status: 'FAILED', linkedPostId: null };
+  const service = new MediaService({
+    mediaAsset: {
+      findFirst: async () => asset,
+      findUnique: async () => ({ ...asset, status: 'READY' }),
+    },
+  }, {}, { handleMediaUploaded: async () => { pipelineRuns++; } }, {}, {});
+  service.triggerOptimization = async () => { optimizationRuns++; };
+  const result = await service.triggerProcessing('brand', 'asset');
+  assert.equal(result.status, 'READY');
+  assert.equal(pipelineRuns, 1);
+  assert.equal(optimizationRuns, 0);
+});
 
 test('AI outage cannot produce or log a successful generic caption', async () => {
   let logged = false;

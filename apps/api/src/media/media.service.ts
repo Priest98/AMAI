@@ -279,9 +279,12 @@ export class MediaService {
     // be frozen the instant its HTTP response flushes -- exactly the bug
     // already fixed once for "Publish Now" -- so anything that must
     // actually finish has to finish before this request returns.
+    const isGenerationRetry = asset.status === MediaStatus.FAILED && !asset.linkedPostId;
     const [pipelineResult, optimizationResult] = await Promise.allSettled([
       this.engineService.handleMediaUploaded({ mediaAssetId: assetId }),
-      this.triggerOptimization(brandId, assetId),
+      // The derivative was already produced during the original attempt.
+      // A caption retry must not re-download/reprocess the same large video.
+      isGenerationRetry ? Promise.resolve() : this.triggerOptimization(brandId, assetId),
     ]);
 
     if (pipelineResult.status === 'rejected') {

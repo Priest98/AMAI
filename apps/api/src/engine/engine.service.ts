@@ -358,6 +358,10 @@ export class EngineService {
         id: asset.id,
         OR: [
           { status: MediaStatus.PENDING },
+          // A failed pre-post generation remains a valid uploaded asset.
+          // Retry may reclaim it without re-uploading; linked assets are
+          // excluded so a late-stage failure cannot create a duplicate post.
+          { status: MediaStatus.FAILED, linkedPostId: null },
           { status: MediaStatus.PROCESSING, updatedAt: { lt: staleClaimCutoff } },
         ],
       },

@@ -13,13 +13,12 @@ import { withTimeout } from '../util/with-timeout';
  * Multi-key capable: ApiKeyManagerService resolves which of the
  * configured GROQ_API_KEY[_N] values to use per call and passes it in.
  *
- * qwen/qwen3.6-27b is used for every call (vision and text alike) because
- * it's multimodal, so one model/endpoint covers both analyzeImage and the
- * pure-text caption/hashtag calls. It's also a "thinking" model that
- * emits a visible <think>...</think> chain-of-thought block before its
- * real answer -- this was found leaking raw reasoning text into
- * production captions (real AiUsageLog rows), so stripping it here is
- * load-bearing production behavior, not cosmetic.
+ * qwen/qwen3.6-27b is used for vision and text. Its reasoning mode must be
+ * disabled for product copy: otherwise a short completion budget can be
+ * consumed by hidden work before the caption begins, and the larger budget
+ * needed to compensate exhausts Groq's output-token quota under a small
+ * burst. Groq supports reasoning_effort=none and reasoning_format=hidden
+ * for this model, so request the final answer directly.
  */
 @Injectable()
 export class GroqProvider implements AiProviderAdapter {
@@ -28,11 +27,6 @@ export class GroqProvider implements AiProviderAdapter {
   readonly supportsMultipleKeys = true;
   private readonly logger = new Logger(GroqProvider.name);
   private static readonly MODEL = 'qwen/qwen3.6-27b';
-  // A tight token budget (e.g. 30 for a short vision caption) can be
-  // entirely consumed by the <think> block, leaving nothing for the real
-  // answer -- every Groq call gets at least this much headroom regardless
-  // of what the caller asked for.
-  private static readonly MIN_TOKENS = 600;
 
   isConfigured(): boolean {
     // At least one GROQ_API_KEY[_N] present is enough to consider the
@@ -48,8 +42,6 @@ export class GroqProvider implements AiProviderAdapter {
   ): Promise<AiCompletionResult> {
     if (!apiKey) throw new Error('Groq call made without a resolved API key.');
 
-    const maxTokens = Math.max(options.maxTokens, GroqProvider.MIN_TOKENS);
-
     const response = await withTimeout(
       fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
@@ -58,7 +50,13 @@ export class GroqProvider implements AiProviderAdapter {
           Authorization: `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ model: process.env.GROQ_MODEL || GroqProvider.MODEL, messages, max_tokens: maxTokens }),
+        body: JSON.stringify({
+          model: process.env.GROQ_MODEL || GroqProvider.MODEL,
+          messages,
+          max_completion_tokens: options.maxTokens,
+          reasoning_effort: 'none',
+          reasoning_format: 'hidden',
+        }),
       }),
       options.timeoutMs,
       'Groq completion',
