@@ -359,6 +359,7 @@ export default function MediaLibraryPage() {
   const [carouselItems, setCarouselItems] = useState<CarouselItem[]>([]);
   const [composing, setComposing] = useState(false);
   const [composeMessage, setComposeMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const [retryingAssetIds, setRetryingAssetIds] = useState<Set<string>>(() => new Set());
 
   const fetchMediaAssets = useCallback(async () => {
     try {
@@ -405,6 +406,32 @@ export default function MediaLibraryPage() {
     } catch (e: any) {
       setAssets(prev); // revert on failure
       setError(e.message || 'Could not delete that file.');
+    }
+  };
+
+  const handleRetryGeneration = async (asset: MediaAsset) => {
+    if (retryingAssetIds.has(asset.id)) return;
+    setRetryingAssetIds((prev) => new Set(prev).add(asset.id));
+    setAssets((prev) => prev.map((item) => item.id === asset.id
+      ? { ...item, status: 'PROCESSING', lastErrorMessage: null }
+      : item));
+    try {
+      const updated = await brandFetch<MediaAsset>(`/media/assets/${asset.id}/process`, { method: 'POST' });
+      setAssets((prev) => prev.map((item) => item.id === asset.id ? { ...item, ...updated } : item));
+      if (updated.status === 'FAILED') {
+        setError(updated.lastErrorMessage || 'Media is safe, but caption generation is still unavailable. Try again shortly.');
+      }
+    } catch (e: any) {
+      setAssets((prev) => prev.map((item) => item.id === asset.id
+        ? { ...item, status: 'FAILED', lastErrorMessage: e.message || asset.lastErrorMessage }
+        : item));
+      setError(e.message || 'Media is safe, but caption generation could not be retried.');
+    } finally {
+      setRetryingAssetIds((prev) => {
+        const next = new Set(prev);
+        next.delete(asset.id);
+        return next;
+      });
     }
   };
 
@@ -796,7 +823,18 @@ export default function MediaLibraryPage() {
                     </div>
                   )}
 
-                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition duration-200 flex items-center justify-center">
+                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition duration-200 flex items-center justify-center gap-2">
+                    {asset.status === 'FAILED' && !asset.linkedPostId && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); void handleRetryGeneration(asset); }}
+                        disabled={retryingAssetIds.has(asset.id)}
+                        className="px-2.5 py-2 rounded-xl bg-amber-500 text-zinc-950 shadow-lg hover:scale-105 transition touch-target disabled:opacity-60"
+                        title="Retry caption generation without uploading again"
+                      >
+                        {retryingAssetIds.has(asset.id) ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                        <span className="sr-only">Retry caption</span>
+                      </button>
+                    )}
                     <button
                       onClick={(e) => { e.stopPropagation(); handleDeleteAsset(asset.id); }}
                       className="p-2 rounded-xl bg-red-500 text-white shadow-lg hover:scale-105 transition touch-target"
