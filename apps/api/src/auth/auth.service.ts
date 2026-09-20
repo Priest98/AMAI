@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, ConflictException, ForbiddenException, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException, ForbiddenException, BadRequestException, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { RegisterDto, LoginDto, ForgotPasswordDto, ResetPasswordDto, VerifyEmailDto, ResendVerificationDto } from './dto';
 import * as bcrypt from 'bcryptjs';
@@ -6,7 +6,7 @@ import * as crypto from 'crypto';
 import { JwtService } from '@nestjs/jwt';
 import { Role, PlanTier, SubscriptionStatus } from '@prisma/client';
 import { getAppUrl } from '../common/app-url.util';
-import { EmailService } from '../email/email.service';
+import { EmailDeliveryError, EmailService } from '../email/email.service';
 import { StorageService } from '../storage/storage.service';
 
 @Injectable()
@@ -22,6 +22,15 @@ export class AuthService {
 
   private hashOneTimeToken(token: string): string {
     return crypto.createHash('sha256').update(token).digest('hex');
+  }
+
+  private escapeEmailText(value: string): string {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 
   private emailShell(bodyHtml: string): string {
@@ -43,7 +52,7 @@ export class AuthService {
               <table role="presentation" border="0" cellspacing="0" cellpadding="0">
                 <tr>
                   <td style="background: linear-gradient(135deg, #F43F5E 0%, #8B5CF6 100%); width: 36px; height: 36px; border-radius: 10px; text-align: center; vertical-align: middle; color: #ffffff; font-weight: 900; font-size: 20px; line-height: 36px;">
-                    A
+                    O
                   </td>
                   <td style="padding-left: 12px; font-size: 24px; font-weight: 800; letter-spacing: -0.03em; color: #ffffff;">
                     Oyinca
@@ -71,29 +80,32 @@ export class AuthService {
   }
 
   private generateWelcomeEmailHtml(fullName: string, verificationUrl: string): string {
+    const safeFullName = this.escapeEmailText(fullName);
     return this.emailShell(`
           <tr>
             <td align="left" style="padding-bottom: 16px;">
               <h1 style="margin: 0; font-size: 22px; font-weight: 800; color: #ffffff; letter-spacing: -0.02em;">
-                Welcome to Oyinca, ${fullName}! 🚀
+                Verify your email for Oyinca
               </h1>
             </td>
           </tr>
           <tr>
             <td align="left" style="padding-bottom: 24px; font-size: 14px; line-height: 1.6; color: #94A3B8;">
-              Thank you for signing up for Oyinca, the AI Operating System for Social Media Automation. You're one step away from transforming your content pipeline. Please verify your email address below to activate your account.
+              Welcome, ${safeFullName}. Verify your email address to secure your account and enter your Oyinca workspace.
             </td>
           </tr>
           <tr>
             <td align="center" style="padding-bottom: 32px;">
               <a href="${verificationUrl}" target="_blank" style="display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #F43F5E 0%, #8B5CF6 100%); color: #ffffff; text-decoration: none; font-weight: 700; font-size: 14px; border-radius: 14px; box-shadow: 0 10px 25px rgba(244, 63, 94, 0.3);">
-                Verify Email Address
+                Verify email
               </a>
             </td>
           </tr>
           <tr>
             <td align="left" style="padding-top: 24px; border-top: 1px solid rgba(255, 255, 255, 0.08); font-size: 12px; line-height: 1.5; color: #64748B;">
-              If you didn't create an Oyinca account, you can safely ignore this email. This link will expire in 24 hours.
+              If the button does not work, copy and paste this secure link into your browser:<br>
+              <a href="${verificationUrl}" style="color: #C9A96E; overflow-wrap: anywhere;">${verificationUrl}</a><br><br>
+              If you did not create an Oyinca account, you can safely ignore this email. This link expires in 24 hours.
             </td>
           </tr>
     `);
@@ -218,11 +230,29 @@ export class AuthService {
     const verificationUrl = `${appUrl}/verify-email?token=${verificationToken}`;
 
     const emailHtml = this.generateWelcomeEmailHtml(user.fullName || 'Creator', verificationUrl);
-    await this.emailService.sendEmail(user.email, 'Welcome to Oyinca 🚀 Verify your email', emailHtml);
+    try {
+      await this.emailService.sendEmail(
+        user.email,
+        'Verify your email for Oyinca',
+        emailHtml,
+        `Welcome to Oyinca, ${user.fullName || 'Creator'}.\n\nVerify your email: ${verificationUrl}\n\nThis link expires in 24 hours. If you did not create an Oyinca account, ignore this email.`,
+      );
+    } catch (error) {
+      if (error instanceof EmailDeliveryError) {
+        this.logger.error(`Verification email was not accepted after account creation (code=${error.code}).`);
+        throw new ServiceUnavailableException({
+          code: 'VERIFICATION_EMAIL_NOT_ACCEPTED',
+          accountCreated: true,
+          message: 'Your account was created, but the verification email could not be accepted for delivery. Please try resending it shortly.',
+        });
+      }
+      throw error;
+    }
 
     return {
       success: true,
-      message: "Welcome to Oyinca! We've sent a verification email to your inbox.",
+      message: 'Your verification email was accepted for delivery.',
+      deliveryStatus: 'accepted',
       email: user.email,
     };
   }
@@ -243,7 +273,7 @@ export class AuthService {
         throw new BadRequestException('This verification link has expired. Please request a new one.');
       }
 
-      await this.prisma.user.update({
+      const verifiedUser = await this.prisma.user.update({
         where: { id: user.id },
         data: {
           emailVerified: true,
@@ -252,16 +282,13 @@ export class AuthService {
           verificationTokenExpiresAt: null,
         },
       });
+      return this.generateAuthResponse(verifiedUser, true);
     } catch (e) {
       if (e instanceof BadRequestException) throw e;
       this.logger.warn(`Verify email error: ${e}`);
       throw new BadRequestException('We could not verify your email right now. Please try again.');
     }
 
-    return {
-      success: true,
-      message: 'Email address verified successfully! You can now log in to Oyinca.',
-    };
   }
 
   async resendVerification(dto: ResendVerificationDto) {
@@ -285,7 +312,12 @@ export class AuthService {
         const appUrl = getAppUrl();
         const verificationUrl = `${appUrl}/verify-email?token=${verificationToken}`;
         const emailHtml = this.generateWelcomeEmailHtml(user.fullName || 'Creator', verificationUrl);
-        await this.emailService.sendEmail(user.email, 'Verify your Oyinca email address', emailHtml);
+        await this.emailService.sendEmail(
+          user.email,
+          'Verify your email for Oyinca',
+          emailHtml,
+          `Verify your Oyinca email: ${verificationUrl}\n\nThis link expires in 24 hours. If you did not create an Oyinca account, ignore this email.`,
+        );
       }
     } catch (e: any) {
       this.logger.warn(`resendVerification error: ${e.message}`);
@@ -293,7 +325,7 @@ export class AuthService {
 
     return {
       success: true,
-      message: 'If an account exists for that email and is not yet verified, a new verification link has been sent.',
+      message: 'If an eligible account exists, a new verification link has been requested. Check your inbox and spam folder.',
     };
   }
 
@@ -313,7 +345,12 @@ export class AuthService {
         const appUrl = getAppUrl();
         const resetUrl = `${appUrl}/reset-password?token=${passwordResetToken}`;
         const emailHtml = this.generatePasswordResetEmailHtml(resetUrl);
-        await this.emailService.sendEmail(cleanEmail, 'Reset your Oyinca password', emailHtml);
+        await this.emailService.sendEmail(
+          cleanEmail,
+          'Reset your Oyinca password',
+          emailHtml,
+          `Reset your Oyinca password: ${resetUrl}\n\nThis link expires in 1 hour. If you did not request this, ignore this email.`,
+        );
       }
     } catch (e: any) {
       this.logger.warn(`forgotPassword lookup error: ${e.message}`);

@@ -68,8 +68,13 @@ export default function RegisterPage() {
       const data = await res.json();
 
       if (res.ok && data.success) {
-        capture('signup_completed', { email });
+        capture('signup_completed');
         router.push(`/verify-email?email=${encodeURIComponent(email)}${getSelectedPlan() ? '&plan='+getSelectedPlan() : ''}`);
+        return;
+      }
+
+      if (data.accountCreated && data.code === 'VERIFICATION_EMAIL_NOT_ACCEPTED') {
+        router.push(`/verify-email?email=${encodeURIComponent(email)}&delivery=failed${getSelectedPlan() ? '&plan='+getSelectedPlan() : ''}`);
         return;
       }
 

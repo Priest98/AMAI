@@ -10,11 +10,15 @@ export class EmailNotificationAdapter implements NotificationProvider {
   constructor(private readonly email: EmailService) {}
   isAvailable(request: NotificationRequest): boolean { return Boolean(request.recipient.email); }
   send(request: NotificationRequest): Promise<boolean> {
-    return this.email.sendEmail(request.recipient.email!, request.title, `<h2>${escapeHtml(request.title)}</h2><p>${escapeHtml(request.body).replace(/\n/g, '<br>')}</p>`);
+    return this.email.sendEmail(
+      request.recipient.email!,
+      request.title,
+      `<h2>${escapeHtml(request.title)}</h2><p>${escapeHtml(request.body).replace(/\n/g, '<br>')}</p>`,
+      `${request.title}\n\n${request.body}`,
+    );
   }
 }
 
 function escapeHtml(value: string): string {
   return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
-

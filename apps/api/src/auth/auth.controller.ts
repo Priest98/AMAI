@@ -58,8 +58,16 @@ export class AuthController {
 
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('verify-email')
-  async verifyEmail(@Body() dto: VerifyEmailDto) {
-    return this.authService.verifyEmail(dto);
+  async verifyEmail(@Body() dto: VerifyEmailDto, @Res({ passthrough: true }) res: Response) {
+    const { accessToken, user, expiresAt, maxAgeMs } = await this.authService.verifyEmail(dto);
+    res.cookie(AUTH_COOKIE_NAME, accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: maxAgeMs,
+    });
+    return { success: true, user, expiresAt };
   }
 
   @Throttle({ default: { limit: 3, ttl: 60_000 } })

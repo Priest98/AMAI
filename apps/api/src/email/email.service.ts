@@ -1,6 +1,16 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 
+export class EmailDeliveryError extends Error {
+  constructor(
+    public readonly code: 'EMAIL_NOT_CONFIGURED' | 'EMAIL_REJECTED' | 'EMAIL_PROVIDER_FAILED',
+    message: string,
+  ) {
+    super(message);
+    this.name = 'EmailDeliveryError';
+  }
+}
+
 /**
  * Real transactional email delivery via nodemailer/SMTP. Used for the
  * welcome/verification email, password reset email, and resend-verification
@@ -33,6 +43,9 @@ export class EmailService {
         host: process.env.SMTP_HOST,
         port,
         secure: process.env.SMTP_SECURE === 'true' || port === 465,
+        connectionTimeout: 10_000,
+        greetingTimeout: 10_000,
+        socketTimeout: 20_000,
         auth: {
           user: process.env.SMTP_USER,
           pass: process.env.SMTP_PASS,
@@ -42,23 +55,41 @@ export class EmailService {
     return this.transporter;
   }
 
-  async sendEmail(to: string, subject: string, html: string): Promise<boolean> {
+  private maskRecipient(value: string): string {
+    const [local, domain] = value.split('@');
+    if (!domain) return '[invalid recipient]';
+    return `${local.slice(0, 2)}***@${domain}`;
+  }
+
+  async sendEmail(to: string, subject: string, html: string, text?: string): Promise<boolean> {
     if (!this.isConfigured()) {
-      this.logger.warn(
-        `SMTP not configured (need SMTP_HOST/SMTP_USER/SMTP_PASS) — skipping real send. Would have emailed "${subject}" to ${to}.`,
-      );
-      return false;
+      this.logger.error('Transactional email is not configured; message was not accepted for delivery.');
+      throw new EmailDeliveryError('EMAIL_NOT_CONFIGURED', 'Transactional email is not configured.');
     }
 
-    const from = process.env.EMAIL_FROM || (process.env.SMTP_USER as string);
+    const from = process.env.EMAIL_FROM || (process.env.NODE_ENV !== 'production' ? process.env.SMTP_USER : undefined);
+    if (!from) {
+      this.logger.error('EMAIL_FROM is required in production; message was not accepted for delivery.');
+      throw new EmailDeliveryError('EMAIL_NOT_CONFIGURED', 'The production sender identity is not configured.');
+    }
 
     try {
-      await this.getTransporter().sendMail({ from, to, subject, html });
-      this.logger.log(`Email sent to ${to}: "${subject}"`);
+      const info = await this.getTransporter().sendMail({ from, to, subject, html, text });
+      const accepted = (info.accepted || []).map(String).some((address: string) => address.toLowerCase() === to.toLowerCase());
+      if (!accepted || (info.rejected || []).length > 0) {
+        this.logger.error(`Email provider rejected ${this.maskRecipient(to)}.`);
+        throw new EmailDeliveryError('EMAIL_REJECTED', 'The email provider did not accept the recipient.');
+      }
+      this.logger.log(`Email accepted by provider for ${this.maskRecipient(to)}.`);
       return true;
     } catch (err: any) {
-      this.logger.error(`Failed to send email to ${to}: ${err.message}`);
-      return false;
+      if (err instanceof EmailDeliveryError) throw err;
+      const providerCode = typeof err?.code === 'string' ? err.code : 'unknown';
+      const responseCode = Number.isFinite(err?.responseCode) ? err.responseCode : 'unknown';
+      this.logger.error(
+        `Email provider failed for ${this.maskRecipient(to)} (code=${providerCode}, responseCode=${responseCode}).`,
+      );
+      throw new EmailDeliveryError('EMAIL_PROVIDER_FAILED', 'The email provider did not accept the message.');
     }
   }
 }

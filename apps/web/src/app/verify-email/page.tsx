@@ -6,9 +6,19 @@ import { motion } from 'framer-motion';
 import { Logo } from '@/components/logo';
 import Button from '@/components/ui/Button';
 import { Mail, CheckCircle2, AlertCircle, RefreshCw, ArrowRight, ExternalLink } from 'lucide-react';
-import { API_BASE } from '@/lib/api';
+import { API_BASE, setSession } from '@/lib/api';
 import BrandAttribution from '@/components/BrandAttribution';
 import PlanSelectionNotice from '@/components/PlanSelectionNotice';
+import { planDestination } from '@/lib/plan-intent';
+
+const RESEND_COOLDOWN_SECONDS = 60;
+
+function maskEmail(value: string): string {
+  const [local, domain] = value.split('@');
+  if (!domain) return value;
+  const visible = local.slice(0, Math.min(2, local.length));
+  return `${visible}${'*'.repeat(Math.max(3, local.length - visible.length))}@${domain}`;
+}
 
 
 function VerifyEmailContent() {
@@ -17,19 +27,29 @@ function VerifyEmailContent() {
 
   const token = searchParams.get('token');
   const userEmail = searchParams.get('email') || 'your email';
+  const deliveryFailed = searchParams.get('delivery') === 'failed';
 
   const [verifying, setVerifying] = useState(!!token);
   const [verified, setVerified] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState(deliveryFailed
+    ? 'Your account was created, but the email provider did not accept the verification message. Try again shortly.'
+    : '');
 
   const [resending, setResending] = useState(false);
   const [resendMessage, setResendMessage] = useState('');
+  const [cooldown, setCooldown] = useState(deliveryFailed ? 0 : RESEND_COOLDOWN_SECONDS);
 
   useEffect(() => {
     if (token) {
       handleVerifyToken(token);
     }
   }, [token]);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = window.setTimeout(() => setCooldown((value) => Math.max(0, value - 1)), 1_000);
+    return () => window.clearTimeout(timer);
+  }, [cooldown]);
 
   const handleVerifyToken = async (tokenToVerify: string) => {
     setVerifying(true);
@@ -44,7 +64,9 @@ function VerifyEmailContent() {
       const data = await res.json();
 
       if (res.ok && data.success) {
+        setSession(data.user, data.expiresAt);
         setVerified(true);
+        router.replace(planDestination());
       } else {
         setError(data.message || 'This verification link is invalid or has expired.');
       }
@@ -68,7 +90,8 @@ function VerifyEmailContent() {
       });
       const data = await res.json();
       if (res.ok) {
-        setResendMessage(data.message || 'Verification email resent successfully.');
+        setResendMessage(data.message || 'If the account is eligible, a new verification link has been requested.');
+        setCooldown(RESEND_COOLDOWN_SECONDS);
       } else {
         setError(data.message || 'Could not resend the verification email. Please try again.');
       }
@@ -125,7 +148,7 @@ function VerifyEmailContent() {
             <div className="space-y-2">
               <h2 className="text-h1" style={{ color: 'var(--text-primary)' }}>Check your inbox</h2>
               <p className="text-body-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                We've sent a verification link to <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{userEmail}</span>. Click it to activate your account, then come back and sign in.
+                We requested a verification link for <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{maskEmail(userEmail)}</span>. Check your inbox and spam folder.
               </p>
             </div>
 
@@ -152,9 +175,10 @@ function VerifyEmailContent() {
                 fullWidth
                 onClick={handleResend}
                 loading={resending}
+                disabled={resending || cooldown > 0 || userEmail === 'your email'}
                 icon={<RefreshCw className="h-3.5 w-3.5" />}
               >
-                {resending ? 'Sending...' : 'Resend Verification Email'}
+                {resending ? 'Requesting...' : cooldown > 0 ? `Resend available in ${cooldown}s` : 'Resend verification email'}
               </Button>
 
               <div className="pt-2">

@@ -220,6 +220,19 @@ test('email verification and password-reset tokens are hashed before database lo
   assert.match(source, /passwordResetToken: this\.hashOneTimeToken\(dto\.token\)/);
 });
 
+test('transactional email failures cannot masquerade as successful signup delivery', () => {
+  const email = fs.readFileSync(path.join(root, 'apps/api/src/email/email.service.ts'), 'utf8');
+  const auth = fs.readFileSync(path.join(root, 'apps/api/src/auth/auth.service.ts'), 'utf8');
+  const controller = fs.readFileSync(path.join(root, 'apps/api/src/auth/auth.controller.ts'), 'utf8');
+  assert.match(email, /throw new EmailDeliveryError\('EMAIL_NOT_CONFIGURED'/);
+  assert.match(email, /Email accepted by provider for \$\{this\.maskRecipient\(to\)\}/);
+  assert.doesNotMatch(email, /Email sent to \$\{to\}/);
+  assert.match(auth, /VERIFICATION_EMAIL_NOT_ACCEPTED/);
+  assert.match(auth, /deliveryStatus: 'accepted'/);
+  assert.match(controller, /const \{ accessToken, user, expiresAt, maxAgeMs \} = await this\.authService\.verifyEmail/);
+  assert.match(controller, /res\.cookie\(AUTH_COOKIE_NAME, accessToken/);
+});
+
 test('durable recovery cron processes persisted media jobs and retains daily Vercel backstops for QStash', () => {
   const jobs = fs.readFileSync(path.join(root, 'apps/api/src/engine/engine-jobs.service.ts'), 'utf8');
   const cron = fs.readFileSync(path.join(root, 'apps/api/src/cron/cron.controller.ts'), 'utf8');
