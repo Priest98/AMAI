@@ -255,6 +255,11 @@ input, select, textarea {
   transform: translateY(-1px);
 }
 
+/* Calm product workspace informed by the editorial landing palette. */
+.oy-product-dashboard,.oy-engine-console{--oy-product-ink:#102b3d;--oy-product-gold:#ad875b}.light .oy-product-dashboard .exec-card,.light .oy-engine-console .exec-card,.light .oy-product-dashboard .glass-panel{background:#fffdf9;border-color:rgba(16,43,61,.12);box-shadow:0 18px 45px rgba(71,58,41,.06)}
+.oy-product-dashboard>div:first-child h1,.oy-engine-console>div:first-child h1{font-family:var(--font-display-var),Georgia,serif!important;font-weight:400!important;letter-spacing:-.045em!important}.light .oy-product-dashboard>div:first-child h1,.light .oy-engine-console>div:first-child h1{color:var(--oy-product-ink)!important}
+.oy-product-dashboard .btn-primary-gradient,.oy-engine-console .btn-primary-gradient{background:#102f43!important;color:#fff!important;border-radius:999px!important;box-shadow:0 10px 24px rgba(16,47,67,.15)!important}.oy-product-dashboard .exec-card,.oy-engine-console .exec-card{border-radius:22px}.oy-engine-console .exec-card button{border-radius:14px}.oy-engine-console select,.oy-engine-console input{min-height:44px}
+
 /* Blur is a deliberate acquisition/overlay treatment, never the default
    dashboard container. This keeps dense working views crisp and cheaper to
    composite while preserving Oyinca's cinematic moments. */

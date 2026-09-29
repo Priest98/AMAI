@@ -53,6 +53,16 @@
   font-family: var(--lp-font-body, 'Inter', -apple-system, BlinkMacSystemFont, sans-serif);
 }
 
+/* 2026 editorial acquisition system: warm gallery surfaces paired with the
+   cinematic hero. Existing component structure and behavior stay intact. */
+.amai-landing{--lp-bg:#f6f2e9;--lp-bg-secondary:#eee9de;--lp-surface:#fffdf8;--lp-text-primary:#102b3d;--lp-text-secondary:#5f7280;--lp-text-muted:#89959b;--lp-border:rgba(16,43,61,.14);--lp-gold:#ad875b;background:var(--lp-bg);color:var(--lp-text-primary)}
+.amai-landing main>section:not(.oy-film-hero):not(.oy-managed){position:relative;background:radial-gradient(circle at 88% 12%,rgba(216,178,137,.18),transparent 26%),radial-gradient(circle at 45% 75%,rgba(152,186,173,.12),transparent 28%),var(--lp-bg)}
+.amai-landing .oy-section-heading .oy-eyebrow,.amai-landing .oy-eyebrow{color:#a0774a;letter-spacing:.34em}.amai-landing .oy-section-heading h2,.amai-landing .oy-final h2,.amai-landing .oy-faq summary,.amai-landing .lp-heading-display{font-family:var(--font-display-var),Georgia,serif;font-weight:400;letter-spacing:-.04em;color:#102b3d}
+.amai-landing .lp-card,.amai-landing .oy-faq details{background:rgba(255,253,248,.82)!important;border:1px solid rgba(16,43,61,.12)!important;box-shadow:0 22px 55px rgba(74,62,45,.07)!important;backdrop-filter:none!important}.amai-landing .oy-price-card{border-radius:22px!important}.amai-landing .oy-price-card.is-featured{background:#fff8ed!important;border-color:rgba(173,135,91,.38)!important;transform:translateY(-10px)}
+.amai-landing .lp-btn-primary,.amai-landing .oy-button{background:#102f43!important;color:#fff!important;border:1px solid #102f43!important;border-radius:999px!important;box-shadow:0 12px 30px rgba(16,47,67,.16)!important}.amai-landing .lp-btn-ghost{border-radius:999px!important;border-color:rgba(16,43,61,.2)!important}
+.amai-landing .oy-faq details{border-radius:14px;margin-bottom:10px}.amai-landing .oy-faq summary{font-size:clamp(20px,2vw,30px)}.amai-landing .oy-final{text-align:left;overflow:hidden}.amai-landing .oy-final h2{font-size:clamp(52px,7vw,104px);line-height:.96;max-width:900px}.amai-landing footer{background:#f6f2e9}
+@media(max-width:700px){.amai-landing .oy-price-card.is-featured{transform:none}.amai-landing .oy-final h2{font-size:48px}}
+
 /* Ancestor selector (not a compound class on .amai-landing itself) --
    the light/dark class lives on <html>, set once by the shared useTheme
    hook, so the marketing site reacts to the same global toggle the

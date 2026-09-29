@@ -203,7 +203,7 @@ export default function DashboardPage() {
       variants={containerVariants}
       initial={false}
       animate="show"
-      className="space-y-8 max-w-7xl mx-auto pb-24 sm:pb-12"
+      className="oy-product-dashboard space-y-8 max-w-7xl mx-auto pb-24 sm:pb-12"
     >
       <div className="relative overflow-hidden rounded-[28px]">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-1 py-6 sm:py-8">

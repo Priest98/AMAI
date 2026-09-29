@@ -8,6 +8,7 @@ import { Role, PlanTier, SubscriptionStatus } from '@prisma/client';
 import { getAppUrl } from '../common/app-url.util';
 import { EmailDeliveryError, EmailService } from '../email/email.service';
 import { StorageService } from '../storage/storage.service';
+import { passwordResetEmail, verificationEmail, welcomeEmail } from '../email/email.templates';
 
 @Injectable()
 export class AuthService {
@@ -229,13 +230,13 @@ export class AuthService {
     const appUrl = getAppUrl();
     const verificationUrl = `${appUrl}/verify-email?token=${verificationToken}`;
 
-    const emailHtml = this.generateWelcomeEmailHtml(user.fullName || 'Creator', verificationUrl);
+    const email = verificationEmail(user.fullName || 'Creator', verificationUrl);
     try {
       await this.emailService.sendEmail(
         user.email,
-        'Verify your email for Oyinca',
-        emailHtml,
-        `Welcome to Oyinca, ${user.fullName || 'Creator'}.\n\nVerify your email: ${verificationUrl}\n\nThis link expires in 24 hours. If you did not create an Oyinca account, ignore this email.`,
+        email.subject,
+        email.html,
+        email.text,
       );
     } catch (error) {
       if (error instanceof EmailDeliveryError) {
@@ -282,6 +283,15 @@ export class AuthService {
           verificationTokenExpiresAt: null,
         },
       });
+      if (!verifiedUser.welcomeEmailSentAt) {
+        const welcome = welcomeEmail();
+        try {
+          await this.emailService.sendEmail(verifiedUser.email, welcome.subject, welcome.html, welcome.text);
+          await this.prisma.user.update({ where: { id: verifiedUser.id }, data: { welcomeEmailSentAt: new Date() } });
+        } catch (error: any) {
+          this.logger.warn(`Welcome email was not accepted after verification (code=${error?.code || 'unknown'}).`);
+        }
+      }
       return this.generateAuthResponse(verifiedUser, true);
     } catch (e) {
       if (e instanceof BadRequestException) throw e;
@@ -311,12 +321,12 @@ export class AuthService {
 
         const appUrl = getAppUrl();
         const verificationUrl = `${appUrl}/verify-email?token=${verificationToken}`;
-        const emailHtml = this.generateWelcomeEmailHtml(user.fullName || 'Creator', verificationUrl);
+        const email = verificationEmail(user.fullName || 'Creator', verificationUrl);
         await this.emailService.sendEmail(
           user.email,
-          'Verify your email for Oyinca',
-          emailHtml,
-          `Verify your Oyinca email: ${verificationUrl}\n\nThis link expires in 24 hours. If you did not create an Oyinca account, ignore this email.`,
+          email.subject,
+          email.html,
+          email.text,
         );
       }
     } catch (e: any) {
@@ -344,12 +354,12 @@ export class AuthService {
 
         const appUrl = getAppUrl();
         const resetUrl = `${appUrl}/reset-password?token=${passwordResetToken}`;
-        const emailHtml = this.generatePasswordResetEmailHtml(resetUrl);
+        const email = passwordResetEmail(resetUrl);
         await this.emailService.sendEmail(
           cleanEmail,
-          'Reset your Oyinca password',
-          emailHtml,
-          `Reset your Oyinca password: ${resetUrl}\n\nThis link expires in 1 hour. If you did not request this, ignore this email.`,
+          email.subject,
+          email.html,
+          email.text,
         );
       }
     } catch (e: any) {

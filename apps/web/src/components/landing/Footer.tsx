@@ -22,7 +22,7 @@ const COLUMNS = [
     // address as Privacy/Terms' CONTACT_EMAIL).
     title: 'Company',
     links: [
-      { label: 'Contact', href: 'mailto:Abdurasaqadamolayinka@gmail.com' },
+      { label: 'Contact', href: 'mailto:hello@oyinca.com' },
     ],
   },
   {

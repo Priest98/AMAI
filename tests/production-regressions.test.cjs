@@ -225,10 +225,14 @@ test('transactional email failures cannot masquerade as successful signup delive
   const auth = fs.readFileSync(path.join(root, 'apps/api/src/auth/auth.service.ts'), 'utf8');
   const controller = fs.readFileSync(path.join(root, 'apps/api/src/auth/auth.controller.ts'), 'utf8');
   assert.match(email, /throw new EmailDeliveryError\('EMAIL_NOT_CONFIGURED'/);
+  assert.match(email, /process\.env\.RESEND_API_KEY/);
+  assert.match(email, /https:\/\/api\.resend\.com\/emails/);
   assert.match(email, /Email accepted by provider for \$\{this\.maskRecipient\(to\)\}/);
   assert.doesNotMatch(email, /Email sent to \$\{to\}/);
   assert.match(auth, /VERIFICATION_EMAIL_NOT_ACCEPTED/);
   assert.match(auth, /deliveryStatus: 'accepted'/);
+  assert.match(auth, /welcomeEmailSentAt/);
+  assert.match(auth, /welcomeEmail\(\)/);
   assert.match(controller, /const \{ accessToken, user, expiresAt, maxAgeMs \} = await this\.authService\.verifyEmail/);
   assert.match(controller, /res\.cookie\(AUTH_COOKIE_NAME, accessToken/);
 });

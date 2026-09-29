@@ -206,7 +206,7 @@ export default function AmaiEnginePage() {
   const isActive = config?.state === 'ACTIVE';
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto pb-24 sm:pb-12">
+    <div className="oy-engine-console space-y-6 max-w-5xl mx-auto pb-24 sm:pb-12">
       <div>
         <h1 className="text-h1" style={{ color: 'var(--text-primary)' }}>Oyinca Autopilot</h1>
         <p className="text-body-sm mt-1" style={{ color: 'var(--text-secondary)' }}>

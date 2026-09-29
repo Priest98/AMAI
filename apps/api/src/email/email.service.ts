@@ -33,7 +33,7 @@ export class EmailService {
   private transporter: nodemailer.Transporter | null = null;
 
   private isConfigured(): boolean {
-    return !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
+    return !!process.env.RESEND_API_KEY || !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
   }
 
   private getTransporter(): nodemailer.Transporter {
@@ -67,13 +67,27 @@ export class EmailService {
       throw new EmailDeliveryError('EMAIL_NOT_CONFIGURED', 'Transactional email is not configured.');
     }
 
-    const from = process.env.EMAIL_FROM || (process.env.NODE_ENV !== 'production' ? process.env.SMTP_USER : undefined);
+    const from = process.env.EMAIL_FROM || process.env.RESEND_FROM_EMAIL || (process.env.NODE_ENV !== 'production' ? process.env.SMTP_USER : undefined);
     if (!from) {
       this.logger.error('EMAIL_FROM is required in production; message was not accepted for delivery.');
       throw new EmailDeliveryError('EMAIL_NOT_CONFIGURED', 'The production sender identity is not configured.');
     }
 
     try {
+      if (process.env.RESEND_API_KEY) {
+        const response = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ from, to: [to], subject, html, text }),
+          signal: AbortSignal.timeout(20_000),
+        });
+        if (!response.ok) {
+          this.logger.error(`Resend rejected ${this.maskRecipient(to)} (status=${response.status}).`);
+          throw new EmailDeliveryError('EMAIL_REJECTED', 'The email provider did not accept the message.');
+        }
+        this.logger.log(`Email accepted by Resend for ${this.maskRecipient(to)}.`);
+        return true;
+      }
       const info = await this.getTransporter().sendMail({ from, to, subject, html, text });
       const accepted = (info.accepted || []).map(String).some((address: string) => address.toLowerCase() === to.toLowerCase());
       if (!accepted || (info.rejected || []).length > 0) {
