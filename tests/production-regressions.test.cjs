@@ -228,9 +228,12 @@ test('transactional email failures cannot masquerade as successful signup delive
   assert.match(email, /process\.env\.RESEND_API_KEY/);
   assert.match(email, /https:\/\/api\.resend\.com\/emails/);
   assert.match(email, /Oyinca <auth@oyinca\.com>/);
+  assert.match(email, /if \(!payload\?\.id\)/);
   assert.match(email, /Email accepted by provider for \$\{this\.maskRecipient\(to\)\}/);
   assert.doesNotMatch(email, /Email sent to \$\{to\}/);
   assert.match(auth, /VERIFICATION_EMAIL_NOT_ACCEPTED/);
+  assert.match(auth, /Verification resend was not accepted/);
+  assert.match(auth, /resendVerification[\s\S]*e instanceof EmailDeliveryError/);
   assert.match(auth, /deliveryStatus: 'accepted'/);
   assert.match(auth, /welcomeEmail\(\)/);
   assert.match(controller, /const \{ accessToken, user, expiresAt, maxAgeMs \} = await this\.authService\.verifyEmail/);

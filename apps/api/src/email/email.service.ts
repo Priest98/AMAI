@@ -82,9 +82,15 @@ export class EmailService {
           body: JSON.stringify({ from, to: [to], subject, html, text }),
           signal: AbortSignal.timeout(20_000),
         });
+        const payload = await response.json().catch(() => null) as { id?: string; name?: string } | null;
         if (!response.ok) {
-          this.logger.error(`Resend rejected ${this.maskRecipient(to)} (status=${response.status}).`);
+          const providerError = payload?.name ? `, error=${payload.name}` : '';
+          this.logger.error(`Resend rejected ${this.maskRecipient(to)} (status=${response.status}${providerError}).`);
           throw new EmailDeliveryError('EMAIL_REJECTED', 'The email provider did not accept the message.');
+        }
+        if (!payload?.id) {
+          this.logger.error(`Resend returned no delivery id for ${this.maskRecipient(to)}.`);
+          throw new EmailDeliveryError('EMAIL_PROVIDER_FAILED', 'The email provider returned an invalid response.');
         }
         this.logger.log(`Email accepted by Resend for ${this.maskRecipient(to)}.`);
         return true;

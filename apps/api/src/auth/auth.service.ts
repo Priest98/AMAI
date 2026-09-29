@@ -329,7 +329,14 @@ export class AuthService {
         );
       }
     } catch (e: any) {
-      this.logger.warn(`resendVerification error: ${e.message}`);
+      if (e instanceof EmailDeliveryError) {
+        this.logger.error(`Verification resend was not accepted (code=${e.code}).`);
+        throw new ServiceUnavailableException({
+          code: 'VERIFICATION_EMAIL_NOT_ACCEPTED',
+          message: 'We could not send the verification email right now. Please try again shortly.',
+        });
+      }
+      this.logger.warn(`resendVerification lookup error: ${e.message}`);
     }
 
     return {
