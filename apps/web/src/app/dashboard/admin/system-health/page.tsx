@@ -47,6 +47,18 @@ interface HealthSnapshot {
   overallStatus: 'HEALTHY' | 'DEGRADED' | 'CRITICAL';
   subsystems: SubsystemCard[];
   engineHeartbeatAt: string | null;
+  integrations: {
+    tiktok: {
+      appId: string;
+      environment: string;
+      mainApp: string;
+      loginKit: string;
+      contentUpload: string;
+      directPost: string;
+      directPostApplicationSubmitted: string;
+      directPostEnabled: boolean;
+    };
+  };
 }
 
 const STATUS_VARIANT: Record<SubsystemCard['status'], 'success' | 'warning' | 'neutral'> = {
@@ -219,6 +231,35 @@ export default function SystemHealthPage() {
           </p>
         )}
       </div>
+
+      {health?.integrations?.tiktok && (
+        <section className="space-y-3" aria-labelledby="tiktok-integration-status">
+          <div className="flex items-center justify-between gap-2">
+            <h2 id="tiktok-integration-status" className="text-overline" style={{ color: 'var(--text-muted)' }}>
+              TikTok integration
+            </h2>
+            <Badge variant={health.integrations.tiktok.directPostEnabled ? 'success' : 'warning'}>
+              {health.integrations.tiktok.directPost}
+            </Badge>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <Row label="Environment" value={health.integrations.tiktok.environment} tone="ok" />
+            <Row label="Main TikTok app" value={health.integrations.tiktok.mainApp} tone="ok" />
+            <Row label="Login Kit" value={health.integrations.tiktok.loginKit} tone="ok" />
+            <Row label="Content upload" value={health.integrations.tiktok.contentUpload} tone="ok" />
+            <Row label="Direct Post" value={health.integrations.tiktok.directPost} tone={health.integrations.tiktok.directPostEnabled ? 'ok' : 'warn'} />
+            <Row
+              label="Direct Post submitted"
+              value={new Date(`${health.integrations.tiktok.directPostApplicationSubmitted}T00:00:00Z`).toLocaleDateString(undefined, {
+                year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC',
+              })}
+            />
+          </div>
+          <p className="text-caption" style={{ color: 'var(--text-muted)' }}>
+            App ID {health.integrations.tiktok.appId}. Content upload sends drafts to the creator&apos;s TikTok inbox until Direct Post is enabled.
+          </p>
+        </section>
+      )}
 
       <div className="space-y-3">
         <h2 className="text-overline" style={{ color: 'var(--text-muted)' }}>AI provider health</h2>

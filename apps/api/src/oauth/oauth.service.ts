@@ -9,6 +9,7 @@ import { EntitlementsService } from '../billing/entitlements.service';
 import { deriveConnectionHealth } from './connection-health';
 import { AuthService } from '../auth/auth.service';
 import { deriveTikTokCapabilities } from './tiktok-capabilities';
+import { getTikTokProductionStatus } from './tiktok-production-status';
 
 @Injectable()
 export class OAuthService {
@@ -960,7 +961,7 @@ export class OAuthService {
             authorized,
             tested,
             productionApproved: acc.platform === Platform.TIKTOK
-              ? process.env.TIKTOK_CONTENT_AUDITED === 'true'
+              ? getTikTokProductionStatus().mainApp === 'Live'
               : process.env.INSTAGRAM_CONTENT_APPROVED === 'true',
             ready: configured && authorized && tested,
           },
@@ -991,6 +992,7 @@ export class OAuthService {
         googleConfigured: !!(process.env.GOOGLE_CLIENT_ID),
         instagramConfigured: !!(process.env.META_APP_ID || process.env.INSTAGRAM_CLIENT_ID),
         tiktokConfigured: !!(process.env.TIKTOK_CLIENT_KEY),
+        tiktokPublishing: getTikTokProductionStatus(),
       },
     };
   }

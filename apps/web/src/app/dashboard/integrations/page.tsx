@@ -67,6 +67,11 @@ interface ConnectedAccount {
   // a stats fetch has completed at least once (connect time or the details
   // modal's on-demand refresh).
   stats?: TikTokStats | null;
+  capabilities?: {
+    canUploadDraft: boolean;
+    canDirectPost: boolean;
+    requiresTikTokCompletion: boolean;
+  } | null;
 }
 
 export default function ConnectedAccountsPage() {
@@ -548,21 +553,16 @@ export default function ConnectedAccountsPage() {
               </p>
             )}
 
-            {/* Was a silent product gap found in the production-readiness
-                audit: TikTok's own Content Posting API forces every
-                unaudited app's posts to private (SELF_ONLY) server-side --
-                see publishing.service.ts's resolveTikTokPrivacyLevel() for
-                the confirmed source. Users need to be told this explicitly
-                rather than discovering it by checking their own TikTok
-                profile after Oyinca reports a post as "published." Shown
-                regardless of connection state since it's true either way. */}
             <div
               className="flex items-start space-x-2 rounded-lg p-2.5 text-[11px] leading-relaxed"
               style={{ backgroundColor: 'var(--accent-warning-subtle, rgba(245,158,11,0.1))', color: 'var(--text-secondary)' }}
             >
               <Info className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" style={{ color: 'var(--accent-warning)' }} />
               <span>
-                <strong style={{ color: 'var(--text-primary)' }}>Currently private on TikTok.</strong> Until Oyinca's TikTok integration completes TikTok&apos;s own content-posting review, posts published here are visible only to your account (TikTok&apos;s platform-side restriction for unreviewed apps, not an Oyinca setting).
+                <strong style={{ color: 'var(--text-primary)' }}>TikTok upload is available.</strong>{' '}
+                {tiktokAccounts[0]?.capabilities?.requiresTikTokCompletion !== false
+                  ? 'Oyinca sends your content to TikTok, then you review and finish publishing from the TikTok inbox notification.'
+                  : 'Direct publishing is active for this connection.'}
               </span>
             </div>
           </div>

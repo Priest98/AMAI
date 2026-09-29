@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { EncryptionService } from '../encryption/encryption.service';
 import { Platform, TargetStatus } from '@prisma/client';
 import { PublishingService } from '../queue/publishing.service';
+import { decodeTikTokProviderId } from '../oauth/tiktok-production-status';
 
 // How far back a post is still considered worth checking. TikTok engagement
 // mostly plateaus well before this, and bounding the window keeps each sync
@@ -104,8 +105,9 @@ export class MetricsService {
     const accessToken = await this.publishing.ensureFreshAccessToken(account);
     // Content Posting returns a publish job ID, not the public video ID
     // used by Display API. Resolve it before matching engagement records.
-    for (const [publishId, target] of [...providerIdToTarget]) {
-      if (/^\d+$/.test(publishId)) continue;
+    for (const [providerId, target] of [...providerIdToTarget]) {
+      if (/^\d+$/.test(providerId)) continue;
+      const { publishId, method } = decodeTikTokProviderId(providerId);
       const response = await fetch('https://open.tiktokapis.com/v2/post/publish/status/fetch/', {
         method: 'POST',
         signal: AbortSignal.timeout(10_000),
@@ -117,7 +119,7 @@ export class MetricsService {
       const status = result.data?.status;
       if (status === 'FAILED') {
         await this.publishing.failTikTokPublication(target.targetId, result.data?.fail_reason || 'TikTok rejected the post.');
-        providerIdToTarget.delete(publishId);
+        providerIdToTarget.delete(providerId);
         continue;
       }
 
@@ -125,21 +127,28 @@ export class MetricsService {
       const videoId = videoIdValue == null ? undefined : String(videoIdValue);
       if (typeof videoId === 'string' && /^\d+$/.test(videoId)) {
         await this.publishing.confirmTikTokPublication(target.targetId, videoId);
-        providerIdToTarget.delete(publishId);
+        providerIdToTarget.delete(providerId);
         providerIdToTarget.set(videoId, target);
-      } else if (status === 'PUBLISH_COMPLETE' || status === 'SEND_TO_USER_INBOX') {
-        // Private/SELF_ONLY posts do not receive a publicly available post
-        // id. The status itself is still a terminal success, so do not leave
-        // the target stuck in PUBLISHING forever waiting for an id TikTok
-        // deliberately will never return.
+      } else if (status === 'PUBLISH_COMPLETE') {
+        // For MEDIA_UPLOAD this only becomes complete after the creator has
+        // opened TikTok and finished the post. SEND_TO_USER_INBOX is not a
+        // publication success and must remain awaiting completion.
         await this.publishing.confirmTikTokPublication(target.targetId);
-        providerIdToTarget.delete(publishId);
-      } else if (Date.now() - target.createdAt.getTime() > TIKTOK_RECONCILIATION_TIMEOUT_MS) {
+        providerIdToTarget.delete(providerId);
+      } else if (status === 'SEND_TO_USER_INBOX' && method === 'MEDIA_UPLOAD') {
+        // Delivery is successful, but the creator still has to finish the
+        // post in TikTok. Exclude it from the video-list lookup in this run;
+        // the next reconciliation pass will poll this publish id again.
+        providerIdToTarget.delete(providerId);
+      } else if (
+        method === 'DIRECT_POST' &&
+        Date.now() - target.createdAt.getTime() > TIKTOK_RECONCILIATION_TIMEOUT_MS
+      ) {
         await this.publishing.failTikTokPublication(
           target.targetId,
           'TikTok did not finish processing this post within 24 hours. Retry the post or reconnect the account.',
         );
-        providerIdToTarget.delete(publishId);
+        providerIdToTarget.delete(providerId);
       }
     }
     const remainingIds = new Set(providerIdToTarget.keys());

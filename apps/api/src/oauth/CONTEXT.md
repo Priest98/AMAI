@@ -14,7 +14,8 @@ A `SocialAccount` with `CONNECTED` status and valid granted scopes is a mounted 
 - Tokens are encrypted with `EncryptionService`, never returned to browser code or model context.
 - Login intent requests identity scope only; connection intent requests product scopes.
 - Validate callback state and webhook signatures. Refresh before expiry and fail closed when required scope is absent.
-- `TIKTOK_CONTENT_AUDITED` is an external approval fact, not a convenience toggle.
+- `TIKTOK_DIRECT_POST_ENABLED` is an external approval gate and defaults closed. When false, `video.upload` sends content to TikTok for creator completion; `SEND_TO_USER_INBOX` is not publication success.
+- `TIKTOK_CONTENT_AUDITED` controls public visibility only after Direct Post is enabled; it is also an external approval fact.
 
 ## Entry points and tests
 

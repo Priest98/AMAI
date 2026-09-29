@@ -9,6 +9,12 @@ import { Platform, TargetStatus, PostStatus, MediaStatus, EngineEventType, Conne
 import { EntitlementsService } from '../billing/entitlements.service';
 import { getAppUrl } from '../common/app-url.util';
 import { deriveTikTokCapabilities } from '../oauth/tiktok-capabilities';
+import {
+  decodeTikTokProviderId,
+  encodeTikTokProviderId,
+  getTikTokPublishingMethod,
+  isTikTokDirectPostEnabled,
+} from '../oauth/tiktok-production-status';
 
 const MAX_PUBLISH_ATTEMPTS = 3;
 
@@ -491,8 +497,15 @@ export class PublishingService {
 
       if (target.platform === Platform.TIKTOK) {
         const capabilities = deriveTikTokCapabilities(target.socialAccount.grantedScopes || []);
-        if (!capabilities.canDirectPost) {
-          throw new Error('TikTok direct publishing is not authorized for this account. Reconnect TikTok and approve publishing access.');
+        const requiredCapability = isTikTokDirectPostEnabled()
+          ? capabilities.canDirectPost
+          : capabilities.canUploadDraft;
+        if (!requiredCapability) {
+          throw new Error(
+            isTikTokDirectPostEnabled()
+              ? 'TikTok direct publishing is not authorized for this account. Reconnect TikTok and approve publishing access.'
+              : 'TikTok upload access is not authorized for this account. Reconnect TikTok and approve content upload access.',
+          );
         }
       }
       const accessToken = await this.ensureFreshAccessToken(target.socialAccount);
@@ -569,18 +582,34 @@ export class PublishingService {
       // confirmTikTokPublication. Instagram returns the final media id here.
       const awaitingTikTokConfirmation =
         target.platform === Platform.TIKTOK && !/^\d+$/.test(providerPostId);
+      const awaitingTikTokCompletion =
+        target.platform === Platform.TIKTOK && decodeTikTokProviderId(providerPostId).method === 'MEDIA_UPLOAD';
       const persistedStatus = awaitingTikTokConfirmation ? TargetStatus.PUBLISHING : TargetStatus.PUBLISHED;
 
       await this.prisma.$transaction([
         this.prisma.postTarget.update({ where: { id: target.id }, data: { status: persistedStatus, claimedAt: null, providerPostId } }),
         this.prisma.publishingLog.create({
-          data: { postTargetId: target.id, status: persistedStatus, apiResponse: JSON.stringify({ providerPostId }) },
+          data: {
+            postTargetId: target.id,
+            status: persistedStatus,
+            apiResponse: JSON.stringify({
+              providerPostId,
+              publishingMethod: awaitingTikTokCompletion ? 'MEDIA_UPLOAD' : 'DIRECT_POST',
+            }),
+          },
         }),
       ]);
 
       const event = await this.prisma.engineEvent.create({
         data: awaitingTikTokConfirmation
-          ? { brandId: target.post.brandId, type: EngineEventType.PUBLISH_STARTED, postId: target.postId, message: 'TikTok accepted the upload and is processing it.' }
+          ? {
+              brandId: target.post.brandId,
+              type: EngineEventType.PUBLISH_STARTED,
+              postId: target.postId,
+              message: awaitingTikTokCompletion
+                ? 'Sent to TikTok. Open the TikTok inbox notification to review and finish publishing.'
+                : 'TikTok accepted the post and is processing it.',
+            }
           : { brandId: target.post.brandId, type: EngineEventType.PUBLISH_SUCCEEDED, postId: target.postId, message: `Published to ${target.platform}.` },
       });
       this.events.emit('engine.activity', event);
@@ -1106,9 +1135,10 @@ export class PublishingService {
    */
   private async publishToTikTok(accessToken: string, caption: string, mediaUrls: string[], mimeType: string): Promise<string> {
     const isVideo = mimeType?.startsWith('video/');
-    return isVideo
+    const publishId = await (isVideo
       ? this.publishTikTokVideo(accessToken, caption, mediaUrls[0])
-      : this.publishTikTokPhoto(accessToken, caption, mediaUrls);
+      : this.publishTikTokPhoto(accessToken, caption, mediaUrls));
+    return encodeTikTokProviderId(publishId, getTikTokPublishingMethod());
   }
 
   /**
@@ -1131,11 +1161,16 @@ export class PublishingService {
     const videoBuffer = Buffer.from(await videoRes.arrayBuffer());
     const contentType = videoRes.headers.get('content-type') || 'video/mp4';
 
-    const initRes = await fetch('https://open.tiktokapis.com/v2/post/publish/video/init/', {
+    const directPost = isTikTokDirectPostEnabled();
+    const initRes = await fetch(
+      directPost
+        ? 'https://open.tiktokapis.com/v2/post/publish/video/init/'
+        : 'https://open.tiktokapis.com/v2/post/publish/inbox/video/init/',
+      {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
       body: JSON.stringify({
-        post_info: {
+        ...(directPost ? { post_info: {
           title: caption,
           // Confirmed against TikTok's own Content Posting API docs (was an
           // open question in the production-readiness audit -- flagged as
@@ -1162,7 +1197,7 @@ export class PublishingService {
           // paid/branded content, so both are always false.
           brand_content_toggle: false,
           brand_organic_toggle: false,
-        },
+        } } : {}),
         source_info: {
           source: 'FILE_UPLOAD',
           video_size: videoBuffer.byteLength,
@@ -1244,12 +1279,13 @@ export class PublishingService {
       return `${getAppUrl()}/api/media/proxy/${pathname}`;
     });
 
+    const directPost = isTikTokDirectPostEnabled();
     const res = await fetch('https://open.tiktokapis.com/v2/post/publish/content/init/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
       body: JSON.stringify({
         media_type: 'PHOTO',
-        post_mode: 'DIRECT_POST',
+        post_mode: directPost ? 'DIRECT_POST' : 'MEDIA_UPLOAD',
         post_info: {
           title,
           description: caption,

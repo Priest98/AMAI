@@ -13,7 +13,8 @@ Media upload/Drive sync → persisted `MediaAsset` → Brain analysis and bounde
 - Default approval mode is manual. Brain confidence may reduce autonomy but never grant it.
 - Publishing requires connected capability, entitlement/quota, approval policy, and due status.
 - Atomic `PENDING`→`PUBLISHING` claims, unique targets, stale-claim recovery, and provider IDs prevent/reconcile duplicate work.
-- TikTok remains `SELF_ONLY` until the external content-posting audit flag is explicitly enabled.
+- TikTok uses creator-completed `video.upload` while `TIKTOK_DIRECT_POST_ENABLED` is false. Only `PUBLISH_COMPLETE` is a publication success; inbox delivery remains `PUBLISHING`/awaiting completion.
+- Direct Post remains `SELF_ONLY` until the external content-posting audit flag is explicitly enabled.
 - Cron routes require `CRON_SECRET`; both GET and POST handlers are intentional for Vercel Cron and QStash.
 - Preserve originals while any sibling target is pending/failed or TikTok processing is asynchronous.
 

@@ -4,6 +4,7 @@ import { PlatformAdminGuard } from '../auth/platform-admin.guard';
 import { HealthEngineService } from '../health/health-engine.service';
 import { AuditLogService } from './audit-log.service';
 import { HealthStatus } from '@prisma/client';
+import { getTikTokProductionStatus } from '../oauth/tiktok-production-status';
 
 /**
  * Admin dashboard's "SYSTEM HEALTH" section (Phase 11). Reads
@@ -41,6 +42,9 @@ export class HealthController {
         checkedAt: s.checkedAt,
       })),
       engineHeartbeatAt: heartbeat?.checkedAt ?? null,
+      integrations: {
+        tiktok: getTikTokProductionStatus(),
+      },
     };
   }
 

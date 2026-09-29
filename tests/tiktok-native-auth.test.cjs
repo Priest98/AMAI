@@ -26,7 +26,18 @@ test('TikTok identity is stable and separate from optional capabilities', () => 
   assert.match(capabilities, /canPublicPost/);
 });
 
-test('TikTok direct publishing fails closed without video.publish', () => {
+test('TikTok publishing selects upload or Direct Post from a server-side approval gate', () => {
   const source = read('apps/api/src/queue/publishing.service.ts');
-  assert.match(source, /if \(!capabilities\.canDirectPost\)/);
+  const status = read('apps/api/src/oauth/tiktok-production-status.ts');
+  assert.match(status, /TIKTOK_DIRECT_POST_ENABLED/);
+  assert.match(source, /capabilities\.canUploadDraft/);
+  assert.match(source, /post\/publish\/inbox\/video\/init/);
+  assert.match(source, /post_mode: directPost \? 'DIRECT_POST' : 'MEDIA_UPLOAD'/);
+});
+
+test('TikTok inbox delivery is not marked as published', () => {
+  const metrics = read('apps/api/src/metrics/metrics.service.ts');
+  assert.match(metrics, /status === 'PUBLISH_COMPLETE'/);
+  assert.match(metrics, /status === 'SEND_TO_USER_INBOX' && method === 'MEDIA_UPLOAD'/);
+  assert.doesNotMatch(metrics, /status === 'PUBLISH_COMPLETE' \|\| status === 'SEND_TO_USER_INBOX'/);
 });
