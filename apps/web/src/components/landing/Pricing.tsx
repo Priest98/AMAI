@@ -194,6 +194,7 @@ export default function Pricing({
             return (
               <div
                 key={tier}
+                data-tier={tier}
                 className={`lp-card lp-card-sheen oy-price-card h-full p-6 sm:p-8 flex flex-col relative ${copy.highlighted ? "is-featured" : ""}`}
               >
                 {copy.badge && (
@@ -268,7 +269,7 @@ export default function Pricing({
                 </div>
 
                 <ul className="mt-8 space-y-3">
-                  {dynamicBullets(tier).map((f) => (
+                  {dynamicBullets(tier).slice(0, 2).map((f) => (
                     <li key={f} className="flex items-start gap-3 text-sm">
                       <Check
                         className="h-4 w-4 shrink-0 mt-0.5"
@@ -288,18 +289,10 @@ export default function Pricing({
                   ))}
                 </ul>
 
-                <ul className="mt-6 space-y-3 flex-1">
-                  {copy.includes.map((f) => (
+                <ul className="mt-6 space-y-3">
+                  {copy.includes.filter((f) => !f.startsWith("Everything in")).slice(0, 2).map((f) => (
                     <li key={f} className="flex items-start gap-3 text-sm">
-                      {f.startsWith("Everything in") ? (
-                        <span
-                          className="text-xs font-bold uppercase tracking-wide"
-                          style={{ color: "var(--lp-text-muted)" }}
-                        >
-                          {f}
-                        </span>
-                      ) : (
-                        <>
+                      <>
                           <Check
                             className="h-4 w-4 shrink-0 mt-0.5"
                             style={{
@@ -315,10 +308,21 @@ export default function Pricing({
                             {f}
                           </span>
                         </>
-                      )}
                     </li>
                   ))}
                 </ul>
+
+                <details className="oy-plan-details mt-5 flex-1">
+                  <summary>View all plan details</summary>
+                  <ul className="mt-4 space-y-2.5">
+                    {[...dynamicBullets(tier).slice(2), ...copy.includes.slice(copy.includes[0]?.startsWith("Everything in") ? 1 : 0).slice(2)].map((feature) => (
+                      <li key={feature} className="flex items-start gap-2 text-xs leading-relaxed" style={{ color: "var(--lp-text-secondary)" }}>
+                        <Check className="h-3.5 w-3.5 shrink-0 mt-0.5" style={{ color: copy.highlighted ? "var(--lp-gold)" : "var(--lp-cyan)" }} />
+                        <span>{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
 
                 <Link
                   href={`/register?plan=${tier}`}

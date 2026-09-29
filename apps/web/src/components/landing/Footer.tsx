@@ -36,6 +36,8 @@ const COLUMNS = [
     links: [
       { label: 'Privacy', href: '/privacy' },
       { label: 'Terms', href: '/terms' },
+      { label: 'Account deletion', href: '/privacy#data-retention-deletion' },
+      { label: 'TikTok data', href: '/privacy#tiktok-data' },
     ],
   },
 ];

@@ -2,18 +2,17 @@ import type { Metadata } from 'next';
 import type { CSSProperties } from 'react';
 import { Suspense } from 'react';
 import '@/styles/landing.css';
+import '@/styles/landing-v2.css';
 
-import AcquisitionMotion from '@/components/landing/AcquisitionMotion';
 import Nav from '@/components/landing/Nav';
 import Hero from '@/components/landing/Hero';
-import HowItWorks from '@/components/landing/HowItWorks';
+import LandingStory from '@/components/landing/LandingStory';
 import Pricing from '@/components/landing/Pricing';
 import FAQ from '@/components/landing/FAQ';
 import FinalCTA from '@/components/landing/FinalCTA';
 import Footer from '@/components/landing/Footer';
 import { headers } from 'next/headers';
 import { currencyForCountry } from '@/lib/currency';
-import ManagedMoment from '@/components/landing/ManagedMoment';
 
 /**
  * Fetches the plan catalogue server-side so it's already baked into the
@@ -179,20 +178,10 @@ export default function Home() {
         </a>
 
         <Nav />
-        <AcquisitionMotion />
-
-
-        <div className="lp-ambient-bg" aria-hidden="true">
-          <div className="lp-ambient-blooms" />
-          <div className="lp-ambient-grain" />
-          <div className="lp-ambient-vignette" />
-        </div>
 
         <main id="main-content">
           <Hero />
-
-          <HowItWorks />
-          <ManagedMoment />
+          <LandingStory />
 
           <Suspense fallback={<section id="pricing" className="oy-section" aria-busy="true"><h2>Loading plans...</h2></section>}>
             <PricingSection />

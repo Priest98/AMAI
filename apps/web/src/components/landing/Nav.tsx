@@ -61,7 +61,7 @@ export default function Nav() {
             className="lp-btn-primary oy-button oy-nav-start"
             href="/register?plan=FREE"
           >
-            Meet Oyinca <span aria-hidden="true">→</span>
+            Start free <span aria-hidden="true">→</span>
           </Link>
           <button
             ref={toggle}
@@ -85,7 +85,7 @@ export default function Nav() {
           Sign in
         </Link>
         <Link href="/register?plan=FREE" onClick={() => setOpen(false)}>
-          Meet Oyinca →
+          Start free →
         </Link>
       </div>
     </header>

@@ -4,9 +4,9 @@ import { Logo } from '@/components/logo';
 const CONTACT_EMAIL = 'Abdurasaqadamolayinka@gmail.com';
 const LAST_UPDATED = 'July 30, 2026';
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ id, title, children }: { id?: string; title: string; children: React.ReactNode }) {
   return (
-    <section className="space-y-3">
+    <section id={id} className="space-y-3 scroll-mt-8">
       <h2 className="text-lg font-bold text-white">{title}</h2>
       <div className="text-sm text-zinc-400 leading-relaxed space-y-3">{children}</div>
     </section>
@@ -34,7 +34,7 @@ export default function PrivacyPolicy() {
         choices you have.
       </p>
 
-      <Section title="1. Information We Collect">
+      <Section id="tiktok-data" title="1. Information We Collect">
         <p><strong className="text-zinc-200">Account information.</strong> When you register, we collect your email address and a securely hashed password. We never store your password in plain text.</p>
         <p><strong className="text-zinc-200">Connected platform data.</strong> When you connect Instagram, TikTok, or Google Drive, we receive an OAuth access token (and refresh token, where the platform issues one) and basic profile information the platform shares with us, such as your username/handle and account ID, so we can identify which account to publish to or sync from.</p>
         <p><strong className="text-zinc-200">Media you upload.</strong> Photos and videos you upload directly or sync from a connected Google Drive folder, so Oyinca can analyze, caption, and publish them on your behalf.</p>
@@ -72,7 +72,7 @@ export default function PrivacyPolicy() {
         <p>OAuth access and refresh tokens for every connected platform (Instagram, TikTok, Google) are encrypted at rest using AES-256 before being stored, and are only decrypted in-memory at the moment a request needs to use them. All traffic between your browser and Oyinca, and between Oyinca and every third-party API it calls, is encrypted in transit via HTTPS/TLS. Access to the application is gated by JSON Web Token (JWT) authentication scoped to your account and the specific brands/workspaces you belong to.</p>
       </Section>
 
-      <Section title="5. Data Retention & Deletion">
+      <Section id="data-retention-deletion" title="5. Data Retention & Deletion">
         <p>We retain your account data, uploaded media, and activity history for as long as your account remains active, so you can review past posts and re-use past uploads. You can disconnect any connected platform account at any time from within Oyinca, which immediately revokes our ability to act on that account and deletes the stored token. To request full deletion of your account and associated data, contact us at the email below. We will delete it within a reasonable time, except where we're required to retain records for legal or fraud-prevention purposes.</p>
       </Section>
 
