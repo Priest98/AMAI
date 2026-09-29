@@ -67,7 +67,8 @@ export class EmailService {
       throw new EmailDeliveryError('EMAIL_NOT_CONFIGURED', 'Transactional email is not configured.');
     }
 
-    const from = process.env.EMAIL_FROM || process.env.RESEND_FROM_EMAIL || (process.env.NODE_ENV !== 'production' ? process.env.SMTP_USER : undefined);
+    const from = process.env.EMAIL_FROM || process.env.RESEND_FROM_EMAIL ||
+      (process.env.NODE_ENV === 'production' ? 'Oyinca <auth@oyinca.com>' : process.env.SMTP_USER);
     if (!from) {
       this.logger.error('EMAIL_FROM is required in production; message was not accepted for delivery.');
       throw new EmailDeliveryError('EMAIL_NOT_CONFIGURED', 'The production sender identity is not configured.');
