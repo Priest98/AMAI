@@ -10,7 +10,7 @@
 
 ## Important model groups
 
-- Identity: `User`, `AuthIdentity`, `OAuthTransaction`, `Organization`, `OrganizationMember`, `Brand`.
+- Identity: `PendingRegistration`, `User`, `AuthIdentity`, `OAuthTransaction`, `Organization`, `OrganizationMember`, `Brand`.
 - Brain: `BusinessBrain`, `MemoryEntry`, `ContentAnalysis`, `BrainEvent`, `LearnedInsight`, `InsightEvidence`, `LearningRun`, `BrainDecision`.
 - Workflow: `MediaAsset`, `OptimizedMediaAsset`, `Post`, `PostMedia`, `PostTarget`, `EngineEvent`, `AmaiEngineConfig`, `PlatformPostingSlot`.
 - Integrations/outcomes: `SocialAccount`, `PublishingLog`, `PostPerformance`, `PendingCommentReply`.
@@ -22,6 +22,7 @@
 - Use additive migrations. Do not edit an applied migration or perform destructive renames without an explicit migration plan.
 - Use unique constraints/transactions for idempotency and concurrency; application check-then-write alone is insufficient.
 - Never store plaintext credentials. Raw analytics and durable derived learnings are distinct records.
+- Email/password signup stays in `PendingRegistration` with a password hash and expiring token hash. Only successful token verification may atomically create the `User`, organization membership, brand, and subscription.
 
 ## Current limitations
 

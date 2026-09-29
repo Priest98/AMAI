@@ -4,6 +4,8 @@
 
 Oyinca email/password authentication is owned by `apps/api/src/auth`; it is not Supabase Auth. Users, verification tokens, password-reset tokens, and session cookies are managed by NestJS, Prisma/Postgres, and the shared JWT cookie flow. Supabase is currently used for database hosting and realtime features only.
 
+Email/password signup is a two-stage activation flow. Registration stores only a short-lived `PendingRegistration` containing the normalized email, bcrypt password hash, name, hashed verification token, and expiry. It has no tenant or product access. Clicking the verification link atomically creates the verified `User`, organization, membership, primary brand, and free subscription, then deletes the pending record. A failed or ignored verification email therefore never creates an account.
+
 Transactional email is sent server-side by `EmailService` through SMTP. Browser code never receives SMTP credentials. Production requires all of:
 
 - `SMTP_HOST`

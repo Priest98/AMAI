@@ -48,6 +48,22 @@ model User {
   oauthTransactions          OAuthTransaction[]
 }
 
+/// A short-lived email/password signup that has not proved ownership of its
+/// email address yet. It deliberately has no tenant, brand, subscription, or
+/// product access. Verification atomically promotes it into a real User.
+model PendingRegistration {
+  id           String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  email        String   @unique
+  passwordHash String
+  fullName     String?
+  tokenHash    String   @unique
+  expiresAt    DateTime @db.Timestamptz(6)
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+
+  @@index([expiresAt])
+}
+
 model AuthIdentity {
   id                String   @id @default(dbgenerated("(gen_random_uuid())::text"))
   userId            String

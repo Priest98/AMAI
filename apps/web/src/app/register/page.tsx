@@ -73,7 +73,7 @@ export default function RegisterPage() {
         return;
       }
 
-      if (data.accountCreated && data.code === 'VERIFICATION_EMAIL_NOT_ACCEPTED') {
+      if (data.signupPending && data.code === 'VERIFICATION_EMAIL_NOT_ACCEPTED') {
         router.push(`/verify-email?email=${encodeURIComponent(email)}&delivery=failed${getSelectedPlan() ? '&plan='+getSelectedPlan() : ''}`);
         return;
       }

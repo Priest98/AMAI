@@ -220,6 +220,22 @@ test('email verification and password-reset tokens are hashed before database lo
   assert.match(source, /passwordResetToken: this\.hashOneTimeToken\(dto\.token\)/);
 });
 
+test('email signup creates the account only after pending verification succeeds', () => {
+  const schema = fs.readFileSync(path.join(root, 'apps/api/prisma/schema.prisma'), 'utf8');
+  const source = fs.readFileSync(path.join(root, 'apps/api/src/auth/auth.service.ts'), 'utf8');
+  const register = source.slice(source.indexOf('async register'), source.indexOf('async verifyEmail'));
+  const activation = source.slice(source.indexOf('activatePendingRegistration'), source.indexOf('private escapeEmailText'));
+  assert.match(schema, /model PendingRegistration/);
+  assert.match(schema, /passwordHash String/);
+  assert.match(schema, /tokenHash\s+String\s+@unique/);
+  assert.match(register, /pendingRegistration\.upsert/);
+  assert.doesNotMatch(register, /user\.create/);
+  assert.match(activation, /emailVerified: true/);
+  assert.match(activation, /tx\.user\.create/);
+  assert.match(activation, /tx\.organization\.create/);
+  assert.match(activation, /tx\.pendingRegistration\.delete/);
+});
+
 test('transactional email failures cannot masquerade as successful signup delivery', () => {
   const email = fs.readFileSync(path.join(root, 'apps/api/src/email/email.service.ts'), 'utf8');
   const auth = fs.readFileSync(path.join(root, 'apps/api/src/auth/auth.service.ts'), 'utf8');

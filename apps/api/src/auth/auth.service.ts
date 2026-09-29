@@ -25,6 +25,55 @@ export class AuthService {
     return crypto.createHash('sha256').update(token).digest('hex');
   }
 
+  private async activatePendingRegistration(tokenHash: string): Promise<any | null> {
+    const candidate = await this.prisma.pendingRegistration.findUnique({ where: { tokenHash } });
+    if (!candidate) return null;
+    if (candidate.expiresAt < new Date()) {
+      throw new BadRequestException('This verification link has expired. Please request a new one.');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const pending = await tx.pendingRegistration.findUnique({ where: { tokenHash } });
+      if (!pending) {
+        throw new BadRequestException('This verification link is invalid or has already been used.');
+      }
+      if (pending.expiresAt < new Date()) {
+        throw new BadRequestException('This verification link has expired. Please request a new one.');
+      }
+
+      const existingUser = await tx.user.findUnique({ where: { email: pending.email } });
+      if (existingUser) {
+        throw new BadRequestException('This verification link is invalid or has already been used.');
+      }
+
+      const user = await tx.user.create({
+        data: {
+          email: pending.email,
+          passwordHash: pending.passwordHash,
+          fullName: pending.fullName,
+          emailVerified: true,
+          emailVerifiedAt: new Date(),
+          role: Role.OWNER,
+        },
+      });
+      const workspaceName = `${pending.fullName || 'My'} Workspace`;
+      const organization = await tx.organization.create({
+        data: {
+          name: workspaceName,
+          slug: `${workspaceName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${crypto.randomBytes(5).toString('hex')}`,
+          ownerId: user.id,
+          members: { create: { userId: user.id, role: Role.OWNER } },
+          subscription: { create: { plan: PlanTier.FREE, status: SubscriptionStatus.ACTIVE } },
+        },
+      });
+      await tx.brand.create({
+        data: { name: 'My Primary Brand', organizationId: organization.id },
+      });
+      await tx.pendingRegistration.delete({ where: { id: pending.id } });
+      return user;
+    });
+  }
+
   private escapeEmailText(value: string): string {
     return value
       .replace(/&/g, '&amp;')
@@ -144,17 +193,9 @@ export class AuthService {
   async register(dto: RegisterDto) {
     const cleanEmail = dto.email.toLowerCase().trim();
 
-    try {
-      const existingUser = await this.prisma.user.findUnique({
-        where: { email: cleanEmail },
-      });
-
-      if (existingUser) {
-        throw new ConflictException('An account with this email address already exists.');
-      }
-    } catch (err: any) {
-      if (err instanceof ConflictException) throw err;
-      this.logger.warn(`Prisma findUnique check warning: ${err.message}`);
+    const existingUser = await this.prisma.user.findUnique({ where: { email: cleanEmail } });
+    if (existingUser) {
+      throw new ConflictException('An account with this email address already exists.');
     }
 
     const salt = await bcrypt.genSalt(10);
@@ -163,88 +204,49 @@ export class AuthService {
     const verificationToken = crypto.randomBytes(32).toString('hex');
     const verificationTokenExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-    let user: any;
-
     try {
-      user = await this.prisma.$transaction(async (tx) => {
-        const newUser = await tx.user.create({
-          data: {
-            email: cleanEmail,
-            passwordHash,
-            fullName: dto.fullName,
-            // Auto-verified only in local development (NODE_ENV=development,
-            // set in apps/web/.env.local) -- SMTP isn't configured locally,
-            // so the verification email below is silently skipped and there
-            // would otherwise be no way to click the link. Production
-            // (Vercel sets NODE_ENV=production) always requires real
-            // verification -- this can never weaken that.
-            emailVerified: process.env.NODE_ENV === 'development',
-            verificationToken: this.hashOneTimeToken(verificationToken),
-            verificationTokenExpiresAt,
-            role: Role.OWNER,
-          },
-        });
-
-        const orgName = `${dto.fullName || 'My'} Workspace`;
-        const org = await tx.organization.create({
-          data: {
-            name: orgName,
-            slug: orgName.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Math.floor(Math.random() * 1000),
-            ownerId: newUser.id,
-            members: {
-              create: {
-                userId: newUser.id,
-                role: Role.OWNER
-              }
-            }
-          }
-        });
-
-        await tx.brand.create({
-          data: {
-            name: 'My Primary Brand',
-            organizationId: org.id
-          }
-        });
-
-        // Every organization gets a Subscription row at signup -- Free
-        // included -- so "does this org have a subscription" is never a
-        // special case downstream (EntitlementsService always finds one).
-        await tx.subscription.create({
-          data: {
-            organizationId: org.id,
-            plan: PlanTier.FREE,
-            status: SubscriptionStatus.ACTIVE,
-          },
-        });
-
-        return newUser;
+      await this.prisma.pendingRegistration.upsert({
+        where: { email: cleanEmail },
+        create: {
+          email: cleanEmail,
+          passwordHash,
+          fullName: dto.fullName,
+          tokenHash: this.hashOneTimeToken(verificationToken),
+          expiresAt: verificationTokenExpiresAt,
+        },
+        update: {
+          passwordHash,
+          fullName: dto.fullName,
+          tokenHash: this.hashOneTimeToken(verificationToken),
+          expiresAt: verificationTokenExpiresAt,
+        },
       });
     } catch (dbErr: any) {
-      this.logger.error(`Database user creation error: ${dbErr.message}`);
+      this.logger.error(`Pending registration persistence error: ${dbErr.message}`);
       throw new BadRequestException(
-        'We could not create your account right now. Please try again in a moment.',
+        'We could not start registration right now. Please try again in a moment.',
       );
     }
 
     const appUrl = getAppUrl();
     const verificationUrl = `${appUrl}/verify-email?token=${verificationToken}`;
 
-    const email = verificationEmail(user.fullName || 'Creator', verificationUrl);
+    const email = verificationEmail(dto.fullName || 'Creator', verificationUrl);
     try {
       await this.emailService.sendEmail(
-        user.email,
+        cleanEmail,
         email.subject,
         email.html,
         email.text,
       );
     } catch (error) {
       if (error instanceof EmailDeliveryError) {
-        this.logger.error(`Verification email was not accepted after account creation (code=${error.code}).`);
+        this.logger.error(`Verification email was not accepted for pending registration (code=${error.code}).`);
         throw new ServiceUnavailableException({
           code: 'VERIFICATION_EMAIL_NOT_ACCEPTED',
-          accountCreated: true,
-          message: 'Your account was created, but the verification email could not be accepted for delivery. Please try resending it shortly.',
+          accountCreated: false,
+          signupPending: true,
+          message: 'We saved your signup request, but could not send the verification email. Please try resending it shortly.',
         });
       }
       throw error;
@@ -254,12 +256,27 @@ export class AuthService {
       success: true,
       message: 'Your verification email was accepted for delivery.',
       deliveryStatus: 'accepted',
-      email: user.email,
+      accountCreated: false,
+      signupPending: true,
+      email: cleanEmail,
     };
   }
 
   async verifyEmail(dto: VerifyEmailDto) {
     try {
+      const pendingUser = await this.activatePendingRegistration(this.hashOneTimeToken(dto.token));
+      if (pendingUser) {
+        const welcome = welcomeEmail();
+        try {
+          await this.emailService.sendEmail(pendingUser.email, welcome.subject, welcome.html, welcome.text);
+        } catch (error: any) {
+          this.logger.warn(`Welcome email was not accepted after activation (code=${error?.code || 'unknown'}).`);
+        }
+        return this.generateAuthResponse(pendingUser, true);
+      }
+
+      // Legacy fallback for verification links issued before pending-signup
+      // activation was introduced. New registrations never create a User here.
       const user = await this.prisma.user.findFirst({
         where: {
           verificationToken: this.hashOneTimeToken(dto.token),
@@ -304,6 +321,26 @@ export class AuthService {
     const cleanEmail = dto.email.toLowerCase().trim();
 
     try {
+      const pending = await this.prisma.pendingRegistration.findUnique({ where: { email: cleanEmail } });
+      if (pending) {
+        const verificationToken = crypto.randomBytes(32).toString('hex');
+        const verificationTokenExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+        await this.prisma.pendingRegistration.update({
+          where: { id: pending.id },
+          data: { tokenHash: this.hashOneTimeToken(verificationToken), expiresAt: verificationTokenExpiresAt },
+        });
+        const verificationUrl = `${getAppUrl()}/verify-email?token=${verificationToken}`;
+        const email = verificationEmail(pending.fullName || 'Creator', verificationUrl);
+        await this.emailService.sendEmail(pending.email, email.subject, email.html, email.text);
+        return {
+          success: true,
+          deliveryStatus: 'accepted',
+          message: 'A new verification email was accepted for delivery. Check your inbox and spam folder.',
+        };
+      }
+
+      // Compatibility for accounts created before pending registration was
+      // introduced. No new unverified User rows are created by register().
       const user = await this.prisma.user.findUnique({ where: { email: cleanEmail } });
 
       // Always return the same generic response whether or not the account
@@ -327,6 +364,11 @@ export class AuthService {
           email.html,
           email.text,
         );
+        return {
+          success: true,
+          deliveryStatus: 'accepted',
+          message: 'A new verification email was accepted for delivery. Check your inbox and spam folder.',
+        };
       }
     } catch (e: any) {
       if (e instanceof EmailDeliveryError) {
