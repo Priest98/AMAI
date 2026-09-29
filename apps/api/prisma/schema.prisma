@@ -32,7 +32,6 @@ model User {
   platformRole               PlatformRole         @default(NONE)
   emailVerified              Boolean              @default(false)
   emailVerifiedAt            DateTime?            @db.Timestamptz(6)
-  welcomeEmailSentAt         DateTime?            @db.Timestamptz(6)
   verificationToken          String?              @unique
   verificationTokenExpiresAt DateTime?            @db.Timestamptz(6)
   passwordResetToken         String?              @unique

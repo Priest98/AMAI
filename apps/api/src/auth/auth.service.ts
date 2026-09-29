@@ -283,14 +283,13 @@ export class AuthService {
           verificationTokenExpiresAt: null,
         },
       });
-      if (!verifiedUser.welcomeEmailSentAt) {
-        const welcome = welcomeEmail();
-        try {
-          await this.emailService.sendEmail(verifiedUser.email, welcome.subject, welcome.html, welcome.text);
-          await this.prisma.user.update({ where: { id: verifiedUser.id }, data: { welcomeEmailSentAt: new Date() } });
-        } catch (error: any) {
-          this.logger.warn(`Welcome email was not accepted after verification (code=${error?.code || 'unknown'}).`);
-        }
+      // The token is unique and cleared above. Only the request that consumes
+      // it can reach this send, keeping welcome delivery one-time.
+      const welcome = welcomeEmail();
+      try {
+        await this.emailService.sendEmail(verifiedUser.email, welcome.subject, welcome.html, welcome.text);
+      } catch (error: any) {
+        this.logger.warn(`Welcome email was not accepted after verification (code=${error?.code || 'unknown'}).`);
       }
       return this.generateAuthResponse(verifiedUser, true);
     } catch (e) {

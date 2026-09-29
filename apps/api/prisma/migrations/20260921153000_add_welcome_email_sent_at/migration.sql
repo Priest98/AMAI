@@ -1,1 +1,0 @@
-ALTER TABLE "User" ADD COLUMN "welcomeEmailSentAt" TIMESTAMPTZ(6);

@@ -231,7 +231,6 @@ test('transactional email failures cannot masquerade as successful signup delive
   assert.doesNotMatch(email, /Email sent to \$\{to\}/);
   assert.match(auth, /VERIFICATION_EMAIL_NOT_ACCEPTED/);
   assert.match(auth, /deliveryStatus: 'accepted'/);
-  assert.match(auth, /welcomeEmailSentAt/);
   assert.match(auth, /welcomeEmail\(\)/);
   assert.match(controller, /const \{ accessToken, user, expiresAt, maxAgeMs \} = await this\.authService\.verifyEmail/);
   assert.match(controller, /res\.cookie\(AUTH_COOKIE_NAME, accessToken/);
