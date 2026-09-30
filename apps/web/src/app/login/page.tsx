@@ -1,35 +1,33 @@
 "use client";
-import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { Logo } from '@/components/logo';
-import Input from '@/components/ui/Input';
-import Button from '@/components/ui/Button';
-import ThemeToggle from '@/components/ui/ThemeToggle';
-import { AtSign, Lock, ArrowRight, Eye, EyeOff, AlertCircle } from 'lucide-react';
-import { API_BASE, isAuthenticated, setSession } from '@/lib/api';
-import { capture, identify } from '@/lib/posthog';
-import BrandAttribution from '@/components/BrandAttribution';
-import PlanSelectionNotice from '@/components/PlanSelectionNotice';
-import { getSelectedPlan, planDestination } from '@/lib/plan-intent';
 
+import React, { useState, useEffect } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Logo } from "@/components/logo";
+import ThemeToggle from "@/components/ui/ThemeToggle";
+import { AtSign, Lock, ArrowRight, Eye, EyeOff, AlertCircle, Loader2 } from "lucide-react";
+import { API_BASE, isAuthenticated, setSession } from "@/lib/api";
+import { capture, identify } from "@/lib/posthog";
+import BrandAttribution from "@/components/BrandAttribution";
+import PlanSelectionNotice from "@/components/PlanSelectionNotice";
+import { getSelectedPlan, planDestination } from "@/lib/plan-intent";
+import TikTokAuthButton from "@/components/auth/TikTokAuthButton";
+import "@/styles/auth.css";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
 
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [checkingSession, setCheckingSession] = useState(true);
 
-  // Already have a valid session? Skip straight to the dashboard instead of
-  // making the user look at (or resubmit) a sign-in form.
   useEffect(() => {
     getSelectedPlan();
-    const message = new URLSearchParams(window.location.search).get('error');
+    const message = new URLSearchParams(window.location.search).get("error");
     if (message) setError(message);
     if (isAuthenticated()) {
       router.replace(planDestination());
@@ -41,23 +39,18 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
-      setError('Please enter your email address and password.');
+      setError("Please enter your email address and password.");
       return;
     }
 
     setLoading(true);
-    setError('');
+    setError("");
 
     try {
-      // Security audit fix (3.5): the session cookie is httpOnly and set by
-      // the server response itself (Set-Cookie) -- `credentials: 'include'`
-      // is what makes the browser actually store it. There's no token in
-      // the response body anymore to read or persist; `data.user` is just
-      // a non-sensitive snapshot cached for synchronous UI reads.
       const res = await fetch(`${API_BASE}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ email, password, rememberMe }),
       });
 
@@ -66,153 +59,168 @@ export default function LoginPage() {
       if (res.ok && data.user) {
         setSession(data.user, data.expiresAt);
         identify(email, { email });
-        capture('login', { email });
+        capture("login", { email });
         router.push(planDestination());
         return;
       }
 
-      if (data.message && data.message.includes('UNVERIFIED_EMAIL')) {
-        router.push(`/verify-email?email=${encodeURIComponent(email)}${getSelectedPlan() ? '&plan='+getSelectedPlan() : ''}`);
+      if (data.message && data.message.includes("UNVERIFIED_EMAIL")) {
+        router.push(
+          `/verify-email?email=${encodeURIComponent(email)}${
+            getSelectedPlan() ? "&plan=" + getSelectedPlan() : ""
+          }`
+        );
         return;
       }
 
-      setError(data.message || 'Invalid email address or password.');
-    } catch (err) {
-      setError('Unable to reach the server. Please check your connection and try again.');
+      setError(data.message || "Invalid email address or password.");
+    } catch {
+      setError("Unable to reach the server. Please check your connection and try again.");
     } finally {
       setLoading(false);
     }
   };
 
   if (checkingSession) {
-    return <div className="min-h-screen w-full" style={{ backgroundColor: 'var(--bg-base)' }} />;
+    return <div className="min-h-screen w-full" style={{ backgroundColor: "var(--bg-base)" }} />;
   }
 
   return (
-    <div className="min-h-screen w-full flex flex-col items-center justify-center gap-4 p-4" style={{ color: 'var(--text-primary)' }}>
-
+    <div className="oy-auth-container">
       <PlanSelectionNotice />
-      <div
-        className="oy-auth-panel w-full max-w-md rounded-[var(--radius-xl)] p-6 sm:p-10 space-y-8 relative overflow-hidden"
-      >
+
+      <div className="oy-auth-card">
         {/* Brand Header */}
-        <div className="flex items-start justify-between gap-3">
-          <div className="space-y-3 text-center sm:text-left">
-            <Link href="/" className="inline-block">
-              <Logo className="h-9" />
+        <div className="oy-auth-header">
+          <div>
+            <Link href="/" className="inline-block focus:outline-none" aria-label="Oyinca Homepage">
+              <Logo className="h-8" />
             </Link>
-            <div>
-              <h1 className="text-h1" style={{ color: 'var(--text-primary)' }}>
-                Your social media.<br />Finally, managed.
-              </h1>
-              <p className="text-body-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-                Enter with TikTok and meet your social media manager.
-              </p>
-            </div>
+            <h1 className="oy-auth-heading">
+              Your social media,
+              <br />
+              handled.
+            </h1>
+            <p className="oy-auth-sub">
+              Sign in to manage and review your content pipeline.
+            </p>
           </div>
           <ThemeToggle />
         </div>
 
-        {/* Error Feedback */}
+        {/* Error Notification */}
         {error && (
-          <div role="alert" className="p-4 rounded-[var(--radius-lg)] border text-sm font-semibold flex items-center space-x-2" style={{ backgroundColor: 'var(--accent-error-subtle)', borderColor: 'var(--accent-error)', color: 'var(--accent-error)' }}>
+          <div role="alert" className="oy-auth-error">
             <AlertCircle className="h-4 w-4 flex-shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
-        <a
-          href={`${API_BASE}/oauth/tiktok/login`}
-          className="flex min-h-12 w-full items-center justify-center gap-3 rounded-[var(--radius-lg)] bg-black px-5 py-3 font-bold text-white shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
-          aria-label="Continue with TikTok"
-        >
-          <span className="relative grid h-6 w-6 place-items-center rounded-full border-2 border-white text-[11px] font-black before:absolute before:-left-1 before:top-0 before:h-full before:w-full before:rounded-full before:border-2 before:border-cyan-300 after:absolute after:left-1 after:top-0 after:h-full after:w-full after:rounded-full after:border-2 after:border-rose-400">♪</span>
-          Continue with TikTok
-          <ArrowRight className="h-4 w-4" />
-        </a>
+        {/* TikTok Auth CTA */}
+        <TikTokAuthButton label="Continue with TikTok" />
 
-        <div className="flex items-center gap-3" aria-hidden="true">
-          <span className="h-px flex-1" style={{ backgroundColor: 'var(--card-border)' }} />
-          <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>or use email</span>
-          <span className="h-px flex-1" style={{ backgroundColor: 'var(--card-border)' }} />
+        {/* Divider */}
+        <div className="oy-auth-divider" aria-hidden="true">
+          <div className="oy-auth-divider-line" />
+          <span className="oy-auth-divider-text">or continue with email</span>
+          <div className="oy-auth-divider-line" />
         </div>
 
-        {/* Email / Password Login Form */}
-        <form onSubmit={handleLogin} className="space-y-5">
+        {/* Email / Password Form */}
+        <form onSubmit={handleLogin} className="oy-auth-form" noValidate>
+          <div className="oy-auth-field">
+            <label htmlFor="login-email" className="oy-auth-label">
+              Email address
+            </label>
+            <div className="oy-auth-input-wrap">
+              <AtSign className="oy-auth-input-icon w-4 h-4" />
+              <input
+                id="login-email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="name@company.com"
+                className="oy-auth-input"
+              />
+            </div>
+          </div>
 
-          <Input
-            label="Email address"
-            name="email"
-            autoComplete="email"
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="name@company.com"
-            leadingIcon={<AtSign className="h-4 w-4" />}
-          />
-
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <label htmlFor="password" className="text-overline block">Password</label>
-              <Link href="/forgot-password" className="text-xs font-semibold hover:underline" style={{ color: 'var(--accent-secondary)' }}>
+          <div className="oy-auth-field">
+            <div className="oy-auth-label-row">
+              <label htmlFor="login-password" className="oy-auth-label">
+                Password
+              </label>
+              <Link
+                href="/forgot-password"
+                className="text-xs font-semibold hover:underline"
+                style={{ color: "var(--accent-secondary)" }}
+              >
                 Forgot password?
               </Link>
             </div>
-            <div className="relative flex items-center">
-              <span className="absolute left-3.5 flex items-center pointer-events-none" style={{ color: 'var(--text-muted)' }}>
-                <Lock className="h-4 w-4" />
-              </span>
+            <div className="oy-auth-input-wrap">
+              <Lock className="oy-auth-input-icon w-4 h-4" />
               <input
-                id="password"
+                id="login-password"
                 name="password"
+                type={showPassword ? "text" : "password"}
                 autoComplete="current-password"
-                type={showPassword ? 'text' : 'password'}
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••••••"
-                className="input-field w-full text-body py-3 pl-10 pr-11"
+                className="oy-auth-input pr-10"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-1 touch-target flex items-center justify-center"
+                className="oy-auth-pw-toggle"
                 aria-label={showPassword ? "Hide password" : "Show password"}
-                aria-pressed={showPassword}
-                style={{ color: 'var(--text-muted)' }}
               >
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
           </div>
 
-          <div className="flex items-center justify-between pt-1">
-            <label className="flex min-h-11 items-center space-x-2 text-sm cursor-pointer" style={{ color: 'var(--text-secondary)' }}>
+          <div className="flex items-center justify-between py-1">
+            <label className="flex items-center space-x-2 text-xs cursor-pointer select-none" style={{ color: "var(--text-secondary)" }}>
               <input
                 type="checkbox"
                 checked={rememberMe}
                 onChange={(e) => setRememberMe(e.target.checked)}
                 className="rounded h-4 w-4"
-                style={{ accentColor: 'var(--accent-secondary)' }}
+                style={{ accentColor: "var(--accent-secondary)" }}
               />
               <span>Remember me for 30 days</span>
             </label>
           </div>
 
-          <Button type="submit" variant="primary" fullWidth loading={loading} icon={<ArrowRight className="h-4 w-4" />}>
-            Sign in
-          </Button>
+          <button
+            type="submit"
+            disabled={loading}
+            className="oy-auth-submit-btn"
+          >
+            {loading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <>
+                <span>Sign in</span>
+                <ArrowRight className="w-4 h-4" />
+              </>
+            )}
+          </button>
         </form>
 
         {/* Footer Link */}
-        <p className="text-center text-body-sm pt-2" style={{ color: 'var(--text-secondary)' }}>
-          Don't have an Oyinca account yet?{' '}
-          <Link href="/register" className="font-bold hover:underline" style={{ color: 'var(--accent-secondary)' }}>
+        <p className="oy-auth-footer">
+          Don&apos;t have an Oyinca account yet?
+          <Link href="/register" className="oy-auth-switch-link">
             Sign up
           </Link>
         </p>
-
       </div>
 
       <BrandAttribution />

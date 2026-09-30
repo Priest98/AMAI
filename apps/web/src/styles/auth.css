@@ -1,0 +1,282 @@
+/* ==========================================================================
+   Oyinca Authentication — Scoped Styles (Login & Register)
+   ========================================================================== */
+
+.oy-auth-container {
+  min-height: 100svh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-body-var), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  position: relative;
+}
+
+.oy-auth-card {
+  width: 100%;
+  max-width: 440px;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--card-border);
+  border-radius: 20px;
+  padding: 36px 32px;
+  box-shadow: 0 16px 40px -12px rgba(10, 25, 49, 0.08), 0 4px 12px -2px rgba(10, 25, 49, 0.04);
+  position: relative;
+  overflow: hidden;
+}
+
+.dark .oy-auth-card {
+  background-color: #12141C;
+  border-color: rgba(255, 255, 255, 0.09);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+}
+
+/* Header */
+.oy-auth-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.oy-auth-heading {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.25;
+  color: var(--text-primary);
+  margin-top: 12px;
+}
+
+.oy-auth-sub {
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+/* Divider */
+.oy-auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 24px 0;
+}
+
+.oy-auth-divider-line {
+  height: 1px;
+  flex: 1;
+  background-color: var(--card-border);
+}
+
+.dark .oy-auth-divider-line {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.oy-auth-divider-text {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* Input Fields & Form */
+.oy-auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.oy-auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.oy-auth-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.oy-auth-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.oy-auth-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.oy-auth-input-icon {
+  position: absolute;
+  left: 14px;
+  pointer-events: none;
+  color: var(--text-muted);
+}
+
+.oy-auth-input {
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 14px 10px 42px;
+  border-radius: 12px;
+  border: 1px solid var(--card-border);
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: 14px;
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+.oy-auth-input:focus {
+  border-color: var(--accent-secondary);
+  box-shadow: 0 0 0 3px rgba(74, 127, 167, 0.18);
+}
+
+.dark .oy-auth-input {
+  background-color: #181B26;
+  border-color: rgba(255, 255, 255, 0.10);
+  color: #FFFFFF;
+}
+
+.dark .oy-auth-input:focus {
+  border-color: #6FA7C8;
+  box-shadow: 0 0 0 3px rgba(111, 167, 200, 0.22);
+}
+
+/* Toggle Password Visibility */
+.oy-auth-pw-toggle {
+  position: absolute;
+  right: 12px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s ease;
+}
+
+.oy-auth-pw-toggle:hover {
+  color: var(--text-primary);
+}
+
+/* Password Strength Bar */
+.oy-pw-strength-track {
+  height: 5px;
+  width: 100%;
+  background-color: rgba(10, 25, 49, 0.08);
+  border-radius: 9999px;
+  overflow: hidden;
+  margin-top: 6px;
+}
+
+.dark .oy-pw-strength-track {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.oy-pw-strength-bar {
+  height: 100%;
+  border-radius: 9999px;
+  transition: width 0.3s ease, background-color 0.3s ease;
+}
+
+/* Primary Submit Button */
+.oy-auth-submit-btn {
+  width: 100%;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 12px;
+  background-color: var(--accent-primary);
+  color: #FFFFFF;
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 14px rgba(10, 25, 49, 0.16);
+  margin-top: 6px;
+}
+
+.oy-auth-submit-btn:hover:not(:disabled) {
+  background-color: #152A4A;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(10, 25, 49, 0.22);
+}
+
+.dark .oy-auth-submit-btn {
+  background-color: #F7F5F0;
+  color: #0B0B0D;
+}
+
+.dark .oy-auth-submit-btn:hover:not(:disabled) {
+  background-color: #FFFFFF;
+}
+
+.oy-auth-submit-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+/* Footer Switch Link */
+.oy-auth-footer {
+  text-align: center;
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  margin-top: 24px;
+}
+
+.oy-auth-switch-link {
+  font-weight: 700;
+  color: var(--accent-secondary);
+  text-decoration: none;
+  margin-left: 4px;
+}
+
+.oy-auth-switch-link:hover {
+  text-decoration: underline;
+}
+
+/* Error Banner */
+.oy-auth-error {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 500;
+  background-color: rgba(220, 38, 38, 0.08);
+  border: 1px solid rgba(220, 38, 38, 0.25);
+  color: #DC2626;
+  margin-bottom: 20px;
+}
+
+.dark .oy-auth-error {
+  background-color: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #F87171;
+}
+
+@media (max-width: 480px) {
+  .oy-auth-card {
+    padding: 28px 20px;
+    border-radius: 16px;
+  }
+  .oy-auth-heading {
+    font-size: 20px;
+  }
+}

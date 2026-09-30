@@ -1,29 +1,29 @@
 "use client";
-import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { Logo } from '@/components/logo';
-import Input from '@/components/ui/Input';
-import Button from '@/components/ui/Button';
-import ThemeToggle from '@/components/ui/ThemeToggle';
-import { User, AtSign, Lock, ArrowRight, Eye, EyeOff, AlertCircle } from 'lucide-react';
-import { API_BASE, isAuthenticated } from '@/lib/api';
-import { capture } from '@/lib/posthog';
-import BrandAttribution from '@/components/BrandAttribution';
-import PlanSelectionNotice from '@/components/PlanSelectionNotice';
-import { getSelectedPlan, planDestination } from '@/lib/plan-intent';
 
+import React, { useState, useEffect } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Logo } from "@/components/logo";
+import ThemeToggle from "@/components/ui/ThemeToggle";
+import { User, AtSign, Lock, ArrowRight, Eye, EyeOff, AlertCircle, Loader2 } from "lucide-react";
+import { API_BASE, isAuthenticated } from "@/lib/api";
+import { capture } from "@/lib/posthog";
+import BrandAttribution from "@/components/BrandAttribution";
+import PlanSelectionNotice from "@/components/PlanSelectionNotice";
+import { getSelectedPlan, planDestination } from "@/lib/plan-intent";
+import TikTokAuthButton from "@/components/auth/TikTokAuthButton";
+import "@/styles/auth.css";
 
 export default function RegisterPage() {
   const router = useRouter();
-  const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [checkingSession, setCheckingSession] = useState(true);
 
   useEffect(() => {
@@ -41,190 +41,241 @@ export default function RegisterPage() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!fullName || !email || !password) {
-      setError('Please fill in all required fields.');
+      setError("Please fill in all required fields.");
       return;
     }
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match.');
+      setError("Passwords do not match.");
       return;
     }
 
     if (!isPasswordLong) {
-      setError('Password must be at least 8 characters long.');
+      setError("Password must be at least 8 characters long.");
       return;
     }
 
     setLoading(true);
-    setError('');
+    setError("");
 
     try {
       const res = await fetch(`${API_BASE}/auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fullName, email, password }),
       });
 
       const data = await res.json();
 
       if (res.ok && data.success) {
-        capture('signup_completed');
-        router.push(`/verify-email?email=${encodeURIComponent(email)}${getSelectedPlan() ? '&plan='+getSelectedPlan() : ''}`);
+        capture("signup_completed");
+        router.push(
+          `/verify-email?email=${encodeURIComponent(email)}${
+            getSelectedPlan() ? "&plan=" + getSelectedPlan() : ""
+          }`
+        );
         return;
       }
 
-      if (data.signupPending && data.code === 'VERIFICATION_EMAIL_NOT_ACCEPTED') {
-        router.push(`/verify-email?email=${encodeURIComponent(email)}&delivery=failed${getSelectedPlan() ? '&plan='+getSelectedPlan() : ''}`);
+      if (data.signupPending && data.code === "VERIFICATION_EMAIL_NOT_ACCEPTED") {
+        router.push(
+          `/verify-email?email=${encodeURIComponent(email)}&delivery=failed${
+            getSelectedPlan() ? "&plan=" + getSelectedPlan() : ""
+          }`
+        );
         return;
       }
 
-      setError(data.message || 'Failed to create account. Please try again.');
-    } catch (err) {
-      setError('Unable to reach the server. Please check your connection and try again.');
+      setError(data.message || "Failed to create account. Please try again.");
+    } catch {
+      setError("Unable to reach the server. Please check your connection and try again.");
     } finally {
       setLoading(false);
     }
   };
 
   if (checkingSession) {
-    return <div className="min-h-screen w-full" style={{ backgroundColor: 'var(--bg-base)' }} />;
+    return <div className="min-h-screen w-full" style={{ backgroundColor: "var(--bg-base)" }} />;
   }
 
   return (
-    <div className="min-h-screen w-full flex flex-col items-center justify-center gap-4 p-4" style={{ color: 'var(--text-primary)' }}>
-
+    <div className="oy-auth-container">
       <PlanSelectionNotice />
-      <div
-        className="oy-auth-panel w-full max-w-md rounded-[var(--radius-xl)] p-6 sm:p-10 space-y-8 relative overflow-hidden"
-      >
+
+      <div className="oy-auth-card">
         {/* Brand Header */}
-        <div className="flex items-start justify-between gap-3">
-          <div className="space-y-3 text-center sm:text-left">
-            <Link href="/" className="inline-block">
-              <Logo className="h-9" />
+        <div className="oy-auth-header">
+          <div>
+            <Link href="/" className="inline-block focus:outline-none" aria-label="Oyinca Homepage">
+              <Logo className="h-8" />
             </Link>
-            <div>
-              <h1 className="text-h1" style={{ color: 'var(--text-primary)' }}>
-                Meet your social media manager
-              </h1>
-              <p className="text-body-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-                Give your content an AI social media manager.
-              </p>
-            </div>
+            <h1 className="oy-auth-heading">
+              Meet your social media manager
+            </h1>
+            <p className="oy-auth-sub">
+              Give your content an AI manager. Start free in seconds.
+            </p>
           </div>
           <ThemeToggle />
         </div>
 
-        {/* Error Feedback */}
+        {/* Error Notification */}
         {error && (
-          <div role="alert" className="p-4 rounded-[var(--radius-lg)] border text-sm font-semibold flex items-center space-x-2" style={{ backgroundColor: 'var(--accent-error-subtle)', borderColor: 'var(--accent-error)', color: 'var(--accent-error)' }}>
+          <div role="alert" className="oy-auth-error">
             <AlertCircle className="h-4 w-4 flex-shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
+        {/* TikTok Auth CTA */}
+        <TikTokAuthButton label="Continue with TikTok" />
+
+        {/* Divider */}
+        <div className="oy-auth-divider" aria-hidden="true">
+          <div className="oy-auth-divider-line" />
+          <span className="oy-auth-divider-text">or create account with email</span>
+          <div className="oy-auth-divider-line" />
+        </div>
+
         {/* Registration Form */}
-        <form onSubmit={handleRegister} className="space-y-4">
-
-          <Input
-            label="Full name"
-            name="fullName"
-            autoComplete="name"
-            type="text"
-            required
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            placeholder="Alex Morgan"
-            leadingIcon={<User className="h-4 w-4" />}
-          />
-
-          <Input
-            label="Email address"
-            name="email"
-            autoComplete="email"
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="alex@company.com"
-            leadingIcon={<AtSign className="h-4 w-4" />}
-          />
-
-          <div className="space-y-1.5">
-            <label htmlFor="password" className="text-overline block">Password</label>
-            <div className="relative flex items-center">
-              <span className="absolute left-3.5 flex items-center pointer-events-none" style={{ color: 'var(--text-muted)' }}>
-                <Lock className="h-4 w-4" />
-              </span>
+        <form onSubmit={handleRegister} className="oy-auth-form" noValidate>
+          <div className="oy-auth-field">
+            <label htmlFor="register-name" className="oy-auth-label">
+              Full name
+            </label>
+            <div className="oy-auth-input-wrap">
+              <User className="oy-auth-input-icon w-4 h-4" />
               <input
-                id="password"
+                id="register-name"
+                name="fullName"
+                type="text"
+                autoComplete="name"
+                required
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                placeholder="Alex Morgan"
+                className="oy-auth-input"
+              />
+            </div>
+          </div>
+
+          <div className="oy-auth-field">
+            <label htmlFor="register-email" className="oy-auth-label">
+              Email address
+            </label>
+            <div className="oy-auth-input-wrap">
+              <AtSign className="oy-auth-input-icon w-4 h-4" />
+              <input
+                id="register-email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="alex@company.com"
+                className="oy-auth-input"
+              />
+            </div>
+          </div>
+
+          <div className="oy-auth-field">
+            <label htmlFor="register-password" className="oy-auth-label">
+              Password
+            </label>
+            <div className="oy-auth-input-wrap">
+              <Lock className="oy-auth-input-icon w-4 h-4" />
+              <input
+                id="register-password"
                 name="password"
+                type={showPassword ? "text" : "password"}
                 autoComplete="new-password"
-                type={showPassword ? 'text' : 'password'}
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Minimum 8 characters"
-                className="input-field w-full text-body py-3 pl-10 pr-11"
+                className="oy-auth-input pr-10"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-1 touch-target flex items-center justify-center"
+                className="oy-auth-pw-toggle"
                 aria-label={showPassword ? "Hide password" : "Show password"}
-                aria-pressed={showPassword}
-                style={{ color: 'var(--text-muted)' }}
               >
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
           </div>
 
-          <Input
-            label="Confirm password"
-            name="confirmPassword"
-            autoComplete="new-password"
-            type={showPassword ? 'text' : 'password'}
-            required
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            placeholder="Repeat password"
-            leadingIcon={<Lock className="h-4 w-4" />}
-          />
+          <div className="oy-auth-field">
+            <label htmlFor="register-confirm-password" className="oy-auth-label">
+              Confirm password
+            </label>
+            <div className="oy-auth-input-wrap">
+              <Lock className="oy-auth-input-icon w-4 h-4" />
+              <input
+                id="register-confirm-password"
+                name="confirmPassword"
+                type={showPassword ? "text" : "password"}
+                autoComplete="new-password"
+                required
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Repeat password"
+                className="oy-auth-input"
+              />
+            </div>
+          </div>
 
-          {/* Password Strength Indicators */}
+          {/* Password Strength Indicator */}
           {password && (
-            <div className="space-y-1.5 pt-1">
-              <div className="h-1.5 w-full rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bg-surface-sunken)' }}>
+            <div className="space-y-1">
+              <div className="oy-pw-strength-track">
                 <div
-                  className="h-full transition-all duration-300"
+                  className="oy-pw-strength-bar"
                   style={{
-                    width: isPasswordStrong ? '100%' : isPasswordLong ? '66%' : '33%',
-                    backgroundColor: isPasswordStrong ? 'var(--accent-success)' : isPasswordLong ? 'var(--accent-warning)' : 'var(--accent-error)',
+                    width: isPasswordStrong ? "100%" : isPasswordLong ? "66%" : "33%",
+                    backgroundColor: isPasswordStrong
+                      ? "#10B981"
+                      : isPasswordLong
+                      ? "#F59E0B"
+                      : "#EF4444",
                   }}
                 />
               </div>
-              <p className="text-caption" style={{ color: 'var(--text-muted)' }}>
-                {isPasswordStrong ? 'Strong password' : isPasswordLong ? 'Add a number for a stronger password' : 'Minimum 8 characters required'}
+              <p className="text-[11px] text-[var(--text-muted)]">
+                {isPasswordStrong
+                  ? "Strong password"
+                  : isPasswordLong
+                  ? "Add a number for a stronger password"
+                  : "Minimum 8 characters required"}
               </p>
             </div>
           )}
 
-          <div className="pt-2">
-            <Button type="submit" variant="primary" fullWidth loading={loading} icon={<ArrowRight className="h-4 w-4" />}>
-              Create Oyinca Account
-            </Button>
-          </div>
+          <button
+            type="submit"
+            disabled={loading}
+            className="oy-auth-submit-btn"
+          >
+            {loading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <>
+                <span>Create account</span>
+                <ArrowRight className="w-4 h-4" />
+              </>
+            )}
+          </button>
         </form>
 
         {/* Footer Link */}
-        <p className="text-center text-body-sm pt-2" style={{ color: 'var(--text-secondary)' }}>
-          Already have an account?{' '}
-          <Link href="/login" className="font-bold hover:underline" style={{ color: 'var(--accent-secondary)' }}>
+        <p className="oy-auth-footer">
+          Already have an account?
+          <Link href="/login" className="oy-auth-switch-link">
             Sign in
           </Link>
         </p>
-
       </div>
 
       <BrandAttribution />
