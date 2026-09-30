@@ -1,4 +1,4 @@
-import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext, ForbiddenException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 /**
@@ -29,9 +29,11 @@ import { PrismaService } from '../prisma/prisma.service';
  */
 @Injectable()
 export class BrandAccessGuard implements CanActivate {
+  private readonly logger = new Logger(BrandAccessGuard.name);
   constructor(private readonly prisma: PrismaService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
+    const startedAt = performance.now();
     const request = context.switchToHttp().getRequest();
     const routeBrandId = request.params?.brandId;
     // JwtStrategy.validate returns the full User row spread with the brandId
@@ -63,6 +65,8 @@ export class BrandAccessGuard implements CanActivate {
 
     request.brandId = brand.id;
     request.organizationId = brand.organizationId;
+
+    this.logger.log(`[PERF] ${JSON.stringify({ label: 'brand-access', duration: Math.round(performance.now() - startedAt) })}`);
 
     return true;
   }

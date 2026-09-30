@@ -33,6 +33,6 @@ import { AdminModule } from '../admin/admin.module';
     // them per checkout/webhook: Stripe for USD/GBP, Paystack for NGN. See
     // BillingService.providerForCurrency / providerByName.
   ],
-  exports: [EntitlementsService, UsageService, EntitlementGuard],
+  exports: [BillingService, EntitlementsService, UsageService, EntitlementGuard],
 })
 export class BillingModule {}

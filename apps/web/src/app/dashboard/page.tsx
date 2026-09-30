@@ -1,14 +1,14 @@
 "use client";
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import StatCard from "@/components/ui/StatCard";
 import Badge from "@/components/ui/Badge";
 import EmptyState from "@/components/ui/EmptyState";
 import EngineWorkflowVisualization from "@/components/engine/EngineWorkflowVisualization";
-import { apiFetch, brandFetch } from '@/lib/api';
+import { brandFetch } from '@/lib/api';
 import { useEngineEvents } from '@/lib/useEngineEvents';
-import { getBillingSummary, BillingSummary } from '@/lib/billing';
+import { useDashboardData } from '@/lib/DashboardDataContext';
 import UsageBar from '@/components/billing/UsageBar';
 import LockedFeature from '@/components/billing/LockedFeature';
 import { TikTokLogo } from '@/components/icons/platform-logos';
@@ -41,28 +41,6 @@ const itemVariants = {
   hidden: { opacity: 0, y: 8 },
   show: { opacity: 1, y: 0, transition: { duration: 0.25, ease: [0.16, 1, 0.3, 1] as const } },
 };
-
-interface DashPost {
-  id: string;
-  caption: string;
-  status: string;
-  scheduledAt: string | null;
-  targets?: { platform: string }[];
-}
-
-interface ConnectedAccountSummary {
-  platform: string;
-  handle: string;
-  status: 'CONNECTED' | 'EXPIRED' | 'DISCONNECTED' | string;
-}
-
-interface DashStats {
-  needsApprovalCount: number;
-  scheduledCount: number;
-  publishedCount: number;
-  mediaCount: number;
-  pendingPreview: DashPost[];
-}
 
 interface CalendarInsightsData {
   totalScheduled: number;
@@ -104,24 +82,24 @@ const CATEGORY_LABEL: Record<string, string> = {
 };
 
 export default function DashboardPage() {
-  const [engineState, setEngineState] = useState<'ACTIVE' | 'PAUSED'>('ACTIVE');
-  const [approvalMode, setApprovalMode] = useState<'MANUAL' | 'AUTO'>('MANUAL');
-  const [pendingPosts, setPendingPosts] = useState<DashPost[]>([]);
-  const [pendingCount, setPendingCount] = useState(0);
-  const [scheduledCount, setScheduledCount] = useState(0);
-  const [publishedCount, setPublishedCount] = useState(0);
-  const [connectedAccounts, setConnectedAccounts] = useState<ConnectedAccountSummary[]>([]);
-  const [googleDriveConnected, setGoogleDriveConnected] = useState(false);
-  const [mediaCount, setMediaCount] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
+  const { bootstrap, bootstrapLoading, bootstrapError, billing, refreshBootstrap, refreshStats } = useDashboardData();
   const [performanceError, setPerformanceError] = useState(false);
-  const [billing, setBilling] = useState<BillingSummary | null>(null);
   const [insights, setInsights] = useState<CalendarInsightsData | null>(null);
   const [performance, setPerformance] = useState<PerformanceSummary | LockedPerformanceSummary | null>(null);
 
+  const engineState = bootstrap?.engine.state;
+  const approvalMode = bootstrap?.engine.approvalMode;
+  const pendingPosts = bootstrap?.stats.pendingPreview ?? [];
+  const pendingCount = bootstrap?.stats.needsApprovalCount ?? 0;
+  const scheduledCount = bootstrap?.stats.scheduledCount ?? 0;
+  const publishedCount = bootstrap?.stats.publishedCount ?? 0;
+  const mediaCount = bootstrap?.stats.mediaCount ?? 0;
+  const connectedAccounts = bootstrap?.accounts.socialAccounts ?? [];
+  const googleDriveConnected = bootstrap?.accounts.googleDrive?.status === 'CONNECTED';
+  const bootstrapReady = Boolean(bootstrap);
+
   useEffect(() => {
-    getBillingSummary().then(setBilling).catch(() => {});
+    if (!bootstrapReady) return;
     // Same real, already-built endpoint the calendar page uses
     // (GET /engine/calendar-insights) -- every figure here comes from an
     // actual query against scheduled posts, nothing is invented for the
@@ -132,47 +110,14 @@ export default function DashboardPage() {
     // zeroed) until TikTok is connected and the metrics-sync cron has had a
     // chance to capture at least one snapshot.
     brandFetch<PerformanceSummary | LockedPerformanceSummary>('/posts/performance-summary').then(setPerformance).catch(() => setPerformanceError(true));
-  }, []);
+  }, [bootstrapReady]);
 
-  // Previously this fired 6 separate requests on every mount and every SSE
-  // engine event (3 of them full `/posts?status=X` payloads just to read
-  // `.length`). Now it's 3 requests total, and the post list is a
-  // counts-only `/posts/stats` call instead of transferring full
-  // caption/hashtag/target/media rows the dashboard never renders.
-  const fetchLiveData = useCallback(async () => {
-    setLoadError(false);
-    try {
-      const [config, stats, accounts] = await Promise.all([
-        brandFetch<{ state: 'ACTIVE' | 'PAUSED'; approvalMode: 'MANUAL' | 'AUTO' }>('/engine/state'),
-        brandFetch<DashStats>('/posts/stats'),
-        apiFetch<any>('/oauth/accounts'),
-      ]);
-
-      setEngineState(config.state);
-      setApprovalMode(config.approvalMode);
-      setPendingPosts(stats.pendingPreview);
-      setPendingCount(stats.needsApprovalCount);
-      setScheduledCount(stats.scheduledCount);
-      setPublishedCount(stats.publishedCount);
-      setMediaCount(stats.mediaCount);
-
-      const accountSummaries: ConnectedAccountSummary[] = (accounts?.socialAccounts || []).map((acc: any) => ({
-        platform: acc.platform,
-        handle: acc.handle,
-        status: acc.status,
-      }));
-      setConnectedAccounts(accountSummaries);
-      setGoogleDriveConnected(accounts?.googleDrive?.status === 'CONNECTED');
-    } catch (e) {
-      setLoadError(true);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { fetchLiveData(); }, [fetchLiveData]);
-
-  useEngineEvents(() => { fetchLiveData(); });
+  // Post and media events only invalidate the compact stats slice. Engine,
+  // account, and billing data remain stable, so a publishing event no longer
+  // replays the entire dashboard startup path.
+  useEngineEvents((event) => {
+    if (event.postId || event.mediaAssetId) void refreshStats();
+  });
 
   const tiktokAccounts = connectedAccounts.filter((a) => a.platform === 'TIKTOK');
   const otherAccounts = connectedAccounts.filter((a) => a.platform !== 'TIKTOK');
@@ -188,23 +133,22 @@ export default function DashboardPage() {
     return 'Good evening';
   })();
 
-  if (loading || loadError) return (
-    <section className="max-w-3xl mx-auto py-12 px-4 space-y-4" aria-busy={loading}>
-      <h1 className="text-h1">Your workspace</h1>
-      <p role={loadError ? 'alert' : 'status'} style={{ color: 'var(--text-secondary)' }}>
-        {loadError ? 'We could not load your workspace. Your posts and settings have not changed.' : 'Loading your posts and publishing status…'}
-      </p>
-      {loadError && <button className="btn-primary-gradient touch-target px-5" onClick={() => { setLoading(true); void fetchLiveData(); }}>Try again</button>}
-    </section>
-  );
-
   return (
     <motion.div
       variants={containerVariants}
       initial={false}
       animate="show"
       className="oy-product-dashboard space-y-8 max-w-7xl mx-auto pb-24 sm:pb-12"
+      aria-busy={bootstrapLoading}
     >
+      {bootstrapError && (
+        <div className="exec-card p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3" role="alert">
+          <p className="text-body-sm" style={{ color: 'var(--text-secondary)' }}>
+            We could not refresh your workspace. Your posts and settings have not changed.
+          </p>
+          <button className="btn-primary-gradient touch-target px-5" onClick={() => void refreshBootstrap()}>Try again</button>
+        </div>
+      )}
       <div className="relative overflow-hidden rounded-[28px]">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-1 py-6 sm:py-8">
           <div>
@@ -215,7 +159,7 @@ export default function DashboardPage() {
               {greeting}. Here is your workspace.
             </h1>
             <p className="text-body-sm mt-2" style={{ color: 'var(--text-secondary)' }}>
-              {pendingCount > 0 ? `${pendingCount} posts need your review.` : scheduledCount > 0 ? `${scheduledCount} posts are scheduled.` : 'Add your content to get started.'}
+              {bootstrapLoading ? 'Loading your latest publishing status…' : pendingCount > 0 ? `${pendingCount} posts need your review.` : scheduledCount > 0 ? `${scheduledCount} posts are scheduled.` : 'Add your content to get started.'}
             </p>
           </div>
 
@@ -223,13 +167,13 @@ export default function DashboardPage() {
             <Badge variant={engineState === 'ACTIVE' ? 'success' : 'neutral'}>
               <span className="flex items-center space-x-1.5">
                 {engineState === 'ACTIVE' ? <Zap className="h-3 w-3" /> : <Pause className="h-3 w-3" />}
-                <span>{engineState === 'ACTIVE' ? 'Oyinca Active' : 'Oyinca Paused'}</span>
+                <span>{bootstrapLoading ? 'Loading status' : engineState === 'ACTIVE' ? 'Oyinca Active' : 'Oyinca Paused'}</span>
               </span>
             </Badge>
             <Badge variant={approvalMode === 'AUTO' ? 'warning' : 'purple'}>
               <span className="flex items-center space-x-1.5">
                 <ShieldCheck className="h-3 w-3" />
-                <span>{approvalMode === 'AUTO' ? 'Auto Approval' : 'Manual Approval'}</span>
+                <span>{bootstrapLoading ? 'Loading mode' : approvalMode === 'AUTO' ? 'Auto Approval' : 'Manual Approval'}</span>
               </span>
             </Badge>
           </div>
@@ -257,26 +201,26 @@ export default function DashboardPage() {
         <StatCard
           icon={<Clock className="h-4 w-4 text-amber-400" />}
           label="Approval Queue"
-          value={String(pendingCount)}
-          helperText={pendingCount === 0 ? 'All caught up' : 'Posts awaiting review'}
+          value={bootstrapLoading ? '—' : String(pendingCount)}
+          helperText={bootstrapLoading ? 'Loading…' : pendingCount === 0 ? 'All caught up' : 'Posts awaiting review'}
         />
         <StatCard
           icon={<CalendarClock className="h-4 w-4 text-blue-400" />}
           label="Scheduled"
-          value={String(scheduledCount)}
-          helperText="Queued to publish"
+          value={bootstrapLoading ? '—' : String(scheduledCount)}
+          helperText={bootstrapLoading ? 'Loading…' : 'Queued to publish'}
         />
         <StatCard
           icon={<CheckCircle2 className="h-4 w-4 text-emerald-400" />}
           label="Published"
-          value={String(publishedCount)}
-          helperText="Live on your accounts"
+          value={bootstrapLoading ? '—' : String(publishedCount)}
+          helperText={bootstrapLoading ? 'Loading…' : 'Live on your accounts'}
         />
         <StatCard
           icon={<Folder className="h-4 w-4 text-sky-400" />}
           label="Media Assets"
-          value={String(mediaCount)}
-          helperText="In your library"
+          value={bootstrapLoading ? '—' : String(mediaCount)}
+          helperText={bootstrapLoading ? 'Loading…' : 'In your library'}
         />
       </div>
 

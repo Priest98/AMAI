@@ -1,93 +1,106 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+
+import React, { useEffect, useState, useRef } from "react";
 import Link from "next/link";
-import ThemeToggle from "@/components/ui/ThemeToggle";
 import { Monogram } from "@/components/logo";
-const links = [
-  ["#product", "Product"],
-  ["#how-it-works", "How it works"],
-  ["#pricing", "Pricing"],
-  ["#faq", "FAQ"],
+import { Menu, X, ArrowRight } from "lucide-react";
+
+const NAV_LINKS = [
+  { href: "#product", label: "Product" },
+  { href: "#how-it-works", label: "How it works" },
+  { href: "#pricing", label: "Pricing" },
+  { href: "#faq", label: "FAQ" },
 ];
+
 export default function Nav() {
-  const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const navRef = useRef<HTMLElement>(null);
+
   useEffect(() => {
-    const update = () => setScrolled(window.scrollY > 24);
-    update();
-    window.addEventListener("scroll", update, { passive: true });
-    return () => window.removeEventListener("scroll", update);
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 20);
+    };
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
-  const header = useRef<HTMLElement>(null);
-  const toggle = useRef<HTMLButtonElement>(null);
+
   useEffect(() => {
-    if (!open) return;
-    const key = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setOpen(false);
-        toggle.current?.focus();
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && mobileOpen) {
+        setMobileOpen(false);
       }
     };
-    const outside = (e: PointerEvent) => {
-      if (!header.current?.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("keydown", key);
-    document.addEventListener("pointerdown", outside);
-    return () => {
-      document.removeEventListener("keydown", key);
-      document.removeEventListener("pointerdown", outside);
-    };
-  }, [open]);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [mobileOpen]);
+
   return (
-    <header ref={header} className={`oy-nav oy-cinema-nav${scrolled ? " is-scrolled" : ""}${open ? " is-expanded" : ""}`}>
-      <nav aria-label="Primary">
-        <Link href="/" aria-label="Oyinca home" className="oy-cinema-logo">
-          <Monogram className="h-9 w-9" />
+    <header className="oy-floating-nav-container" ref={navRef}>
+      <nav
+        className={`oy-floating-nav ${scrolled ? "is-scrolled" : ""}`}
+        aria-label="Main Navigation"
+      >
+        <Link href="/" className="oy-nav-brand" aria-label="Oyinca Homepage">
+          <Monogram className="h-7 w-7 text-[var(--oy-ink)]" />
           <span>OYINCA</span>
         </Link>
-        <div className="oy-nav-links">
-          {links.map(([href, label]) => (
-            <a key={href} href={href}>
-              {label}
+
+        <div className="oy-nav-links" role="menubar">
+          {NAV_LINKS.map((link) => (
+            <a key={link.href} href={link.href} role="menuitem">
+              {link.label}
             </a>
           ))}
         </div>
-        <div className="oy-nav-actions">
-          <ThemeToggle />
-          <Link className="oy-signin" href="/login">
+
+        <div className="oy-nav-right">
+          <Link href="/login" className="oy-nav-signin">
             Sign in
           </Link>
-          <Link
-            className="lp-btn-primary oy-button oy-nav-start"
-            href="/register?plan=FREE"
-          >
-            Start free <span aria-hidden="true">→</span>
+          <Link href="/register?plan=FREE" className="oy-nav-cta">
+            <span>Get started</span>
+            <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
           </Link>
           <button
-            ref={toggle}
-            className="oy-menu-toggle"
-            aria-expanded={open}
-            aria-controls="mobile-navigation"
-            aria-label={open ? "Close navigation" : "Open navigation"}
-            onClick={() => setOpen(!open)}
+            type="button"
+            className="oy-mobile-menu-btn"
+            onClick={() => setMobileOpen(!mobileOpen)}
+            aria-expanded={mobileOpen}
+            aria-label={mobileOpen ? "Close menu" : "Open menu"}
           >
-            {open ? "Close" : "Menu"}
+            {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
         </div>
       </nav>
-      <div id="mobile-navigation" className="oy-mobile-nav" hidden={!open}>
-        {links.map(([href, label]) => (
-          <a key={href} href={href} onClick={() => setOpen(false)}>
-            {label}
-          </a>
-        ))}
-        <Link href="/login" onClick={() => setOpen(false)}>
-          Sign in
-        </Link>
-        <Link href="/register?plan=FREE" onClick={() => setOpen(false)}>
-          Start free →
-        </Link>
-      </div>
+
+      {mobileOpen && (
+        <div className="oy-mobile-nav-drawer" role="dialog" aria-modal="true">
+          {NAV_LINKS.map((link) => (
+            <a
+              key={link.href}
+              href={link.href}
+              onClick={() => setMobileOpen(false)}
+            >
+              {link.label}
+            </a>
+          ))}
+          <Link
+            href="/login"
+            onClick={() => setMobileOpen(false)}
+          >
+            Sign in
+          </Link>
+          <Link
+            href="/register?plan=FREE"
+            className="oy-btn-primary w-full mt-2"
+            onClick={() => setMobileOpen(false)}
+          >
+            Get started
+          </Link>
+        </div>
+      )}
     </header>
   );
 }

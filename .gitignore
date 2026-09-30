@@ -43,3 +43,8 @@ Thumbs.db
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+
+# Local screenshots & test captures
+/landing-desktop.png
+/landing-mobile.png
+/apps/api/index.html

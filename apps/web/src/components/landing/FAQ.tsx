@@ -1,50 +1,81 @@
-const items = [
-  [
-    "Can I start for free?",
-    "Yes. Free includes a limited monthly allowance for posts and AI generations. The plan cards show current limits. No credit card is required to create an account.",
-  ],
-  [
-    "Will Oyinca publish without my approval?",
-    "Free uses Assisted mode and requires your approval. Advanced Autopilot is available on paid plans, and automatic approval only applies when you deliberately enable it in settings.",
-  ],
-  [
-    "Which platforms are currently supported?",
-    "TikTok is the currently supported publishing platform. Oyinca can upload content to TikTok for you to complete in the TikTok app. Direct publishing will only be enabled after TikTok approves that separate capability.",
-  ],
-  [
-    "What happens when I reach a limit?",
-    "You will need to wait for the applicable monthly allowance to reset or upgrade for more capacity. Storage and account limits depend on your plan.",
-  ],
-  [
-    "What if a generation or publishing attempt fails?",
-    "Check the status and error in your workspace. Fix any content or connection issue before retrying. A scheduled post is not confirmation that TikTok has published it.",
-  ],
-  [
-    "Can I pause Autopilot?",
-    "Yes. Eligible plans can adjust or pause Autopilot in the workspace. Assisted mode remains available when you want every post to wait for approval.",
-  ],
-  [
-    "Can I change or cancel my plan?",
-    "Manage your subscription in Settings under Billing. Review the price and billing interval before confirming payment. Cancellation and access follow the billing terms shown for your subscription.",
-  ],
-  [
-    "How does Oyinca use my TikTok data?",
-    "Oyinca uses the permissions you grant to identify your connected account, prepare or send content, and retrieve supported publishing results. Tokens are encrypted, and you can disconnect TikTok at any time. See the Privacy Policy for full details.",
-  ],
+"use client";
+
+import React, { useState } from "react";
+import { ChevronDown } from "lucide-react";
+
+interface FAQItem {
+  q: string;
+  a: string;
+}
+
+const FAQ_ITEMS: FAQItem[] = [
+  {
+    q: "What does Oyinca do?",
+    a: "Oyinca acts as your background social media manager. You provide photos or videos, and Oyinca analyses the media, drafts tailored captions and high-converting hashtags, schedules optimal posting windows, and holds drafts in an approval queue for your review.",
+  },
+  {
+    q: "Which social platforms are supported?",
+    a: "TikTok is Oyinca's primary focus in production today. Oyinca prepares and pushes content to TikTok with full format compliance and scheduling intelligence.",
+  },
+  {
+    q: "Can Oyinca publish automatically?",
+    a: "On paid plans with Autopilot enabled, Oyinca can automate the publishing pipeline according to your settings. Free plans operate strictly in Assisted mode, where every post must be reviewed and approved by you.",
+  },
+  {
+    q: "Do I approve posts before publishing?",
+    a: "Yes. In Assisted mode (default on Free and optional on paid plans), every post sits in your Approval Queue. Nothing is published until you click Approve or make any adjustments you desire.",
+  },
+  {
+    q: "How does Oyinca learn my brand?",
+    a: "Through the Oyinca Brain. Each piece of content, approval edit, and performance metric informs Oyinca's memory. It registers your tone, stylistic boundaries, and audience response so every subsequent draft feels more authentic.",
+  },
+  {
+    q: "Can I cancel my plan?",
+    a: "Yes, at any time. You can manage or cancel your subscription directly from Settings under Billing with immediate effect for future billing cycles.",
+  },
+  {
+    q: "Is my content secure?",
+    a: "Yes. Your media, brand assets, and TikTok OAuth connection tokens are encrypted and handled strictly within isolated tenant workspaces. Your data is never mixed with other users or used to train third-party public models.",
+  },
 ];
+
 export default function FAQ() {
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
+
+  const toggle = (idx: number) => {
+    setOpenIndex(openIndex === idx ? null : idx);
+  };
+
   return (
-    <section id="faq" className="oy-section oy-faq">
-      <div className="oy-section-heading">
-        <p className="oy-eyebrow">A FEW THINGS TO KNOW</p>
+    <section id="faq" className="oy-faq-section" aria-label="Frequently Asked Questions">
+      <div className="text-center">
+        <p className="oy-eyebrow justify-center">Clarity & Answers</p>
         <h2>Questions, answered.</h2>
       </div>
-      {items.map(([q, a]) => (
-        <details key={q}>
-          <summary>{q}</summary>
-          <p>{a}</p>
-        </details>
-      ))}
+
+      <div className="oy-faq-list">
+        {FAQ_ITEMS.map((item, index) => {
+          const isOpen = openIndex === index;
+          return (
+            <div key={item.q} className="oy-faq-item">
+              <button
+                type="button"
+                className="oy-faq-question w-full text-left"
+                onClick={() => toggle(index)}
+                aria-expanded={isOpen}
+              >
+                <span>{item.q}</span>
+                <ChevronDown
+                  className={`w-5 h-5 text-[var(--oy-blue-steel)] transition-transform duration-200 flex-shrink-0 ml-4 ${
+                    isOpen ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
+              {isOpen && <p className="oy-faq-answer">{item.a}</p>}
+            </div>
+          );
+        })}
+      </div>
     </section>
   );
 }

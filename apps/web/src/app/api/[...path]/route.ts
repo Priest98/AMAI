@@ -34,6 +34,7 @@ const HOP_BY_HOP_HEADERS = new Set([
 ]);
 
 async function proxy(req: NextRequest): Promise<Response> {
+  const requestStartedAt = performance.now();
   let port: number;
   try {
     port = await getBackendPort();
@@ -82,6 +83,9 @@ async function proxy(req: NextRequest): Promise<Response> {
       responseHeaders.set(key, value);
     }
   });
+  const duration = Math.round(performance.now() - requestStartedAt);
+  responseHeaders.set('server-timing', `oyinca_proxy;dur=${duration}`);
+  console.info(`[PERF] ${JSON.stringify({ label: 'api-proxy', path: req.nextUrl.pathname, duration })}`);
 
   return new Response(backendResponse.body, {
     status: backendResponse.status,

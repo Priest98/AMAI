@@ -17,6 +17,10 @@
 - `billing`: plans, subscriptions, usage, and entitlements.
 - `media`, `storage`, `media-optimization`: upload ownership and derived assets.
 - `metrics`, `growth`: outcome collection, learning, and replies.
+- `dashboard`: read-only startup orchestration. It resolves organization and
+  entitlement context once, then loads the small engine, post-stat, and
+  connection summaries in parallel. Secondary analytics and detailed billing
+  remain independent so they cannot block the initial workspace.
 - `admin`, `health`, `common`: operator visibility and incident capture.
 
 ## Invariants

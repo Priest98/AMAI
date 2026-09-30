@@ -2,10 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-
-import { Check } from "lucide-react";
-import { Eyebrow } from "./shared";
-import GsapReveal from "./GsapReveal";
+import { Check, ArrowRight } from "lucide-react";
 import { getPlans } from "@/lib/billing";
 import type { PlanEntitlements, PlanPricing, PlanTier } from "@/lib/billing";
 import { formatPrice, type Currency } from "@/lib/currency";
@@ -26,59 +23,51 @@ interface CardCopy {
 
 const CARD_COPY: Record<PlanTier, Omit<CardCopy, "tier">> = {
   FREE: {
-    heading:
-      "For creators and businesses getting started with AI-powered TikTok content.",
+    heading: "For creators and businesses getting started with AI-powered TikTok content.",
     includes: [
       "AI captions, hashtags & scheduling for TikTok",
-
       "Assisted mode: you approve each post",
       "Basic analytics",
       "Basic Business Brain",
       "Google Drive integration",
     ],
-    cta: "Meet Oyinca",
+    cta: "Start Free",
   },
   PRO: {
-    badge: "MORE AUTOMATION",
-    heading: "For businesses ready to put TikTok content on autopilot.",
+    badge: "Most Popular",
+    heading: "For businesses ready to put their TikTok workflow on intelligent autopilot.",
     includes: [
       "Everything in Free, plus:",
       "Advanced Autopilot with optional auto-approval",
-      "Advanced analytics",
-      "AI recommendations",
-      "Advanced Business Brain",
-      "Content repurposing",
-      "Priority processing",
+      "Advanced analytics & activity logs",
+      "Adaptive Business Brain context",
+      "Priority processing queue",
     ],
-    cta: "Choose Pro",
+    cta: "Start Pro",
     highlighted: true,
   },
   CREATOR: {
-    badge: "BUILD YOUR ECOSYSTEM",
-    heading:
-      "For creators and small teams running more than one TikTok presence.",
+    badge: "Multi-Presence",
+    heading: "For creators and teams running multiple brands and high-volume drops.",
     includes: [
       "Everything in Pro, plus:",
-
       "Creator Command Center",
       "Cross-account intelligence",
-      "Priority processing",
+      "Higher monthly post capacity",
+      "Multi-brand memory silos",
     ],
-    cta: "Choose Creator",
+    cta: "Start Creator",
   },
   AGENCY: {
-    heading: "For teams managing TikTok for multiple clients.",
+    heading: "For agencies orchestrating separate client workspaces and approvals.",
     includes: [
       "Everything in Creator, plus:",
       "Multiple client workspaces",
-      "Client management",
-      "Team members",
+      "Client management & team seats",
       "Client-specific Business Brain",
-      "Agency overview",
-      "Client-level analytics",
-      "White-label where supported",
+      "Agency overview & cross-client analytics",
     ],
-    cta: "Choose Agency",
+    cta: "Start Agency",
   },
 };
 
@@ -103,7 +92,7 @@ export default function Pricing({
   currency: Currency;
 }) {
   const [plans, setPlans] = useState<Record<PlanTier, PlanEntitlements> | null>(
-    initialData ? toByTier(initialData) : null,
+    initialData ? toByTier(initialData) : null
   );
   const [pricing, setPricing] = useState<Record<
     PlanTier,
@@ -111,6 +100,7 @@ export default function Pricing({
   > | null>(initialData?.pricing ?? null);
   const [loadError, setLoadError] = useState(false);
   const [retrying, setRetrying] = useState(false);
+
   const retryPlans = async () => {
     setRetrying(true);
     setLoadError(false);
@@ -135,18 +125,18 @@ export default function Pricing({
       .catch(() => setLoadError(true));
   }, [initialData]);
 
-  const dynamicBullets = (tier: PlanTier): string[] => {
+  const dynamicLimits = (tier: PlanTier): string[] => {
     if (!plans) return [];
     const p = plans[tier];
-    const acct = `${p.maxBrands === -1 ? "Unlimited" : p.maxBrands} workspace${p.maxBrands === 1 ? "" : "s"}; ${p.maxSocialAccountsPerBrand === -1 ? "unlimited" : p.maxSocialAccountsPerBrand} social account${p.maxSocialAccountsPerBrand === 1 ? "" : "s"} per workspace`;
+    const acct = `${p.maxBrands === -1 ? "Unlimited" : p.maxBrands} workspace${p.maxBrands === 1 ? "" : "s"}`;
     const posts =
       p.maxMonthlyPosts === -1
-        ? "Unlimited posts/month"
-        : `${p.maxMonthlyPosts} posts/month`;
+        ? "Unlimited posts/mo"
+        : `${p.maxMonthlyPosts} posts/mo`;
     const ai =
       p.maxMonthlyAiGenerations === -1
-        ? "Unlimited AI generations/month"
-        : `${p.maxMonthlyAiGenerations} AI generations/month`;
+        ? "Unlimited AI generations"
+        : `${p.maxMonthlyAiGenerations} AI generations/mo`;
     const storage = `${formatStorage(p.maxStorageBytes)} storage`;
     return [acct, posts, ai, storage];
   };
@@ -154,223 +144,112 @@ export default function Pricing({
   return (
     <section
       id="pricing"
-      className="oy-pricing-section relative py-24 sm:py-32 lg:py-40"
+      className="oy-pricing-section-new"
       aria-label={`Pricing in ${currency}`}
       data-pricing-currency={currency}
     >
-      <div className="max-w-7xl mx-auto px-5 sm:px-8">
-        <GsapReveal className="text-center max-w-2xl mx-auto">
-          <Eyebrow>Simple Pricing</Eyebrow>
-          <h2 className="lp-heading-display mt-6 text-3xl sm:text-4xl lg:text-5xl">
-            Start free. Grow at your pace.
-          </h2>
-          <p
-            className="mt-5 text-sm leading-relaxed"
-            style={{ color: "var(--lp-text-secondary)" }}
-          >
-            Choose your monthly capacity. Review and approve posts on Free;
-            unlock more automation on paid plans.
+      <div className="oy-pricing-container">
+        <div className="oy-pricing-header">
+          <p className="oy-eyebrow">Clear Capacity Plans</p>
+          <h2>Start free. Scale your rhythm.</h2>
+          <p className="text-[15px] text-[var(--oy-ink-muted)]">
+            Review every post on Free. Unlock higher post capacity and continuous
+            Autopilot on paid tiers.
           </p>
-        </GsapReveal>
 
-        {loadError && (
-          <p role="status" className="mt-6 text-center text-sm">
-            Current prices could not be loaded.{" "}
-            <button
-              type="button"
-              className="underline p-2 touch-target"
-              aria-busy={retrying}
-              disabled={retrying}
-              onClick={retryPlans}
-            >
-              Retry prices
-            </button>
-          </p>
-        )}
-        <div className="oy-pricing-grid">
+          {loadError && (
+            <div className="mt-4 text-xs text-red-600">
+              Pricing details could not load right now.{" "}
+              <button
+                type="button"
+                className="underline font-semibold ml-1 cursor-pointer"
+                disabled={retrying}
+                onClick={retryPlans}
+              >
+                {retrying ? "Retrying..." : "Retry"}
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className="oy-pricing-grid-new">
           {(["FREE", "PRO", "CREATOR", "AGENCY"] as PlanTier[]).map((tier) => {
             const copy = CARD_COPY[tier];
             const price = pricing?.[tier]?.[currency];
+            const isFeatured = copy.highlighted;
+
             return (
               <div
                 key={tier}
                 data-tier={tier}
-                className={`lp-card lp-card-sheen oy-price-card h-full p-6 sm:p-8 flex flex-col relative ${copy.highlighted ? "is-featured" : ""}`}
+                className={`oy-plan-card ${isFeatured ? "is-featured" : ""}`}
               >
-                {copy.badge && (
-                  <span
-                    className="absolute -top-3 left-1/2 -translate-x-1/2 px-3.5 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
-                    style={{
-                      background: "var(--lp-gradient-gold)",
-                      color: "#241A08",
-                    }}
-                  >
-                    {copy.badge}
-                  </span>
-                )}
-                <h3 className="lp-heading-display text-xl">
-                  {plans?.[tier]?.displayName || tier}
-                </h3>
-                <p
-                  className="mt-3 text-sm leading-relaxed"
-                  style={{ color: "var(--lp-text-secondary)" }}
-                >
-                  {copy.heading}
-                </p>
+                {copy.badge && <div className="oy-plan-badge">{copy.badge}</div>}
 
-                <div className="mt-8">
+                <h3 className="oy-plan-name">{plans?.[tier]?.displayName || tier}</h3>
+                <p className="oy-plan-desc">{copy.heading}</p>
+
+                <div className="oy-plan-price-row">
                   {tier === "FREE" ? (
-                    <div className="flex flex-wrap items-baseline gap-1">
-                      <span className="lp-heading oy-price font-bold">
-                        {formatPrice(0, currency)}
-                      </span>
-                      <span
-                        className="text-sm"
-                        style={{ color: "var(--lp-text-muted)" }}
-                      >
-                        forever
-                      </span>
-                    </div>
+                    <>
+                      <span className="oy-plan-amount">{formatPrice(0, currency)}</span>
+                      <span className="oy-plan-period">forever</span>
+                    </>
                   ) : price?.newUserMonthly != null ? (
-                    <div>
-                      <div className="flex flex-wrap items-baseline gap-1">
-                        <span className="lp-heading oy-price font-bold">
-                          {formatPrice(price.newUserMonthly, currency)}
-                        </span>
-                        <span
-                          className="text-sm"
-                          style={{ color: "var(--lp-text-muted)" }}
-                        >
-                          /month
-                        </span>
-                      </div>
-                      <p
-                        className="mt-2 text-xs font-semibold"
-                        style={{ color: "var(--lp-gold)" }}
-                      >
-                        New-subscription monthly price.
-                      </p>
-                    </div>
+                    <>
+                      <span className="oy-plan-amount">
+                        {formatPrice(price.newUserMonthly, currency)}
+                      </span>
+                      <span className="oy-plan-period">/month</span>
+                    </>
                   ) : (
-                    <div className="flex flex-wrap items-baseline gap-1">
-                      <span className="lp-heading oy-price font-bold">
+                    <>
+                      <span className="oy-plan-amount">
                         {price?.regularMonthly != null
                           ? formatPrice(price.regularMonthly, currency)
-                          : "Price unavailable"}
+                          : "Custom"}
                       </span>
-                      <span
-                        className="text-sm"
-                        style={{ color: "var(--lp-text-muted)" }}
-                      >
-                        /month
-                      </span>
-                    </div>
+                      <span className="oy-plan-period">/month</span>
+                    </>
                   )}
                 </div>
 
-                <ul className="mt-8 space-y-3">
-                  {dynamicBullets(tier).slice(0, 2).map((f) => (
-                    <li key={f} className="flex items-start gap-3 text-sm">
-                      <Check
-                        className="h-4 w-4 shrink-0 mt-0.5"
-                        style={{
-                          color: copy.highlighted
-                            ? "var(--lp-gold)"
-                            : "var(--lp-cyan)",
-                        }}
-                      />
+                {/* Limits summary pills */}
+                {plans && (
+                  <div className="mb-4 pb-4 border-b border-[var(--oy-line)] flex flex-wrap gap-1.5">
+                    {dynamicLimits(tier).map((lim) => (
                       <span
-                        className="font-semibold leading-relaxed"
-                        style={{ color: "var(--lp-text-primary)" }}
+                        key={lim}
+                        className="text-[10px] font-medium bg-white text-[var(--oy-ink-muted)] border border-[var(--oy-line)] px-2 py-0.5 rounded-md"
                       >
-                        {f}
+                        {lim}
                       </span>
-                    </li>
-                  ))}
-                </ul>
-
-                <ul className="mt-6 space-y-3">
-                  {copy.includes.filter((f) => !f.startsWith("Everything in")).slice(0, 2).map((f) => (
-                    <li key={f} className="flex items-start gap-3 text-sm">
-                      <>
-                          <Check
-                            className="h-4 w-4 shrink-0 mt-0.5"
-                            style={{
-                              color: copy.highlighted
-                                ? "var(--lp-gold)"
-                                : "var(--lp-cyan)",
-                            }}
-                          />
-                          <span
-                            className="leading-relaxed"
-                            style={{ color: "var(--lp-text-secondary)" }}
-                          >
-                            {f}
-                          </span>
-                        </>
-                    </li>
-                  ))}
-                </ul>
-
-                <details className="oy-plan-details mt-5 flex-1">
-                  <summary>View all plan details</summary>
-                  <ul className="mt-4 space-y-2.5">
-                    {[...dynamicBullets(tier).slice(2), ...copy.includes.slice(copy.includes[0]?.startsWith("Everything in") ? 1 : 0).slice(2)].map((feature) => (
-                      <li key={feature} className="flex items-start gap-2 text-xs leading-relaxed" style={{ color: "var(--lp-text-secondary)" }}>
-                        <Check className="h-3.5 w-3.5 shrink-0 mt-0.5" style={{ color: copy.highlighted ? "var(--lp-gold)" : "var(--lp-cyan)" }} />
-                        <span>{feature}</span>
-                      </li>
                     ))}
-                  </ul>
-                </details>
+                  </div>
+                )}
+
+                <ul className="oy-plan-features">
+                  {copy.includes.map((feat) => (
+                    <li key={feat}>
+                      <Check className="w-4 h-4 text-[#10B981] flex-shrink-0" />
+                      <span>{feat}</span>
+                    </li>
+                  ))}
+                </ul>
 
                 <Link
                   href={`/register?plan=${tier}`}
-                  className={`mt-8 text-center px-5 py-4 rounded-xl text-sm lp-focus-ring ${copy.highlighted ? "lp-btn-primary" : "lp-btn-ghost font-semibold"}`}
+                  className={`oy-plan-cta ${
+                    isFeatured ? "oy-plan-cta-primary" : "oy-plan-cta-secondary"
+                  }`}
                 >
-                  {copy.cta}
+                  <span>{copy.cta}</span>
+                  <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
                 </Link>
-                <p
-                  className="mt-4 text-[11px] text-center"
-                  style={{ color: "var(--lp-text-muted)" }}
-                >
-                  {tier === "FREE"
-                    ? "No credit card required."
-                    : "Review the recurring price before payment."}
-                </p>
               </div>
             );
           })}
         </div>
-
-        <GsapReveal delay={0.1} className="mt-14 text-center">
-          <p
-            className="text-sm font-medium leading-relaxed"
-            style={{ color: "var(--lp-text-secondary)" }}
-          >
-            Built for businesses, creators and agencies.
-          </p>
-          <p
-            className="mt-2 text-sm leading-relaxed"
-            style={{ color: "var(--lp-text-muted)" }}
-          >
-            Creator: run separate TikTok workspaces with cross-account
-            intelligence. Agency: manage brands and client workspaces from one
-            place.
-          </p>
-        </GsapReveal>
-
-        <GsapReveal delay={0.15} className="mt-10 text-center">
-          <p
-            className="text-xs leading-relaxed max-w-2xl mx-auto"
-            style={{ color: "var(--lp-text-muted)" }}
-          >
-            All plans can be changed or cancelled according to the applicable
-            billing terms. Your account starts on Free. Review eligibility,
-            currency, billing interval and the final recurring price at checkout
-            before subscribing.
-          </p>
-        </GsapReveal>
       </div>
     </section>
   );

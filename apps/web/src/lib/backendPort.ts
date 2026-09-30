@@ -28,6 +28,7 @@ export async function getBackendPort(): Promise<number> {
   if (backendPortPromise) return backendPortPromise;
 
   backendPortPromise = (async () => {
+    const bootStartedAt = performance.now();
     const { NestFactory } = await import('@nestjs/core');
     const { ValidationPipe } = await import('@nestjs/common');
     const { ExpressAdapter } = await import('@nestjs/platform-express');
@@ -106,6 +107,7 @@ export async function getBackendPort(): Promise<number> {
     if (!address || typeof address === 'string') {
       throw new Error('Failed to determine backend port');
     }
+    console.info(`[PERF] ${JSON.stringify({ label: 'backend-boot', duration: Math.round(performance.now() - bootStartedAt), coldStart: true })}`);
     return address.port;
   })();
 

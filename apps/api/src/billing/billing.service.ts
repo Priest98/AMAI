@@ -7,8 +7,9 @@ import { PaystackProviderService } from './providers/paystack-provider.service';
 import { EntitlementsService } from './entitlements.service';
 import { UsageService } from './usage.service';
 import { getAppUrl } from '../common/app-url.util';
-import { DEFAULT_CURRENCY, SUPPORTED_CURRENCIES } from './plans.config';
+import { DEFAULT_CURRENCY, SUPPORTED_CURRENCIES, getPlanEntitlements } from './plans.config';
 import type { SupportedCurrency } from './plans.config';
+import type { OrganizationContext } from '../common/organization-context.service';
 
 @Injectable()
 export class BillingService {
@@ -41,12 +42,20 @@ export class BillingService {
     throw new BadRequestException(`No billing provider on this subscription (provider="${name}") -- upgrade first to create one.`);
   }
 
+  getPlanSummaryFromContext(context: OrganizationContext) {
+    return {
+      plan: context.effectivePlan,
+      subscribedPlan: context.subscription.plan,
+      status: context.subscription.status,
+      entitlements: context.entitlements,
+    };
+  }
+
   async getBillingSummary(brandId: string) {
     const organizationId = await this.entitlementsService.getOrganizationIdForBrand(brandId);
     const subscription = await this.entitlementsService.getSubscription(organizationId);
-    const entitlements = await this.entitlementsService.getEntitlementsForOrganization(organizationId);
-    const usage = await this.usageService.getAllUsage(organizationId);
-    const storage = await this.entitlementsService.checkStorageUsage(organizationId);
+    const effectivePlan = this.entitlementsService.effectivePlan(subscription);
+    const entitlements = getPlanEntitlements(effectivePlan);
     const period = this.usageService.getCurrentPeriod();
 
     // Countable (non-metered) entitlements. These are live counts rather
@@ -54,12 +63,17 @@ export class BillingService {
     // immediately, so a stored tally would drift. Clients only matter on a
     // plan that allows more than one, but the number is cheap and lets the
     // UI decide whether to show it.
-    const [socialAccountCount, clientCount] = await Promise.all([
+    const [usage, storageAggregate, socialAccountCount, clientCount] = await Promise.all([
+      this.usageService.getAllUsage(organizationId),
+      this.prisma.mediaAsset.aggregate({
+        where: { brand: { organizationId } },
+        _sum: { sizeBytes: true },
+      }),
       this.prisma.socialAccount.count({ where: { brand: { organizationId } } }),
       this.prisma.brand.count({ where: { organizationId } }),
     ]);
 
-    const effectivePlan = this.entitlementsService.effectivePlan(subscription);
+    const storageUsed = storageAggregate._sum.sizeBytes ?? 0;
     return {
       plan: effectivePlan,
       subscribedPlan: subscription.plan,
@@ -78,7 +92,7 @@ export class BillingService {
       usage: {
         aiGenerations: { used: usage.AI_GENERATION, limit: entitlements.maxMonthlyAiGenerations },
         posts: { used: usage.POST_PUBLISHED, limit: entitlements.maxMonthlyPosts },
-        storage: { used: storage.used, limit: storage.limit },
+        storage: { used: storageUsed, limit: entitlements.maxStorageBytes },
         // maxSocialAccountsPerBrand is a per-brand ceiling; for a single-brand
         // Free/Pro org that equals the org total, and for Agency the useful
         // comparison is still per-brand, so the limit is reported as-is

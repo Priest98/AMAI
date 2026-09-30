@@ -9,5 +9,6 @@ import { BillingModule } from '../billing/billing.module';
   imports: [EngineModule, QueueModule, BillingModule],
   controllers: [PostsController],
   providers: [PostsService],
+  exports: [PostsService],
 })
 export class PostsModule {}

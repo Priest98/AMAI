@@ -1,97 +1,60 @@
 "use client";
 
-import React from 'react';
-import Link from 'next/link';
-import { Monogram } from '@/components/logo';
-
-const COLUMNS = [
-  {
-    title: 'Product',
-    links: [
-      { label: 'How It Works', href: '#how-it-works' },
-      { label: 'Pricing', href: '#pricing' },
-    ],
-  },
-  {
-    // "About" previously linked to "/" -- since that's the page you're
-    // already on, it was a functional no-op ("fake button": looks
-    // clickable, does nothing meaningful). Removed rather than invented,
-    // since writing a real About page is out of scope here. Contact stays:
-    // a mailto is a genuinely working destination, just using the
-    // founder's real address until a dedicated support inbox exists (same
-    // address as Privacy/Terms' CONTACT_EMAIL).
-    title: 'Company',
-    links: [
-      { label: 'Contact', href: 'mailto:hello@oyinca.com' },
-    ],
-  },
-  {
-    title: 'Resources',
-    links: [
-      { label: 'FAQ', href: '#faq' },
-    ],
-  },
-  {
-    title: 'Legal',
-    links: [
-      { label: 'Privacy', href: '/privacy' },
-      { label: 'Terms', href: '/terms' },
-      { label: 'Account deletion', href: '/privacy#data-retention-deletion' },
-      { label: 'TikTok data', href: '/privacy#tiktok-data' },
-    ],
-  },
-];
+import React from "react";
+import Link from "next/link";
+import { Monogram } from "@/components/logo";
 
 export default function Footer() {
   return (
-    <footer className="relative border-t" style={{ borderColor: 'var(--lp-border)' }}>
-      <div className="max-w-7xl mx-auto px-5 sm:px-8 py-20 sm:py-24">
-        <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-12">
-          <div className="lg:col-span-1">
-            <Link href="/" className="flex items-center gap-2 font-bold text-lg lp-heading tracking-tight lp-focus-ring">
-              <Monogram className="h-7 w-7 rounded-lg" />
-              <span className="lp-gradient-text">Oyinca</span>
+    <footer className="oy-editorial-footer" role="contentinfo">
+      <div className="oy-footer-inner">
+        <div className="oy-footer-top">
+          <div className="oy-footer-brand">
+            <Link href="/" className="flex items-center gap-2.5 text-[var(--oy-ink)] font-bold tracking-wider text-sm">
+              <Monogram className="h-6 w-6" />
+              <span>OYINCA</span>
             </Link>
-            <p className="mt-4 text-sm leading-relaxed max-w-xs" style={{ color: 'var(--lp-text-secondary)' }}>
-              Your AI Social Media Manager, starting with TikTok.
+            <p>
+              Your social media manager. Intelligent media analysis, drafting, and
+              autonomous scheduling for TikTok.
             </p>
           </div>
 
-          {COLUMNS.map((col) => (
-            <div key={col.title}>
-              <h2 className="text-[13px] font-bold uppercase tracking-wider" style={{ color: 'var(--lp-text-muted)' }}>
-                {col.title}
-              </h2>
-              <ul className="mt-4 space-y-3">
-                {col.links.map((link) => (
-                  <li key={link.label}>
-                    <Link
-                      href={link.href}
-                      className="text-sm lp-focus-ring"
-                      style={{ color: 'var(--lp-text-secondary)' }}
-                    >
-                      {link.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+          <div className="oy-footer-col">
+            <h4>Product</h4>
+            <ul>
+              <li><a href="#product">Overview</a></li>
+              <li><a href="#how-it-works">How it works</a></li>
+              <li><a href="#pricing">Pricing</a></li>
+              <li><a href="#faq">FAQ</a></li>
+            </ul>
+          </div>
+
+          <div className="oy-footer-col">
+            <h4>Account</h4>
+            <ul>
+              <li><Link href="/login">Sign in</Link></li>
+              <li><Link href="/register?plan=FREE">Get started</Link></li>
+            </ul>
+          </div>
+
+          <div className="oy-footer-col">
+            <h4>Legal</h4>
+            <ul>
+              <li><Link href="/privacy">Privacy Policy</Link></li>
+              <li><Link href="/terms">Terms of Service</Link></li>
+              <li><a href="mailto:hello@oyinca.com">Contact Support</a></li>
+            </ul>
+          </div>
         </div>
 
-        <div
-          className="mt-14 pt-8 border-t flex flex-col sm:flex-row items-center justify-between gap-4 text-[13px]"
-          style={{ borderColor: 'var(--lp-border)', color: 'var(--lp-text-muted)' }}
-        >
-          <div className="flex flex-col sm:flex-row items-center gap-1 sm:gap-3">
-            <span>© {new Date().getFullYear()} Oyinca. Powered by Turaab Technology. All rights reserved.</span>
+        <div className="oy-footer-bottom">
+          <div>
+            © {new Date().getFullYear()} Oyinca. Powered by Turaab Technology. All rights reserved.
           </div>
-          {/* Previously linked "TikTok"/"X" to tiktok.com and x.com -- the
-              platforms' generic homepages, not an actual Oyinca profile on
-              either. That reads as a fake/broken social link (visitor
-              expects the brand's account, lands on a generic homepage
-              instead), so removed until real Oyinca social profile URLs
-              exist to link to. */}
+          <div className="text-xs">
+            Focused on TikTok automation & brand memory.
+          </div>
         </div>
       </div>
     </footer>

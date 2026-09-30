@@ -28,7 +28,7 @@ import {
   Layers,
 } from 'lucide-react';
 import { getCurrentUser, logout } from '@/lib/api';
-import { getBillingSummary } from '@/lib/billing';
+import { DashboardDataProvider, useDashboardData } from '@/lib/DashboardDataContext';
 import { EngineEventsProvider } from '@/lib/EngineEventsContext';
 import { OnboardingProvider } from '@/components/onboarding/OnboardingContext';
 import NotificationsBell from '@/components/dashboard/NotificationsBell';
@@ -131,7 +131,7 @@ const mobileTabItems = [
   { label: 'Settings', href: '/dashboard/settings', icon: Settings },
 ];
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+function DashboardShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [userName, setUserName] = useState('User');
@@ -156,6 +156,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // resolved — without this, an unauthenticated visitor briefly sees the
   // full protected layout flash on screen before the redirect kicks in.
   const [isAuthChecked, setIsAuthChecked] = useState(false);
+  const { bootstrap } = useDashboardData();
 
   // Next prefetches visible links in production. These intent handlers also
   // cover links inside the mobile drawer and bottom bar before a tap commits
@@ -185,15 +186,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // defaults rather than throwing, since a billing hiccup shouldn't take
   // down the whole dashboard shell.
   useEffect(() => {
-    getBillingSummary()
-      .then((b) => {
-        setHasAgency(b.entitlements.clientManagement === true);
-        setHasCreator(b.entitlements.tier === 'CREATOR');
-        setWorkspaceLabel(`${b.plan.toLowerCase()}_workspace`);
-        setAnalyticsLocked(b.entitlements.analyticsLevel !== 'advanced');
-      })
-      .catch(() => {});
-  }, []);
+    if (!bootstrap) return;
+    const b = bootstrap.billing;
+    setHasAgency(b.entitlements.clientManagement === true);
+    setHasCreator(b.entitlements.tier === 'CREATOR');
+    setWorkspaceLabel(`${b.plan.toLowerCase()}_workspace`);
+    setAnalyticsLocked(b.entitlements.analyticsLevel !== 'advanced');
+  }, [bootstrap]);
 
   const visibleNavSections = navSections.filter((section) => {
     if (section.title === 'Agency') return hasAgency;
@@ -577,5 +576,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     </div>
     </OnboardingProvider>
     </EngineEventsProvider>
+  );
+}
+
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <DashboardDataProvider>
+      <DashboardShell>{children}</DashboardShell>
+    </DashboardDataProvider>
   );
 }

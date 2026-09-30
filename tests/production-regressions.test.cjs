@@ -284,3 +284,25 @@ test('integration readiness distinguishes connection, approval, testing, and rea
   assert.match(ui, /Connected · test required/);
   assert.match(ui, /Ready ✓/);
 });
+
+test('dashboard startup uses one guarded bootstrap and defers secondary data', () => {
+  const controller = fs.readFileSync(path.join(root, 'apps/api/src/dashboard/dashboard.controller.ts'), 'utf8');
+  const service = fs.readFileSync(path.join(root, 'apps/api/src/dashboard/dashboard.service.ts'), 'utf8');
+  const page = fs.readFileSync(path.join(root, 'apps/web/src/app/dashboard/page.tsx'), 'utf8');
+  const layout = fs.readFileSync(path.join(root, 'apps/web/src/app/dashboard/layout.tsx'), 'utf8');
+  const provider = fs.readFileSync(path.join(root, 'apps/web/src/lib/DashboardDataContext.tsx'), 'utf8');
+
+  assert.match(controller, /@UseGuards\(JwtAuthGuard, BrandAccessGuard\)/);
+  assert.match(controller, /@Get\('bootstrap'\)/);
+  assert.match(service, /organizationContext\.resolve\(brandId, organizationId\)/);
+  assert.match(service, /Promise\.all\(\[/);
+  assert.match(provider, /brandFetch<DashboardBootstrap>\('\/dashboard\/bootstrap'\)/);
+  assert.match(provider, /if \(!bootstrap \|\| billing\) return/);
+  assert.doesNotMatch(page, /brandFetch<[^>]+>\('\/engine\/state'\)/);
+  assert.doesNotMatch(page, /apiFetch<any>\('\/oauth\/accounts'\)/);
+  assert.doesNotMatch(page, /if \(loading \|\| loadError\) return/);
+  assert.match(page, /event\.postId \|\| event\.mediaAssetId/);
+  assert.match(page, /refreshStats\(\)/);
+  assert.match(layout, /DashboardDataProvider/);
+  assert.doesNotMatch(layout, /getBillingSummary/);
+});

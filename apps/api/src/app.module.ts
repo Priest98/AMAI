@@ -23,6 +23,7 @@ import { MarketingModule } from './marketing/marketing.module';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { CapabilitiesModule } from './capabilities/capabilities.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -31,7 +32,7 @@ import { CapabilitiesModule } from './capabilities/capabilities.module';
       limit: 10,
     }]),
     EventEmitterModule.forRoot(),
-    PrismaModule, AuthModule, EncryptionModule, StorageModule, MediaModule, PostsModule, QueueModule, AiModule, EngineModule, GrowthModule, WebhooksModule, OAuthModule, BusinessBrainModule, BillingModule, BrandsModule, AdminModule, ProductsModule, MarketingModule, CapabilitiesModule
+    PrismaModule, AuthModule, EncryptionModule, StorageModule, MediaModule, PostsModule, QueueModule, AiModule, EngineModule, GrowthModule, WebhooksModule, OAuthModule, BusinessBrainModule, BillingModule, BrandsModule, AdminModule, ProductsModule, MarketingModule, CapabilitiesModule, DashboardModule
   ],
   controllers: [AppController],
   providers: [
@@ -43,4 +44,3 @@ import { CapabilitiesModule } from './capabilities/capabilities.module';
   ],
 })
 export class AppModule {}
-
