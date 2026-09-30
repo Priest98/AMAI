@@ -1,11 +1,13 @@
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PassportStrategy } from '@nestjs/passport';
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AUTH_COOKIE_NAME, parseCookieHeader } from '../common/cookies.util';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
+  private readonly logger = new Logger(JwtStrategy.name);
+
   constructor(private prisma: PrismaService) {
     const secret = process.env.JWT_SECRET;
     if (!secret) {
@@ -33,17 +35,22 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: any) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: payload.sub },
-    });
+    const startedAt = performance.now();
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: { id: payload.sub },
+      });
 
-    if (!user) {
-      throw new UnauthorizedException();
+      if (!user) {
+        throw new UnauthorizedException();
+      }
+
+      // Merge the brandId claim (resolved from real org/brand membership at
+      // login time — see AuthService.generateAuthResponse) onto the request
+      // user so downstream guards can verify brand-scoped access.
+      return { ...user, brandId: payload.brandId };
+    } finally {
+      this.logger.log(`[PERF] ${JSON.stringify({ label: 'authentication', duration: Math.round(performance.now() - startedAt) })}`);
     }
-
-    // Merge the brandId claim (resolved from real org/brand membership at
-    // login time — see AuthService.generateAuthResponse) onto the request
-    // user so downstream guards can verify brand-scoped access.
-    return { ...user, brandId: payload.brandId };
   }
 }
