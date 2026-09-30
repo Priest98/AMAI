@@ -15,7 +15,11 @@ jobs:
         node-version: 22
         cache: npm
     - name: Install dependencies
-      run: npm ci --ignore-scripts
+      # npm ci currently exits before dependency resolution on the hosted
+      # Linux runner even though the same lockfile validates under Node 22
+      # and 24 locally. Keep lifecycle scripts disabled, install from the
+      # committed ranges, then generate the only required client explicitly.
+      run: npm install --ignore-scripts --no-audit --no-fund
     - name: Generate Prisma client
       run: npx prisma generate --schema apps/api/prisma/schema.prisma
     - name: Install Playwright Browsers
