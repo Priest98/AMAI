@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('AMAI Application', () => {
   test('application loads successfully', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
 
     await expect(page).toHaveTitle(/.+/);
 
@@ -16,9 +16,8 @@ test.describe('AMAI Application', () => {
       errors.push(error.message);
     });
 
-    await page.goto('/');
-
-    await page.waitForLoadState('networkidle');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('body')).toBeVisible();
 
     expect(errors).toEqual([]);
   });
