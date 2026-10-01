@@ -2,7 +2,14 @@
 
 import React, { useRef } from "react";
 import Link from "next/link";
-import { ArrowRight, Play, Sparkles, CheckCircle2, Clock } from "lucide-react";
+import { ArrowRight, Play, Upload, ScanLine, MessageSquareText, CalendarCheck, Check } from "lucide-react";
+
+const WORKFLOW = [
+  { label: "Content received", detail: "campaign-film.mp4", icon: Upload, state: "done" },
+  { label: "Understood", detail: "Product story · warm, direct tone", icon: ScanLine, state: "done" },
+  { label: "Post prepared", detail: "Caption and hashtags ready", icon: MessageSquareText, state: "active" },
+  { label: "Awaiting you", detail: "Review before scheduling", icon: CalendarCheck, state: "next" },
+] as const;
 
 export default function HeroSection() {
   const heroRef = useRef<HTMLElement>(null);
@@ -41,30 +48,45 @@ export default function HeroSection() {
           </div>
         </div>
 
-        <div className="oy-hero-visual" aria-hidden="true">
-          {/* Dimensional metallic intelligence core */}
-          <div className="oy-core-sphere">
-            <div className="oy-core-inner-ring" />
-            <div className="oy-core-outer-ring" />
-            
-            {/* Center icon / signature emblem */}
-            <div className="relative z-10 flex flex-col items-center justify-center text-white select-none">
-              <Sparkles className="w-10 h-10 text-[#EBF3F8] drop-shadow-md animate-pulse" />
-              <span className="text-[11px] font-bold tracking-[0.25em] text-[#EBF3F8] mt-2 uppercase opacity-90">
-                Oyinca Core
-              </span>
+        <div className="oy-hero-visual" aria-label="A post moving through Oyinca from upload to approval">
+          <div className="oy-workflow-window">
+            <div className="oy-workflow-topbar">
+              <div>
+                <span className="oy-workflow-kicker">Current workflow</span>
+                <strong>One upload. A ready post.</strong>
+              </div>
+              <span className="oy-live-status"><i />Oyinca working</span>
             </div>
-          </div>
 
-          {/* Floating Contextual Badges */}
-          <div className="oy-floating-badge oy-badge-top-right">
-            <span className="oy-badge-dot" />
-            <span>Analyzing video pace & tone</span>
-          </div>
+            <div className="oy-workflow-preview">
+              <div className="oy-preview-media">
+                <div className="oy-preview-play"><Play className="h-4 w-4 fill-current" /></div>
+                <span>00:18</span>
+              </div>
+              <div className="oy-preview-copy">
+                <span>TikTok draft</span>
+                <p>Built for the moments that move your audience.</p>
+                <div>#brandstory&nbsp;&nbsp;#behindthescenes</div>
+              </div>
+            </div>
 
-          <div className="oy-floating-badge oy-badge-bottom-left">
-            <Clock className="w-4 h-4 text-[var(--oy-blue-steel)]" />
-            <span>Optimal slot: Today at 6:15 PM</span>
+            <ol className="oy-workflow-list">
+              {WORKFLOW.map(({ label, detail, icon: Icon, state }) => (
+                <li key={label} data-state={state}>
+                  <span className="oy-workflow-icon">
+                    {state === "done" ? <Check className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
+                  </span>
+                  <span><strong>{label}</strong><small>{detail}</small></span>
+                  {state === "active" && <span className="oy-processing-bars" aria-label="Processing"><i /><i /><i /></span>}
+                </li>
+              ))}
+            </ol>
+
+            <div className="oy-workflow-footer">
+              <span>Proposed time</span>
+              <strong>Today · 6:15 PM</strong>
+              <span className="oy-review-chip">Ready to review</span>
+            </div>
           </div>
         </div>
       </div>

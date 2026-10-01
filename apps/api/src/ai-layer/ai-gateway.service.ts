@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { AiChatMessage, AiProviderAdapter } from './interfaces/ai-provider.interface';
+import { AiChatMessage, AiProviderAdapter, AiProviderRequestError } from './interfaces/ai-provider.interface';
 import { ApiKeyManagerService } from './key-manager/api-key-manager.service';
 import { GroqProvider } from './providers/groq.provider';
 import { GeminiProvider } from './providers/gemini.provider';
@@ -72,6 +72,37 @@ export class AiGatewayService {
     return configured.filter((p) => this.providers[p]);
   }
 
+  private logProviderFailure(
+    label: string,
+    provider: AiProviderAdapter,
+    error: unknown,
+    durationMs: number,
+    keyLabel?: string,
+  ): void {
+    const typed = error instanceof AiProviderRequestError ? error : null;
+    const rawMessage = error instanceof Error ? error.message : 'Unknown provider failure';
+    const message = rawMessage
+      .replace(/Bearer\s+[A-Za-z0-9._-]+/gi, 'Bearer [REDACTED]')
+      .replace(/(api[_-]?key|token|secret)\s*[=:]\s*[^\s,}]+/gi, '$1=[REDACTED]')
+      .slice(0, 500);
+    this.logger.warn(JSON.stringify({
+      event: 'ai_provider_request',
+      operation: label,
+      provider: provider.name,
+      model: provider.model,
+      status: 'failed',
+      httpStatus: typed?.details.httpStatus,
+      errorCode: typed?.details.code,
+      errorType: typed?.details.type || (error instanceof Error ? error.name : 'unknown'),
+      message,
+      requestId: typed?.details.requestId,
+      retryAfter: typed?.details.retryAfter,
+      timeout: typed?.details.timeout || /timed out|abort/i.test(message),
+      durationMs,
+      keyLabel,
+    }));
+  }
+
   /**
    * Runs one AI request through the provider chain. Returns null (never
    * throws) once every provider/key combination has been exhausted, so
@@ -93,7 +124,11 @@ export class AiGatewayService {
       if (provider.supportsMultipleKeys) {
         const result = await this.tryMultiKeyProvider(provider, providerName, req, timeoutMs);
         if (result) {
-          this.logger.log(`[${req.label}] request completed via ${providerName} in ${Date.now() - start}ms`);
+          this.logger.log(JSON.stringify({
+            event: 'ai_provider_request', operation: req.label, provider: providerName,
+            model: provider.model, status: 'success', durationMs: Date.now() - start,
+            keyLabel: result.keyLabel,
+          }));
           return { ...result, model: provider.model, estimatedCostUsd: this.estimateCost(providerName, result.tokensUsed), elapsedMs: Date.now() - start };
         }
         continue;
@@ -102,16 +137,20 @@ export class AiGatewayService {
       const attemptStart = Date.now();
       try {
         const result = await provider.complete(req.messages, { maxTokens: req.maxTokens, timeoutMs });
-        this.logger.log(`[${req.label}] response received from ${providerName} in ${Date.now() - attemptStart}ms`);
-        this.logger.log(`[${req.label}] request completed via ${providerName} in ${Date.now() - start}ms`);
+        this.logger.log(JSON.stringify({
+          event: 'ai_provider_request', operation: req.label, provider: providerName,
+          model: provider.model, status: 'success', durationMs: Date.now() - attemptStart,
+        }));
         return { text: result.text, provider: providerName, model: provider.model, estimatedCostUsd: this.estimateCost(providerName, result.tokensUsed), elapsedMs: Date.now() - start, tokensUsed: result.tokensUsed };
       } catch (error: any) {
-        const message = error?.message || `Unknown ${providerName} error`;
-        this.logger.warn(`[${req.label}] failure handled: ${providerName} — ${message}`);
+        this.logProviderFailure(req.label, provider, error, Date.now() - attemptStart);
       }
     }
 
-    this.logger.warn(`[${req.label}] request completed with no provider able to answer, in ${Date.now() - start}ms`);
+    this.logger.warn(JSON.stringify({
+      event: 'ai_gateway_request', operation: req.label,
+      status: 'all_providers_failed', durationMs: Date.now() - start,
+    }));
     return null;
   }
 
@@ -142,7 +181,12 @@ export class AiGatewayService {
       } catch (error: any) {
         const message = error?.message || `Unknown ${providerName} error`;
         this.keyManager.reportFailure(providerName, key.label, message);
-        this.logger.warn(`[${req.label}] failure handled: ${providerName}:${key.label} — ${message}`);
+        this.logProviderFailure(req.label, provider, error, Date.now() - attemptStart, key.label);
+        // A missing model is provider-wide, so rotating credentials only
+        // repeats the same request and delays the configured fallback.
+        if (error instanceof AiProviderRequestError && error.details.code === 'model_not_found') {
+          break;
+        }
         if (attempt < MAX_KEY_ATTEMPTS_PER_PROVIDER - 1) {
           this.logger.log(`[${req.label}] retry executed: trying next ${providerName} key`);
         }

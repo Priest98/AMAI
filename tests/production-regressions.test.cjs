@@ -10,10 +10,12 @@ const { PublishingService } = require('../apps/api/src/queue/publishing.service'
 const { MediaService } = require('../apps/api/src/media/media.service');
 const { MetricsService } = require('../apps/api/src/metrics/metrics.service');
 const { GroqProvider } = require('../apps/api/src/ai-layer/providers/groq.provider');
+const { AiProviderRequestError } = require('../apps/api/src/ai-layer/interfaces/ai-provider.interface');
+const { AiGatewayService } = require('../apps/api/src/ai-layer/ai-gateway.service');
 
 test('Groq product copy disables reasoning and honors the requested output budget', async (t) => {
   const previousModel = process.env.GROQ_MODEL;
-  process.env.GROQ_MODEL = 'qwen/qwen3.6-27b';
+  process.env.GROQ_MODEL = 'qwen/qwen3.8-27b';
   let requestBody;
   t.mock.method(global, 'fetch', async (_url, init) => {
     requestBody = JSON.parse(init.body);
@@ -27,6 +29,103 @@ test('Groq product copy disables reasoning and honors the requested output budge
   assert.equal('max_tokens' in requestBody, false);
   if (previousModel === undefined) delete process.env.GROQ_MODEL;
   else process.env.GROQ_MODEL = previousModel;
+});
+
+test('retired Groq Qwen model is migrated to its supported multimodal successor', async (t) => {
+  const previousModel = process.env.GROQ_MODEL;
+  process.env.GROQ_MODEL = 'qwen/qwen3.6-27b';
+  let requestBody;
+  t.mock.method(global, 'fetch', async (_url, init) => {
+    requestBody = JSON.parse(init.body);
+    return { ok: true, json: async () => ({ choices: [{ message: { content: 'Ready caption.' } }] }) };
+  });
+  await new GroqProvider().complete([{ role: 'user', content: 'Write a caption.' }], { maxTokens: 300, timeoutMs: 1_000 }, 'test-key');
+  assert.equal(requestBody.model, 'qwen/qwen3.8-27b');
+  if (previousModel === undefined) delete process.env.GROQ_MODEL;
+  else process.env.GROQ_MODEL = previousModel;
+});
+
+test('Groq omits Qwen-only reasoning fields for operator-selected models', async (t) => {
+  const previousModel = process.env.GROQ_MODEL;
+  process.env.GROQ_MODEL = 'openai/gpt-oss-20b';
+  let requestBody;
+  t.mock.method(global, 'fetch', async (_url, init) => {
+    requestBody = JSON.parse(init.body);
+    return { ok: true, json: async () => ({ choices: [{ message: { content: 'Ready caption.' } }] }) };
+  });
+  await new GroqProvider().complete([{ role: 'user', content: 'Write a caption.' }], { maxTokens: 300, timeoutMs: 1_000 }, 'test-key');
+  assert.equal('reasoning_effort' in requestBody, false);
+  assert.equal('reasoning_format' in requestBody, false);
+  if (previousModel === undefined) delete process.env.GROQ_MODEL;
+  else process.env.GROQ_MODEL = previousModel;
+});
+
+test('Groq exposes sanitized provider failure metadata without request credentials', async (t) => {
+  t.mock.method(global, 'fetch', async () => ({
+    ok: false,
+    status: 404,
+    headers: new Headers({ 'x-request-id': 'req_test' }),
+    text: async () => JSON.stringify({ error: { message: 'model retired', type: 'invalid_request_error', code: 'model_not_found' } }),
+  }));
+  await assert.rejects(
+    new GroqProvider().complete([{ role: 'user', content: 'Write a caption.' }], { maxTokens: 300, timeoutMs: 1_000 }, 'secret-test-key'),
+    (error) => {
+      assert.equal(error instanceof AiProviderRequestError, true);
+      assert.equal(error.details.httpStatus, 404);
+      assert.equal(error.details.code, 'model_not_found');
+      assert.equal(error.details.requestId, 'req_test');
+      assert.doesNotMatch(error.message, /secret-test-key/);
+      return true;
+    },
+  );
+});
+
+function gatewayWith(groqComplete, geminiComplete) {
+  const keyManager = {
+    getNextKey: async () => ({ label: 'GROQ_API_KEY', value: 'test-key' }),
+    reportSuccess: () => {},
+    reportFailure: () => {},
+  };
+  const groq = {
+    name: 'groq', model: 'qwen/qwen3.8-27b', supportsMultipleKeys: true,
+    isConfigured: () => true, complete: groqComplete,
+  };
+  const gemini = {
+    name: 'gemini', model: 'gemini-flash-latest', supportsMultipleKeys: false,
+    isConfigured: () => true, complete: geminiComplete,
+  };
+  return new AiGatewayService(keyManager, groq, gemini);
+}
+
+test('AI gateway returns Groq success without invoking Gemini', async () => {
+  let geminiCalls = 0;
+  const gateway = gatewayWith(
+    async () => ({ text: 'Groq caption' }),
+    async () => { geminiCalls++; return { text: 'Gemini caption' }; },
+  );
+  const result = await gateway.generate({ label: 'caption generation', maxTokens: 300, messages: [{ role: 'user', content: 'caption' }] });
+  assert.equal(result.provider, 'groq');
+  assert.equal(result.text, 'Groq caption');
+  assert.equal(geminiCalls, 0);
+});
+
+test('AI gateway falls back to Gemini after Groq failure', async () => {
+  const gateway = gatewayWith(
+    async () => { throw new AiProviderRequestError('model retired', { httpStatus: 404, code: 'model_not_found' }); },
+    async () => ({ text: 'Gemini caption' }),
+  );
+  const result = await gateway.generate({ label: 'caption generation', maxTokens: 300, messages: [{ role: 'user', content: 'caption' }] });
+  assert.equal(result.provider, 'gemini');
+  assert.equal(result.text, 'Gemini caption');
+});
+
+test('AI gateway fails closed after every provider fails', async () => {
+  const gateway = gatewayWith(
+    async () => { throw new Error('Groq unavailable'); },
+    async () => { throw new Error('Gemini unavailable'); },
+  );
+  const result = await gateway.generate({ label: 'caption generation', maxTokens: 300, messages: [{ role: 'user', content: 'caption' }] });
+  assert.equal(result, null);
 });
 
 test('caption retry reuses an uploaded failed asset without rerunning video optimization', async () => {

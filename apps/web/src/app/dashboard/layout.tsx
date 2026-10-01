@@ -7,7 +7,6 @@ import { Logo } from '@/components/logo';
 import {
   LayoutDashboard,
   Zap,
-  FolderKanban,
   Radio,
   Settings,
   LogOut,
@@ -52,7 +51,7 @@ interface NavSection {
 const navSections: NavSection[] = [
   {
     items: [
-      { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+      { label: 'Home', href: '/dashboard', icon: LayoutDashboard },
     ],
   },
   {
@@ -72,19 +71,13 @@ const navSections: NavSection[] = [
     ],
   },
   {
-    title: 'Automation & Queue',
+    title: 'Your workflow',
     items: [
+      { label: 'Create', href: '/dashboard/media', icon: Plus },
       { label: 'Approval Queue', href: '/dashboard/approval-queue', icon: CheckSquare },
-      { label: 'Publishing Calendar', href: '/dashboard/calendar', icon: CalendarClock },
-      { label: 'Scheduled Posts', href: '/dashboard/scheduled', icon: CalendarIcon },
-      { label: 'Published Posts', href: '/dashboard/published', icon: CheckCircle2 },
-      { label: 'Oyinca', href: '/dashboard/engine', icon: Zap },
-    ],
-  },
-  {
-    title: 'Create',
-    items: [
-      { label: 'Create', href: '/dashboard/media', icon: FolderKanban },
+      { label: 'Calendar', href: '/dashboard/calendar', icon: CalendarClock },
+      { label: 'Scheduled', href: '/dashboard/scheduled', icon: CalendarIcon },
+      { label: 'Published', href: '/dashboard/published', icon: CheckCircle2 },
     ],
   },
   {
@@ -93,9 +86,10 @@ const navSections: NavSection[] = [
     // generic "Integrations", which would otherwise read as if there were
     // several to browse (see lib/featureFlags.ts; Instagram's entry point
     // inside this page is hidden, not this whole section).
-    title: 'TikTok',
+    title: 'Manage',
     items: [
-      { label: 'TikTok', href: '/dashboard/integrations', icon: Radio },
+      { label: 'Accounts', href: '/dashboard/integrations', icon: Radio },
+      { label: 'Autopilot', href: '/dashboard/engine', icon: Zap },
     ],
   },
   {
@@ -107,7 +101,7 @@ const navSections: NavSection[] = [
       // area of Oyinca, not have it hidden outright), with a lock badge
       // rendered inline below for whichever plan doesn't have it yet. The
       // page itself renders a real LockedFeature preview rather than 404ing.
-      { label: 'Oyinca Intelligence', href: '/dashboard/intelligence', icon: Gem },
+      { label: 'Oyinca Brain', href: '/dashboard/intelligence', icon: Gem },
       { label: 'Settings', href: '/dashboard/settings', icon: Settings },
     ],
   },

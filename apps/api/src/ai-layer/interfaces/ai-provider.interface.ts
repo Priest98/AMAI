@@ -45,6 +45,24 @@ export interface AiCompletionResult {
   tokensUsed?: number;
 }
 
+/** Sanitized provider failure metadata used by the gateway for diagnostics. */
+export class AiProviderRequestError extends Error {
+  constructor(
+    message: string,
+    public readonly details: {
+      httpStatus?: number;
+      code?: string;
+      type?: string;
+      requestId?: string;
+      retryAfter?: string;
+      timeout?: boolean;
+    } = {},
+  ) {
+    super(message);
+    this.name = 'AiProviderRequestError';
+  }
+}
+
 /**
  * One adapter per provider. Adapters own exactly two things: (1) turning
  * AiChatMessage[] into that provider's wire format and making the HTTP
