@@ -75,9 +75,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         const policyRes = await fetch(`http://127.0.0.1:${port}/api/brands/${parts[0]}/media/upload-policy`, { headers: forwardHeaders });
         if (!policyRes.ok) throw new Error('Upload not allowed. Check your brand access and storage limit.');
         const policy = await policyRes.json();
+        const isImage = /\.(jpe?g|png|gif|webp)$/i.test(pathname);
         return {
-          allowedContentTypes: ALLOWED_CONTENT_TYPES,
-          maximumSizeInBytes: policy.maximumSizeInBytes,
+          allowedContentTypes: ALLOWED_CONTENT_TYPES.filter((type) => type.startsWith(isImage ? 'image/' : 'video/')),
+          maximumSizeInBytes: isImage ? policy.maximumSizeInBytes : policy.maximumVideoSizeInBytes,
           addRandomSuffix: true,
           tokenPayload: JSON.stringify({ userId: user?.id }),
         };

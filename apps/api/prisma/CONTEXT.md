@@ -26,4 +26,8 @@
 
 ## Current limitations
 
+MediaAsset also holds processing intent, stage, attempts, retry timing, and an
+independent optimization stage. Legacy pending assets migrate to STAGED because
+their single-versus-carousel intent cannot be inferred safely.
+
 There is no repository-managed Supabase RLS policy set; tenant isolation is primarily enforced in Nest guards and Prisma queries. `Post` has no general optimistic version column. `AiUsageLog` stores raw prompts/completions and should be minimized in a future privacy migration.

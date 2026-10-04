@@ -20,4 +20,10 @@ Media upload/Drive sync → persisted `MediaAsset` → Brain analysis and bounde
 
 ## Dangerous changes and tests
 
+The media processing migration dispatches individual registered assets through
+QStash with bounded flow control. `processingIntent` excludes staged carousel
+files; persisted stages and attempts support recovery. Caption and hashtags now
+share one Brain decision request. See `docs/architecture/media-processing-migration.md`
+for deployment requirements and the remaining stage-splitting work.
+
 Scheduling, retry, claim, approval, and quota changes can cause duplicate public posts or unauthorized actions. Inspect `tests/production-regressions.test.cjs`, content workflow E2E tests, `vercel.json`, and `../oauth/CONTEXT.md` before changing them.

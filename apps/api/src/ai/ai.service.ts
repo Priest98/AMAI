@@ -101,10 +101,11 @@ export class AiService {
    * without the whole pipeline breaking. Video analysis isn't implemented
    * here yet — video assets always use the filename fallback for now.
    */
-  async analyzeImage(imageUrl: string, brandId?: string, userId?: string): Promise<string | null> {
+  async analyzeImage(imageUrl: string, brandId?: string, userId?: string, signal?: AbortSignal): Promise<string | null> {
     const visionPrompt = 'Describe the main subject of this image in 3-8 words, suitable as a social media post topic. Just the phrase, no punctuation, no preamble.';
     const result = await this.aiGateway.generate({
       label: 'vision analysis',
+      signal,
       maxTokens: 30,
       messages: [
         {

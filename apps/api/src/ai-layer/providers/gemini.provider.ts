@@ -6,7 +6,8 @@ import {
   AiCompletionResult,
   AiProviderAdapter,
 } from '../interfaces/ai-provider.interface';
-import { withTimeout } from '../util/with-timeout';
+import { withRequestDeadline } from '../util/request-deadline';
+import { MAX_VIDEO_ANALYSIS_BYTES } from '../../media/analysis-limits';
 
 const MODEL = 'gemini-flash-latest';
 
@@ -41,13 +42,14 @@ export class GeminiProvider implements AiProviderAdapter {
   }
 
   async complete(messages: AiChatMessage[], options: AiCompletionOptions): Promise<AiCompletionResult> {
-    const contents = await this.toGeminiContents(messages, options.timeoutMs);
-
-    const response = await withTimeout(
-      this.client.models.generateContent({ model: MODEL, contents }),
-      options.timeoutMs,
-      'Gemini completion',
-    );
+    return withRequestDeadline(options.timeoutMs, options.signal, async (signal) => {
+    const contents = await this.toGeminiContents(messages, signal);
+    signal.throwIfAborted();
+    const response = await this.client.models.generateContent({ model: MODEL, contents, config: {
+      maxOutputTokens: options.maxTokens,
+      abortSignal: signal,
+      httpOptions: { timeout: options.timeoutMs, retryOptions: { attempts: 1 } },
+    } });
 
     const text = response.text?.trim();
     if (!text) throw new Error('Gemini returned an empty response.');
@@ -55,6 +57,7 @@ export class GeminiProvider implements AiProviderAdapter {
       ? response.usageMetadata.totalTokenCount
       : undefined;
     return { text, raw: response, tokensUsed };
+    });
   }
 
   /**
@@ -63,7 +66,7 @@ export class GeminiProvider implements AiProviderAdapter {
    * matches the original single-turn caption/vision calls this adapter
    * replaces (no multi-turn conversations exist in this app yet).
    */
-  private async toGeminiContents(messages: AiChatMessage[], timeoutMs: number) {
+  private async toGeminiContents(messages: AiChatMessage[], signal: AbortSignal) {
     const last = messages[messages.length - 1];
     if (!last) throw new Error('Gemini call made with no messages.');
 
@@ -75,12 +78,46 @@ export class GeminiProvider implements AiProviderAdapter {
     for (const part of last.content) {
       if (part.type === 'text') {
         parts.push({ text: part.text });
+      } else if (part.type === 'video_url') {
+        const url = new URL(part.video_url.url);
+        if (url.protocol !== 'https:' || !/^[a-z0-9-]+\.public\.blob\.vercel-storage\.com$/.test(url.hostname)) {
+          throw new Error('Video analysis requires a registered Blob asset.');
+        }
+        const response = await fetch(url, { redirect: 'error', signal });
+        if (!response.ok || !response.body) throw new Error('Video could not be loaded for analysis.');
+        const reader = response.body.getReader();
+        const chunks: Buffer[] = [];
+        let bytes = 0;
+        try {
+          while (true) {
+            const chunk = await reader.read();
+            if (chunk.done) break;
+            bytes += chunk.value.length;
+            if (bytes > MAX_VIDEO_ANALYSIS_BYTES) throw new Error('Video exceeds the current native-analysis limit of 14 MiB.');
+            chunks.push(Buffer.from(chunk.value));
+          }
+        } finally {
+          void reader.cancel().catch(() => {});
+        }
+        parts.push({ inlineData: { mimeType: part.video_url.mimeType, data: Buffer.concat(chunks).toString('base64') } });
       } else if (part.type === 'image_url') {
-        const imageRes = await withTimeout(fetch(part.image_url.url), timeoutMs, 'Gemini image download');
+        const imageRes = await fetch(part.image_url.url, { signal, redirect: 'error' });
         if (!imageRes.ok) throw new Error(`Could not download image for Gemini vision call (${imageRes.status}).`);
         const mimeType = imageRes.headers.get('content-type') || 'image/jpeg';
-        const arrayBuffer = await imageRes.arrayBuffer();
-        const base64 = Buffer.from(arrayBuffer).toString('base64');
+        if (!imageRes.body) throw new Error('Image body is unavailable.');
+        const reader = imageRes.body.getReader();
+        const chunks: Buffer[] = [];
+        let bytes = 0;
+        try {
+          while (true) {
+            const chunk = await reader.read();
+            if (chunk.done) break;
+            bytes += chunk.value.length;
+            if (bytes > MAX_VIDEO_ANALYSIS_BYTES) throw new Error('Image exceeds the inline analysis limit of 14 MiB.');
+            chunks.push(Buffer.from(chunk.value));
+          }
+        } finally { void reader.cancel().catch(() => {}); }
+        const base64 = Buffer.concat(chunks).toString('base64');
         parts.push({ inlineData: { mimeType, data: base64 } });
       }
     }

@@ -10,6 +10,9 @@ export interface AiGatewayRequest {
   /** Short human-readable label for logs, e.g. "caption generation". */
   label: string;
   timeoutMs?: number;
+  signal?: AbortSignal;
+  /** Semantic validation belongs to the caller; rejection advances providers. */
+  validate?: (text: string) => boolean;
 }
 
 export interface AiGatewayResult {
@@ -29,7 +32,9 @@ const DEFAULT_TIMEOUT_MS = 10_000;
 // into a long serial chain of failures before falling through to the next
 // provider -- 3 covers "one bad key" without meaningfully delaying the
 // pipeline's overall budget.
-const MAX_KEY_ATTEMPTS_PER_PROVIDER = 3;
+const configuredAttempts = Number(process.env.AI_MAX_KEY_ATTEMPTS_PER_PROVIDER || 1);
+const MAX_KEY_ATTEMPTS_PER_PROVIDER = Number.isFinite(configuredAttempts)
+  ? Math.max(1, Math.min(3, Math.floor(configuredAttempts))) : 1;
 
 /**
  * The single entry point every AI request in the application goes
@@ -116,6 +121,9 @@ export class AiGatewayService {
     this.logger.log(`[${req.label}] request received`);
 
     for (const providerName of this.providerOrder()) {
+      req.signal?.throwIfAborted();
+      const needsVideo = req.messages.some((message) => Array.isArray(message.content) && message.content.some((part) => part.type === 'video_url'));
+      if (needsVideo && providerName !== 'gemini') continue;
       const provider = this.providers[providerName];
       if (!provider.isConfigured()) continue;
 
@@ -124,6 +132,10 @@ export class AiGatewayService {
       if (provider.supportsMultipleKeys) {
         const result = await this.tryMultiKeyProvider(provider, providerName, req, timeoutMs);
         if (result) {
+          if (req.validate && !req.validate(result.text)) {
+            this.logProviderFailure(req.label, provider, new Error('Provider returned an invalid structured response.'), Date.now() - start, result.keyLabel);
+            continue;
+          }
           this.logger.log(JSON.stringify({
             event: 'ai_provider_request', operation: req.label, provider: providerName,
             model: provider.model, status: 'success', durationMs: Date.now() - start,
@@ -136,7 +148,8 @@ export class AiGatewayService {
 
       const attemptStart = Date.now();
       try {
-        const result = await provider.complete(req.messages, { maxTokens: req.maxTokens, timeoutMs });
+        const result = await provider.complete(req.messages, { maxTokens: req.maxTokens, timeoutMs, signal: req.signal });
+        if (req.validate && !req.validate(result.text)) throw new Error('Provider returned an invalid structured response.');
         this.logger.log(JSON.stringify({
           event: 'ai_provider_request', operation: req.label, provider: providerName,
           model: provider.model, status: 'success', durationMs: Date.now() - attemptStart,
@@ -174,7 +187,8 @@ export class AiGatewayService {
       this.logger.log(`[${req.label}] api key selected: ${key.label} (attempt ${attempt + 1}/${MAX_KEY_ATTEMPTS_PER_PROVIDER})`);
       const attemptStart = Date.now();
       try {
-        const result = await provider.complete(req.messages, { maxTokens: req.maxTokens, timeoutMs }, key.value);
+        req.signal?.throwIfAborted();
+        const result = await provider.complete(req.messages, { maxTokens: req.maxTokens, timeoutMs, signal: req.signal }, key.value);
         this.logger.log(`[${req.label}] response received from ${providerName}:${key.label} in ${Date.now() - attemptStart}ms`);
         this.keyManager.reportSuccess(providerName, key.label);
         return { text: result.text, provider: providerName, keyLabel: key.label, tokensUsed: result.tokensUsed };

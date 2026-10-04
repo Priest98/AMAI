@@ -11,6 +11,7 @@ export type AiMessageContent =
   | Array<
       | { type: 'text'; text: string }
       | { type: 'image_url'; image_url: { url: string } }
+      | { type: 'video_url'; video_url: { url: string; mimeType: string } }
     >;
 
 export interface AiChatMessage {
@@ -19,6 +20,7 @@ export interface AiChatMessage {
 }
 
 export interface AiCompletionOptions {
+  signal?: AbortSignal;
   /** Floor/ceiling requested by the caller; adapters may raise the floor
    *  for their own model quirks (e.g. a "thinking" model that needs budget
    *  for its reasoning block before the real answer). */

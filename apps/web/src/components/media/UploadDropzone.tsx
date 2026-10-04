@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { upload } from "@vercel/blob/client";
 import {
   UploadCloud, FolderUp, FileUp, CheckCircle, AlertCircle, Loader2, RotateCcw, X, Circle, CheckCircle2,
@@ -96,6 +96,7 @@ async function uploadAndRegister(
   file: File,
   onProgress: (pct: number) => void,
   signal: AbortSignal,
+  mode: 'single' | 'carousel',
 ): Promise<any> {
   const brandId = getBrandId();
   // Security audit fix (3.5): no client-readable token to check or attach
@@ -129,6 +130,7 @@ async function uploadAndRegister(
       size: file.size,
       mimeType: file.type || "application/octet-stream",
       filename: file.name,
+      mode,
     }),
   });
 
@@ -249,6 +251,33 @@ export default function UploadDropzone({ onUploaded, mode = 'single', onCarousel
     }));
   });
 
+  const pendingAssetIds = items.filter((item) => item.status === "processing" && item.assetId).map((item) => item.assetId).join(",");
+  useEffect(() => {
+    if (!pendingAssetIds) return;
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout>;
+    const poll = async () => {
+      try {
+        const response = await fetch(`${API_BASE}/brands/${getBrandId()}/media/assets`, { credentials: "include", signal: controller.signal });
+        if (response.ok) {
+          const assets = await response.json();
+          if (Array.isArray(assets)) setItems((current) => current.map((item) => {
+            if (item.status !== "processing") return item;
+            const asset = assets.find((value: any) => value.id === item.assetId);
+            if (!asset) return item;
+            if (asset.status === "FAILED") return { ...item, status: "error", error: asset.lastErrorMessage || "Processing failed. Please retry." };
+            if (["READY", "SCHEDULED", "PUBLISHED"].includes(asset.status)) return { ...item, status: "done", stage: "done", terminal: asset.status === "READY" ? "approval" : "scheduled" };
+            const stage: StageKey = asset.processingStage === "GENERATING" ? "caption" : asset.processingStage === "PREPARING_POST" ? "scheduling" : asset.processingStage === "ANALYZING" ? "analyzing" : "uploaded";
+            return { ...item, stage };
+          }));
+        }
+      } catch { /* A temporary disconnect does not cancel the durable job. */ }
+      if (!controller.signal.aborted) timer = setTimeout(poll, 5000);
+    };
+    void poll();
+    return () => { controller.abort(); clearTimeout(timer); };
+  }, [pendingAssetIds]);
+
   const processSingleUpload = async (item: UploadItem) => {
     const controller = new AbortController();
     setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, status: "uploading", progress: 0, error: undefined, controller, stage: "idle" } : i)));
@@ -258,6 +287,7 @@ export default function UploadDropzone({ onUploaded, mode = 'single', onCarousel
         item.file,
         (pct) => setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, progress: pct } : i))),
         controller.signal,
+        mode,
       );
 
       onUploaded?.(asset);
@@ -274,17 +304,8 @@ export default function UploadDropzone({ onUploaded, mode = 'single', onCarousel
 
       setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, status: "processing", progress: 100, assetId: asset.id, stage: "uploaded" } : i)));
 
-      // Fire-and-track, not fire-and-forget: errors here (the request
-      // itself failing to go out, e.g. network drop right after upload)
-      // still surface in the UI with a retry option. The actual Oyinca
-      // Engine progress is reported live via the SSE handler above, not
-      // by awaiting this — that's what lets uploads run at real
-      // concurrency instead of queuing behind AI processing time.
-      if (isAuthenticated()) {
-        triggerProcessing(getBrandId(), asset.id).catch((err) => {
-          setItems((prev) => prev.map((i) => (i.id === item.id && i.status !== "done" ? { ...i, status: "error", error: err?.message || "Oyinca failed to start." } : i)));
-        });
-      }
+      // Registration durably queues the work. SSE observes its progress.
+
     } catch (err: any) {
       setItems((prev) =>
         prev.map((i) => (i.id === item.id ? { ...i, status: "error", error: friendlyUploadError(err) } : i))

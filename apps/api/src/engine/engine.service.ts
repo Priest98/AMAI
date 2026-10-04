@@ -11,8 +11,8 @@ import { toPublicConnection, deriveConnectionHealth } from '../oauth/connection-
 import { BrainDecisionTraceService } from '../capabilities/observability/brain-decision-trace.service';
 import { randomUUID } from 'node:crypto';
 import { OyincaBrainService } from '../business-brain/oyinca-brain.service';
-import { ContextResolverService } from '../business-brain/context/context-resolver.service';
 import type { BrainEvaluation } from '../business-brain/oyinca-brain.types';
+import { assertSupportedVideoSize } from '../media/analysis-limits';
 import {
   EngineState,
   ApprovalMode,
@@ -37,7 +37,7 @@ export interface MediaUploadedEvent {
 // serverless invocation at its own 60s platform cap with no chance for
 // any catch block to run -- an asset caught mid-pipeline at that point is
 // abandoned in PROCESSING forever. Individual external calls are already
-// time-bounded (see AiService.withTimeout), but a request can still add
+// time-bounded and receive the pipeline abort signal, but a request can still add
 // up to more than 60s from many small, individually-fast DB round trips
 // under adverse conditions (e.g. a cold Lambda's first connection to the
 // pooler). Bounding the pipeline as a whole guarantees this always
@@ -78,7 +78,6 @@ export class EngineService {
     private mediaOptimizationService: MediaOptimizationService,
     private decisionTrace: BrainDecisionTraceService,
     private oyincaBrain: OyincaBrainService,
-    private contextResolver: ContextResolverService,
   ) {}
 
   // ─────────────────────────────────────────────────────────────
@@ -298,22 +297,23 @@ export class EngineService {
    */
   @OnEvent('media.uploaded')
   async handleMediaUploaded(payload: MediaUploadedEvent) {
+    const controller = new AbortController();
+    const run: { signal: AbortSignal; attempt?: number } = { signal: controller.signal };
     try {
-      await this.withPipelineTimeout(this.processMediaAsset(payload.mediaAssetId), payload.mediaAssetId);
+      await this.withPipelineTimeout(this.processMediaAsset(payload.mediaAssetId, run), payload.mediaAssetId, controller);
     } catch (err: any) {
       this.logger.error(`Oyinca failed to process media asset ${payload.mediaAssetId}: ${err?.message || err}`);
-      await this.prisma.mediaAsset.update({
-        where: { id: payload.mediaAssetId },
-        data: { status: MediaStatus.FAILED, lastErrorMessage: err?.message || 'Oyinca processing failed.' },
-      }).catch(() => {});
+      if (run.attempt !== undefined) await this.failMediaAttempt(payload.mediaAssetId, run.attempt, err);
     }
   }
 
-  private withPipelineTimeout<T>(promise: Promise<T>, mediaAssetId: string): Promise<T> {
+  private withPipelineTimeout<T>(promise: Promise<T>, mediaAssetId: string, controller: AbortController): Promise<T> {
     return new Promise<T>((resolve, reject) => {
       const timer = setTimeout(() => {
         this.logger.error(`Oyinca pipeline exceeded ${PIPELINE_TIMEOUT_MS}ms for media asset ${mediaAssetId}; failing cleanly instead of leaving it stuck in PROCESSING.`);
-        reject(new Error('Processing took too long. Please try again.'));
+        const error = new Error('Processing took too long. Please try again.');
+        controller.abort(error);
+        reject(error);
       }, PIPELINE_TIMEOUT_MS);
       promise.then(
         (val) => { clearTimeout(timer); resolve(val); },
@@ -322,7 +322,58 @@ export class EngineService {
     });
   }
 
-  async processMediaAsset(mediaAssetId: string) {
+  private async failMediaAttempt(id: string, attempt: number, error: any) {
+    try {
+      await this.prisma.mediaAsset.updateMany({
+        where: { id, linkedPostId: null, status: MediaStatus.PROCESSING, processingAttempts: attempt },
+        data: { status: MediaStatus.FAILED, processingStage: 'FAILED', processingNextAttemptAt: attempt < 3 ? new Date(Date.now() + 5 * 60_000) : null, lastErrorMessage: error?.message || 'Media processing failed.' },
+      });
+    } finally {
+      // Reservation cleanup is independent of the status write. A transient
+      // database error here must not turn a failed attempt into leaked quota;
+      // the reservation release itself is compare-and-swap/idempotent.
+      await this.entitlementsService.releaseMediaAiGeneration(id, attempt);
+    }
+  }
+
+  /** Returns true when this asset must not start another generation attempt. */
+  async reconcileMediaAsset(id: string): Promise<boolean> {
+    const asset = await this.prisma.mediaAsset.findUnique({ where: { id } });
+    if (!asset) return true;
+    const stale = asset.updatedAt < new Date(Date.now() - STALE_PROCESSING_MINUTES * 60_000);
+    if (asset.status === MediaStatus.PROCESSING && !stale) return true;
+    if (asset.linkedPostId) {
+      const linkedPostId = asset.linkedPostId;
+      if (asset.status === MediaStatus.PROCESSING) {
+        const post = asset.brandId
+          ? await this.prisma.post.findFirst({ where: { id: linkedPostId, brandId: asset.brandId } })
+          : null;
+        const status = post?.status === PostStatus.PUBLISHED ? MediaStatus.PUBLISHED
+          : post && [PostStatus.SCHEDULED, PostStatus.PUBLISHING].includes(post.status as any) ? MediaStatus.SCHEDULED
+          : post && [PostStatus.DRAFT, PostStatus.NEEDS_APPROVAL].includes(post.status as any) ? MediaStatus.READY : MediaStatus.FAILED;
+        await this.prisma.mediaAsset.updateMany({
+          where: { id, status: MediaStatus.PROCESSING, linkedPostId, updatedAt: asset.updatedAt },
+          data: { status, processingStage: status === MediaStatus.READY ? 'READY_FOR_APPROVAL' : status, processingNextAttemptAt: null,
+            aiReservationOrgId: null, aiReservationPeriodStart: null },
+        });
+      }
+      return true;
+    }
+    if (asset.status === MediaStatus.PROCESSING && stale) {
+      const ended = await this.prisma.mediaAsset.updateMany({
+        where: { id, status: MediaStatus.PROCESSING, updatedAt: asset.updatedAt, linkedPostId: null, processingAttempts: asset.processingAttempts },
+        data: { status: MediaStatus.FAILED, processingStage: 'FAILED', processingNextAttemptAt: asset.processingAttempts < 3 ? new Date() : null,
+          lastErrorMessage: asset.processingAttempts >= 3 ? 'Processing interrupted after three attempts. Please retry.' : 'Processing interrupted; retry queued.' },
+      });
+      if (!ended.count) return true;
+    }
+    if (asset.status === MediaStatus.FAILED || (asset.status === MediaStatus.PROCESSING && stale)) {
+      await this.entitlementsService.releaseMediaAiGeneration(id, asset.processingAttempts);
+    }
+    return asset.processingAttempts >= 3;
+  }
+
+  async processMediaAsset(mediaAssetId: string, run: { signal?: AbortSignal; attempt?: number } = {}) {
     const decisionStartedAt = Date.now();
     const decisionCorrelationId = randomUUID();
     const asset = await this.prisma.mediaAsset.findUnique({ where: { id: mediaAssetId } });
@@ -331,6 +382,8 @@ export class EngineService {
     }
 
     const brandId = asset.brandId;
+    run.signal?.throwIfAborted();
+    if (asset.processingAttempts >= 3) return;
 
     // Atomic claim (found missing in the production-readiness audit,
     // confirmed still missing here): handleMediaUploaded is triggered from
@@ -356,6 +409,10 @@ export class EngineService {
     const claim = await this.prisma.mediaAsset.updateMany({
       where: {
         id: asset.id,
+        processingIntent: 'SINGLE',
+        processingAttempts: asset.processingAttempts,
+        aiReservationOrgId: null,
+        linkedPostId: null,
         OR: [
           { status: MediaStatus.PENDING },
           // A failed pre-post generation remains a valid uploaded asset.
@@ -365,7 +422,7 @@ export class EngineService {
           { status: MediaStatus.PROCESSING, updatedAt: { lt: staleClaimCutoff } },
         ],
       },
-      data: { status: MediaStatus.PROCESSING },
+      data: { status: MediaStatus.PROCESSING, processingStage: 'ANALYZING', processingAttempts: { increment: 1 }, processingNextAttemptAt: null },
     });
 
     if (claim.count === 0) {
@@ -376,6 +433,10 @@ export class EngineService {
       this.logger.log(`[${asset.id}] Already claimed by a concurrent run or already resolved — skipping to avoid duplicate processing.`);
       return;
     }
+    run.attempt = asset.processingAttempts + 1;
+    try {
+    run.signal?.throwIfAborted();
+    assertSupportedVideoSize(asset.mimeType, asset.sizeBytes);
 
     // AI-entitlement bypass fix (found still open in the production-
     // readiness audit): @RequireEntitlement('generate_ai_content') was only
@@ -402,14 +463,10 @@ export class EngineService {
     // calls below then fail, the catch block releases it back.
     let aiGenerationOrgId: string;
     try {
-      aiGenerationOrgId = await this.entitlementsService.reserveAiGeneration(brandId);
+      aiGenerationOrgId = await this.entitlementsService.reserveMediaAiGeneration(brandId, asset.id, run.attempt);
     } catch (err: any) {
       this.logger.warn(`[${asset.id}] AI pipeline blocked by entitlement check: ${err?.message}`);
-      await this.prisma.mediaAsset.update({
-        where: { id: asset.id },
-        data: { status: MediaStatus.FAILED, lastErrorMessage: err?.message || 'Monthly AI generation limit reached.' },
-      }).catch(() => {});
-      return;
+      throw err;
     }
 
     this.logger.log(`[${asset.id}] Oyinca pipeline started (brand=${brandId}, file="${asset.filename}")`);
@@ -454,8 +511,11 @@ export class EngineService {
         // step. The image's content doesn't change between runs, so a
         // second vision call would be paying twice for the same answer.
         topic = asset.visionTopic;
-      } else if (!isVideo && asset.blobUrl) {
-        const visionTopic = await this.aiService.analyzeImage(asset.blobUrl, brandId, 'amai_engine');
+      } else if (isVideo) {
+        topic = await this.oyincaBrain.analyzeVideo(brandId, asset.id, run.signal);
+        asset.visionTopic = topic;
+      } else if (asset.blobUrl) {
+        const visionTopic = await this.aiService.analyzeImage(asset.blobUrl, brandId, 'amai_engine', run.signal);
         topic = visionTopic || this.deriveTopicFromFilename(asset.filename, asset.batchName);
         // Content-library intelligence: persist the real vision output onto
         // the asset itself, decoupled from whatever happens later in this
@@ -498,34 +558,20 @@ export class EngineService {
         ? connectedAccounts.map((a) => a.platform).join(', ')
         : 'Instagram & TikTok';
 
-      // Business Brain: the brand context (voice, audience, content pillars,
-      // goals, things to avoid) every AI generation step below should reflect
-      // instead of writing something generic. Returns '' if nothing's been
-      // configured yet, so this is always safe to pass through unconditionally.
-      const resolvedContext = await this.contextResolver.resolve({
-        organizationId: aiGenerationOrgId,
-        brandId,
-        task: 'generate_caption',
-        objective: `Generate a ${platformLabel} caption for uploaded content`,
-        taskContext: { topic, platform: platformLabel, tone: config.defaultTone || 'friendly' },
+      // Generate one complete content package. This removes the former
+      // caption + hashtag fan-out while retaining bounded Brain context.
+      run.signal?.throwIfAborted();
+      await this.prisma.mediaAsset.updateMany({ where: { id: asset.id, status: MediaStatus.PROCESSING, processingAttempts: run.attempt }, data: { processingStage: 'GENERATING' } });
+      const decision = await this.oyincaBrain.decide(brandId, {
+        objective: `Prepare one ${platformLabel} post about ${topic}. Use a ${config.defaultTone || 'friendly'} tone.`,
+        contentAnalysisId,
+        platform: platformLabel,
+        signal: run.signal,
       });
-      const brainContext = this.contextResolver.render(resolvedContext);
-
-      // 2-3. Generate caption and hashtags — independent of each other, run
-      // concurrently rather than one after another to cut real wall-clock
-      // time roughly in half.
-      const [captionResult, hashtagResult] = await Promise.all([
-        this.aiService.generateCaption(brandId, 'amai_engine', topic, platformLabel, config.defaultTone || 'friendly', brainContext),
-        this.aiService.generateHashtags(topic, platformLabel, config.defaultTone || 'Content Creator', brandId, 'amai_engine'),
-      ]);
-      caption = captionResult.caption;
-      hashtags = Array.from(new Set(hashtagResult.allHashtags)).slice(0, 8);
-      brainEvaluation = await this.oyincaBrain.evaluate(brandId, {
-        caption,
-        hashtags,
-        cta: '',
-        confidence: asset.visionTopic ? 0.85 : 0.68,
-      }).catch(() => null);
+      if (!decision.caption) throw new Error('The Oyinca Brain could not produce a valid content package.');
+      caption = decision.caption;
+      hashtags = Array.from(new Set(decision.hashtags)).slice(0, 8);
+      brainEvaluation = decision.evaluation;
       this.decisionTrace.record({
         organizationId: aiGenerationOrgId,
         brandId,
@@ -533,7 +579,7 @@ export class EngineService {
         objective: 'Analyze uploaded media and prepare platform content',
         decision: 'generate_platform_content',
         reasonCodes: ['media_uploaded', connectedAccounts.length ? 'connected_platforms_available' : 'no_connected_platforms'],
-        contextSections: resolvedContext.items.map((item) => item.uri),
+        contextSections: ['oyinca://brain/content-package'],
         confidence: brainEvaluation?.overallConfidence,
         evaluation: brainEvaluation ? { action: brainEvaluation.action, policy: brainEvaluation.policy, brandFit: brainEvaluation.brandFit, audienceFit: brainEvaluation.audienceFit, repetitionRisk: brainEvaluation.repetitionRisk } : undefined,
         contentAnalysisId,
@@ -555,7 +601,7 @@ export class EngineService {
       // The reserved credit was never actually spent on a completed
       // generation -- release it before letting the error propagate, so a
       // failed attempt doesn't count against the org's monthly AI quota.
-      await this.entitlementsService.releaseAiGeneration(aiGenerationOrgId).catch((e) =>
+      await this.entitlementsService.releaseMediaAiGeneration(asset.id, run.attempt).catch((e) =>
         this.logger.warn(`[${asset.id}] Failed to release AI generation reservation after pipeline error: ${e?.message || e}`),
       );
       throw err;
@@ -617,6 +663,8 @@ export class EngineService {
     // reads only, no AI calls) so retrying here doesn't repeat any of the
     // expensive work above.
     const MAX_SLOT_RETRIES = 3;
+    run.signal?.throwIfAborted();
+    await this.prisma.mediaAsset.updateMany({ where: { id: asset.id, status: MediaStatus.PROCESSING, processingAttempts: run.attempt }, data: { processingStage: 'PREPARING_POST' } });
     let post: Awaited<ReturnType<typeof this.prisma.post.create>> | undefined;
     let scheduledAt!: Date;
     let priorityUsed!: number;
@@ -628,7 +676,14 @@ export class EngineService {
       optimalScore = priorityUsed === 1 ? 95 : priorityUsed === 99 ? 70 : Math.max(80, 95 - priorityUsed * 5);
 
       try {
-        post = await this.prisma.post.create({
+        post = await this.prisma.$transaction(async (tx) => {
+          run.signal?.throwIfAborted();
+          const lease = await tx.mediaAsset.updateMany({
+            where: { id: asset.id, brandId, linkedPostId: null, status: MediaStatus.PROCESSING, processingAttempts: asset.processingAttempts + 1 },
+            data: { processingStage: 'PREPARING_POST' },
+          });
+          if (lease.count !== 1) throw new Error('Processing ownership expired before post creation.');
+          const created = await tx.post.create({
           data: {
             brandId,
             caption,
@@ -648,6 +703,14 @@ export class EngineService {
               })),
             },
           },
+          });
+          run.signal?.throwIfAborted();
+          await tx.mediaAsset.update({ where: { id: asset.id }, data: {
+            linkedPostId: created.id, status: willAutoPublish ? MediaStatus.SCHEDULED : MediaStatus.READY,
+            processingStage: willAutoPublish ? 'SCHEDULED' : 'READY_FOR_APPROVAL',
+            aiReservationOrgId: null, aiReservationPeriodStart: null, lastErrorMessage: null, processingNextAttemptAt: null,
+          } });
+          return created;
         });
         break;
       } catch (error: any) {
@@ -695,14 +758,6 @@ export class EngineService {
       }
     }
 
-    await this.prisma.mediaAsset.update({
-      where: { id: asset.id },
-      data: {
-        status: willAutoPublish ? MediaStatus.SCHEDULED : MediaStatus.READY,
-        linkedPostId: post.id,
-      },
-    });
-
     if (willAutoPublish) {
       const formatted = scheduledAt.toLocaleString('en-US', { timeZone: config.timeZone || 'UTC', dateStyle: 'medium', timeStyle: 'short' });
       this.logEvent(brandId, EngineEventType.AUTO_SCHEDULED, {
@@ -723,6 +778,10 @@ export class EngineService {
 
     this.logger.log(`[${asset.id}] Workflow complete: post=${post.id} status=${post.status}`);
     return post;
+    } catch (error) {
+      if (!run.signal?.aborted) await this.failMediaAttempt(asset.id, run.attempt!, error);
+      throw error;
+    }
   }
 
   // ─────────────────────────────────────────────────────────────
@@ -835,9 +894,9 @@ export class EngineService {
       // identical vision call -- same reasoning as processMediaAsset's own
       // visionTopic reuse above.
       const visionTopic = primaryAsset.visionTopic
-        || (!primaryIsVideo && primaryAsset.blobUrl
-          ? await this.aiService.analyzeImage(primaryAsset.blobUrl, brandId, 'amai_engine')
-          : null);
+        || (primaryIsVideo
+          ? await this.oyincaBrain.analyzeVideo(brandId, primaryAsset.id)
+          : primaryAsset.blobUrl ? await this.aiService.analyzeImage(primaryAsset.blobUrl, brandId, 'amai_engine') : null);
       topic = visionTopic || this.deriveTopicFromFilename(primaryAsset.filename, primaryAsset.batchName);
       // Content-library intelligence: only the primary asset was actually
       // vision-analyzed (see the comment above on why one call stands in for
@@ -864,22 +923,14 @@ export class EngineService {
         ? connectedAccounts.map((a) => a.platform).join(', ')
         : 'Instagram & TikTok';
 
-      const resolvedContext = await this.contextResolver.resolve({
-        organizationId: aiGenerationOrgId,
-        brandId,
-        task: 'generate_caption',
-        objective: `Generate one ${platformLabel} caption for a composed media post`,
-        taskContext: { topic, platform: platformLabel, tone: config.defaultTone || 'friendly' },
+      // One structured content package for the entire carousel.
+      const decision = await this.oyincaBrain.decide(brandId, {
+        objective: `Prepare one ${platformLabel} carousel post about ${topic}. Use a ${config.defaultTone || 'friendly'} tone.`,
+        platform: platformLabel,
       });
-      const brainContext = this.contextResolver.render(resolvedContext);
-
-      // One caption + one hashtag set for the entire batch -- never per-image.
-      const [captionResult, hashtagResult] = await Promise.all([
-        this.aiService.generateCaption(brandId, 'amai_engine', topic, platformLabel, config.defaultTone || 'friendly', brainContext),
-        this.aiService.generateHashtags(topic, platformLabel, config.defaultTone || 'Content Creator', brandId, 'amai_engine'),
-      ]);
-      caption = captionResult.caption;
-      hashtags = Array.from(new Set(hashtagResult.allHashtags)).slice(0, 8);
+      if (!decision.caption) throw new Error('The Oyinca Brain could not produce a valid content package.');
+      caption = decision.caption;
+      hashtags = Array.from(new Set(decision.hashtags)).slice(0, 8);
     } catch (err) {
       await this.entitlementsService.releaseAiGeneration(aiGenerationOrgId).catch((e) =>
         this.logger.warn(`Failed to release AI generation reservation for composed post after error: ${e?.message || e}`),

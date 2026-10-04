@@ -56,3 +56,9 @@ Plan selection → Stripe/Paystack provider → verified, idempotent webhook →
 ## Current and planned
 
 Implemented components are shown above. Additional providers, social platforms, semantic retrieval, general agent processes, and platform adapters are planned possibilities only. See `docs/architecture/oyinca-context-audit.md` for gaps and `docs/repository-map.md` for navigation.
+# Media processing migration
+
+Registered single uploads dispatch an authenticated, rate-limited QStash
+delivery; staged carousel assets are excluded. The Brain prepares one structured
+content package. See [media processing migration](architecture/media-processing-migration.md)
+for schema, recovery, rollout requirements, and remaining limitations.

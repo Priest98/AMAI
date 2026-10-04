@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Headers, UnauthorizedException, Logger } from '@nestjs/common';
+import { Controller, Get, Post, Param, Headers, UnauthorizedException, Logger } from '@nestjs/common';
 import { PublishingService } from '../queue/publishing.service';
 import { EngineJobsService } from '../engine/engine-jobs.service';
 import { HealthEngineService } from '../health/health-engine.service';
@@ -118,6 +118,18 @@ export class CronController {
   @Post('process-media')
   async processMediaPost(@Headers('authorization') authHeader?: string) {
     return this.runProcessMedia(authHeader);
+  }
+
+  @Post('process-media/:assetId')
+  async processOneMedia(@Param('assetId') assetId: string, @Headers('authorization') authHeader?: string) {
+    this.assertAuthorized(authHeader);
+    return this.engineJobsService.processOneMedia(assetId);
+  }
+
+  @Post('optimize-media/:assetId')
+  async optimizeOneMedia(@Param('assetId') assetId: string, @Headers('authorization') authHeader?: string) {
+    this.assertAuthorized(authHeader);
+    return this.engineJobsService.optimizeOneMedia(assetId);
   }
 
   // Phase 15/17 note: heartbeat staleness is checked FIRST, against the

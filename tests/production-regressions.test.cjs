@@ -10,8 +10,12 @@ const { PublishingService } = require('../apps/api/src/queue/publishing.service'
 const { MediaService } = require('../apps/api/src/media/media.service');
 const { MetricsService } = require('../apps/api/src/metrics/metrics.service');
 const { GroqProvider } = require('../apps/api/src/ai-layer/providers/groq.provider');
+const { GeminiProvider } = require('../apps/api/src/ai-layer/providers/gemini.provider');
 const { AiProviderRequestError } = require('../apps/api/src/ai-layer/interfaces/ai-provider.interface');
 const { AiGatewayService } = require('../apps/api/src/ai-layer/ai-gateway.service');
+const { EngineService } = require('../apps/api/src/engine/engine.service');
+const { EngineJobsService } = require('../apps/api/src/engine/engine-jobs.service');
+const { MAX_VIDEO_ANALYSIS_BYTES, assertSupportedVideoSize } = require('../apps/api/src/media/analysis-limits');
 
 test('Groq product copy disables reasoning and honors the requested output budget', async (t) => {
   const previousModel = process.env.GROQ_MODEL;
@@ -128,21 +132,101 @@ test('AI gateway fails closed after every provider fails', async () => {
   assert.equal(result, null);
 });
 
-test('caption retry reuses an uploaded failed asset without rerunning video optimization', async () => {
-  let pipelineRuns = 0;
-  let optimizationRuns = 0;
-  const asset = { id: 'asset', brandId: 'brand', status: 'FAILED', linkedPostId: null };
-  const service = new MediaService({
-    mediaAsset: {
+test('malformed Groq content package falls through to valid Gemini output', async () => {
+  let groqCalls = 0;
+  let geminiCalls = 0;
+  const gateway = gatewayWith(
+    async () => { groqCalls++; return { text: '{"caption":"missing hashtags"}' }; },
+    async () => { geminiCalls++; return { text: '{"caption":"Ready.","hashtags":["#Ready"],"confidence":0.8}' }; },
+  );
+  const validate = (text) => {
+    try {
+      const value = JSON.parse(text);
+      return typeof value.caption === 'string' && value.caption.length > 0 && Array.isArray(value.hashtags) && value.hashtags.length > 0;
+    } catch { return false; }
+  };
+  const result = await gateway.generate({ label: 'content package', maxTokens: 650, validate, messages: [{ role: 'user', content: 'JSON' }] });
+  assert.equal(groqCalls, 1);
+  assert.equal(geminiCalls, 1);
+  assert.equal(result.provider, 'gemini');
+});
+
+test('malformed Groq and Gemini content packages fail closed', async () => {
+  const gateway = gatewayWith(
+    async () => ({ text: 'not json' }),
+    async () => ({ text: '{"caption":"still missing hashtags"}' }),
+  );
+  const validate = (text) => {
+    try {
+      const value = JSON.parse(text);
+      return typeof value.caption === 'string' && Array.isArray(value.hashtags) && value.hashtags.length > 0;
+    } catch { return false; }
+  };
+  const result = await gateway.generate({ label: 'content package', maxTokens: 650, validate, messages: [{ role: 'user', content: 'JSON' }] });
+  assert.equal(result, null);
+});
+
+test('Gemini propagates maxTokens to the SDK request', async () => {
+  const provider = new GeminiProvider();
+  let request;
+  provider.client = { models: { generateContent: async (value) => { request = value; return { text: 'bounded' }; } } };
+  await provider.complete([{ role: 'user', content: 'Answer briefly.' }], { maxTokens: 137, timeoutMs: 1_000 });
+  assert.equal(request.config.maxOutputTokens, 137);
+  assert.equal(request.config.httpOptions.timeout, 1_000);
+  assert.ok(request.config.abortSignal instanceof AbortSignal);
+});
+
+test('Gemini deadline aborts the underlying SDK operation', async () => {
+  const provider = new GeminiProvider();
+  let aborted = false;
+  provider.client = { models: { generateContent: ({ config }) => new Promise((_resolve, reject) => {
+    config.abortSignal.addEventListener('abort', () => {
+      aborted = true;
+      reject(config.abortSignal.reason);
+    }, { once: true });
+  }) } };
+  await assert.rejects(
+    provider.complete([{ role: 'user', content: 'Never resolves.' }], { maxTokens: 10, timeoutMs: 20 }),
+    /timed out after 20ms/,
+  );
+  assert.equal(aborted, true);
+});
+
+test('Groq recognizes comma-separated GROQ_API_KEYS configuration', () => {
+  const prior = Object.fromEntries(Object.entries(process.env).filter(([key]) => /^GROQ_API_KEY(?:S|_\d+)?$/.test(key)));
+  for (const key of Object.keys(prior)) delete process.env[key];
+  process.env.GROQ_API_KEYS = 'first-key, second-key';
+  try {
+    assert.equal(new GroqProvider().isConfigured(), true);
+  } finally {
+    delete process.env.GROQ_API_KEYS;
+    Object.assign(process.env, prior);
+  }
+});
+
+test('caption retry queues the existing asset without rerunning optimization', async () => {
+  const previous = { token: process.env.QSTASH_TOKEN, secret: process.env.CRON_SECRET, url: process.env.APP_URL, fetch: global.fetch };
+  process.env.QSTASH_TOKEN = 'test-token'; process.env.CRON_SECRET = 'test-secret'; process.env.APP_URL = 'https://example.test';
+  const deliveries = [];
+  global.fetch = async (url, options) => { deliveries.push({ url, options }); return { ok: true }; };
+  try {
+    const asset = { id: 'asset', brandId: 'brand', status: 'FAILED', linkedPostId: null };
+    const service = new MediaService({ mediaAsset: {
       findFirst: async () => asset,
-      findUnique: async () => ({ ...asset, status: 'READY' }),
-    },
-  }, {}, { handleMediaUploaded: async () => { pipelineRuns++; } }, {}, {});
-  service.triggerOptimization = async () => { optimizationRuns++; };
-  const result = await service.triggerProcessing('brand', 'asset');
-  assert.equal(result.status, 'READY');
-  assert.equal(pipelineRuns, 1);
-  assert.equal(optimizationRuns, 0);
+      updateMany: async ({ data }) => { Object.assign(asset, data); return { count: 1 }; },
+    } }, {}, {});
+    const result = await service.triggerProcessing('brand', 'asset');
+    assert.equal(result.status, 'PENDING');
+    assert.equal(result.processingStage, 'QUEUED');
+    assert.equal(deliveries.length, 1);
+    assert.match(deliveries[0].url, /process-media\/asset$/);
+    assert.match(deliveries[0].options.headers['Upstash-Flow-Control-Value'], /parallelism=1/);
+  } finally {
+    global.fetch = previous.fetch;
+    for (const [key, value] of [['QSTASH_TOKEN', previous.token], ['CRON_SECRET', previous.secret], ['APP_URL', previous.url]]) {
+      if (value === undefined) delete process.env[key]; else process.env[key] = value;
+    }
+  }
 });
 
 test('AI outage cannot produce or log a successful generic caption', async () => {
@@ -404,4 +488,159 @@ test('dashboard startup uses one guarded bootstrap and defers secondary data', (
   assert.match(page, /refreshStats\(\)/);
   assert.match(layout, /DashboardDataProvider/);
   assert.doesNotMatch(layout, /getBillingSummary/);
+});
+
+
+test('Brain content package rejects malformed output and removes duplicate hashtag work', () => {
+  const { OyincaBrainService } = require('../apps/api/src/business-brain/oyinca-brain.service.ts');
+  const brain = new OyincaBrainService({}, {}, {});
+  const valid = { caption: 'Made carefully. #Craft', hashtags: ['Craft', '#Craft', '#Studio', 'bad tag'], confidence: 0.7 };
+  const result = brain.parseDecision(JSON.stringify(valid));
+  assert.equal(result.caption, 'Made carefully.');
+  assert.deepEqual(result.hashtags, ['#Craft', '#Studio']);
+  assert.equal(brain.parseDecision(JSON.stringify({ ...valid, caption: '' })), null);
+  assert.equal(brain.parseDecision(JSON.stringify({ ...valid, confidence: 4 })), null);
+  assert.equal(brain.parseDecision(JSON.stringify({ ...valid, hashtags: [] })), null);
+  assert.equal(brain.parseDecision(JSON.stringify({ ...valid, confidence: 0 })).confidence, 0);
+});
+
+test('video content only reaches a capable provider', async () => {
+  let groqCalls = 0;
+  const gateway = gatewayWith(async () => { groqCalls++; return { text: 'wrong' }; }, async () => ({ text: 'actual video description' }));
+  const result = await gateway.generate({ label: 'video', maxTokens: 100, messages: [{ role: 'user', content: [{ type: 'video_url', video_url: { url: 'https://example.test/video.mp4', mimeType: 'video/mp4' } }] }] });
+  assert.equal(groqCalls, 0);
+  assert.equal(result.provider, 'gemini');
+});
+
+function engineWith(prisma, entitlements = {}) {
+  return new EngineService(
+    prisma,
+    {},
+    {},
+    {},
+    {},
+    {},
+    entitlements,
+    {},
+    { record: async () => {} },
+    {},
+  );
+}
+
+test('stale linked PROCESSING asset reconciles from its post without creating a duplicate', async () => {
+  let postCreates = 0;
+  let assetUpdate;
+  const asset = {
+    id: 'asset-linked', brandId: 'brand', linkedPostId: 'post-existing', status: 'PROCESSING',
+    processingAttempts: 1, updatedAt: new Date(Date.now() - 10 * 60_000),
+  };
+  const prisma = {
+    mediaAsset: {
+      findUnique: async () => asset,
+      updateMany: async (args) => { assetUpdate = args; return { count: 1 }; },
+    },
+    post: {
+      findFirst: async () => ({ id: 'post-existing', status: 'NEEDS_APPROVAL' }),
+      create: async () => { postCreates++; },
+    },
+  };
+  const stop = await engineWith(prisma).reconcileMediaAsset(asset.id);
+  assert.equal(stop, true);
+  assert.equal(postCreates, 0);
+  assert.equal(assetUpdate.data.status, 'READY');
+  assert.equal(assetUpdate.data.processingStage, 'READY_FOR_APPROVAL');
+});
+
+test('stale third processing attempt is reconciled to a terminal retryable failure', async () => {
+  let assetUpdate;
+  let releases = 0;
+  const asset = {
+    id: 'asset-third', brandId: 'brand', linkedPostId: null, status: 'PROCESSING',
+    processingAttempts: 3, updatedAt: new Date(Date.now() - 10 * 60_000),
+  };
+  const prisma = { mediaAsset: {
+    findUnique: async () => asset,
+    updateMany: async (args) => { assetUpdate = args; return { count: 1 }; },
+  } };
+  const stop = await engineWith(prisma, { releaseMediaAiGeneration: async () => { releases++; } }).reconcileMediaAsset(asset.id);
+  assert.equal(stop, true);
+  assert.equal(assetUpdate.data.status, 'FAILED');
+  assert.equal(assetUpdate.data.processingNextAttemptAt, null);
+  assert.match(assetUpdate.data.lastErrorMessage, /three attempts/i);
+  assert.equal(releases, 1);
+});
+
+test('pre-processing configuration failure refunds the durable AI reservation', async () => {
+  const asset = {
+    id: 'asset-config', brandId: 'brand', linkedPostId: null, status: 'PENDING',
+    processingIntent: 'SINGLE', processingAttempts: 0, aiReservationOrgId: null,
+    mimeType: 'image/png', sizeBytes: 100, filename: 'image.png', updatedAt: new Date(0),
+  };
+  let claims = 0;
+  let reserves = 0;
+  let releases = 0;
+  const prisma = {
+    mediaAsset: {
+      findUnique: async () => asset,
+      updateMany: async () => { claims++; return { count: 1 }; },
+    },
+    amaiEngineConfig: { findUnique: async () => { throw new Error('configuration unavailable'); } },
+  };
+  const service = engineWith(prisma, {
+    reserveMediaAiGeneration: async () => { reserves++; return 'org'; },
+    releaseMediaAiGeneration: async () => { releases++; },
+  });
+  await assert.rejects(service.processMediaAsset(asset.id), /configuration unavailable/);
+  assert.equal(claims, 2); // claim, then terminal-state update
+  assert.equal(reserves, 1);
+  assert.equal(releases, 1);
+});
+
+test('optimization recovery dispatches a missed queued job independently', async () => {
+  const previous = { token: process.env.QSTASH_TOKEN, secret: process.env.CRON_SECRET, url: process.env.APP_URL, fetch: global.fetch };
+  process.env.QSTASH_TOKEN = 'test-token'; process.env.CRON_SECRET = 'test-secret'; process.env.APP_URL = 'https://example.test';
+  const deliveries = [];
+  global.fetch = async (url) => { deliveries.push(String(url)); return { ok: true }; };
+  try {
+    const prisma = { mediaAsset: {
+      updateMany: async () => ({ count: 0 }),
+      findMany: async () => [{ id: 'missed-optimization' }],
+    } };
+    const jobs = new EngineJobsService(prisma, {}, {}, {}, {}, {});
+    const result = await jobs.recoverOptimizations();
+    assert.equal(result.found, 1);
+    assert.equal(deliveries.length, 1);
+    assert.match(deliveries[0], /optimize-media\/missed-optimization$/);
+  } finally {
+    global.fetch = previous.fetch;
+    for (const [key, value] of [['QSTASH_TOKEN', previous.token], ['CRON_SECRET', previous.secret], ['APP_URL', previous.url]]) {
+      if (value === undefined) delete process.env[key]; else process.env[key] = value;
+    }
+  }
+});
+
+test('oversized video is rejected before analysis and upload policy advertises the same limit', async () => {
+  assert.throws(() => assertSupportedVideoSize('video/mp4', MAX_VIDEO_ANALYSIS_BYTES + 1), /14 MiB/);
+  const policyService = new MediaService({}, {}, {
+    getOrganizationIdForBrand: async () => 'org',
+    checkStorageUsage: async () => ({ used: 0, limit: 500 * 1024 * 1024 }),
+  });
+  const policy = await policyService.getUploadPolicy('brand');
+  assert.equal(policy.maximumVideoSizeInBytes, MAX_VIDEO_ANALYSIS_BYTES);
+
+  const url = 'https://store.public.blob.vercel-storage.com/brand/large.mp4';
+  let deleted = false;
+  const registerService = new MediaService(
+    { mediaAsset: { findFirst: async () => null } },
+    {
+      inspectUpload: async () => ({ url, pathname: 'brand/large.mp4', size: MAX_VIDEO_ANALYSIS_BYTES + 1, contentType: 'video/mp4' }),
+      deleteFile: async () => { deleted = true; },
+    },
+    {},
+  );
+  await assert.rejects(
+    registerService.registerUploadedAsset('brand', { url, size: 1, mimeType: 'video/mp4', filename: 'large.mp4' }),
+    /14 MiB/,
+  );
+  assert.equal(deleted, true);
 });

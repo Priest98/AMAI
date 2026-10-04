@@ -1,11 +1,11 @@
 import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
-import { EngineService, STALE_PROCESSING_MINUTES } from '../engine/engine.service';
-import { MediaOptimizationService } from '../media-optimization/media-optimization.service';
 import { EntitlementsService } from '../billing/entitlements.service';
 import { MediaStatus, ContentSource, ConnectionStatus, PostStatus } from '@prisma/client';
 import { claimedMimeTypeMatchesBytes } from './magic-bytes.util';
+import { dispatchMediaProcessing } from '../engine/media-dispatch';
+import { assertSupportedVideoSize, MAX_VIDEO_ANALYSIS_BYTES } from './analysis-limits';
 
 // Kept in sync with apps/web/src/app/api/media-upload-token/route.ts's
 // ALLOWED_CONTENT_TYPES (that route gates what the browser is even allowed
@@ -33,21 +33,6 @@ function assertAllowedMimeType(mimeType: string | undefined | null): void {
   }
 }
 
-// STALE_PROCESSING_MINUTES now lives in engine.service.ts (imported above)
-// -- EngineService.processMediaAsset's own atomic claim needs to agree with
-// this sweep on exactly the same staleness threshold, or the two could
-// disagree about whether a given PROCESSING asset is actually abandoned.
-// See that file's comment for the full reasoning.
-// Re-processing a stale asset happens inline inside a GET /assets
-// request, on top of whatever a cold Lambda start already costs (Nest
-// boot + first DB connection can itself take several seconds) — observed
-// in production hitting the 60s platform cap when a cold start landed on
-// top of even a single bounded pipeline run. Sweeping only one stale item
-// per call keeps the worst case predictable and leaves real headroom.
-// Any remaining backlog clears over the next few polls — the Media
-// Library re-fetches on every SSE engine event and on mount.
-const SWEEP_MAX_ITEMS = 1;
-
 @Injectable()
 export class MediaService {
   private readonly logger = new Logger(MediaService.name);
@@ -55,8 +40,6 @@ export class MediaService {
   constructor(
     private prisma: PrismaService,
     private storage: StorageService,
-    private engineService: EngineService,
-    private mediaOptimizationService: MediaOptimizationService,
     private entitlementsService: EntitlementsService,
   ) {}
 
@@ -94,6 +77,7 @@ export class MediaService {
       this.logger.warn(`Upload rejected: claimed type "${file.mimetype}" does not match file content. brand=${brandId} file="${file.originalname}"`);
       throw new BadRequestException('This file\'s content does not match its claimed type. Please check the file and try again.');
     }
+    assertSupportedVideoSize(file.mimetype, file.size || 0);
     await this.assertWithinStorageLimit(brandId, file.size || 0);
     this.logger.log(`Upload started: brand=${brandId} file="${file.originalname}" size=${file.size} type=${file.mimetype}`);
 
@@ -121,7 +105,7 @@ export class MediaService {
    */
   async registerUploadedAsset(
     brandId: string,
-    dto: { url: string; size: number; mimeType: string; filename: string; folderId?: string },
+    dto: { url: string; size: number; mimeType: string; filename: string; folderId?: string; mode?: 'single' | 'carousel' },
     userId?: string,
   ) {
     if (!dto?.url) throw new BadRequestException('No file URL provided.');
@@ -148,6 +132,11 @@ export class MediaService {
       return existing;
     }
     dto = { ...dto, size: blob.size };
+    try { assertSupportedVideoSize(dto.mimeType, dto.size); }
+    catch (error) {
+      await this.storage.deleteFile(dto.url).catch(() => {});
+      throw error;
+    }
 
     // Verify a bounded byte prefix. Unavailable content must be retried.
     try {
@@ -212,7 +201,7 @@ export class MediaService {
 
   private async createAssetRecord(
     brandId: string,
-    dto: { url: string; size?: number; mimeType: string; filename?: string; folderId?: string },
+    dto: { url: string; size?: number; mimeType: string; filename?: string; folderId?: string; mode?: 'single' | 'carousel' },
     userId?: string,
   ) {
     if (dto.folderId && !await this.prisma.mediaFolder.findFirst({ where: { id: dto.folderId, brandId } })) {
@@ -229,22 +218,22 @@ export class MediaService {
         mimeType: dto.mimeType,
         source: ContentSource.DIRECT_UPLOAD,
         status: MediaStatus.PENDING,
+        processingIntent: dto.mode === 'carousel' ? 'STAGED' : 'SINGLE',
+        processingStage: dto.mode === 'carousel' ? 'UPLOADED' : 'QUEUED',
       }
     });
     this.logger.log(`DB record created: asset=${asset.id} brand=${brandId}`);
 
-    // Deliberately NOT awaited here. Blocking the upload response on the
-    // full AI pipeline (vision + captions + hashtags + scheduling) capped
-    // upload throughput at one file's worth of AI latency at a time and
-    // defeated real concurrency. The caller (UploadDropzone) fires
-    // POST .../assets/:assetId/process as its own separate request right
-    // after this returns -- see MediaController.processAsset / triggerProcessing
-    // below, which is what actually runs handleMediaUploaded. That request
-    // has its own execution budget and EngineService's internal pipeline
-    // timeout guarantees it resolves cleanly either way. The record starts
-    // life as PENDING; sweepStaleProcessing (see below) is the backstop if
-    // the browser never gets to fire that follow-up call at all (e.g. the
-    // tab closes mid-upload).
+    // Registration owns durable dispatch. The browser only observes status;
+    // closing a tab can no longer strand an otherwise valid upload. QStash
+    // invokes the existing authenticated bounded worker, while PENDING plus
+    // the scheduled recovery sweep remains the database-backed backstop.
+    if (dto.mode !== 'carousel') await dispatchMediaProcessing(asset.id).catch((error) => {
+      this.logger.warn(`QStash dispatch failed for asset ${asset.id}; recovery sweep will retry: ${error instanceof Error ? error.message : error}`);
+    });
+    await dispatchMediaProcessing(asset.id, 'optimize-media').catch(() => {
+      this.logger.warn(`Optimization dispatch deferred for asset ${asset.id}.`);
+    });
     return asset;
   }
 
@@ -253,7 +242,7 @@ export class MediaService {
     const { used, limit } = await this.entitlementsService.checkStorageUsage(organizationId);
     const maximumSizeInBytes = Math.min(500 * 1024 * 1024, limit === -1 ? Infinity : Math.max(0, limit - used));
     if (maximumSizeInBytes <= 0) throw new BadRequestException('Your storage is full. Delete media or upgrade your plan.');
-    return { maximumSizeInBytes };
+    return { maximumSizeInBytes, maximumVideoSizeInBytes: Math.min(maximumSizeInBytes, MAX_VIDEO_ANALYSIS_BYTES) };
   }
 
   /**
@@ -266,89 +255,16 @@ export class MediaService {
     const asset = await this.prisma.mediaAsset.findFirst({ where: { id: assetId, brandId } });
     if (!asset) throw new NotFoundException('Media asset not found.');
 
-    this.logger.log(`Oyinca triggered: asset=${assetId} brand=${brandId}`);
-
-    // Oyinca's AI pipeline (vision/caption/hashtags/scheduling)
-    // and the Media Optimization Engine are independent -- optimized
-    // versions don't need a caption to exist yet, and captioning doesn't
-    // need optimized media. Running them concurrently rather than one
-    // after the other is what keeps the combined wall time inside
-    // Vercel's platform cap even though video optimization can itself
-    // take real, non-trivial time (see MediaOptimizationService). Both
-    // are awaited here (not fire-and-forget) because a Vercel function can
-    // be frozen the instant its HTTP response flushes -- exactly the bug
-    // already fixed once for "Publish Now" -- so anything that must
-    // actually finish has to finish before this request returns.
-    const isGenerationRetry = asset.status === MediaStatus.FAILED && !asset.linkedPostId;
-    const [pipelineResult, optimizationResult] = await Promise.allSettled([
-      this.engineService.handleMediaUploaded({ mediaAssetId: assetId }),
-      // The derivative was already produced during the original attempt.
-      // A caption retry must not re-download/reprocess the same large video.
-      isGenerationRetry ? Promise.resolve() : this.triggerOptimization(brandId, assetId),
-    ]);
-
-    if (pipelineResult.status === 'rejected') {
-      this.logger.error(`Oyinca pipeline threw for asset ${assetId}: ${pipelineResult.reason?.message || pipelineResult.reason}`);
-    }
-    if (optimizationResult.status === 'rejected') {
-      this.logger.warn(`Media Optimization Engine threw for asset ${assetId}: ${optimizationResult.reason?.message || optimizationResult.reason}`);
-    }
-
-    const updated = await this.prisma.mediaAsset.findUnique({ where: { id: assetId } });
-    this.logger.log(`Workflow complete: asset=${assetId} status=${updated?.status}`);
-    return updated;
-  }
-
-  /**
-   * Generates a platform-optimized version of this asset for every
-   * platform the brand currently has connected. Never throws -- a media
-   * optimization failure must never break or block the AI pipeline
-   * running alongside it; PublishingService falls back to the raw
-   * original if no optimized version exists for a platform at publish
-   * time (see OptimizedMediaAsset / getOptimizedUrl).
-   */
-  private async triggerOptimization(brandId: string, assetId: string): Promise<void> {
-    try {
-      const connectedAccounts = await this.prisma.socialAccount.findMany({
-        where: { brandId, status: ConnectionStatus.CONNECTED },
-        select: { platform: true },
-      });
-      const platforms = Array.from(new Set(connectedAccounts.map((a) => a.platform)));
-      if (platforms.length === 0) return;
-      await this.mediaOptimizationService.optimizeForPlatforms(assetId, brandId, platforms);
-    } catch (error: any) {
-      this.logger.warn(`Media Optimization Engine failed for asset ${assetId}: ${error?.message || error}`);
-    }
-  }
-
-  /**
-   * Self-heals two kinds of stuck asset, both covered by the same sweep
-   * since both just need handleMediaUploaded to (re-)run:
-   *  - PROCESSING: a hard function kill mid-pipeline (Vercel gives no
-   *    completion guarantee for a request that's still running).
-   *  - PENDING past the same staleness window: register()/uploadAsset()
-   *    now return before the AI pipeline runs at all, relying on the
-   *    browser to fire a separate POST .../process request right after —
-   *    if that never happens (tab closed mid-upload, network drop between
-   *    the two calls), the asset would otherwise sit at PENDING forever
-   *    with nothing to notice.
-   * Runs opportunistically whenever the Media Library is loaded, since
-   * that's naturally how soon a user notices something looks stuck.
-   */
-  private async sweepStaleProcessing(brandId: string): Promise<void> {
-    const staleCutoff = new Date(Date.now() - STALE_PROCESSING_MINUTES * 60 * 1000);
-    const stuck = await this.prisma.mediaAsset.findMany({
-      where: {
-        brandId,
-        status: { in: [MediaStatus.PROCESSING, MediaStatus.PENDING] },
-        updatedAt: { lte: staleCutoff },
-      },
-      select: { id: true },
-      take: SWEEP_MAX_ITEMS,
+    if (asset.linkedPostId || asset.status === MediaStatus.PROCESSING) return asset;
+    assertSupportedVideoSize(asset.mimeType, asset.sizeBytes);
+    if (asset.aiReservationOrgId) await this.entitlementsService.releaseMediaAiGeneration(assetId, asset.processingAttempts);
+    const claim = await this.prisma.mediaAsset.updateMany({
+      where: { id: assetId, brandId, linkedPostId: null, status: { in: [MediaStatus.PENDING, MediaStatus.FAILED] } },
+      data: { status: MediaStatus.PENDING, processingIntent: 'SINGLE', processingStage: 'QUEUED', processingAttempts: 0, processingNextAttemptAt: null, lastErrorMessage: null },
     });
-    for (const asset of stuck) {
-      await this.engineService.handleMediaUploaded({ mediaAssetId: asset.id });
-    }
+    if (claim.count) await dispatchMediaProcessing(assetId);
+    const queued = await this.prisma.mediaAsset.findFirst({ where: { id: assetId, brandId } });
+    return queued;
   }
 
   /**
@@ -401,17 +317,7 @@ export class MediaService {
   }
 
   async getAssets(brandId: string, folderId?: string) {
-    // Deliberately NOT awaited. sweepStaleProcessing (unlike
-    // PostsService.opportunisticPublish) has no timeout cap at all -- it
-    // runs the full AI vision/caption/hashtags/scheduling pipeline
-    // (EngineService.handleMediaUploaded) for a stuck asset, which was
-    // blocking every single Media Library page load behind however long
-    // that pipeline call took. SWEEP_MAX_ITEMS=1 already bounds it to at
-    // most one asset, but "at most one AI pipeline call" is still not
-    // something a page load should wait on. Still fires and still
-    // self-heals stuck assets the same way, just without gating the
-    // response the caller is waiting on.
-    this.sweepStaleProcessing(brandId).catch(() => {});
+    // Reads only: QStash and the recovery schedule own background work.
 
     // Projected + capped: the Media Library grid only ever renders these
     // fields (not batchId/batchName/relativePath/userId/platform/
@@ -435,6 +341,8 @@ export class MediaService {
         createdAt: true,
         linkedPostId: true,
         visionTopic: true,
+        processingStage: true,
+        processingAttempts: true,
       },
       orderBy: { createdAt: 'desc' },
       take: 300,

@@ -6,7 +6,7 @@ import {
   AiProviderAdapter,
   AiProviderRequestError,
 } from '../interfaces/ai-provider.interface';
-import { withTimeout } from '../util/with-timeout';
+import { withRequestDeadline } from '../util/request-deadline';
 
 /**
  * Groq Chat Completions adapter (OpenAI-compatible REST shape, plain
@@ -40,7 +40,8 @@ export class GroqProvider implements AiProviderAdapter {
     // At least one GROQ_API_KEY[_N] present is enough to consider the
     // provider configured; ApiKeyManagerService is the source of truth for
     // exactly which keys exist.
-    return Object.entries(process.env).some(([name, value]) => /^GROQ_API_KEY(?:_\d+)?$/.test(name) && !!value?.trim() && value !== 'placeholder');
+    return Object.entries(process.env).some(([name, value]) => /^GROQ_API_KEY(?:_\d+)?$/.test(name) && !!value?.trim() && value.trim() !== 'placeholder')
+      || !!process.env.GROQ_API_KEYS?.split(',').some((key) => key.trim() && key.trim() !== 'placeholder');
   }
 
   async complete(
@@ -64,19 +65,16 @@ export class GroqProvider implements AiProviderAdapter {
       requestBody.reasoning_format = 'hidden';
     }
 
-    const response = await withTimeout(
-      fetch('https://api.groq.com/openai/v1/chat/completions', {
+    return withRequestDeadline(options.timeoutMs, options.signal, async (signal) => {
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
-        signal: AbortSignal.timeout(options.timeoutMs),
+        signal,
         headers: {
           Authorization: `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(requestBody),
-      }),
-      options.timeoutMs,
-      'Groq completion',
-    );
+      });
 
     if (!response.ok) {
       const errText = await response.text().catch(() => '');
@@ -114,5 +112,6 @@ export class GroqProvider implements AiProviderAdapter {
 
     const tokensUsed = typeof data?.usage?.total_tokens === 'number' ? data.usage.total_tokens : undefined;
     return { text: cleaned, raw: data, tokensUsed };
+    });
   }
 }

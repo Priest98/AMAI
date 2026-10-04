@@ -226,6 +226,43 @@ export class EntitlementsService {
     await this.usageService.decrement(organizationId, UsageMetric.AI_GENERATION);
   }
 
+  /** Reservation and usage increment commit together; recovery can refund once. */
+  async reserveMediaAiGeneration(brandId: string, assetId: string, attempt: number): Promise<string> {
+    const organizationId = await this.getOrganizationIdForBrand(brandId);
+    const [entitlements, sub] = await Promise.all([
+      this.getEntitlementsForOrganization(organizationId), this.getSubscription(organizationId),
+    ]);
+    const period = this.usageService.getCurrentPeriod();
+    await this.prisma.$transaction(async (tx) => {
+      const claim = await tx.mediaAsset.updateMany({
+        where: { id: assetId, brandId, processingAttempts: attempt, status: 'PROCESSING', linkedPostId: null, aiReservationOrgId: null },
+        data: { aiReservationOrgId: organizationId, aiReservationPeriodStart: period.start },
+      });
+      if (claim.count !== 1) throw new Error('Media reservation ownership expired.');
+      const result = await this.usageService.incrementIfUnderLimit(organizationId, UsageMetric.AI_GENERATION,
+        entitlements.maxMonthlyAiGenerations, sub.id, tx, period);
+      if (!result.allowed) throw new ForbiddenException(`You've reached your ${entitlements.displayName} plan's monthly AI generation limit.`);
+    });
+    return organizationId;
+  }
+
+  async releaseMediaAiGeneration(assetId: string, attempt: number): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      const asset = await tx.mediaAsset.findUnique({ where: { id: assetId } });
+      if (!asset?.aiReservationOrgId || !asset.aiReservationPeriodStart || asset.processingAttempts !== attempt || asset.linkedPostId) return;
+      const organizationId = asset.aiReservationOrgId;
+      const periodStart = asset.aiReservationPeriodStart;
+      const released = await tx.mediaAsset.updateMany({
+        where: { id: assetId, processingAttempts: attempt, linkedPostId: null, aiReservationOrgId: organizationId, aiReservationPeriodStart: periodStart },
+        data: { aiReservationOrgId: null, aiReservationPeriodStart: null },
+      });
+      if (released.count) await tx.usageRecord.updateMany({
+        where: { organizationId, metric: UsageMetric.AI_GENERATION, periodStart, count: { gt: 0 } },
+        data: { count: { decrement: 1 } },
+      });
+    });
+  }
+
   /**
    * The single chokepoint for "this brand is about to commit to publishing
    * one more post this month" -- reserves the monthly credit immediately

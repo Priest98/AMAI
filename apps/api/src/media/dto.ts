@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import { IsIn, IsNotEmpty, IsNumber, IsOptional, IsString, Min } from 'class-validator';
 
 // Security audit fix (4.1): same rationale as posts/dto.ts -- these were
 // previously inline @Body() object-literal types with zero runtime
@@ -10,6 +10,10 @@ import { IsNotEmpty, IsNumber, IsOptional, IsString, Min } from 'class-validator
 // service would otherwise accept.
 
 export class RegisterAssetDto {
+  @IsOptional()
+  @IsIn(['single', 'carousel'])
+  mode?: 'single' | 'carousel';
+
   @IsString()
   @IsNotEmpty()
   url!: string;

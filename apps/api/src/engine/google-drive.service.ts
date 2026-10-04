@@ -21,7 +21,7 @@ export class GoogleDriveService {
 
       const res = await drive.files.list({
         q: `'${folderId}' in parents and trashed = false and (mimeType contains 'image/' or mimeType contains 'video/')`,
-        fields: 'files(id, name, mimeType, webContentLink)',
+        fields: 'files(id, name, mimeType, size, webContentLink)',
         orderBy: 'createdTime desc',
         pageSize: 50,
       });

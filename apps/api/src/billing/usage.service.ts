@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { UsageMetric } from '@prisma/client';
+import { Prisma, UsageMetric } from '@prisma/client';
 
 export interface UsagePeriod {
   start: Date;
@@ -84,18 +84,21 @@ export class UsageService {
     metric: UsageMetric,
     limit: number,
     subscriptionId?: string | null,
+    client: Prisma.TransactionClient = this.prisma,
+    period: UsagePeriod = this.getCurrentPeriod(),
   ): Promise<{ allowed: boolean; used: number }> {
-    const { start, end } = this.getCurrentPeriod();
+    const { start, end } = period;
+    if (limit !== -1 && limit < 1) return { allowed: false, used: 0 };
 
     const rows = limit === -1
-      ? await this.prisma.$queryRaw<{ count: number }[]>`
+      ? await client.$queryRaw<{ count: number }[]>`
           INSERT INTO "UsageRecord" ("id", "organizationId", "subscriptionId", "metric", "periodStart", "periodEnd", "count", "updatedAt")
           VALUES (gen_random_uuid()::text, ${organizationId}, ${subscriptionId ?? null}, ${metric}::"UsageMetric", ${start}, ${end}, 1, now())
           ON CONFLICT ("organizationId", "metric", "periodStart")
           DO UPDATE SET "count" = "UsageRecord"."count" + 1, "updatedAt" = now()
           RETURNING "count"
         `
-      : await this.prisma.$queryRaw<{ count: number }[]>`
+      : await client.$queryRaw<{ count: number }[]>`
           INSERT INTO "UsageRecord" ("id", "organizationId", "subscriptionId", "metric", "periodStart", "periodEnd", "count", "updatedAt")
           VALUES (gen_random_uuid()::text, ${organizationId}, ${subscriptionId ?? null}, ${metric}::"UsageMetric", ${start}, ${end}, 1, now())
           ON CONFLICT ("organizationId", "metric", "periodStart")

@@ -1,11 +1,13 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EncryptionService } from '../encryption/encryption.service';
 import { StorageService } from '../storage/storage.service';
 import { GoogleDriveService } from './google-drive.service';
 import { EngineService } from './engine.service';
+import { dispatchMediaProcessing } from './media-dispatch';
 import { MediaOptimizationService } from '../media-optimization/media-optimization.service';
 import { ConnectionStatus, ContentSource, MediaStatus, TargetStatus } from '@prisma/client';
+import { assertSupportedVideoSize } from '../media/analysis-limits';
 
 /**
  * Google Drive sync — pulls new files from each brand's connected folder
@@ -39,34 +41,104 @@ export class EngineJobsService {
    */
   async processPendingMedia(): Promise<{ found: number; processed: number; failed: number }> {
     const staleBefore = new Date(Date.now() - 2 * 60 * 1000);
+    // Reconcile even exhausted and linked jobs, which must never generate again.
+    const interrupted = await this.prisma.mediaAsset.findMany({
+      where: { OR: [
+        { status: MediaStatus.PROCESSING, updatedAt: { lt: staleBefore } },
+        { status: MediaStatus.FAILED, aiReservationOrgId: { not: null } },
+      ] }, take: 20, orderBy: { updatedAt: 'asc' }, select: { id: true },
+    });
+    for (const asset of interrupted) {
+      await this.engineService.reconcileMediaAsset(asset.id).catch(() => {
+        this.logger.warn(`Reconciliation deferred for asset ${asset.id}.`);
+      });
+    }
+    await this.recoverOptimizations().catch(() => this.logger.warn('Optimization recovery deferred.'));
     const jobs = await this.prisma.mediaAsset.findMany({
       where: {
         blobUrl: { not: null },
+        linkedPostId: null,
+        processingIntent: 'SINGLE',
+        processingAttempts: { lt: 3 },
         OR: [
           { status: MediaStatus.PENDING },
           { status: MediaStatus.PROCESSING, updatedAt: { lt: staleBefore } },
+          { status: MediaStatus.FAILED, processingNextAttemptAt: { lte: new Date() } },
         ],
       },
       orderBy: { createdAt: 'asc' },
       // One AI pipeline can consume most of a serverless invocation. A
       // frequent cron drains the backlog safely without starting work that
       // the platform will kill before it can finish.
-      take: 1,
+      take: 20,
       select: { id: true },
     });
 
     let processed = 0;
     let failed = 0;
-    for (const job of jobs) {
+    await Promise.all(jobs.map(async (job) => {
       try {
-        await this.engineService.handleMediaUploaded({ mediaAssetId: job.id });
+        await dispatchMediaProcessing(job.id);
         processed++;
       } catch (error: any) {
         failed++;
         this.logger.warn(`Pending-media recovery failed for ${job.id}: ${error?.message || error}`);
       }
-    }
+    }));
     return { found: jobs.length, processed, failed };
+  }
+
+  async processOneMedia(id: string) {
+    if (await this.engineService.reconcileMediaAsset(id)) return { skipped: true };
+    const asset = await this.prisma.mediaAsset.findUnique({ where: { id } });
+    if (!asset || asset.processingIntent !== 'SINGLE' || asset.linkedPostId || asset.processingAttempts >= 3) return { skipped: true };
+    if (asset.processingNextAttemptAt && asset.processingNextAttemptAt > new Date()) {
+      throw new ServiceUnavailableException('Media retry is waiting for its backoff window.');
+    }
+    await this.engineService.handleMediaUploaded({ mediaAssetId: id });
+    const result = await this.prisma.mediaAsset.findUnique({ where: { id } });
+    if (result?.status === MediaStatus.FAILED) throw new ServiceUnavailableException('Media processing failed; bounded retry required.');
+    return { status: result?.status };
+  }
+
+  async optimizeOneMedia(id: string) {
+    const asset = await this.prisma.mediaAsset.findUnique({ where: { id } });
+    if (!asset?.brandId || asset.optimizationStage === 'DONE' || asset.optimizationAttempts >= 3) return { skipped: true };
+    const claim = await this.prisma.mediaAsset.updateMany({
+      where: { id, optimizationAttempts: asset.optimizationAttempts, OR: [{ optimizationStage: 'QUEUED' }, { optimizationStage: 'FAILED' }, { optimizationStage: 'PROCESSING', updatedAt: { lt: new Date(Date.now() - 120_000) } }] },
+      data: { optimizationStage: 'PROCESSING', optimizationAttempts: { increment: 1 } },
+    });
+    if (!claim.count) return { skipped: true };
+    try {
+      const accounts = await this.prisma.socialAccount.findMany({ where: { brandId: asset.brandId, status: ConnectionStatus.CONNECTED }, select: { platform: true } });
+      const result = await this.mediaOptimizationService.optimizeForPlatforms(id, asset.brandId, [...new Set(accounts.map((a) => a.platform))]);
+      if (result.some((item) => item.status === 'failed')) throw new Error('A derivative could not be prepared.');
+      await this.prisma.mediaAsset.updateMany({ where: { id, optimizationAttempts: asset.optimizationAttempts + 1 }, data: { optimizationStage: 'DONE' } });
+      return { status: 'DONE' };
+    } catch (error) {
+      await this.prisma.mediaAsset.updateMany({ where: { id, optimizationAttempts: asset.optimizationAttempts + 1 }, data: { optimizationStage: 'FAILED' } });
+      throw error;
+    }
+  }
+
+  async recoverOptimizations() {
+    const staleBefore = new Date(Date.now() - 5 * 60_000);
+    await this.prisma.mediaAsset.updateMany({
+      where: { optimizationStage: 'PROCESSING', optimizationAttempts: { gte: 3 }, updatedAt: { lt: staleBefore } },
+      data: { optimizationStage: 'FAILED' },
+    });
+    const assets = await this.prisma.mediaAsset.findMany({
+      where: { blobUrl: { not: null }, optimizationAttempts: { lt: 3 }, OR: [
+        { optimizationStage: 'QUEUED' },
+        { optimizationStage: { in: ['FAILED', 'PROCESSING'] }, updatedAt: { lt: staleBefore } },
+      ] }, take: 20, orderBy: { updatedAt: 'asc' }, select: { id: true },
+    });
+    await Promise.all(assets.map(async (asset) => {
+      await dispatchMediaProcessing(asset.id, 'optimize-media').catch(() => {
+        this.logger.warn(`Optimization dispatch deferred for asset ${asset.id}.`);
+      });
+    }));
+    return { found: assets.length };
   }
 
   async syncAllGoogleDrive() {
@@ -121,6 +193,11 @@ export class EngineJobsService {
         if (alreadySynced) continue;
 
         try {
+          // Reject unsupported video before downloading it into serverless memory.
+          if (file.mimeType?.startsWith('video/') && (!file.size || !Number.isSafeInteger(Number(file.size)))) {
+            throw new Error('Video size is unavailable; import skipped.');
+          }
+          assertSupportedVideoSize(file.mimeType || '', Number(file.size || 0));
           const buffer = await this.driveService.downloadFile(refreshToken, file.id);
           const mimeType = file.mimeType || 'application/octet-stream';
           const uploaded = await this.storage.uploadBuffer(Buffer.from(buffer), file.name || file.id, mimeType, config.brandId);
@@ -141,33 +218,10 @@ export class EngineJobsService {
             data: { configId: config.id, googleFileId: file.id, status: TargetStatus.PUBLISHED, postId: null },
           });
 
-          // Awaited directly (not events.emit fire-and-forget) so the AI
-          // pipeline actually completes before this cron request ends —
-          // same fix as the Direct Upload path in media.service.ts. This
-          // loop already awaits several async steps per file sequentially,
-          // so this is consistent with the existing shape, not a new cost.
-          await this.engineService.handleMediaUploaded({ mediaAssetId: asset.id });
-
-          // Platform-aware media processing must cover Google Drive-synced
-          // media too, not just Direct Upload -- this was previously
-          // missing entirely (Drive sync only ever ran the AI
-          // caption/hashtag pipeline), meaning every Drive-sourced image
-          // silently published as the raw original with no platform-correct
-          // derivative. Mirrors MediaService.triggerOptimization's own
-          // logic exactly: optimize for every currently-connected platform,
-          // never let a failure here break the sync loop.
-          try {
-            const connectedAccounts = await this.prisma.socialAccount.findMany({
-              where: { brandId: config.brandId, status: ConnectionStatus.CONNECTED },
-              select: { platform: true },
-            });
-            const platforms = Array.from(new Set(connectedAccounts.map((a) => a.platform)));
-            if (platforms.length > 0) {
-              await this.mediaOptimizationService.optimizeForPlatforms(asset.id, config.brandId, platforms);
-            }
-          } catch (optError: any) {
-            this.logger.warn(`Drive sync: Media Optimization Engine failed for asset ${asset.id}: ${optError?.message || optError}`);
-          }
+          await dispatchMediaProcessing(asset.id, 'optimize-media').catch(() => {
+            this.logger.warn(`Optimization dispatch deferred for asset ${asset.id}.`);
+          });
+          await dispatchMediaProcessing(asset.id);
 
           ingested++;
         } catch (fileErr: any) {
