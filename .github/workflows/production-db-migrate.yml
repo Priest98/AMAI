@@ -1,0 +1,112 @@
+name: Production database migration
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-database-migration
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    name: Validate and deploy production migrations
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      DIRECT_URL: ${{ secrets.DIRECT_URL }}
+
+    steps:
+      - name: Check out the selected commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Verify required secrets are configured
+        shell: bash
+        run: |
+          if [[ -z "${DATABASE_URL:-}" || -z "${DIRECT_URL:-}" ]]; then
+            echo "DATABASE_URL and DIRECT_URL must both be configured as GitHub Actions repository secrets."
+            exit 1
+          fi
+
+      - name: Install dependencies
+        # Match the repository's existing Linux CI install path. npm ci exits
+        # before dependency resolution with the current workspace lockfile.
+        run: npm install --ignore-scripts --no-audit --no-fund
+
+      - name: Validate Prisma schema
+        run: npx prisma validate --schema apps/api/prisma/schema.prisma
+
+      - name: Check migration status before deployment
+        shell: bash
+        run: |
+          set +e
+          status_output="$(npx prisma migrate status --schema apps/api/prisma/schema.prisma 2>&1)"
+          status_code=$?
+          set -e
+          printf '%s\n' "$status_output"
+
+          if [[ $status_code -eq 0 ]]; then
+            exit 0
+          fi
+
+          if grep -Fq "have not yet been applied" <<<"$status_output"; then
+            exit 0
+          fi
+
+          echo "Pre-deployment migration status was not a safe pending-migrations state."
+          exit "$status_code"
+
+      - name: Generate Prisma client
+        run: npx prisma generate --schema apps/api/prisma/schema.prisma
+
+      - name: Require existing Prisma migration history
+        shell: bash
+        run: |
+          node <<'NODE'
+          const { PrismaClient } = require('@prisma/client');
+
+          const client = new PrismaClient({
+            datasources: { db: { url: process.env.DIRECT_URL } },
+          });
+
+          async function main() {
+            const rows = await client.$queryRaw`
+              SELECT EXISTS (
+                SELECT 1
+                FROM information_schema.tables
+                WHERE table_schema = 'public'
+                  AND table_name = '_prisma_migrations'
+              ) AS "exists"
+            `;
+
+            if (!rows[0]?.exists) {
+              throw new Error(
+                'Production has no Prisma migration history; stopping for manual inspection without baselining.',
+              );
+            }
+          }
+
+          main()
+            .finally(() => client.$disconnect())
+            .catch((error) => {
+              console.error(error.message);
+              process.exit(1);
+            });
+          NODE
+
+      - name: Deploy migrations
+        run: npm run migrate:deploy
+
+      - name: Verify final migration status
+        run: npx prisma migrate status --schema apps/api/prisma/schema.prisma
