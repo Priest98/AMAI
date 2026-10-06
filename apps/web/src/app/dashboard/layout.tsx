@@ -25,6 +25,8 @@ import {
   Gem,
   Lock,
   Layers,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-react';
 import { getCurrentUser, logout } from '@/lib/api';
 import { DashboardDataProvider, useDashboardData } from '@/lib/DashboardDataContext';
@@ -145,7 +147,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   // as hasAgency above -- never briefly show an unlocked item to a Free user.
   const [analyticsLocked, setAnalyticsLocked] = useState(true);
   const { isDark: isDarkMode, toggleTheme } = useTheme();
-  const [scrolled, setScrolled] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   // Gates rendering of the actual dashboard shell until the auth check has
   // resolved — without this, an unauthenticated visitor briefly sees the
   // full protected layout flash on screen before the redirect kicks in.
@@ -211,11 +213,16 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   // Powers the floating header's shrink-on-scroll transition -- same
   // "island" behavior as the landing page's Nav.tsx.
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 12);
-    onScroll();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
+    setIsSidebarCollapsed(window.localStorage.getItem('oyinca_sidebar_collapsed') === 'true');
   }, []);
+
+  const toggleSidebar = () => {
+    setIsSidebarCollapsed((collapsed) => {
+      const next = !collapsed;
+      window.localStorage.setItem('oyinca_sidebar_collapsed', String(next));
+      return next;
+    });
+  };
 
   // Theme state (read/write + <html> sync) now lives in the shared
   // useTheme hook so the dashboard, landing page, sign in, and sign up all
@@ -224,8 +231,6 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   const handleLogout = () => {
     logout();
   };
-
-  const currentDateStr = new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
 
   // Nothing to show yet — either the redirect to /login is about to fire,
   // or we just haven't confirmed the session is valid. Render an empty
@@ -250,17 +255,10 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
           rounded-full, inset margins, blur/border/shadow, and a tightened
           shadow/padding once the page scrolls. */}
       <header
-        className="flex items-center justify-between sticky z-40 mx-3 sm:mx-4 lg:mx-6 rounded-full transition-all duration-500 ease-out"
+        className="h-16 px-4 sm:px-6 flex items-center justify-between sticky top-0 z-40 border-b"
         style={{
-          top: scrolled ? '0.5rem' : '0.75rem',
-          padding: scrolled ? '0.45rem 0.5rem 0.45rem 1rem' : '0.65rem 0.75rem 0.65rem 1.25rem',
-          backgroundColor: 'var(--glass-bg)',
-          border: '1px solid var(--glass-border)',
-          backdropFilter: 'blur(20px) saturate(160%)',
-          WebkitBackdropFilter: 'blur(20px) saturate(160%)',
-          boxShadow: scrolled
-            ? '0 10px 30px -12px rgba(0, 0, 0, 0.35), inset 0 1px 0 0 var(--glass-highlight)'
-            : '0 6px 20px -10px rgba(0, 0, 0, 0.22), inset 0 1px 0 0 var(--glass-highlight)',
+          backgroundColor: 'var(--surface-panel)',
+          borderColor: 'var(--border-subtle)',
         }}
       >
         {/* Left: Logo & Mobile Toggle */}
@@ -273,7 +271,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
               present. */}
           <button
             onClick={() => setIsMobileOpen(true)}
-            className="btn-icon-glass lg:hidden h-9 w-9 flex items-center justify-center touch-target"
+            className="btn-icon-glass lg:hidden h-11 w-11 items-center justify-center"
             style={{ color: 'var(--text-secondary)' }}
             aria-label="Open navigation menu"
           >
@@ -284,13 +282,6 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
             <Logo variant="full" className="h-7" />
           </Link>
 
-          <div className="hidden sm:block h-4 w-px" style={{ backgroundColor: 'var(--card-border)' }} />
-
-          {/* Compact User Greeting */}
-          <span className="hidden lg:inline-block text-body-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-            Hello, <span className="font-bold">{userName}</span>
-          </span>
-
           {/* Renders only when the workspace has more than one client, so
               the current client is never ambiguous on Agency and never
               clutters Free/Pro. */}
@@ -299,15 +290,6 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
         {/* Right Utility Actions */}
         <div className="flex items-center space-x-2">
-          {/* Live Date Picker */}
-          <div
-            className="hidden md:flex items-center space-x-1.5 px-3 py-1 rounded-[var(--radius-md)] text-xs font-medium border backdrop-blur-md"
-            style={{ backgroundColor: 'var(--glass-card-bg)', borderColor: 'var(--glass-card-border)', color: 'var(--text-secondary)' }}
-          >
-            <CalendarIcon className="h-3.5 w-3.5" style={{ color: 'var(--text-secondary)' }} />
-            <span className="text-[11px] font-mono">{currentDateStr}</span>
-          </div>
-
           {/* Notifications */}
           <NotificationsBell />
 
@@ -423,18 +405,29 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       <div
         className="flex-1 w-full max-w-[1600px] mx-auto px-4 sm:px-6 pt-5 sm:pt-7 pb-[calc(5.5rem+env(safe-area-inset-bottom))] lg:pb-8"
       >
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="flex gap-6">
 
           {/* Column 1: Left Sidebar Navigation */}
-          <aside className="hidden lg:block lg:col-span-3">
-            <div className="exec-card sticky top-20 p-5 space-y-6">
+          <aside className={`hidden lg:block shrink-0 transition-[width] duration-200 ${isSidebarCollapsed ? 'w-20' : 'w-64'}`}>
+            <div className={`exec-card sticky top-20 space-y-6 ${isSidebarCollapsed ? 'p-3' : 'p-5'}`}>
+
+              <button
+                type="button"
+                onClick={toggleSidebar}
+                className="btn-ghost touch-target w-full gap-2 px-2 text-body-sm"
+                aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                title={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              >
+                {isSidebarCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+                {!isSidebarCollapsed && <span>Collapse</span>}
+              </button>
 
               {/* Profile Card */}
-              <div className="surface-tile p-3.5 flex items-center space-x-3">
+              <div className={`surface-tile flex items-center ${isSidebarCollapsed ? 'p-2 justify-center' : 'p-3.5 space-x-3'}`}>
                 <div className="h-9 w-9 shrink-0 rounded-[var(--radius-md)] flex items-center justify-center font-bold text-xs" style={{ background: 'var(--gradient-primary-cta)', color: 'var(--text-on-accent)' }}>
                   {userInitials}
                 </div>
-                <div className="min-w-0 flex-1">
+                <div className={`min-w-0 flex-1 ${isSidebarCollapsed ? 'hidden' : ''}`}>
                   <p className="text-body-sm font-bold truncate" style={{ color: 'var(--text-primary)' }}>{userName}</p>
                   {workspaceLabel && (
                     <p className="text-caption truncate" style={{ color: 'var(--text-muted)' }}>{workspaceLabel}</p>
@@ -447,7 +440,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                 {visibleNavSections.map((section, sIdx) => (
                   <div key={sIdx} className="space-y-1">
                     {section.title && (
-                      <p className="text-overline px-3 pb-1.5 pt-1">
+                      <p className={`text-overline px-3 pb-1.5 pt-1 ${isSidebarCollapsed ? 'sr-only' : ''}`}>
                         {section.title}
                       </p>
                     )}
@@ -460,7 +453,8 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                           key={item.label}
                           href={item.href}
                           data-tour={NAV_TOUR_IDS[item.href]}
-                          className="flex items-center justify-between px-3 py-2.5 rounded-[var(--radius-md)] text-body-sm font-semibold transition-all duration-200"
+                          className={`flex items-center px-3 py-2.5 rounded-[var(--radius-md)] text-body-sm font-semibold transition-colors duration-200 ${isSidebarCollapsed ? 'justify-center' : 'justify-between'}`}
+                          title={isSidebarCollapsed ? item.label : undefined}
                           style={{
                             backgroundColor: isActive ? 'var(--accent-secondary-subtle)' : 'transparent',
                             color: isActive ? 'var(--accent-secondary)' : 'var(--text-secondary)',
@@ -470,11 +464,11 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                           onFocus={() => prefetchRoute(item.href)}
                           onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = 'transparent'; }}
                         >
-                          <span className="flex items-center space-x-2.5 min-w-0">
+                          <span className={`flex items-center min-w-0 ${isSidebarCollapsed ? '' : 'space-x-2.5'}`}>
                             <Icon className="h-4 w-4 flex-shrink-0" style={{ color: isActive ? 'var(--accent-secondary)' : 'var(--text-muted)' }} />
-                            <span className="truncate tracking-tight">{item.label}</span>
+                            <span className={`truncate tracking-tight ${isSidebarCollapsed ? 'sr-only' : ''}`}>{item.label}</span>
                           </span>
-                          {isLocked && <Lock className="h-3 w-3 flex-shrink-0" style={{ color: 'var(--text-muted)' }} />}
+                          {isLocked && !isSidebarCollapsed && <Lock className="h-3 w-3 flex-shrink-0" style={{ color: 'var(--text-muted)' }} />}
                         </Link>
                       );
                     })}
@@ -485,27 +479,28 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
               <div className="pt-3 border-t flex items-center justify-between" style={{ borderColor: 'var(--card-border)' }}>
                 <button
                   onClick={handleLogout}
-                  className="h-7 px-3 rounded-[var(--radius-sm)] text-xs font-bold flex items-center space-x-1.5 transition"
+                  className={`min-h-10 px-3 rounded-[var(--radius-sm)] text-xs font-bold flex items-center transition ${isSidebarCollapsed ? 'justify-center w-full' : 'space-x-1.5'}`}
+                  title={isSidebarCollapsed ? 'Sign out' : undefined}
                   style={{ color: 'var(--accent-error)' }}
                   onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--accent-error-subtle)'; }}
                   onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
                 >
                   <LogOut className="h-3.5 w-3.5" />
-                  <span>Logout</span>
+                  <span className={isSidebarCollapsed ? 'sr-only' : ''}>Sign out</span>
                 </button>
               </div>
 
               {/* Company (not product) attribution -- subtle by design, see
                   components/BrandAttribution.tsx's doc comment. */}
-              <BrandAttribution />
+              {!isSidebarCollapsed && <BrandAttribution />}
             </div>
           </aside>
 
           {/* Column 2 & 3 Workspace Content */}
-          <div className="lg:col-span-9">
+          <main className="min-w-0 flex-1">
             <PlanSelectionNotice dashboard />
             {children}
-          </div>
+          </main>
 
         </div>
       </div>
@@ -519,35 +514,14 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         style={{
           height: 'calc(4rem + env(safe-area-inset-bottom))',
           paddingBottom: 'env(safe-area-inset-bottom)',
-          backgroundColor: 'var(--glass-bg)',
-          backdropFilter: 'blur(20px) saturate(160%)',
-          WebkitBackdropFilter: 'blur(20px) saturate(160%)',
-          borderColor: 'var(--glass-border)',
-          boxShadow: 'var(--elevation-4)',
+          backgroundColor: 'var(--surface-panel)',
+          borderColor: 'var(--border-subtle)',
+          boxShadow: 'var(--elevation-2)',
         }}
       >
         {mobileTabItems.map((tab) => {
           const isActive = pathname === tab.href;
           const Icon = tab.icon;
-          const isUploadTab = tab.label === 'Upload';
-
-          if (isUploadTab) {
-            return (
-              <Link
-                key={tab.label}
-                href={tab.href}
-                className="flex items-center justify-center h-11 w-11 rounded-full -translate-y-2 transition-transform active:scale-95 touch-target"
-                style={{ background: 'var(--gradient-primary-cta)', color: 'var(--text-on-accent)', boxShadow: 'var(--elevation-3)' }}
-                title="Upload New Media"
-                onPointerEnter={() => prefetchRoute(tab.href)}
-                onFocus={() => prefetchRoute(tab.href)}
-                onTouchStart={() => prefetchRoute(tab.href)}
-              >
-                <Plus className="h-6 w-6" />
-              </Link>
-            );
-          }
-
           return (
             <Link
               key={tab.label}
@@ -559,7 +533,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
               onFocus={() => prefetchRoute(tab.href)}
               onTouchStart={() => prefetchRoute(tab.href)}
             >
-              <Icon className={`h-[18px] w-[18px] ${isActive ? 'scale-110' : ''}`} />
+              <Icon className="h-[18px] w-[18px]" />
               {/* 9px was effectively unreadable; 10px with normal tracking
                   still fits five tabs at 320px. */}
               <span className="text-[10px] leading-none font-semibold">{tab.label}</span>

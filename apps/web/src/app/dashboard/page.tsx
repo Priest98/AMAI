@@ -6,7 +6,7 @@ import StatCard from "@/components/ui/StatCard";
 import Badge from "@/components/ui/Badge";
 import EmptyState from "@/components/ui/EmptyState";
 import EngineWorkflowVisualization from "@/components/engine/EngineWorkflowVisualization";
-import { brandFetch } from '@/lib/api';
+import { brandFetch, getCurrentUser } from '@/lib/api';
 import { useEngineEvents } from '@/lib/useEngineEvents';
 import { useDashboardData } from '@/lib/DashboardDataContext';
 import UsageBar from '@/components/billing/UsageBar';
@@ -84,6 +84,7 @@ const CATEGORY_LABEL: Record<string, string> = {
 export default function DashboardPage() {
   const { bootstrap, bootstrapLoading, bootstrapError, billing, refreshBootstrap, refreshStats } = useDashboardData();
   const [performanceError, setPerformanceError] = useState(false);
+  const [firstName, setFirstName] = useState('');
   const [insights, setInsights] = useState<CalendarInsightsData | null>(null);
   const [performance, setPerformance] = useState<PerformanceSummary | LockedPerformanceSummary | null>(null);
 
@@ -97,6 +98,10 @@ export default function DashboardPage() {
   const connectedAccounts = bootstrap?.accounts.socialAccounts ?? [];
   const googleDriveConnected = bootstrap?.accounts.googleDrive?.status === 'CONNECTED';
   const bootstrapReady = Boolean(bootstrap);
+
+  useEffect(() => {
+    setFirstName(getCurrentUser()?.name.split(/\s+/)[0] || '');
+  }, []);
 
   useEffect(() => {
     if (!bootstrapReady) return;
@@ -138,7 +143,7 @@ export default function DashboardPage() {
       variants={containerVariants}
       initial={false}
       animate="show"
-      className="oy-product-dashboard space-y-8 max-w-7xl mx-auto pb-24 sm:pb-12"
+      className="oy-product-dashboard space-y-6 max-w-7xl mx-auto pb-24 sm:pb-12"
       aria-busy={bootstrapLoading}
     >
       {bootstrapError && (
@@ -149,14 +154,14 @@ export default function DashboardPage() {
           <button className="btn-primary-gradient touch-target px-5" onClick={() => void refreshBootstrap()}>Try again</button>
         </div>
       )}
-      <div className="relative overflow-hidden rounded-[28px]">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-1 py-6 sm:py-8">
+      <div>
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 py-2">
           <div>
             <h1
               className="text-3xl sm:text-4xl font-bold tracking-tight"
               style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-heading)', letterSpacing: '-0.02em' }}
             >
-              {greeting}. Here is your workspace.
+              {greeting}{firstName ? `, ${firstName}` : ''}.
             </h1>
             <p className="text-body-sm mt-2" style={{ color: 'var(--text-secondary)' }}>
               {bootstrapLoading ? 'Loading your latest publishing status…' : pendingCount > 0 ? `${pendingCount} posts need your review.` : scheduledCount > 0 ? `${scheduledCount} posts are scheduled.` : 'Add your content to get started.'}
@@ -186,7 +191,7 @@ export default function DashboardPage() {
           <p className="text-body-sm mt-2" style={{ color: 'var(--text-secondary)' }}>{pendingCount > 0 ? 'Check the prepared captions and timing before approving.' : scheduledCount > 0 ? 'Review upcoming posts and make changes to the schedule.' : mediaCount === 0 ? 'Upload a photo or video to begin preparing content.' : 'Choose content from your library and prepare it for review.'}</p>
         </div>
         <Link className="btn-primary-gradient touch-target px-5 py-3 shrink-0" href={pendingCount > 0 ? '/dashboard/approval-queue' : scheduledCount > 0 ? '/dashboard/calendar' : '/dashboard/media'}>
-          {pendingCount > 0 ? 'Review posts' : scheduledCount > 0 ? 'View calendar' : mediaCount === 0 ? 'Upload content' : 'Open library'}
+          {pendingCount > 0 ? 'Review posts' : scheduledCount > 0 ? 'View calendar' : mediaCount === 0 ? 'Upload content' : 'Create content'}
         </Link>
       </section>
 
@@ -195,9 +200,9 @@ export default function DashboardPage() {
           published, media), presented as the manager's status report rather
           than an analytics widget. */}
       <div className="flex items-center justify-between px-1">
-        <h2 className="text-h3" style={{ color: 'var(--text-primary)' }}>Today&rsquo;s Briefing</h2>
+        <h2 className="text-h3" style={{ color: 'var(--text-primary)' }}>Today&rsquo;s briefing</h2>
       </div>
-      <div className="glass-shell p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <StatCard
           icon={<Clock className="h-4 w-4 text-amber-400" />}
           label="Approval Queue"
@@ -345,10 +350,6 @@ export default function DashboardPage() {
                   AI-prepared posts waiting for your review.
                 </p>
               </div>
-              <Link href="/dashboard/approval-queue" className="link-neutral text-body-sm font-semibold flex items-center gap-1 hover:underline shrink-0">
-                <span>View Queue</span>
-                <ArrowUpRight className="h-3.5 w-3.5" />
-              </Link>
             </div>
 
             {pendingCount === 0 ? (
@@ -362,14 +363,11 @@ export default function DashboardPage() {
             ) : (
               <div className="space-y-2.5">
                 {pendingPosts.slice(0, 3).map((post) => (
-                  <div key={post.id} className="surface-tile p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div key={post.id} className="surface-tile p-4">
                     <div className="space-y-1.5 max-w-xl">
                       <Badge variant="purple">{post.targets?.[0]?.platform || 'TIKTOK'}</Badge>
                       <p className="text-body-sm line-clamp-2 font-medium" style={{ color: 'var(--text-primary)' }}>{post.caption}</p>
                     </div>
-                    <Link href="/dashboard/approval-queue" className="btn-emerald-cta px-4 py-2 rounded-[var(--radius-md)] text-xs font-bold touch-target shrink-0 text-center">
-                      Review Post
-                    </Link>
                   </div>
                 ))}
               </div>

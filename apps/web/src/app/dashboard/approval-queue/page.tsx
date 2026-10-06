@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import PendingRepliesList from './PendingRepliesList';
 import SectionHeader from '@/components/ui/SectionHeader';
-import Badge from '@/components/ui/Badge';
 import EmptyState from '@/components/ui/EmptyState';
 import { Reveal } from '@/components/ui/Reveal';
 import { apiFetch, brandFetch } from '@/lib/api';
@@ -12,7 +11,6 @@ import { INSTAGRAM_ENABLED } from '@/lib/featureFlags';
 import {
   CheckCircle2,
   XCircle,
-  Clock,
   Instagram,
   Video,
   Gem,
@@ -313,18 +311,8 @@ export default function ApprovalQueuePage() {
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
       <SectionHeader
-        title="Ready for your review"
-        subtitle="I've prepared these TikToks for you. Review, edit, or approve them below."
-        action={
-          <div className="flex items-center space-x-2">
-            <Badge variant="success">
-              <span className="flex items-center space-x-1">
-                <Clock className="h-3 w-3 text-emerald-400" />
-                <span>{posts.length} Pending Review</span>
-              </span>
-            </Badge>
-          </div>
-        }
+        title="Approval queue"
+        subtitle="Review prepared posts before they move to publishing."
       />
 
       {message && (
@@ -339,10 +327,10 @@ export default function ApprovalQueuePage() {
         <button
           aria-pressed={activeTab === 'posts'}
           onClick={() => setActiveTab('posts')}
-          className="px-4 py-2 rounded-[var(--radius-md)] text-xs font-bold transition-all duration-200 flex items-center space-x-2 touch-target"
+          className="px-3 border-b-2 text-xs font-semibold transition-colors flex items-center space-x-2 touch-target"
           style={activeTab === 'posts'
-            ? { backgroundColor: 'var(--accent-warning-subtle)', color: 'var(--accent-warning)', border: '1px solid var(--accent-warning)' }
-            : { color: 'var(--text-muted)', border: '1px solid transparent' }}
+            ? { color: 'var(--text-primary)', borderColor: 'var(--action-secondary)' }
+            : { color: 'var(--text-muted)', borderColor: 'transparent' }}
         >
           <Send className="h-3.5 w-3.5" />
           <span>Pending Posts ({posts.length})</span>
@@ -351,10 +339,10 @@ export default function ApprovalQueuePage() {
         <button
           aria-pressed={activeTab === 'replies'}
           onClick={() => setActiveTab('replies')}
-          className="px-4 py-2 rounded-[var(--radius-md)] text-xs font-bold transition-all duration-200 flex items-center space-x-2 touch-target"
+          className="px-3 border-b-2 text-xs font-semibold transition-colors flex items-center space-x-2 touch-target"
           style={activeTab === 'replies'
-            ? { backgroundColor: 'var(--accent-warning-subtle)', color: 'var(--accent-warning)', border: '1px solid var(--accent-warning)' }
-            : { color: 'var(--text-muted)', border: '1px solid transparent' }}
+            ? { color: 'var(--text-primary)', borderColor: 'var(--action-secondary)' }
+            : { color: 'var(--text-muted)', borderColor: 'transparent' }}
         >
           <Gem className="h-3.5 w-3.5" />
           <span>AI Comment Replies</span>
@@ -392,7 +380,7 @@ export default function ApprovalQueuePage() {
                 <Reveal
                   key={post.id}
                   y={16}
-                  className="exec-card exec-card-interactive p-5 space-y-4"
+                  className="exec-card p-5 space-y-4"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2.5">
@@ -418,15 +406,6 @@ export default function ApprovalQueuePage() {
                           <Edit3 className="h-3.5 w-3.5 text-amber-400" />
                         </button>
                       )}
-                      <button
-                        onClick={() => handleReject(post.id)}
-                        disabled={isBusy}
-                        className="p-1.5 rounded-lg border text-xs font-semibold transition hover:border-red-400 disabled:opacity-50"
-                        style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-secondary)' }}
-                        title="Reject Post"
-                      >
-                        {isBusy && busyAction === 'reject' ? <Loader2 className="h-3.5 w-3.5 animate-spin text-red-400" /> : <Trash2 className="h-3.5 w-3.5 text-red-400" />}
-                      </button>
                     </div>
                   </div>
 
@@ -617,7 +596,7 @@ export default function ApprovalQueuePage() {
                       <button
                         onClick={() => handleReject(post.id)}
                         disabled={isBusy}
-                        className="px-4 py-2 rounded-[var(--radius-md)] text-xs font-bold border transition flex items-center space-x-1.5 disabled:opacity-50"
+                        className="touch-target px-4 rounded-[var(--radius-md)] text-xs font-semibold border transition flex items-center space-x-1.5 disabled:opacity-50"
                         style={{ color: 'var(--accent-error)', borderColor: 'var(--accent-error)', backgroundColor: 'var(--accent-error-subtle)' }}
                       >
                         <XCircle className="h-3.5 w-3.5" />
@@ -627,7 +606,7 @@ export default function ApprovalQueuePage() {
                       <button
                         onClick={() => handleApprove(post.id)}
                         disabled={isBusy}
-                        className="px-5 py-2 rounded-[var(--radius-md)] text-xs font-bold text-white transition flex items-center space-x-1.5 shadow-md btn-emerald-cta disabled:opacity-50"
+                        className="touch-target px-5 rounded-[var(--radius-md)] text-xs font-semibold text-white transition flex items-center space-x-1.5 btn-emerald-cta disabled:opacity-50"
                       >
                         {isBusy && busyAction === 'approve' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
                         <span>Approve &amp; Continue</span>

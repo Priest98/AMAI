@@ -137,7 +137,7 @@ export default function AmaiEnginePage() {
       await brandFetch('/engine/approval-mode', { method: 'PATCH', body: JSON.stringify({ approvalMode: mode }) });
       setConfig({ ...config, approvalMode: mode });
       setShowAutoConfirm(false);
-      showToast(mode === 'AUTO' ? 'Autopilot enabled.' : 'Assisted mode enabled.');
+      showToast(mode === 'AUTO' ? 'Autopilot enabled.' : 'Assistant mode enabled.');
     } catch (e: any) {
       showToast(e.message || 'Could not update approval mode.');
       setConfig((c) => (c ? { ...c, approvalMode: previous } : c)); // revert the optimistic flip -- e.g. a Free plan 403
@@ -210,14 +210,14 @@ export default function AmaiEnginePage() {
       <div>
         <h1 className="text-h1" style={{ color: 'var(--text-primary)' }}>Oyinca Autopilot</h1>
         <p className="text-body-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-          The brain of your workspace. It watches for new content and runs your publishing workflow automatically.
+          Control how Oyinca prepares, reviews and publishes your content.
         </p>
       </div>
 
       {/* Live pipeline + subsystem health. Placed directly under the
           heading because "is Oyinca working right now" is the first question
           this page exists to answer. */}
-      <p className="text-sm" role="status">{saving ? 'Saving settings…' : config.approvalMode === 'AUTO' ? 'Automatic approval is enabled. Switch to Assisted mode to review new posts first.' : 'Assisted mode: prepared posts wait for your approval.'}</p>
+      {saving && <p className="text-body-sm" role="status">Saving settings…</p>}
       {!billing && <p role="status" className="text-sm">Plan details are unavailable. Reload to verify access before enabling Autopilot.</p>}
       <ControlCenter />
 
@@ -246,14 +246,15 @@ export default function AmaiEnginePage() {
       <div className="exec-card p-5 sm:p-6 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div
-            className="h-10 w-10 rounded-2xl flex items-center justify-center shrink-0"
+            className="h-10 w-10 rounded-[var(--radius-md)] flex items-center justify-center shrink-0"
             style={{ backgroundColor: isActive ? 'rgba(0,230,118,0.12)' : 'rgba(255,255,255,0.06)' }}
           >
             {isActive ? <Zap className="h-5 w-5 text-emerald-400" /> : <Pause className="h-5 w-5 text-slate-400" />}
           </div>
-          <h2 className="text-base font-extrabold tracking-tight" style={{ color: 'var(--text-primary)' }}>
-            {isActive ? 'Oyinca Active' : 'Oyinca Paused'}
-          </h2>
+          <div>
+            <p className="text-caption">Workflow status</p>
+            <h2 className="text-h3" style={{ color: 'var(--text-primary)' }}>{isActive ? 'Active' : 'Paused'}</h2>
+          </div>
         </div>
 
         <GlassmorphicToggle
@@ -268,7 +269,7 @@ export default function AmaiEnginePage() {
           is implied anywhere here. ── */}
       <div data-tour="tour-engine-mode" className="exec-card p-5 sm:p-6 space-y-4">
         <div>
-          <h3 className="text-sm font-extrabold tracking-tight" style={{ color: 'var(--text-primary)' }}>Oyinca Autopilot</h3>
+          <h3 className="text-h3" style={{ color: 'var(--text-primary)' }}>Publishing mode</h3>
           <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
             Decide whether every prepared post needs your review, or publishes automatically.
           </p>
@@ -285,8 +286,8 @@ export default function AmaiEnginePage() {
             style={{ backgroundColor: config?.approvalMode === 'MANUAL' ? undefined : 'var(--bg-surface-raised)', borderColor: config?.approvalMode === 'MANUAL' ? undefined : 'var(--card-border)' }}
           >
             <div className="flex items-center justify-between gap-2 mb-2">
-              <span className="text-xs font-extrabold leading-snug" style={{ color: 'var(--text-primary)' }}>Assisted (Default)</span>
-              {config?.approvalMode === 'MANUAL' && <span className="h-2 w-2 rounded-full bg-emerald-400 shrink-0" />}
+              <span className="text-sm font-semibold leading-snug" style={{ color: 'var(--text-primary)' }}>Assistant mode</span>
+              {config?.approvalMode === 'MANUAL' && <CheckCircle2 className="h-4 w-4 shrink-0" style={{ color: 'var(--accent-success)' }} />}
             </div>
             <p className="text-[11px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
               I prepare your content. You approve it before publishing.
@@ -303,7 +304,7 @@ export default function AmaiEnginePage() {
             style={{ backgroundColor: config?.approvalMode === 'AUTO' ? undefined : 'var(--bg-surface-raised)', borderColor: config?.approvalMode === 'AUTO' ? undefined : 'var(--card-border)' }}
           >
             <div className="flex items-center justify-between gap-2 mb-2">
-              <span className="text-xs font-extrabold leading-snug" style={{ color: 'var(--text-primary)' }}>Autopilot</span>
+              <span className="text-sm font-semibold leading-snug" style={{ color: 'var(--text-primary)' }}>Autopilot</span>
               {autopilotLocked ? (
                 <span
                   className="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider"
@@ -313,7 +314,7 @@ export default function AmaiEnginePage() {
                   Pro
                 </span>
               ) : (
-                config?.approvalMode === 'AUTO' && <span className="h-2 w-2 rounded-full bg-amber-400 shrink-0" />
+                config?.approvalMode === 'AUTO' && <CheckCircle2 className="h-4 w-4 shrink-0" style={{ color: 'var(--accent-warning)' }} />
               )}
             </div>
             <p className="text-[11px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
@@ -326,7 +327,7 @@ export default function AmaiEnginePage() {
 
         {autopilotLocked && (
           <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-            Your Free plan is limited to Assisted mode.{' '}
+            Your Free plan uses Assistant mode.{' '}
             <Link href="/dashboard/settings?tab=billing" className="underline font-semibold">Upgrade to Pro</Link>{' '}
             to let Oyinca publish automatically.
           </p>
@@ -514,7 +515,7 @@ export default function AmaiEnginePage() {
       </div>
 
       <Modal open={showAutoConfirm} onClose={() => { if (!saving) setShowAutoConfirm(false); }} title="Enable Autopilot?">
-        <p className="text-body-sm mb-4">New posts will publish automatically according to your schedule, without a review step. You can switch back to Assisted mode anytime.</p>
+        <p className="text-body-sm mb-4">New posts will publish automatically according to your schedule, without a review step. You can switch back to Assistant mode anytime.</p>
         <p className="text-sm mb-4">Schedule: {config.postsPerDay} posts per day · {config.timeZone} · {config.schedulingPlatform}</p>
         {message && <p role="status" className="text-sm mb-4">{message}</p>}
         <div className="flex flex-wrap justify-end gap-3">

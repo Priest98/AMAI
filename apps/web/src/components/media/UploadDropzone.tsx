@@ -384,14 +384,15 @@ export default function UploadDropzone({ onUploaded, mode = 'single', onCarousel
         onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
         onDragLeave={() => setIsDragging(false)}
         onDrop={handleDrop}
-        className={`rounded-xl border-2 border-dashed p-6 sm:p-8 text-center transition-all duration-200 ${
+        className={`rounded-[var(--radius-lg)] border border-dashed p-6 text-center transition-colors duration-200 ${
           isDragging
             ? "border-blue-500 bg-blue-500/5 dark:bg-blue-500/10"
-            : "border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-zinc-950/40 hover:border-slate-300 dark:hover:border-white/20"
+            : "hover:border-slate-400 dark:hover:border-white/20"
         }`}
+        style={!isDragging ? { backgroundColor: 'var(--surface-recessed)', borderColor: 'var(--border-interactive)' } : undefined}
       >
-        <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center mx-auto mb-3">
-          <UploadCloud className="h-5 w-5 sm:h-6 sm:w-6" />
+        <div className="h-10 w-10 rounded-[var(--radius-md)] flex items-center justify-center mx-auto mb-3" style={{ backgroundColor: 'var(--accent-secondary-subtle)', color: 'var(--accent-secondary)' }}>
+          <UploadCloud className="h-5 w-5" />
         </div>
 
         <p className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white mb-1">
@@ -405,7 +406,7 @@ export default function UploadDropzone({ onUploaded, mode = 'single', onCarousel
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="px-4 py-2 rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white shadow-md transition flex items-center space-x-1.5 touch-target btn-emerald-cta"
+            className="px-4 rounded-[var(--radius-md)] text-xs font-semibold transition flex items-center space-x-1.5 touch-target btn-primary-gradient"
           >
             <FileUp className="h-3.5 w-3.5" />
             <span>Choose Files</span>
@@ -414,7 +415,7 @@ export default function UploadDropzone({ onUploaded, mode = 'single', onCarousel
           <button
             type="button"
             onClick={() => folderInputRef.current?.click()}
-            className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-200/60 dark:bg-white/10 hover:bg-slate-300 dark:hover:bg-white/20 text-slate-700 dark:text-zinc-200 transition flex items-center space-x-1.5 touch-target btn-gold-cta"
+            className="px-4 rounded-[var(--radius-md)] text-xs font-semibold transition flex items-center space-x-1.5 touch-target btn-secondary"
           >
             <FolderUp className="h-3.5 w-3.5" />
             <span>Choose Folder</span>

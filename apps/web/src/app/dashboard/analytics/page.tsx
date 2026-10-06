@@ -75,21 +75,24 @@ export default function AnalyticsPage() {
       <section className="border-y py-5 space-y-3" style={{ borderColor: 'var(--card-border)' }}>
         <h2 className="text-h3">{counts.failed > 0 ? 'Some posts need attention' : counts.pending > 0 ? 'Your next step is review' : counts.scheduled > 0 ? 'Your publishing plan is moving' : 'Build your publishing history'}</h2>
         <p className="text-body-sm">{counts.failed > 0 ? `${counts.failed} posts failed. Review their status before retrying.` : counts.pending > 0 ? `${counts.pending} posts are waiting for approval.` : counts.scheduled > 0 ? `${counts.scheduled} posts are scheduled. Check the calendar for timing.` : 'Upload content to start preparing your next posts.'}</p>
-        <Link className="touch-target underline font-semibold" href={counts.failed > 0 ? '/dashboard/calendar' : counts.pending > 0 ? '/dashboard/approval-queue' : counts.scheduled > 0 ? '/dashboard/calendar' : '/dashboard/media'}>{counts.failed > 0 ? 'Review calendar' : counts.pending > 0 ? 'Review posts' : counts.scheduled > 0 ? 'View calendar' : 'Upload content'}</Link>
+        <Link className="touch-target inline-flex underline font-semibold" href={counts.failed > 0 ? '/dashboard/calendar' : counts.pending > 0 ? '/dashboard/approval-queue' : counts.scheduled > 0 ? '/dashboard/calendar' : '/dashboard/media'}>{counts.failed > 0 ? 'Review calendar' : counts.pending > 0 ? 'Review posts' : counts.scheduled > 0 ? 'View calendar' : 'Upload content'}</Link>
         <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>These totals describe publishing activity, not audience reach or engagement.</p>
       </section>
 
-      <Reveal className="glass-shell p-4 sm:p-5 grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard icon={<Clock className="h-4 w-4" style={{ color: 'var(--accent-warning)' }} />} label="Awaiting Approval" value={String(counts.pending)} helperText="In the queue" />
-        <StatCard icon={<CalendarClock className="h-4 w-4" style={{ color: 'var(--accent-secondary)' }} />} label="Scheduled" value={String(counts.scheduled)} helperText="Queued to publish" />
-        <StatCard icon={<CheckCircle2 className="h-4 w-4" style={{ color: 'var(--accent-success)' }} />} label="Published" value={String(counts.published)} helperText="Live posts" />
-        <StatCard icon={<XCircle className="h-4 w-4" style={{ color: 'var(--accent-error)' }} />} label="Failed" value={String(counts.failed)} helperText="Needs attention" />
-      </Reveal>
+      <section aria-labelledby="publishing-summary-title" className="space-y-3">
+        <h2 id="publishing-summary-title" className="text-h3">Publishing summary</h2>
+        <Reveal className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <StatCard icon={<Clock className="h-4 w-4" style={{ color: 'var(--accent-warning)' }} />} label="Awaiting Approval" value={String(counts.pending)} helperText="In the queue" />
+          <StatCard icon={<CalendarClock className="h-4 w-4" style={{ color: 'var(--accent-secondary)' }} />} label="Scheduled" value={String(counts.scheduled)} helperText="Queued to publish" />
+          <StatCard icon={<CheckCircle2 className="h-4 w-4" style={{ color: 'var(--accent-success)' }} />} label="Published" value={String(counts.published)} helperText="Live posts" />
+          <StatCard icon={<XCircle className="h-4 w-4" style={{ color: 'var(--accent-error)' }} />} label="Failed" value={String(counts.failed)} helperText="Needs attention" />
+        </Reveal>
+      </section>
 
       <Reveal delay={0.1} className="exec-card overflow-hidden">
         <div className="p-5 border-b flex items-center space-x-2" style={{ borderColor: 'var(--card-border)' }}>
           <Activity className="h-4 w-4" style={{ color: 'var(--accent-success)' }} />
-          <h2 className="text-h3" style={{ color: 'var(--text-primary)' }}>Oyinca Activity Log</h2>
+          <h2 className="text-h3" style={{ color: 'var(--text-primary)' }}>Activity log</h2>
         </div>
 
         {activityLoading ? (
@@ -101,8 +104,20 @@ export default function AnalyticsPage() {
             description="Upload media in the Media Library and every step Oyinca takes will show up here."
           />
         ) : (
-          <div className="overflow-x-auto max-h-[32rem]">
-            <table className="w-full text-sm text-left">
+          <>
+            <div className="sm:hidden divide-y" style={{ borderColor: 'var(--border-subtle)' }}>
+              {logs.map((log) => (
+                <article key={log.id} className="p-4 space-y-1.5">
+                  <div className="flex items-start justify-between gap-3">
+                    <h3 className="text-body-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{EVENT_LABEL[log.type] || log.type}</h3>
+                    <time className="text-caption shrink-0" dateTime={log.createdAt}>{new Date(log.createdAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</time>
+                  </div>
+                  <p className="text-body-sm" style={{ color: 'var(--text-secondary)' }}>{log.message}</p>
+                </article>
+              ))}
+            </div>
+            <div className="hidden sm:block overflow-x-auto max-h-[32rem]">
+              <table className="w-full text-sm text-left">
               <thead className="text-overline sticky top-0" style={{ backgroundColor: 'var(--bg-surface-sunken)', color: 'var(--text-muted)' }}>
                 <tr>
                   <th scope="col" className="px-6 py-3 font-medium">Time</th>
@@ -119,8 +134,9 @@ export default function AnalyticsPage() {
                   </tr>
                 ))}
               </tbody>
-            </table>
-          </div>
+              </table>
+            </div>
+          </>
         )}
       </Reveal>
     </div>

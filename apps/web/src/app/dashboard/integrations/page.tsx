@@ -1,7 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { IntegrationsBlock } from '@/components/integrations-3';
 import { InstagramLogo, TikTokLogo } from '@/components/icons/platform-logos';
 import SectionHeader from '@/components/ui/SectionHeader';
 import {
@@ -287,15 +286,12 @@ export default function ConnectedAccountsPage() {
   if (loading || loadError) return <section className="p-6 space-y-4" aria-busy={loading}><h1 className="text-h1">Connected accounts</h1><p role={loadError ? 'alert' : 'status'}>{loadError ? 'Account status could not be checked. Your connections have not been changed.' : 'Checking your connected accounts…'}</p>{loadError && <button className="btn-secondary touch-target px-4" onClick={fetchAccounts}>Retry connections</button>}</section>;
 
   return (
-    <div className="space-y-6 sm:space-y-8 max-w-7xl mx-auto">
+    <div className="space-y-6 max-w-5xl mx-auto">
       {/* Header */}
       <SectionHeader
-        title="TikTok Connection"
+        title="Accounts"
         subtitle={showInstagramCard ? 'Tap any platform icon below to authorize and link your accounts instantly.' : 'Connect your TikTok account to let Oyinca schedule and publish for you.'}
       />
-
-      {/* Top Banner Block */}
-      <IntegrationsBlock />
 
       {/* Toast Alert */}
       <AnimatePresence>
@@ -318,25 +314,19 @@ export default function ConnectedAccountsPage() {
       </AnimatePresence>
 
       {/* ── Core Platform Cards Grid ── */}
-      <div className={`grid grid-cols-1 gap-5 sm:gap-6 ${showInstagramCard ? 'sm:grid-cols-2 max-w-3xl' : 'max-w-sm'}`}>
+      <div className={`grid grid-cols-1 gap-5 ${showInstagramCard ? 'sm:grid-cols-2' : 'max-w-2xl'}`}>
 
         {/* 1. Instagram Card -- hidden for V1's TikTok-first launch unless
             an account is already connected (see showInstagramCard above) */}
         {showInstagramCard && (
         <motion.div
-          whileHover={{ y: -4 }}
-          onClick={() => {
-            if (!isInstagramConnected) {
-              handleConnect('instagram');
-            }
-          }}
-          className="exec-card p-6 rounded-xl flex flex-col justify-between space-y-6 relative overflow-hidden cursor-pointer transition-all"
+          className="exec-card card-pad flex flex-col justify-between space-y-6 relative"
         >
           <div className="space-y-5">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3.5">
-                <div className="h-12 w-12 rounded-xl border flex items-center justify-center p-2.5 shadow-sm flex-shrink-0" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
-                  <InstagramLogo className="h-7 w-7" />
+                <div className="h-10 w-10 rounded-[var(--radius-md)] border flex items-center justify-center p-2 flex-shrink-0" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
+                  <InstagramLogo className="h-5 w-5" />
                 </div>
                 <div>
                   <h3 className="font-extrabold text-base tracking-tight" style={{ color: 'var(--text-primary)' }}>Instagram</h3>
@@ -351,10 +341,12 @@ export default function ConnectedAccountsPage() {
                       e.stopPropagation();
                       setActiveMenu(activeMenu === 'instagram' ? null : 'instagram');
                     }}
-                    className="h-9 w-9 rounded-lg border flex items-center justify-center transition touch-target"
+                    aria-label="Manage Instagram account"
+                    className="min-h-10 px-3 rounded-[var(--radius-md)] border flex items-center gap-2 transition touch-target"
                     style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-primary)' }}
                   >
                     <MoreVertical className="h-4 w-4" />
+                    <span className="text-xs font-semibold">Manage</span>
                   </button>
 
                   <AnimatePresence>
@@ -438,19 +430,13 @@ export default function ConnectedAccountsPage() {
 
         {/* 2. TikTok Card */}
         <motion.div
-          whileHover={{ y: -4 }}
-          onClick={() => {
-            if (!isTikTokConnected) {
-              handleConnect('tiktok');
-            }
-          }}
-          className="exec-card p-6 rounded-xl flex flex-col justify-between space-y-6 relative overflow-hidden cursor-pointer transition-all"
+          className="exec-card card-pad flex flex-col justify-between space-y-6 relative"
         >
           <div className="space-y-5">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3.5">
-                <div className="h-12 w-12 rounded-xl border flex items-center justify-center p-2.5 shadow-sm flex-shrink-0" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
-                  <TikTokLogo className="h-7 w-7" />
+                <div className="h-10 w-10 rounded-[var(--radius-md)] border flex items-center justify-center p-2 flex-shrink-0" style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)' }}>
+                  <TikTokLogo className="h-5 w-5" />
                 </div>
                 <div>
                   <h3 className="font-extrabold text-base tracking-tight" style={{ color: 'var(--text-primary)' }}>TikTok</h3>
@@ -465,10 +451,12 @@ export default function ConnectedAccountsPage() {
                       e.stopPropagation();
                       setActiveMenu(activeMenu === 'tiktok' ? null : 'tiktok');
                     }}
-                    className="h-9 w-9 rounded-lg border flex items-center justify-center transition touch-target"
+                    aria-label="Manage TikTok account"
+                    className="min-h-10 px-3 rounded-[var(--radius-md)] border flex items-center gap-2 transition touch-target"
                     style={{ backgroundColor: 'var(--bg-surface-raised)', borderColor: 'var(--card-border)', color: 'var(--text-primary)' }}
                   >
                     <MoreVertical className="h-4 w-4" />
+                    <span className="text-xs font-semibold">Manage</span>
                   </button>
 
                   <AnimatePresence>

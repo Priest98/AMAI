@@ -523,9 +523,9 @@ export default function MediaLibraryPage() {
       </Suspense>
 
       {/* Upload Dropzone Component */}
-      <div data-tour="tour-upload-dropzone" className="exec-card p-5 sm:p-6 space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-h3" style={{ color: 'var(--text-primary)' }}>Upload New Media</h2>
+      <div data-tour="tour-upload-dropzone" className="exec-card card-pad space-y-4 max-w-4xl mx-auto">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <h2 className="text-h3" style={{ color: 'var(--text-primary)' }}>Upload media</h2>
 
           {/* Explicit Single Image / Carousel choice, per-upload -- this is
               the one place Oyinca decides "1 image = 1 post" vs "up to 5
@@ -556,11 +556,11 @@ export default function MediaLibraryPage() {
         </div>
 
         {composerMode === 'single' ? (
-          <p className="text-sm -mt-2" style={{ color: 'var(--text-secondary)' }}>
+          <p className="text-body-sm" style={{ color: 'var(--text-secondary)' }}>
             Each photo or video becomes its own post, with its own caption and hashtags.
           </p>
         ) : (
-          <p className="text-sm -mt-2" style={{ color: 'var(--text-secondary)' }}>
+          <p className="text-body-sm" style={{ color: 'var(--text-secondary)' }}>
             Upload 2–5 photos and/or videos, in any mix and order (or select from the library below) to combine into ONE post with one caption and one hashtag set.
           </p>
         )}

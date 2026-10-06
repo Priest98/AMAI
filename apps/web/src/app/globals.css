@@ -227,7 +227,7 @@ input, select, textarea {
   color: var(--text-muted);
 }
 .text-numeric {
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-feature-settings: "tnum";
   font-variant-numeric: tabular-nums;
 }
@@ -256,9 +256,10 @@ input, select, textarea {
 }
 
 /* Calm product workspace informed by the editorial landing palette. */
-.oy-product-dashboard,.oy-engine-console{--oy-product-ink:#102b3d;--oy-product-gold:#ad875b}.light .oy-product-dashboard .exec-card,.light .oy-engine-console .exec-card,.light .oy-product-dashboard .glass-panel{background:#fffdf9;border-color:rgba(16,43,61,.12);box-shadow:0 18px 45px rgba(71,58,41,.06)}
-.oy-product-dashboard>div:first-child h1,.oy-engine-console>div:first-child h1{font-family:var(--font-display-var),Georgia,serif!important;font-weight:400!important;letter-spacing:-.045em!important}.light .oy-product-dashboard>div:first-child h1,.light .oy-engine-console>div:first-child h1{color:var(--oy-product-ink)!important}
-.oy-product-dashboard .btn-primary-gradient,.oy-engine-console .btn-primary-gradient{background:#102f43!important;color:#fff!important;border-radius:999px!important;box-shadow:0 10px 24px rgba(16,47,67,.15)!important}.oy-product-dashboard .exec-card,.oy-engine-console .exec-card{border-radius:22px}.oy-engine-console .exec-card button{border-radius:14px}.oy-engine-console select,.oy-engine-console input{min-height:44px}
+.oy-product-dashboard,.oy-engine-console{--oy-product-ink:#102b3d;--oy-product-gold:#ad875b}
+.light .oy-product-dashboard .exec-card,.light .oy-engine-console .exec-card{background:var(--surface-panel);border-color:var(--border-subtle)}
+.oy-product-dashboard .exec-card,.oy-engine-console .exec-card{border-radius:var(--radius-lg)}
+.oy-engine-console select,.oy-engine-console input{min-height:44px}
 
 /* Blur is a deliberate acquisition/overlay treatment, never the default
    dashboard container. This keeps dense working views crisp and cheaper to
@@ -272,15 +273,12 @@ input, select, textarea {
   box-shadow: var(--elevation-3), inset 0 1px 0 0 var(--glass-highlight);
 }
 
-/* Dark "shell" panel that groups a cluster of tiles/charts, echoing the
-   layered card-within-panel composition from the dashboard reference --
-   a slightly sunken, glassy container that gives the tiles inside it a
-   sense of depth without introducing a second accent color. */
+/* Reserved grouped surface for charts or compact tile collections. */
 .glass-shell {
-  background: linear-gradient(165deg, var(--bg-surface-sunken) 0%, var(--bg-surface) 100%);
+  background: var(--surface-panel);
   border: 1px solid var(--card-border);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--elevation-3), inset 0 1px 0 0 var(--glass-highlight);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elevation-1);
 }
 
 .glass-panel {
@@ -292,37 +290,31 @@ input, select, textarea {
 }
 
 /* ================================= Buttons =================================== */
-/* Primary stays a solid glossy gradient capsule -- the one button on the
-   page that should read as unmistakably "press this" -- with a soft glow
-   that intensifies on hover/press rather than a flat color swap. */
+/* Primary actions are solid and quiet: hierarchy comes from contrast, not glow. */
 .btn-primary-gradient {
-  background: var(--gradient-primary-cta);
+  background: var(--action-primary);
   color: #FFFFFF;
   border-radius: var(--radius-md);
   font-weight: 600;
-  box-shadow: 0 4px 14px -2px var(--glass-glow), inset 0 1px 0 0 rgba(255, 255, 255, 0.28);
-  border: 1px solid rgba(74, 127, 167, 0.35);
-  transition: opacity var(--duration-fast) var(--ease-standard), transform var(--duration-fast) var(--ease-standard), box-shadow var(--duration-base) var(--ease-standard);
+  box-shadow: none;
+  border: 1px solid var(--action-primary);
+  transition: opacity var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard);
 }
-.btn-primary-gradient:hover { opacity: 0.96; box-shadow: 0 8px 26px -4px var(--glass-glow), inset 0 1px 0 0 rgba(255, 255, 255, 0.32); transform: translateY(-1px); }
-.btn-primary-gradient:active { transform: scale(0.98) translateY(0); }
+.btn-primary-gradient:hover { opacity: 0.9; box-shadow: none; }
+.btn-primary-gradient:active { opacity: 0.82; }
 .btn-primary-gradient:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
 
-/* Secondary is the actual "glass" button -- translucent, blurred, thin
-   border -- so pressing it visually reads as one step down from primary. */
+/* Secondary actions use the panel surface and a clear boundary. */
 .btn-secondary {
-  background-color: var(--glass-card-bg);
+  background-color: var(--surface-panel);
   color: var(--text-primary);
   border: 1px solid var(--glass-card-border);
   border-radius: var(--radius-md);
   font-weight: 600;
-  backdrop-filter: blur(var(--glass-blur-sm)) saturate(150%);
-  -webkit-backdrop-filter: blur(var(--glass-blur-sm)) saturate(150%);
-  box-shadow: inset 0 1px 0 0 var(--glass-highlight);
-  transition: border-color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard), transform var(--duration-fast) var(--ease-standard), box-shadow var(--duration-base) var(--ease-standard);
+  box-shadow: none;
+  transition: border-color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard);
 }
-.btn-secondary:hover { background-color: var(--glass-card-bg-hover); border-color: var(--card-hover-border); box-shadow: 0 0 0 1px var(--glass-glow), inset 0 1px 0 0 var(--glass-highlight); }
-.btn-secondary:active { transform: scale(0.98); }
+.btn-secondary:hover { background-color: var(--surface-interactive-hover); border-color: var(--card-hover-border); box-shadow: none; }
 
 .btn-ghost {
   background-color: transparent;
@@ -431,20 +423,17 @@ input, select, textarea {
   color: var(--text-secondary) !important;
   opacity: 1 !important;
 }
-/* Nested "glass within glass" tile (e.g. a post row inside an exec-card).
-   Deliberately skips its own backdrop-filter -- stacking a second blur
-   pass inside an already-blurred parent is wasted GPU work for a
-   difference nobody would see, so this relies on plain translucency plus
-   the parent's blur to still read as part of the same glass surface. */
+/* Nested tile: one radius step below the parent and no independent elevation. */
 .surface-tile {
-  background-color: var(--glass-card-bg-hover);
+  background-color: var(--surface-recessed);
   color: var(--text-primary);
   border: 1px solid var(--glass-card-border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   transition: border-color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard), box-shadow var(--duration-base) var(--ease-standard);
 }
 .surface-tile:hover {
-  box-shadow: 0 0 0 1px var(--glass-glow);
+  border-color: var(--border-interactive);
+  box-shadow: none;
 }
 .surface-tile .tile-label {
   color: var(--text-secondary);
@@ -454,10 +443,10 @@ input, select, textarea {
 }
 .link-neutral { color: var(--text-secondary); }
 .gradient-cta, .btn-emerald-cta {
-  background: var(--gradient-primary-cta) !important;
+  background: var(--action-primary) !important;
   color: var(--text-on-accent) !important;
   border: 1px solid rgba(74, 127, 167, 0.35) !important;
-  box-shadow: 0 4px 12px -2px var(--glass-glow), inset 0 1px 0 0 rgba(255, 255, 255, 0.25);
+  box-shadow: none;
 }
 .btn-gold-cta {
   background: var(--glass-card-bg) !important;
